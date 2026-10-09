@@ -907,6 +907,81 @@ static void test_symbolic_errors (void)
 	session_free (&s);
 }
 
+/* Is the line a quantity of n of the unit (in SI: 3 km is 3000 m)? */
+static int32_t is_qty (Session *s, const char *text, int64_t n, const char *u)
+{
+	MlValue     v = run (s, text);
+	MlUnitMatch m = ml_unit_find (lit (u));
+	MlRat       want;
+	int32_t     same;
+
+	want = ml_rat_mul (
+		&s->arena,
+		ml_rat_from_i64 (&s->arena, n),
+		ml_unit_factor (&s->arena, m)
+	);
+	same = (
+		   v.kind == ML_VALUE_QUANTITY
+		&& ml_dim_equal (v.dim, m.dim)
+		&& ml_rat_cmp (&s->arena, v.exact, want) == 0
+	);
+
+	if (!same)
+	{
+		printf (
+			"  \"%s\": kind %d error %d, expected %lld %s\n",
+			text,
+			(int32_t)v.kind,
+			(int32_t)v.error,
+			(long long)n,
+			u
+		);
+	}
+
+	return same;
+}
+
+static void test_units (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	CHECK (is_qty (&s, "5 km", 5, "km"));
+	CHECK (is_qty (&s, "5 km + 300 m", 5300, "m"));
+	CHECK (is_qty (&s, "12 N * 3 m", 36, "J"));
+	CHECK (is_qty (&s, "6 km * 2 m / (4 m)", 3, "km"));
+	CHECK (shows (&s, "5 km / (1 km)", "5"));
+
+	/* the conversion keeps the value and checks the dimension */
+	CHECK (is_qty (&s, "3 km to m", 3, "km"));
+	CHECK (is_qty (&s, "1 h to s", 3600, "s"));
+	CHECK (is_qty (&s, "3 N*m to J", 3, "J"));
+	CHECK (fails (&s, "3 km to s", ML_EVAL_DIMENSION_MISMATCH));
+	CHECK (fails (&s, "3 to m", ML_EVAL_DIMENSION_MISMATCH));
+	CHECK (fails (&s, "3 m to 2", ML_EVAL_DIMENSION_MISMATCH));
+	CHECK (fails (&s, "1.5 to m", ML_EVAL_DIMENSION_MISMATCH));
+	CHECK (shows (&s, "3 to 2", "3"));
+
+	/* functions */
+	CHECK (is_qty (&s, "sqrt (4 m^2)", 2, "m"));
+	CHECK (fails (&s, "sqrt (4 m)", ML_EVAL_DIMENSION_MISMATCH));
+	CHECK (fails (&s, "sqrt (2 m^2)", ML_EVAL_NOT_EXACT));
+	CHECK (is_qty (&s, "abs (0 - 3 km)", 3, "km"));
+	CHECK (is_qty (&s, "min (2 km, 1500 m)", 1500, "m"));
+	CHECK (is_qty (&s, "max (2 km, 1500 m)", 2, "km"));
+	CHECK (fails (&s, "min (2 km, 3 s)", ML_EVAL_DIMENSION_MISMATCH));
+	CHECK (fails (&s, "sin (1 m)", ML_EVAL_TYPE));
+
+	/* names: variables and functions come first, constants too */
+	run (&s, "m = 3");
+	CHECK (shows (&s, "m + 1", "4"));
+	CHECK (fails (&s, "furlongs", ML_EVAL_UNDEFINED_NAME));
+	CHECK (shows (&s, "e", "≈ 2.71828183"));
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -925,4 +1000,5 @@ void run_eval_tests (void)
 	test_matrix_errors ();
 	test_symbolic ();
 	test_symbolic_errors ();
+	test_units ();
 }

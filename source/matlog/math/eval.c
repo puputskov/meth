@@ -488,6 +488,133 @@ static MlValue min_max (
 	return r;
 }
 
+/* ---- quantities --------------------------------------------------------- */
+
+/* The square root of a quantity: every dimension exponent even, root exact. */
+static MlValue quantity_sqrt (MlArena *arena, MlValue a)
+{
+	MlValue   r    = error_at (ML_EVAL_DIMENSION_MISMATCH);
+	MlDim     half = ml_dim_none ();
+	int32_t   even = 1;
+	MlRatSqrt root;
+
+	for (int32_t i = 0; i < ML_DIM_COUNT; i++)
+	{
+		even       = even && a.dim.e [i] % 2 == 0;
+		half.e [i] = a.dim.e [i] / 2;
+	}
+
+	if (even)
+	{
+		r = error_at (ML_EVAL_NOT_REAL);
+	}
+
+	if (
+		   even
+		&& ml_rat_cmp (arena, a.exact, ml_rat_from_i64 (arena, 0)) >= 0
+	)
+	{
+		root = ml_rat_sqrt_exact (arena, a.exact);
+		r    = ml_choose (
+			root.exact,
+			ml_value_quantity (root.value, half),
+			error_at (ML_EVAL_NOT_EXACT)
+		);
+	}
+
+	return r;
+}
+
+/* abs, sqrt, min and max of quantities; nothing else makes sense for them. */
+static MlValue quantity_function (
+	MlArena       *arena,
+	MlBuiltin     id,
+	const MlValue *args,
+	uint64_t      argc
+)
+{
+	MlValue r = error_at (ML_EVAL_TYPE);
+
+	if (id == BUILTIN_SQRT && args [0].kind == ML_VALUE_QUANTITY)
+	{
+		r = quantity_sqrt (arena, args [0]);
+	}
+
+	else if (id == BUILTIN_ABS)
+	{
+		r = args [0];
+
+		if (ml_value_cmp (arena, r, ml_value_from_i64 (arena, 0)) < 0)
+		{
+			r = ml_value_neg (arena, r);
+		}
+	}
+
+	else if (id == BUILTIN_MIN || id == BUILTIN_MAX)
+	{
+		int32_t same = 1;
+
+		for (uint64_t i = 0; i < argc; i++)
+		{
+			MlDim di = ml_choose (
+				args [i].kind == ML_VALUE_QUANTITY,
+				args [i].dim,
+				ml_dim_none ()
+			);
+			MlDim d0 = ml_choose (
+				args [0].kind == ML_VALUE_QUANTITY,
+				args [0].dim,
+				ml_dim_none ()
+			);
+
+			same = same && ml_dim_equal (di, d0);
+		}
+
+		r = ml_choose (
+			same,
+			min_max (arena, id, args, argc),
+			error_at (ML_EVAL_DIMENSION_MISMATCH)
+		);
+	}
+
+	return r;
+}
+
+/* a to b: a in the dimension of the unit expression b, or a mismatch. */
+static MlValue convert_value (MlValue a, MlValue b)
+{
+	MlValue r    = error_at (ML_EVAL_TYPE);
+	int32_t ok_a = a.kind == ML_VALUE_EXACT || a.kind == ML_VALUE_QUANTITY;
+	int32_t ok_b = b.kind == ML_VALUE_EXACT || b.kind == ML_VALUE_QUANTITY;
+
+	if (a.kind == ML_VALUE_APPROX || b.kind == ML_VALUE_APPROX)
+	{
+		r = error_at (ML_EVAL_NOT_EXACT);
+	}
+
+	else if (ok_a && ok_b)
+	{
+		MlDim da = ml_choose (
+			a.kind == ML_VALUE_QUANTITY,
+			a.dim,
+			ml_dim_none ()
+		);
+		MlDim db = ml_choose (
+			b.kind == ML_VALUE_QUANTITY,
+			b.dim,
+			ml_dim_none ()
+		);
+
+		r = ml_choose (
+			ml_dim_equal (da, db),
+			a,
+			error_at (ML_EVAL_DIMENSION_MISMATCH)
+		);
+	}
+
+	return r;
+}
+
 static MlValue gcd_lcm (MlArena *arena, MlBuiltin id, MlValue a, MlValue b)
 {
 	int32_t whole = (
@@ -725,16 +852,23 @@ static MlValue builtin_apply (
 	MlValue r;
 	int32_t has_matrix = 0;
 	int32_t has_expr   = 0;
+	int32_t has_qty    = 0;
 
 	for (uint64_t i = 0; i < argc; i++)
 	{
 		has_matrix = has_matrix || ml_value_is_matrix (args [i]);
 		has_expr   = has_expr || ml_value_is_expr (args [i]);
+		has_qty    = has_qty || ml_value_is_quantity (args [i]);
 	}
 
 	if (has_expr)
 	{
 		r = formula_function (arena, id, args [0]);
+	}
+
+	else if (has_qty)
+	{
+		r = quantity_function (arena, id, args, argc);
 	}
 
 	else if (id >= BUILTIN_DET)
@@ -820,6 +954,11 @@ static MlValue binary_apply (
 		r = ml_value_div (arena, a, b);
 	}
 
+	else if (kind == ML_NODE_TO)
+	{
+		r = convert_value (a, b);
+	}
+
 	else
 	{
 		r = ml_value_pow (arena, a, b);
@@ -857,6 +996,18 @@ static MlParamHit param_find (const MlScope *sc, MlSlice name)
 	return hit;
 }
 
+/* A unit name as a quantity of one of that unit, undefined if not a unit. */
+static MlValue unit_value (MlArena *arena, MlSlice name)
+{
+	MlUnitMatch m = ml_unit_find (name);
+
+	return ml_choose (
+		m.found,
+		ml_value_quantity (ml_unit_factor (arena, m), m.dim),
+		error_at (ML_EVAL_UNDEFINED_NAME)
+	);
+}
+
 /* The value a name stands for: parameter, variable or constant. */
 static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 {
@@ -888,7 +1039,7 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 
 			if (v.kind == ML_VALUE_NONE)
 			{
-				v = error_at (ML_EVAL_UNDEFINED_NAME);
+				v = unit_value (cx->arena, name);
 			}
 		}
 	}
@@ -1365,6 +1516,7 @@ static int32_t is_operator (MlNodeKind kind)
 		|| kind == ML_NODE_NEG
 		|| kind == ML_NODE_FACT
 		|| kind == ML_NODE_SQRT
+		|| kind == ML_NODE_TO
 		|| (kind >= ML_NODE_ADD && kind <= ML_NODE_POW)
 	);
 }
@@ -1500,7 +1652,8 @@ static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 		node.kind == ML_NODE_LIST,
 		ml_ast_child_count (&sc->ast, f.node),
 		ml_choose (
-			node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW,
+			   node.kind == ML_NODE_TO
+			|| (node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW),
 			2,
 			1
 		)
