@@ -6,10 +6,19 @@
 #include <matlog/platform/console.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/key.h>
+#ifdef _WIN32
 #include <matlog/platform/win32/key.h>
+#endif
 #include <matlog/platform/path.h>
 
 #include <string.h>
+
+static MlSlice lit (const char *s)
+{
+	return ml_slice_cstr (s);
+}
+
+#ifdef _WIN32
 
 /* Win32 values used to build raw events */
 #define VK_ESC   0x1Bu
@@ -22,11 +31,6 @@
 #define CTL_LEFT_CTRL  0x08u
 #define CTL_RIGHT_ALT  0x01u
 #define CTL_LEFT_ALT   0x02u
-
-static MlSlice lit (const char *s)
-{
-	return ml_slice_cstr (s);
-}
 
 static MlKey decode (uint16_t vk, uint16_t unicode, uint32_t control)
 {
@@ -113,6 +117,8 @@ static void test_key_decode (void)
 	d = ml_key_decode_win32 (lo, 0);
 	CHECK (d.key.code == ML_KEY_NONE);
 }
+
+#endif /* _WIN32 */
 
 static void test_key_format (void)
 {
@@ -284,7 +290,9 @@ static void test_console (void)
 
 void run_platform_tests (void)
 {
+#ifdef _WIN32
 	test_key_decode ();
+#endif
 	test_key_format ();
 	test_path ();
 	test_fs ();

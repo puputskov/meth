@@ -62,7 +62,7 @@ void ml_layout_free (MlLayout *layout)
 
 static MlSlice gutter_for (MlLineKind kind, MlDomain domain)
 {
-	const char *gutter = "???> ";
+	const char *gutter = "\?\?\?> ";
 
 	if (kind == ML_LINE_MATH)
 	{

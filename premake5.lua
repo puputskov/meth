@@ -33,10 +33,11 @@ project "matlog_lib"
 	objdir "build/obj/%{cfg.buildcfg}/matlog_lib"
 	files { "source/matlog/**.c", "include/matlog/**.h" }
 
-	-- OS specific code lives in platform/<os>/, only the matching one is built
+	-- OS specific code lives in platform/<os>/, only the matching one is built.
+	-- Linux and macOS share platform/posix/ (termios, poll and POSIX files).
 	filter "system:windows"
-		removefiles { "source/matlog/platform/linux/**", "include/matlog/platform/linux/**" }
-	filter "system:linux"
+		removefiles { "source/matlog/platform/posix/**", "include/matlog/platform/posix/**" }
+	filter "system:not windows"
 		removefiles { "source/matlog/platform/win32/**", "include/matlog/platform/win32/**" }
 	filter {}
 
@@ -47,6 +48,9 @@ project "matlog"
 	objdir "build/obj/%{cfg.buildcfg}/matlog"
 	files { "source/app/**.c" }
 	links { "matlog_lib" }
+	filter "system:not windows"
+		links { "m" } -- the math functions are in libm outside of Windows
+	filter {}
 
 -- Unit tests, run with build/bin/<config>/tests.exe
 project "tests"
@@ -55,6 +59,9 @@ project "tests"
 	objdir "build/obj/%{cfg.buildcfg}/tests"
 	files { "source/tests/**.c", "source/tests/**.h" }
 	links { "matlog_lib" }
+	filter "system:not windows"
+		links { "m" } -- the math functions are in libm outside of Windows
+	filter {}
 
 -- Prints decoded key events, for trying out the console layer by hand
 project "keydemo"
@@ -63,3 +70,6 @@ project "keydemo"
 	objdir "build/obj/%{cfg.buildcfg}/keydemo"
 	files { "source/demo/**.c" }
 	links { "matlog_lib" }
+	filter "system:not windows"
+		links { "m" } -- the math functions are in libm outside of Windows
+	filter {}
