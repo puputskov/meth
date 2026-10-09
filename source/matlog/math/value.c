@@ -23,6 +23,8 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_NO_FILE]        = "included file not found",
 	[ML_EVAL_INCLUDE_LOOP]   = "include cycle",
 	[ML_EVAL_SIZE]           = "matrix sizes do not fit",
+	[ML_EVAL_TYPE]           = "these operands cannot be combined",
+	[ML_EVAL_NOT_EXACT]      = "a matrix holds exact numbers only",
 	[ML_EVAL_SINGULAR]       = "matrix is singular",
 	[ML_EVAL_NO_MEMORY]      = "out of memory"
 };
@@ -298,6 +300,11 @@ MlValue ml_value_neg (MlArena *arena, MlValue a)
 		result = ml_value_approx (-a.approx);
 	}
 
+	else if (a.kind == ML_VALUE_MATRIX)
+	{
+		result = ml_value_matrix (ml_mat_neg (arena, a.matrix));
+	}
+
 	else if (a.kind != ML_VALUE_ERROR)
 	{
 		result = ml_value_error (ML_EVAL_SYNTAX, 0, 0);
@@ -306,11 +313,52 @@ MlValue ml_value_neg (MlArena *arena, MlValue a)
 	return result;
 }
 
+/*
+ * The result of a binary operation when a matrix is one of the operands, none
+ * (ML_VALUE_NONE) when neither is one. Errors come first.
+ */
+static MlValue matrix_operands (MlValue a, MlValue b)
+{
+	MlValue found = ml_value_none ();
+
+	if (a.kind == ML_VALUE_ERROR)
+	{
+		found = a;
+	}
+
+	else if (b.kind == ML_VALUE_ERROR)
+	{
+		found = b;
+	}
+
+	else if (a.kind == ML_VALUE_APPROX || b.kind == ML_VALUE_APPROX)
+	{
+		found = ml_value_error (ML_EVAL_NOT_EXACT, 0, 0);
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX || b.kind == ML_VALUE_MATRIX)
+	{
+		found = ml_value_error (ML_EVAL_TYPE, 0, 0);
+	}
+
+	return found;
+}
+
 MlValue ml_value_add (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (
+	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_MATRIX)
+	{
+		result = ml_value_matrix (ml_mat_add (arena, a.matrix, b.matrix));
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX || b.kind == ML_VALUE_MATRIX)
+	{
+		result = matrix_operands (a, b);
+	}
+
+	else if (
 		   result.kind == ML_VALUE_NONE
 		&& a.kind == ML_VALUE_EXACT
 		&& b.kind == ML_VALUE_EXACT
@@ -338,7 +386,27 @@ MlValue ml_value_mul (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (
+	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_MATRIX)
+	{
+		result = ml_value_matrix (ml_mat_mul (arena, a.matrix, b.matrix));
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_EXACT)
+	{
+		result = ml_value_matrix (ml_mat_scale (arena, a.matrix, b.exact));
+	}
+
+	else if (a.kind == ML_VALUE_EXACT && b.kind == ML_VALUE_MATRIX)
+	{
+		result = ml_value_matrix (ml_mat_scale (arena, b.matrix, a.exact));
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX || b.kind == ML_VALUE_MATRIX)
+	{
+		result = matrix_operands (a, b);
+	}
+
+	else if (
 		   result.kind == ML_VALUE_NONE
 		&& a.kind == ML_VALUE_EXACT
 		&& b.kind == ML_VALUE_EXACT
@@ -361,7 +429,23 @@ MlValue ml_value_div (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (
+	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_EXACT)
+	{
+		result = ml_choose (
+			ml_rat_is_zero (b.exact),
+			ml_value_error (ML_EVAL_DIV_ZERO, 0, 0),
+			ml_value_matrix (
+				ml_mat_scale (arena, a.matrix, ml_rat_recip (arena, b.exact))
+			)
+		);
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX || b.kind == ML_VALUE_MATRIX)
+	{
+		result = matrix_operands (a, b);
+	}
+
+	else if (
 		   result.kind == ML_VALUE_NONE
 		&& a.kind == ML_VALUE_EXACT
 		&& b.kind == ML_VALUE_EXACT
@@ -481,7 +565,23 @@ MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (
+	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_EXACT)
+	{
+		MlI64Result n = ml_value_to_i64 (b);
+
+		result = ml_choose (
+			n.ok,
+			ml_value_matrix (ml_mat_pow (arena, a.matrix, n.value)),
+			ml_value_error (ML_EVAL_NOT_INTEGER, 0, 0)
+		);
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX || b.kind == ML_VALUE_MATRIX)
+	{
+		result = matrix_operands (a, b);
+	}
+
+	else if (
 		   result.kind == ML_VALUE_NONE
 		&& a.kind == ML_VALUE_EXACT
 		&& b.kind == ML_VALUE_EXACT

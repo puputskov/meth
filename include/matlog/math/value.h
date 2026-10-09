@@ -44,6 +44,8 @@ typedef enum MlErrorKind
 	ML_EVAL_NO_FILE,        /* an included file cannot be read */
 	ML_EVAL_INCLUDE_LOOP,   /* a file includes itself, directly or not */
 	ML_EVAL_SIZE,           /* matrix sizes that do not fit the operation */
+	ML_EVAL_TYPE,           /* operands of a kind the operation cannot use */
+	ML_EVAL_NOT_EXACT,      /* a matrix holds exact numbers only */
 	ML_EVAL_SINGULAR,       /* a singular matrix has no inverse */
 	ML_EVAL_NO_MEMORY,
 	ML_EVAL_KIND_COUNT
@@ -99,7 +101,18 @@ double ml_value_to_double (MlArena *arena, MlValue v);
 /* -1, 0 or 1 for two numbers. Exact numbers are compared exactly. */
 int32_t ml_value_cmp (MlArena *arena, MlValue a, MlValue b);
 
-/* Arithmetic. Errors come back out; see the file comment. */
+/*
+ * Arithmetic. Errors come back out; see the file comment. With matrices:
+ *
+ *	matrix + matrix, -         same sizes (ML_EVAL_SIZE otherwise)
+ *	matrix * matrix            the product; number * matrix scales it
+ *	matrix / number            scales by the inverse of an exact number
+ *	matrix ^ integer           repeated product, ^-1 is the inverse
+ *
+ * Any other mix (a number plus a matrix, a number divided by a matrix, a power
+ * that is not an integer) is ML_EVAL_TYPE, and an approximate number meeting a
+ * matrix is ML_EVAL_NOT_EXACT.
+ */
 MlValue ml_value_neg (MlArena *arena, MlValue a);
 MlValue ml_value_add (MlArena *arena, MlValue a, MlValue b);
 MlValue ml_value_sub (MlArena *arena, MlValue a, MlValue b);

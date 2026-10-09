@@ -2,6 +2,8 @@
 
 #include <math.h>
 
+#include <matlog/math/vector.h>
+
 /* ---- context ------------------------------------------------------------ */
 
 /*
@@ -88,6 +90,18 @@ typedef enum MlBuiltin
 	BUILTIN_MAX,
 	BUILTIN_GCD,
 	BUILTIN_LCM,
+	/* matrices and vectors from here on */
+	BUILTIN_DET,
+	BUILTIN_INV,
+	BUILTIN_TRANSPOSE,
+	BUILTIN_TRACE,
+	BUILTIN_RANK,
+	BUILTIN_RREF,
+	BUILTIN_SOLVE,
+	BUILTIN_IDENTITY,
+	BUILTIN_DOT,
+	BUILTIN_CROSS,
+	BUILTIN_NORM,
 	BUILTIN_COUNT
 } MlBuiltin;
 
@@ -129,7 +143,18 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_MIN]   = { .name = "min",   .min = 2, .max = ANY_ARGS },
 	[BUILTIN_MAX]   = { .name = "max",   .min = 2, .max = ANY_ARGS },
 	[BUILTIN_GCD]   = { .name = "gcd",   .min = 2, .max = 2 },
-	[BUILTIN_LCM]   = { .name = "lcm",   .min = 2, .max = 2 }
+	[BUILTIN_LCM]   = { .name = "lcm",   .min = 2, .max = 2 },
+	[BUILTIN_DET]       = { .name = "det",       .min = 1, .max = 1 },
+	[BUILTIN_INV]       = { .name = "inv",       .min = 1, .max = 1 },
+	[BUILTIN_TRANSPOSE] = { .name = "transpose", .min = 1, .max = 1 },
+	[BUILTIN_TRACE]     = { .name = "trace",     .min = 1, .max = 1 },
+	[BUILTIN_RANK]      = { .name = "rank",      .min = 1, .max = 1 },
+	[BUILTIN_RREF]      = { .name = "rref",      .min = 1, .max = 1 },
+	[BUILTIN_SOLVE]     = { .name = "solve",     .min = 2, .max = 2 },
+	[BUILTIN_IDENTITY]  = { .name = "identity",  .min = 1, .max = 1 },
+	[BUILTIN_DOT]       = { .name = "dot",       .min = 2, .max = 2 },
+	[BUILTIN_CROSS]     = { .name = "cross",     .min = 2, .max = 2 },
+	[BUILTIN_NORM]      = { .name = "norm",      .min = 1, .max = 1 }
 };
 
 static MlBuiltin builtin_find (MlSlice name)
@@ -499,6 +524,143 @@ static MlValue gcd_lcm (MlArena *arena, MlBuiltin id, MlValue a, MlValue b)
 	return r;
 }
 
+/* A number result of a matrix function, or its failure as an error. */
+static MlValue from_rat_result (MlRatResult r)
+{
+	return ml_choose (
+		r.status == ML_OK,
+		ml_value_exact (r.value),
+		ml_value_matrix (ml_mat_error (r.status))
+	);
+}
+
+/* The length of a vector: exact when it is a rational, else approximate. */
+static MlValue norm_value (MlArena *arena, MlMat v)
+{
+	MlVecNorm n = ml_vec_norm (arena, v);
+
+	return ml_choose (
+		n.status != ML_OK,
+		ml_value_matrix (ml_mat_error (n.status)),
+		ml_choose (
+			n.exact,
+			ml_value_exact (n.value),
+			ml_value_approx (sqrt (ml_rat_to_double (arena, n.value)))
+		)
+	);
+}
+
+/* identity (n) for a whole number n. */
+static MlValue identity_value (MlArena *arena, MlValue n)
+{
+	MlI64Result size = ml_value_to_i64 (n);
+
+	return ml_choose (
+		size.ok && size.value >= 1 && size.value <= ML_MAT_MAX_DIM,
+		ml_value_matrix (ml_mat_identity (arena, (uint64_t)size.value)),
+		ml_choose (
+			size.ok,
+			ml_value_error (ML_EVAL_DOMAIN, 0, 0),
+			ml_value_error (ML_EVAL_NOT_INTEGER, 0, 0)
+		)
+	);
+}
+
+/* det, inv, transpose, trace, rank, rref, solve, identity, dot, cross, norm */
+static MlValue matrix_function (
+	MlArena       *arena,
+	MlBuiltin     id,
+	const MlValue *args,
+	uint64_t      argc
+)
+{
+	MlValue r;
+	int32_t shaped = 1;
+
+	for (uint64_t i = 0; i < argc; i++)
+	{
+		/* identity takes a number, everything else matrices */
+		shaped = shaped && (
+			ml_choose (
+				id == BUILTIN_IDENTITY,
+				ml_value_is_exact (args [i]),
+				ml_value_is_matrix (args [i])
+			)
+		);
+	}
+
+	if (!shaped)
+	{
+		r = error_at (ML_EVAL_TYPE);
+	}
+
+	else if (id == BUILTIN_IDENTITY)
+	{
+		r = identity_value (arena, args [0]);
+	}
+
+	else if (id == BUILTIN_DET)
+	{
+		r = from_rat_result (ml_mat_det (arena, args [0].matrix));
+	}
+
+	else if (id == BUILTIN_INV)
+	{
+		r = ml_value_matrix (ml_mat_inverse (arena, args [0].matrix));
+	}
+
+	else if (id == BUILTIN_TRANSPOSE)
+	{
+		r = ml_value_matrix (ml_mat_transpose (arena, args [0].matrix));
+	}
+
+	else if (id == BUILTIN_TRACE)
+	{
+		r = from_rat_result (ml_mat_trace (arena, args [0].matrix));
+	}
+
+	else if (id == BUILTIN_RANK)
+	{
+		r = ml_value_from_i64 (
+			arena,
+			(int64_t)ml_mat_rref (arena, args [0].matrix).rank
+		);
+	}
+
+	else if (id == BUILTIN_RREF)
+	{
+		r = ml_value_matrix (ml_mat_rref (arena, args [0].matrix).matrix);
+	}
+
+	else if (id == BUILTIN_SOLVE)
+	{
+		r = ml_value_matrix (
+			ml_mat_solve (arena, args [0].matrix, args [1].matrix)
+		);
+	}
+
+	else if (id == BUILTIN_DOT)
+	{
+		r = from_rat_result (
+			ml_vec_dot (arena, args [0].matrix, args [1].matrix)
+		);
+	}
+
+	else if (id == BUILTIN_CROSS)
+	{
+		r = ml_value_matrix (
+			ml_vec_cross (arena, args [0].matrix, args [1].matrix)
+		);
+	}
+
+	else
+	{
+		r = norm_value (arena, args [0].matrix);
+	}
+
+	return r;
+}
+
 static MlValue builtin_apply (
 	MlArena       *arena,
 	MlBuiltin     id,
@@ -507,8 +669,25 @@ static MlValue builtin_apply (
 )
 {
 	MlValue r;
+	int32_t has_matrix = 0;
 
-	if (id == BUILTIN_SQRT)
+	for (uint64_t i = 0; i < argc; i++)
+	{
+		has_matrix = has_matrix || ml_value_is_matrix (args [i]);
+	}
+
+	if (id >= BUILTIN_DET)
+	{
+		r = matrix_function (arena, id, args, argc);
+	}
+
+	else if (has_matrix)
+	{
+		/* the number functions do not take matrices */
+		r = error_at (ML_EVAL_TYPE);
+	}
+
+	else if (id == BUILTIN_SQRT)
 	{
 		r = sqrt_value (arena, args [0]);
 	}
@@ -812,10 +991,72 @@ static void set_step (MlEvalCtx *cx, uint64_t step)
 static int32_t is_operator (MlNodeKind kind)
 {
 	return (
-		   kind == ML_NODE_NEG
+		   kind == ML_NODE_LIST
+		|| kind == ML_NODE_NEG
 		|| kind == ML_NODE_FACT
 		|| kind == ML_NODE_SQRT
 		|| (kind >= ML_NODE_ADD && kind <= ML_NODE_POW)
+	);
+}
+
+/*
+ * A list of numbers is a vector, a column. A list of vectors of one length is
+ * a matrix whose rows they are, so [[1, 2], [3, 4]] is the matrix with the
+ * rows (1 2) and (3 4).
+ */
+static MlValue list_value (MlArena *arena, const MlValue *items, uint64_t n)
+{
+	int32_t numbers = 1;
+	int32_t columns = 1;
+	int32_t approx  = 0;
+	MlMat   m       = ml_mat_error (ML_ERR_INVALID);
+	MlValue r;
+
+	for (uint64_t i = 0; i < n; i++)
+	{
+		numbers = numbers && ml_value_is_exact (items [i]);
+		approx  = approx || items [i].kind == ML_VALUE_APPROX;
+		columns = columns && (
+			   ml_value_is_matrix (items [i])
+			&& items [i].matrix.cols == 1
+			&& items [i].matrix.rows == items [0].matrix.rows
+		);
+	}
+
+	if (numbers)
+	{
+		m = ml_mat_zero (arena, n, 1);
+
+		for (uint64_t i = 0; i < n && m.status == ML_OK; i++)
+		{
+			ml_mat_set (&m, i, 0, items [i].exact);
+		}
+	}
+
+	else if (columns)
+	{
+		m = ml_mat_zero (arena, n, items [0].matrix.rows);
+
+		for (uint64_t i = 0; i < n && m.status == ML_OK; i++)
+		{
+			for (uint64_t j = 0; j < m.cols; j++)
+			{
+				ml_mat_set (&m, i, j, items [i].matrix.cells [j]);
+			}
+		}
+	}
+
+	r = ml_value_matrix (m);
+
+	/* approximations are named, other mixtures are a matter of sizes */
+	return ml_choose (
+		approx,
+		error_at (ML_EVAL_NOT_EXACT),
+		ml_choose (
+			r.kind == ML_VALUE_ERROR && r.error == ML_EVAL_SIZE,
+			error_at (ML_EVAL_TYPE),
+			r
+		)
 	);
 }
 
@@ -825,9 +1066,22 @@ static MlValue operator_apply (MlEvalCtx *cx, MlNodeKind kind, uint64_t n)
 	MlValue a = MlValueVec_get (&cx->vals, cx->vals.len - n);
 	MlValue r;
 
-	if (kind == ML_NODE_NEG)
+	if (kind == ML_NODE_LIST)
+	{
+		r = list_value (cx->arena, &cx->vals.data [cx->vals.len - n], n);
+	}
+
+	else if (kind == ML_NODE_NEG)
 	{
 		r = ml_value_neg (cx->arena, a);
+	}
+
+	else if (
+		   ml_value_is_matrix (a)
+		&& (kind == ML_NODE_FACT || kind == ML_NODE_SQRT)
+	)
+	{
+		r = error_at (ML_EVAL_TYPE);
 	}
 
 	else if (kind == ML_NODE_FACT)
@@ -848,18 +1102,55 @@ static MlValue operator_apply (MlEvalCtx *cx, MlNodeKind kind, uint64_t n)
 	return r;
 }
 
+/*
+ * Is the right operand of the power at f the bare name T, with a matrix as the
+ * base (on top of vals)? A^T is the transpose, and T is not looked up.
+ */
+static int32_t is_transpose (const MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc    = &cx->scopes.data [f.scope];
+	uint64_t      right = ml_ast_child (&sc->ast, f.node, 1);
+	int32_t       is_t  = (
+		   node.kind == ML_NODE_POW
+		&& f.step == 1
+		&& ml_ast_node (&sc->ast, right).kind == ML_NODE_NAME
+		&& ml_slice_equal (
+			ml_ast_text (&sc->ast, sc->source, right),
+			ml_slice_cstr ("T")
+		)
+	);
+
+	return is_t && ml_value_is_matrix (top_value (cx));
+}
+
 static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
 	const MlScope *sc   = &cx->scopes.data [f.scope];
 	uint64_t      want = ml_choose (
-		node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW,
-		2,
-		1
+		node.kind == ML_NODE_LIST,
+		ml_ast_child_count (&sc->ast, f.node),
+		ml_choose (
+			node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW,
+			2,
+			1
+		)
 	);
 
 	if (f.step > 0 && top_is_error (cx))
 	{
 		finish (cx, f.step, top_value (cx), node);
+	}
+
+	else if (is_transpose (cx, f, node))
+	{
+		finish (
+			cx,
+			1,
+			ml_value_matrix (
+				ml_mat_transpose (cx->arena, top_value (cx).matrix)
+			),
+			node
+		);
 	}
 
 	else if (f.step == want)
@@ -1191,7 +1482,10 @@ MlResult ml_eval_commit (
 	MlResult r    = ML_OK;
 	MlNode   root = ml_ast_node (ast, ast->root);
 
-	if (root.kind == ML_NODE_ASSIGN && ml_value_is_number (value))
+	if (
+		   root.kind == ML_NODE_ASSIGN
+		&& (ml_value_is_number (value) || ml_value_is_matrix (value))
+	)
 	{
 		r = ml_env_define_var (
 			env,

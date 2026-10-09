@@ -62,7 +62,7 @@ static int32_t shows (Session *s, const char *text, const char *expected)
 
 	ml_str_init (&out);
 
-	if (ml_value_is_number (v))
+	if (ml_value_is_number (v) || ml_value_is_matrix (v))
 	{
 		same = (
 			   ml_value_format (&out, &s->arena, v) == ML_OK
@@ -641,6 +641,154 @@ static void test_arena_independence (void)
 	session_free (&s);
 }
 
+static void test_matrices (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* literals: a list of numbers is a column, a list of columns the rows */
+	CHECK (shows (&s, "[1, 2, 3]", "[[1], [2], [3]]"));
+	CHECK (shows (&s, "[[1, 2], [3, 4]]", "[[1, 2], [3, 4]]"));
+	CHECK (shows (&s, "[[1, 2, 3]]", "[[1, 2, 3]]"));
+	CHECK (shows (&s, "[[1], [2]]", "[[1], [2]]"));
+	CHECK (shows (&s, "[1/2, 0.25]", "[[1/2], [1/4]]"));
+	CHECK (shows (&s, "[1+1, 2*3]", "[[2], [6]]"));
+
+	/* arithmetic */
+	CHECK (shows (&s, "[[1,2],[3,4]] + [[1,1],[1,1]]", "[[2, 3], [4, 5]]"));
+	CHECK (shows (&s, "[[1,2],[3,4]] - [[1,1],[1,1]]", "[[0, 1], [2, 3]]"));
+	CHECK (shows (&s, "[[1,2],[3,4]] * [[5,6],[7,8]]", "[[19, 22], [43, 50]]"));
+	CHECK (shows (&s, "-[[1,2],[3,4]]", "[[-1, -2], [-3, -4]]"));
+	CHECK (shows (&s, "2 * [[1,2],[3,4]]", "[[2, 4], [6, 8]]"));
+	CHECK (shows (&s, "2[[1,2],[3,4]]", "[[2, 4], [6, 8]]"));
+	CHECK (shows (&s, "[[1,2],[3,4]] * 3", "[[3, 6], [9, 12]]"));
+	CHECK (shows (&s, "[[1,2],[3,4]] / 2", "[[1/2, 1], [3/2, 2]]"));
+	CHECK (shows (&s, "[[1,2],[3,4]] * [1, 1]", "[[3], [7]]"));
+
+	/* powers, the inverse and the transpose */
+	CHECK (shows (&s, "[[1,1],[1,0]]^10", "[[89, 55], [55, 34]]"));
+	CHECK (shows (&s, "[[1,2],[3,4]]^-1", "[[-2, 1], [3/2, -1/2]]"));
+	CHECK (shows (&s, "[[1,2],[3,4]]^0", "[[1, 0], [0, 1]]"));
+	CHECK (shows (&s, "[[1,2,3],[4,5,6]]^T", "[[1, 4], [2, 5], [3, 6]]"));
+	CHECK (shows (&s, "[1,2,3]^T", "[[1, 2, 3]]"));
+
+	/* names: a matrix is a value like any other */
+	CHECK (shows (&s, "A = [[2,0],[0,3]]", "[[2, 0], [0, 3]]"));
+	CHECK (shows (&s, "A * A", "[[4, 0], [0, 9]]"));
+	CHECK (shows (&s, "A^T", "[[2, 0], [0, 3]]"));
+	CHECK (run (&s, "f(M) = M * M + M").kind == ML_VALUE_NONE);
+	CHECK (run (&s, "g(x) = A * x").kind == ML_VALUE_NONE);
+	CHECK (shows (&s, "g(2)", "[[4, 0], [0, 6]]"));
+	CHECK (shows (&s, "g([1,1])", "[[2], [3]]"));
+	CHECK (shows (&s, "f(A)", "[[6, 0], [0, 12]]"));
+
+	/* A^T is the transpose of a matrix whatever T is called elsewhere */
+	CHECK (shows (&s, "T = 2", "2"));
+	CHECK (shows (&s, "A^T", "[[2, 0], [0, 3]]"));
+	CHECK (shows (&s, "3^T", "9"));
+
+	session_free (&s);
+}
+
+static void test_matrix_functions (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	CHECK (shows (&s, "det([[1,2],[3,4]])", "-2"));
+	CHECK (shows (&s, "det(identity(4))", "1"));
+	CHECK (shows (&s, "inv([[1,2],[3,4]])", "[[-2, 1], [3/2, -1/2]]"));
+	CHECK (shows (&s, "transpose([[1,2],[3,4]])", "[[1, 3], [2, 4]]"));
+	CHECK (shows (&s, "trace([[1,2],[3,4]])", "5"));
+	CHECK (shows (&s, "rank([[1,2,3],[4,5,6],[7,8,9]])", "2"));
+	CHECK (
+		shows (
+			&s,
+			"rref([[1,2,3],[4,5,6],[7,8,9]])",
+			"[[1, 0, -1], [0, 1, 2], [0, 0, 0]]"
+		)
+	);
+	CHECK (shows (&s, "solve([[1,2],[3,4]], [5,6])", "[[-4], [9/2]]"));
+	CHECK (shows (&s, "identity(3)", "[[1, 0, 0], [0, 1, 0], [0, 0, 1]]"));
+	CHECK (shows (&s, "dot([1,2,3], [4,5,6])", "32"));
+	CHECK (shows (&s, "cross([1,2,3], [4,5,6])", "[[-3], [6], [-3]]"));
+	CHECK (shows (&s, "norm([3,4])", "5"));
+	CHECK (is_approx (&s, "norm([1,2,3])", 3.7416573867739413));
+
+	/* expressions around them */
+	CHECK (shows (&s, "det([[1,2],[3,4]]) * 2 + 1", "-3"));
+	CHECK (
+		shows (
+			&s,
+			"inv([[1,2],[3,4]]) * [[1,2],[3,4]]",
+			"[[1, 0], [0, 1]]"
+		)
+	);
+
+	session_free (&s);
+}
+
+static void test_matrix_errors (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	CHECK (fails (&s, "[[1,2],[3,4]] + [[1,2,3]]", ML_EVAL_SIZE));
+	CHECK (fails (&s, "[[1,2,3]] * [[1,2,3]]", ML_EVAL_SIZE));
+	CHECK (fails (&s, "[[1,2],[3,4]] + 1", ML_EVAL_TYPE));
+	CHECK (fails (&s, "1 - [[1,2],[3,4]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "1 / [[1,2],[3,4]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "[[1,2],[3,4]] / [[1,2],[3,4]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "2 ^ [[1,2],[3,4]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "[[1,2],[3,4]] / 0", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "[[1,2],[3,4]] ^ 0.5", ML_EVAL_NOT_INTEGER));
+	CHECK (fails (&s, "[[1,2],[2,4]]^-1", ML_EVAL_SINGULAR));
+	CHECK (fails (&s, "inv([[1,2],[2,4]])", ML_EVAL_SINGULAR));
+	CHECK (fails (&s, "solve([[1,2],[2,4]], [1,2])", ML_EVAL_SINGULAR));
+	CHECK (fails (&s, "det([[1,2,3]])", ML_EVAL_SIZE));
+	CHECK (fails (&s, "inv([1,2])", ML_EVAL_SIZE));
+	CHECK (fails (&s, "cross([1,2], [3,4])", ML_EVAL_SIZE));
+	CHECK (fails (&s, "dot([1,2], [1,2,3])", ML_EVAL_SIZE));
+
+	/* lists that are not vectors or matrices */
+	CHECK (fails (&s, "[[1,2],[3]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "[1, [2]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "[[[1,2]],[[3,4]]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "[1, sqrt(2)]", ML_EVAL_NOT_EXACT));
+	CHECK (fails (&s, "[1, pi]", ML_EVAL_NOT_EXACT));
+	CHECK (fails (&s, "[[1,2],[3,4]] * sqrt(2)", ML_EVAL_NOT_EXACT));
+
+	/* the number functions and the matrix functions check their arguments */
+	CHECK (fails (&s, "sqrt([1,2])", ML_EVAL_TYPE));
+	CHECK (fails (&s, "abs([[1,2]])", ML_EVAL_TYPE));
+	CHECK (fails (&s, "[1,2]!", ML_EVAL_TYPE));
+	CHECK (fails (&s, "min([1,2], 3)", ML_EVAL_TYPE));
+	CHECK (fails (&s, "det(3)", ML_EVAL_TYPE));
+	CHECK (fails (&s, "dot(1, 2)", ML_EVAL_TYPE));
+	CHECK (fails (&s, "identity([1])", ML_EVAL_TYPE));
+	CHECK (fails (&s, "identity(0)", ML_EVAL_DOMAIN));
+	CHECK (fails (&s, "identity(65)", ML_EVAL_DOMAIN));
+	CHECK (fails (&s, "identity(1/2)", ML_EVAL_NOT_INTEGER));
+	CHECK (fails (&s, "det()", ML_EVAL_ARITY));
+
+	/* a failed definition binds nothing */
+	CHECK (fails (&s, "B = [[1,2],[2,4]]^-1", ML_EVAL_SINGULAR));
+	CHECK (fails (&s, "B", ML_EVAL_UNDEFINED_NAME));
+
+	/* the error points at the offending part */
+	{
+		MlValue v = run (&s, "1 + [[1,2],[3,4]]");
+
+		CHECK (v.kind == ML_VALUE_ERROR);
+		CHECK (v.error_start == 0 && v.error_len == 17);
+	}
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -654,4 +802,7 @@ void run_eval_tests (void)
 	test_depth ();
 	test_commit ();
 	test_arena_independence ();
+	test_matrices ();
+	test_matrix_functions ();
+	test_matrix_errors ();
 }

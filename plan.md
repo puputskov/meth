@@ -421,4 +421,4 @@ steps can be shown on request.
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Next step: milestone 3, task 4 (`[ ]` literals, `^T` and `^-1` in the lexer and parser). Tasks 1 to 3 are done; matrices are exact only (no approximate cells).
+Next step: milestone 3, task 6 (typeset display of matrix results). Tasks 1 to 5 are done: the matrix and vector domains evaluate; the steps (task 7) come after the display.
