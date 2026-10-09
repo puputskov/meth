@@ -3,6 +3,6 @@
 
 int main(void)
 {
-    printf("matlog %s\n", matlog_version());
-    return 0;
+	printf("matlog %s\n", matlog_version());
+	return 0;
 }
