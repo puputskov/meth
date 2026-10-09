@@ -138,7 +138,7 @@ static void test_note (void)
 	type (&ed, "1+1");
 	press (&ed, ML_KEY_ESCAPE);
 
-	/* n starts a note below the cursor line; nothing is rewritten in it */
+	/* n starts a note below the cursor line; the rewrites work in it too */
 	type (&ed, "n");
 	CHECK (ed.state == ML_STATE_NOTE);
 	CHECK (status_is (&ed, "-- NOTE -- algebra>"));
@@ -149,7 +149,15 @@ static void test_note (void)
 	press (&ed, ML_KEY_ESCAPE);
 
 	CHECK (ed.session.lines.len == 3);
-	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "x^2 <= pi "));
+	CHECK (
+		line_is (
+			&ed,
+			1,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			"x\xC2\xB2 \xE2\x89\xA4 \xCF\x80 "
+		)
+	);
 	CHECK (line_is (&ed, 2, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "second"));
 
 	ml_editor_free (&ed);
@@ -991,6 +999,55 @@ static void test_range_commands (void)
 	ml_editor_free (&ed);
 }
 
+static void test_note_rewrites (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "n");
+
+	/* the rewrites of the math lines work in a note, Markdown is left alone */
+	type (&ed, "The area is pi r^2, **bold** and *it* and \\alpha <= 3 ");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (
+		line_is (
+			&ed,
+			0,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			"The area is \xCF\x80 r\xC2\xB2, **bold** and *it* and "
+			"\xCE\xB1 \xE2\x89\xA4 3 "
+		)
+	);
+
+	/* backspace right after a rewrite brings the typed text back */
+	type (&ed, "n");
+	type (&ed, "pi ");
+	press (&ed, ML_KEY_BACKSPACE);
+	press (&ed, ML_KEY_BACKSPACE);
+	type (&ed, "e");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "pie"));
+
+	/* the logic symbols and lambda are for their domains only */
+	type (&ed, "n");
+	type (&ed, "a && b || ~c lambda x. ");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (
+		line_is (
+			&ed,
+			2,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			"a && b || ~c lambda x. "
+		)
+	);
+
+	ml_editor_free (&ed);
+}
+
 void run_editor_tests (void)
 {
 	test_insert ();
@@ -1007,4 +1064,5 @@ void run_editor_tests (void)
 	test_move_lines ();
 	test_undo_keys ();
 	test_range_commands ();
+	test_note_rewrites ();
 }

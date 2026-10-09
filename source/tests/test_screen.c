@@ -739,6 +739,45 @@ static void test_steps_rows (void)
 	ml_editor_free (&ed);
 }
 
+static void test_note_styles (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 30, 5);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "n");
+	type (&ed, "a **bold** *it* <u>un</u> done");
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* the marks are not shown, the text is styled */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1   #  a bold it un done"));
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[1mbold") != NULL);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[3mit") != NULL);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[4mun") != NULL);
+	ml_layout_free (&l);
+
+	/* the width counts the visible text: 18 columns hold "a bold it un" */
+	ml_screen_resize (&s, 18, 5);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1   #  a bold it"));
+	ml_layout_free (&l);
+
+	/* while the note is edited its text is shown as typed */
+	ml_screen_resize (&s, 60, 5);
+	press (&ed, ML_KEY_ENTER);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1   #  a **bold** *it* <u>un</u> done"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_basic_layout ();
@@ -754,4 +793,5 @@ void run_screen_tests (void)
 	test_results_follow_edits ();
 	test_matrix_rows ();
 	test_steps_rows ();
+	test_note_styles ();
 }

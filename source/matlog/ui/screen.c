@@ -2,6 +2,7 @@
 
 #include <matlog/core/utf8.h>
 #include <matlog/ui/ghost.h>
+#include <matlog/ui/markup.h>
 
 #define STYLE_REVERSE "\x1b[7m"
 #define STYLE_DIM     "\x1b[2m"
@@ -17,10 +18,10 @@ static const char *const math_gutters [ML_DOMAIN_COUNT] =
 	[ML_DOMAIN_EQUATIONS] = "=  > ",
 	[ML_DOMAIN_MATRIX]    = "mat> ",
 	[ML_DOMAIN_VECTOR]    = "\xE2\x86\x92  > ", /* right arrow */
-	[ML_DOMAIN_LAMBDA]    = "\xCE\xBB  > ", /* lambda sign */
-	[ML_DOMAIN_PGA2] = "pg2> ",
-	[ML_DOMAIN_PGA3] = "pg3> ",
-	[ML_DOMAIN_BOOLEAN]   = "\xE2\x88\xA7  > " /* logical and */
+	[ML_DOMAIN_LAMBDA]    = "\xCE\xBB  > ",     /* lambda sign */
+	[ML_DOMAIN_PGA2]      = "pg2> ",
+	[ML_DOMAIN_PGA3]      = "pg3> ",
+	[ML_DOMAIN_BOOLEAN]   = "\xE2\x88\xA7  > "  /* logical and */
 };
 
 void ml_screen_init (MlScreen *s, uint32_t cols, uint32_t rows)
@@ -269,6 +270,41 @@ static MlResult append_result (
 }
 
 /*
+ * The text of a note in the room columns: the Markdown marks are taken away
+ * and bold, italic, underline, strike and code are drawn as such. The text
+ * is clipped by its width without the marks.
+ */
+static MlResult append_note_text (MlStr *out, MlSlice text, uint64_t room)
+{
+	MlMarkup m;
+	MlStr    shown;
+	MlResult r;
+
+	ml_markup_init (&m);
+	ml_str_init (&shown);
+	r = ml_markup_parse (&m, text);
+
+	if (r == ML_OK)
+	{
+		r = ml_text_window (&shown, ml_str_view (m.plain), 0, room).result;
+	}
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, STYLE_RESET);
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_markup_append (out, &m, 0, shown.len);
+	}
+
+	ml_str_free (&shown);
+	ml_markup_free (&m);
+	return r;
+}
+
+/*
  * One row of the line area: number and gutter, then the text clipped, then
  * the result if there is room.
  */
@@ -310,7 +346,15 @@ static MlResult append_line_row (
 			room
 		);
 
-		r = ml_text_window (out, line.text, 0, room).result;
+		if (note)
+		{
+			r = append_note_text (out, line.text, room);
+		}
+
+		else
+		{
+			r = ml_text_window (out, line.text, 0, room).result;
+		}
 
 		/* a matrix is drawn under the line instead */
 		if (

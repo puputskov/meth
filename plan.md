@@ -127,6 +127,14 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
 
 ### 4.4 Notes
 - The user can write free-text notes between math lines (a note line type, stored in the session file).
+- **Formatting in Markdown**: notes use the inline syntax of Markdown, so the file stays plain text and the same text works in the export and in any Markdown
+  viewer: `**bold**`, `*italic*` or `_italic_`, `<u>underline</u>`, `~~strike~~` and `` `code` ``, nested (`**bold and *italic***`). The rules are those of
+  Markdown: a mark opens before a non space and closes after one, so `2 * 3 * 4` is text, an underscore inside a word (`snake_case`, `x_1`) is text, a mark
+  without a partner stays as typed, and a backslash makes a mark plain (`\*`). A code span is not formatted. On the screen the marks are taken away and the
+  text is drawn bold, italic, underlined, struck through or as code; while the note is being edited its text is shown as typed, marks included.
+- **Replacements in notes**: the rewrites of the math lines work in notes too, so `pi` becomes `π`, `\alpha` `α`, `<=` `≤`, `->` `→`, `x^2` `x²` and
+  `sqrt(x)` `√x`; backspace right after a rewrite brings the typed text back, as in math lines. The rules of one domain only (the logic symbols, `lambda`) are
+  not active in notes. A word that is really a word can be kept by undoing the rewrite (backspace).
 
 ### 4.5 Units
 - Quantities carry SI dimensions; operations check and transform dimensions.

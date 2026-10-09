@@ -4,7 +4,8 @@
 
 #include <string.h>
 
-#define DOMAINS_ALL 0xFFu
+/* every domain, and the notes (ML_REWRITE_NOTES) */
+#define DOMAINS_ALL 0x1FFu
 #define BIT(d)      (1u << (d))
 
 #define MAX_NAME   16 /* longest \name or word that can match */

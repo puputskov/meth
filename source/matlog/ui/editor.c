@@ -116,7 +116,10 @@ static MlResult begin_line (
 		ed->edit_domain   = domain;
 		ed->edit_index    = index;
 		ed->edit_existing = existing;
-		ml_rewriter_set_domain (&ed->rewriter, domain);
+		ml_rewriter_set_domain (
+			&ed->rewriter,
+			ml_choose (state == ML_STATE_NOTE, ML_REWRITE_NOTES, domain)
+		);
 	}
 
 	return r;
@@ -161,7 +164,7 @@ static MlResult commit_line (MlEditor *ed)
 	MlSlice    text = ml_str_view (ed->edit.text);
 	MlLineKind kind = ed->edit_kind;
 
-	if (ed->state == ML_STATE_INSERT)
+	if (ed->state == ML_STATE_INSERT || ed->state == ML_STATE_NOTE)
 	{
 		r    = ml_rewriter_flush (&ed->rewriter, &ed->edit);
 		text = ml_str_view (ed->edit.text);
@@ -342,7 +345,7 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 		r = cycle_line_domain (ed, key);
 	}
 
-	else if (ed->state == ML_STATE_INSERT)
+	else if (ed->state == ML_STATE_INSERT || ed->state == ML_STATE_NOTE)
 	{
 		res = ml_rewriter_handle_key (&ed->rewriter, &ed->edit, key);
 		r   = res.result;

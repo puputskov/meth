@@ -24,6 +24,14 @@
  * ml_rewriter_handle_key and call ml_rewriter_flush before committing the line.
  */
 
+/*
+ * The pseudo domain of notes: free text gets the same rewrites as the domains
+ * that have no special rules (pi, \alpha, <=, ->, x^2, sqrt(x)), so a note can
+ * say "the area is pi r^2" and show π r². Rules of one domain only (the logic
+ * symbols, lambda) are not active in notes.
+ */
+#define ML_REWRITE_NOTES ((MlDomain)ML_DOMAIN_COUNT)
+
 typedef struct MlRewriter
 {
 	MlDomain domain;
