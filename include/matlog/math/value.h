@@ -39,6 +39,8 @@ typedef enum MlErrorKind
 	ML_EVAL_ARITY,          /* wrong number of arguments */
 	ML_EVAL_TOO_LARGE,      /* the result got too large */
 	ML_EVAL_DEPTH,          /* recursion went too deep */
+	ML_EVAL_NO_FILE,        /* an included file cannot be read */
+	ML_EVAL_INCLUDE_LOOP,   /* a file includes itself, directly or not */
 	ML_EVAL_NO_MEMORY,
 	ML_EVAL_KIND_COUNT
 } MlErrorKind;

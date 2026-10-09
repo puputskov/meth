@@ -254,6 +254,34 @@ static void test_define_func_rejects_other_statements (void)
 	ml_env_free (&env);
 }
 
+static void test_truncate (void)
+{
+	MlEnv env;
+
+	ml_env_init (&env);
+	CHECK (ml_env_define_var (&env, lit ("a"), ml_value_approx (1.0)) == ML_OK);
+	CHECK (ml_env_define_var (&env, lit ("b"), ml_value_approx (2.0)) == ML_OK);
+	CHECK (ml_env_define_var (&env, lit ("a"), ml_value_approx (3.0)) == ML_OK);
+
+	/* a snapshot that is not older changes nothing */
+	ml_env_truncate (&env, 3);
+	ml_env_truncate (&env, 10);
+	CHECK (ml_env_snapshot (&env) == 3);
+
+	ml_env_truncate (&env, 1);
+	CHECK (ml_env_snapshot (&env) == 1);
+	CHECK (ml_env_lookup (&env, lit ("a"), 1).kind == ML_BIND_VAR);
+	CHECK (ml_env_lookup (&env, lit ("b"), 10).kind == ML_BIND_NONE);
+
+	/* new bindings go after the kept ones */
+	CHECK (ml_env_define_var (&env, lit ("c"), ml_value_approx (4.0)) == ML_OK);
+	CHECK (ml_env_snapshot (&env) == 2);
+
+	ml_env_truncate (&env, 0);
+	CHECK (ml_env_snapshot (&env) == 0);
+	ml_env_free (&env);
+}
+
 void run_env_tests (void)
 {
 	test_variables ();
@@ -262,4 +290,5 @@ void run_env_tests (void)
 	test_functions ();
 	test_function_without_parameters ();
 	test_define_func_rejects_other_statements ();
+	test_truncate ();
 }

@@ -1,0 +1,396 @@
+#include "test.h"
+
+#include <matlog/platform/fs.h>
+#include <matlog/session/results.h>
+
+#include <string.h>
+
+static MlSlice lit (const char *s)
+{
+	return ml_slice_cstr (s);
+}
+
+/* Adds an algebra math line to the session. */
+static void add (MlSession *s, const char *text)
+{
+	CHECK (
+		ml_session_append (
+			s,
+			ML_LINE_MATH,
+			ML_DOMAIN_ALGEBRA,
+			lit (text)
+		) == ML_OK
+	);
+}
+
+static void add_include (MlSession *s, const char *path)
+{
+	CHECK (
+		ml_session_append (
+			s,
+			ML_LINE_INCLUDE,
+			ML_DOMAIN_ALGEBRA,
+			lit (path)
+		) == ML_OK
+	);
+}
+
+static int32_t is_value (const MlResults *r, uint64_t idx, const char *text)
+{
+	MlResultView v    = ml_results_get (r, idx);
+	int32_t      same = (
+		   v.kind == ML_RESULT_VALUE
+		&& ml_slice_equal (v.text, lit (text))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  line %d: kind %d \"%.*s\", expected \"%s\"\n",
+			(int32_t)idx,
+			(int32_t)v.kind,
+			(int32_t)v.text.len,
+			v.text.data,
+			text
+		);
+	}
+
+	return same;
+}
+
+static int32_t is_error (const MlResults *r, uint64_t idx, const char *text)
+{
+	MlResultView v    = ml_results_get (r, idx);
+	int32_t      same = (
+		   v.kind == ML_RESULT_ERROR
+		&& ml_slice_equal (v.text, lit (text))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  line %d: kind %d \"%.*s\", expected error \"%s\"\n",
+			(int32_t)idx,
+			(int32_t)v.kind,
+			(int32_t)v.text.len,
+			v.text.data,
+			text
+		);
+	}
+
+	return same;
+}
+
+static int32_t is_none (const MlResults *r, uint64_t idx)
+{
+	return ml_results_get (r, idx).kind == ML_RESULT_NONE;
+}
+
+static void test_flow (void)
+{
+	MlSession s;
+	MlResults r;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+
+	/* the acceptance session of the milestone */
+	add (&s, "a = 3");
+	add (&s, "b = a^2 + 1");
+	add (&s, "f(x) = 2x + b");
+	add (&s, "f(a)");
+	add (&s, "1/3 + 1/6");
+	add (&s, "sqrt(2)");
+	add (&s, "10!");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (r.lines.len == 7);
+	CHECK (is_value (&r, 0, "3"));
+	CHECK (is_value (&r, 1, "10"));
+	CHECK (is_none (&r, 2));
+	CHECK (is_value (&r, 3, "16"));
+	CHECK (is_value (&r, 4, "1/2"));
+	CHECK (is_value (&r, 5, "\xE2\x89\x88 1.41421356"));
+	CHECK (is_value (&r, 6, "3628800"));
+
+	/* a view of a line that does not exist is empty */
+	CHECK (ml_results_get (&r, 7).kind == ML_RESULT_NONE);
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
+static void test_other_lines (void)
+{
+	MlSession s;
+	MlResults r;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("1 + 1")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_BLANK,
+			ML_DOMAIN_ALGEBRA,
+			lit ("")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_MATH,
+			ML_DOMAIN_MATRIX,
+			lit ("1 + 1")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_UNKNOWN,
+			ML_DOMAIN_ALGEBRA,
+			lit ("1 + 1")
+		) == ML_OK
+	);
+	add (&s, "");
+	add (&s, "1 + 1");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (r.lines.len == 6);
+
+	for (uint64_t i = 0; i < 5; i++)
+	{
+		CHECK (is_none (&r, i));
+	}
+
+	CHECK (is_value (&r, 5, "2"));
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
+static void test_errors (void)
+{
+	MlSession    s;
+	MlResults    r;
+	MlResultView v;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+
+	add (&s, "1/0");
+	add (&s, "2 +");
+	add (&s, "y + 1");
+	add (&s, "0^0");
+	add (&s, "1 + 1");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (is_error (&r, 0, "division by zero"));
+	CHECK (ml_results_get (&r, 1).kind == ML_RESULT_ERROR);
+	CHECK (is_error (&r, 2, "undefined name 'y'"));
+	CHECK (is_error (&r, 3, "0 to the power 0 is undefined"));
+	CHECK (is_value (&r, 4, "2"));
+
+	/* the byte range of the error is in the line */
+	v = ml_results_get (&r, 2);
+	CHECK (v.err_start == 0 && v.err_len == 1);
+
+	/* a failed definition defines nothing */
+	add (&s, "z = 1/0");
+	add (&s, "z");
+	CHECK (ml_results_update (&r, &s, 5) == ML_OK);
+	CHECK (is_error (&r, 5, "division by zero"));
+	CHECK (is_error (&r, 6, "undefined name 'z'"));
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
+static void test_edit (void)
+{
+	MlSession s;
+	MlResults r;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+
+	add (&s, "a = 2");
+	add (&s, "b = a + 1");
+	add (&s, "b * 10");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (is_value (&r, 2, "30"));
+
+	/* an edit changes the lines below it, from the changed line down */
+	CHECK (
+		ml_session_replace (
+			&s,
+			0,
+			ML_LINE_MATH,
+			ML_DOMAIN_ALGEBRA,
+			lit ("a = 5")
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (r.lines.len == 3);
+	CHECK (is_value (&r, 0, "5"));
+	CHECK (is_value (&r, 1, "6"));
+	CHECK (is_value (&r, 2, "60"));
+
+	/* the lines above the change are kept */
+	CHECK (
+		ml_session_replace (
+			&s,
+			1,
+			ML_LINE_MATH,
+			ML_DOMAIN_ALGEBRA,
+			lit ("b = a * 2")
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&r, &s, 1) == ML_OK);
+	CHECK (is_value (&r, 0, "5"));
+	CHECK (is_value (&r, 1, "10"));
+	CHECK (is_value (&r, 2, "100"));
+
+	/* redefinition shadows, and the snapshots show each line's world */
+	CHECK (
+		ml_session_insert (
+			&s,
+			2,
+			ML_LINE_MATH,
+			ML_DOMAIN_ALGEBRA,
+			lit ("a = 1")
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&r, &s, 2) == ML_OK);
+	CHECK (r.lines.len == 4);
+	CHECK (is_value (&r, 2, "1"));
+	CHECK (is_value (&r, 3, "100"));
+	CHECK (
+		ml_results_get (&r, 3).snapshot
+		> ml_results_get (&r, 2).snapshot
+	);
+	CHECK (ml_results_get (&r, 0).snapshot == 0);
+
+	/* deleting a line */
+	CHECK (ml_session_delete (&s, 0) == ML_OK);
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (r.lines.len == 3);
+	CHECK (is_error (&r, 0, "undefined name 'a'"));
+
+	/* a from beyond the known lines starts at the end of them */
+	add (&s, "7");
+	CHECK (ml_results_update (&r, &s, 100) == ML_OK);
+	CHECK (r.lines.len == 4);
+	CHECK (is_value (&r, 3, "7"));
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
+static void test_includes (void)
+{
+	MlSession s;
+	MlResults r;
+	MlSlice   consts = lit ("matlog_test_consts.tmp");
+	MlSlice   outer  = lit ("matlog_test_outer.tmp");
+	MlSlice   loop_a = lit ("matlog_test_loop_a.tmp");
+	MlSlice   loop_b = lit ("matlog_test_loop_b.tmp");
+
+	CHECK (
+		ml_fs_write_file_atomic (
+			consts,
+			lit ("m:algebra k = 4\nm:algebra g(x) = x + k\n")
+		) == ML_OK
+	);
+	CHECK (
+		ml_fs_write_file_atomic (
+			outer,
+			lit ("include \"matlog_test_consts.tmp\"\nm:algebra h = k * 2\n")
+		) == ML_OK
+	);
+	CHECK (
+		ml_fs_write_file_atomic (
+			loop_a,
+			lit ("include \"matlog_test_loop_b.tmp\"\n")
+		) == ML_OK
+	);
+	CHECK (
+		ml_fs_write_file_atomic (
+			loop_b,
+			lit ("include \"matlog_test_loop_a.tmp\"\n")
+		) == ML_OK
+	);
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+
+	/* definitions of an included file flow into the lines below, also
+	   through a second level of includes */
+	add_include (&s, "matlog_test_outer.tmp");
+	add (&s, "g(1)");
+	add (&s, "h");
+	add_include (&s, "matlog_test_missing.tmp");
+	add (&s, "k + 1");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (r.lines.len == 5);
+	CHECK (is_none (&r, 0));
+	CHECK (is_value (&r, 1, "5"));
+	CHECK (is_value (&r, 2, "8"));
+	CHECK (is_error (&r, 3, "included file not found"));
+	CHECK (is_value (&r, 4, "5"));
+
+	/* a cycle is reported on the include line and does not hang */
+	ml_results_free (&r);
+	ml_session_free (&s);
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add_include (&s, "matlog_test_loop_a.tmp");
+	add (&s, "1 + 1");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (is_error (&r, 0, "include cycle"));
+	CHECK (is_value (&r, 1, "2"));
+
+	/* a file that includes itself */
+	CHECK (
+		ml_fs_write_file_atomic (
+			loop_a,
+			lit ("include \"matlog_test_loop_a.tmp\"\nm:algebra q = 1\n")
+		) == ML_OK
+	);
+	ml_results_free (&r);
+	ml_session_free (&s);
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add_include (&s, "matlog_test_loop_a.tmp");
+	add (&s, "q");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (is_value (&r, 1, "1"));
+
+	/* the session itself, loaded from a file, cannot include itself */
+	CHECK (ml_session_set_path (&s, loop_a) == ML_OK);
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (is_error (&r, 0, "include cycle"));
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+	CHECK (ml_fs_remove (consts) == ML_OK);
+	CHECK (ml_fs_remove (outer) == ML_OK);
+	CHECK (ml_fs_remove (loop_a) == ML_OK);
+	CHECK (ml_fs_remove (loop_b) == ML_OK);
+}
+
+void run_results_tests (void);
+
+void run_results_tests (void)
+{
+	test_flow ();
+	test_other_lines ();
+	test_errors ();
+	test_edit ();
+	test_includes ();
+}

@@ -22,6 +22,19 @@ uint64_t ml_env_snapshot (const MlEnv *env)
 	return env->bindings.len;
 }
 
+void ml_env_truncate (MlEnv *env, uint64_t snapshot)
+{
+	for (uint64_t i = snapshot; i < env->bindings.len; i++)
+	{
+		ml_ast_free (&env->bindings.data [i].ast);
+	}
+
+	if (snapshot < env->bindings.len)
+	{
+		env->bindings.len = snapshot;
+	}
+}
+
 /* A copy of x whose limbs live in the arena. */
 static MlBig copy_big (MlArena *arena, MlBig x)
 {

@@ -20,6 +20,8 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_ARITY]          = "wrong number of arguments",
 	[ML_EVAL_TOO_LARGE]      = "value too large",
 	[ML_EVAL_DEPTH]          = "recursion too deep",
+	[ML_EVAL_NO_FILE]        = "included file not found",
+	[ML_EVAL_INCLUDE_LOOP]   = "include cycle",
 	[ML_EVAL_NO_MEMORY]      = "out of memory"
 };
 

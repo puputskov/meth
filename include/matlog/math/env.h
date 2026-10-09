@@ -53,6 +53,14 @@ void ml_env_free (MlEnv *env);
 uint64_t ml_env_snapshot (const MlEnv *env);
 
 /*
+ * Drops every binding added after the snapshot, so the environment is as it
+ * was then. The numbers of dropped variables stay in the arena until
+ * ml_env_free, so a caller that starts over should free and init instead.
+ * A snapshot that is not older than the environment changes nothing.
+ */
+void ml_env_truncate (MlEnv *env, uint64_t snapshot);
+
+/*
  * Adds a variable. The value must be a number (not an error, not none); its
  * digits are copied. ML_ERR_INVALID otherwise.
  */
