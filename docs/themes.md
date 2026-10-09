@@ -2,7 +2,7 @@ id: themes
 title: Themes and settings
 summary: Colours, the built in themes, your own theme files and the settings file.
 keywords: theme, colors, colours, dark, light, contrast, mono, settings, settings.mlcfg, background, highlight, no_color
-see: commands
+see: settings, commands
 
 Math lines are drawn with syntax highlighting: numbers, names, functions,
 constants, units, operators, brackets, keywords and errors each have a
@@ -40,8 +40,5 @@ paren, keyword, logic, binder, error, match, unmatched, gutter, result, result-e
 ghost, hint-key, note and note-code.
 
 # The settings file
-`settings.mlcfg` in the settings folder (`%APPDATA%\matlog` on Windows,
-`~/.config/matlog` on Linux; `MATLOG_CONFIG` names another folder). It is
-a plain text file with `[sections]` and `key = value` lines; matlog keeps
-what it does not know when it writes. `[display]` holds `theme` and
-`colors`; `[folds]` holds the folded blocks of each session file.
+The theme and the colour level are two of the settings in `settings.mlcfg`;
+see [settings](settings) for the file, where it is and the other settings.

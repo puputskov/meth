@@ -113,6 +113,7 @@ typedef struct MlEditor
 	 * with the theme at the colour level. :theme and :colors set them.
 	 */
 	int32_t      highlight;
+	int32_t      ghost; /* 1 shows the preview of the result while typing */
 	MlTheme      theme;
 	MlColorLevel colors;
 	/* the theme files of the user, name.theme per line, read by Ctrl+P */
@@ -141,6 +142,12 @@ void ml_editor_init (MlEditor *ed);
  * and told in the message. Also :config reload.
  */
 MlResult ml_editor_load_keys (MlEditor *ed);
+
+/*
+ * Applies the settings of the file (session/options.h) that the file has:
+ * theme, colors, highlight and ghost. Also :config reload.
+ */
+MlResult ml_editor_load_settings (MlEditor *ed);
 
 /*
  * Chooses a built in theme or a name.theme file of the settings folder, as

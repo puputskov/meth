@@ -2,7 +2,7 @@ id: commands
 title: Commands
 summary: The commands typed after Ctrl+P.
 keywords: command line, colon, write, open, quit, mode, steps, symbols, theme, colors, export, delete, yank, move, copy
-see: editor, keys, themes, export
+see: editor, settings, keys, themes, export
 
 Ctrl+P opens the command line (type the command without the colon). Tab
 completes what you type: the names of commands and the values of their
@@ -36,6 +36,13 @@ current line and `$` for the last (1 based).
 :3,5move 10    move them after line 10 (:m)
 :3,5copy 10    copy them after line 10 (:t)
 ```
+
+# Settings
+```command
+:set [name [value]]  list, show or change a setting
+:config [path|reload]  the settings page, the file, read it again
+```
+See [settings](settings).
 
 # Keys
 ```command

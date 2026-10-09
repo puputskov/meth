@@ -66,6 +66,9 @@ MlResult ml_settings_text_remove (
 	MlSlice key
 );
 
+/* Appends the path of the settings file to out (ML_ERR_IO: no folder). */
+MlResult ml_settings_path (MlStr *out);
+
 /* Appends the whole text of the file to out (nothing when it is missing). */
 MlResult ml_settings_read (MlStr *out);
 

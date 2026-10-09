@@ -535,6 +535,7 @@ static int32_t run_interactive (int32_t argc, char **argv)
 
 	ml_editor_init (&ed);
 	setup_look (&ed);
+	ml_editor_load_settings (&ed);
 	ml_editor_load_keys (&ed);
 	r = ml_console_open (&con);
 

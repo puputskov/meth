@@ -442,6 +442,10 @@ generated static website.
 - **Key bindings are built** (`ui/keymap.h`): 25 actions, the default table, `[keys]` in the settings file, `:keys`, `:map`, `:unmap`, the page `keys`
   of the documentation. Only keys that cannot be typed as text are bindable (Ctrl or Alt, function keys, Shift+Enter). Not built yet: sequences of keys,
   bindings for the keys of the help viewer and the command line, and the tutorial and docs showing the user's own keys.
+- **Settings are built** (`session/options.h`, one table for the editor and the CLI): `theme`, `colors`, `highlight`, `ghost`; `:set`, `:config`
+  (`path`, `reload`), `matlog config list|get|set|path`, the page `settings`. Not built yet, because the features they switch do not exist: the default
+  domain, the width of the result column, the live Markdown preview, the undo history size, reopening the last file, the confirm before `:q!`.
+  Each is one more row in the table when its feature is there.
 - In the tool: `:set key value` changes a setting (Tab completes names and values) and writes it to the file, `:set` alone lists them, `:map state key
   action` and `:unmap state key` change a binding, `:map` lists them, `:config` shows the path of the file and opens the settings page of the
   documentation, `:config reload` reads the file again. The documentation (section 4.14) and the tutorial show the keys of the user, not the

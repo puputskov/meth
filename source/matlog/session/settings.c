@@ -338,6 +338,27 @@ static MlResult settings_path (MlStr *path, MlStr *dir)
 	return r;
 }
 
+MlResult ml_settings_path (MlStr *out)
+{
+	MlStr    dir;
+	MlResult r;
+
+	ml_str_init (&dir);
+	r = ml_config_dir (&dir);
+
+	if (r == ML_OK)
+	{
+		r = ml_path_join (
+			out,
+			ml_str_view (dir),
+			ml_slice_cstr (SETTINGS_FILE)
+		);
+	}
+
+	ml_str_free (&dir);
+	return r;
+}
+
 MlResult ml_settings_read (MlStr *out)
 {
 	MlResult r = ML_OK;

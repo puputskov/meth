@@ -2,7 +2,7 @@ id: cli
 title: The command line
 summary: Evaluate, run, export and read the docs from scripts.
 keywords: cli, scripts, eval, run, lex, parse, steps, json, exit code, stdin
-see: export, fileformat, docs
+see: export, settings, fileformat, docs
 
 `matlog` without a command opens the editor (`matlog notes.mlog` opens a
 file). With a command it prints on standard output and exits.
@@ -15,6 +15,7 @@ matlog parse TEXT          the syntax tree of a text
 matlog steps EXPR          the steps of an expression
 matlog export FILE FORMAT  a session as a document
 matlog theme [NAME]        the built in themes
+matlog config list|get|set|path  the settings
 matlog docs list           the pages of the documentation
 matlog help [CMD]          the usage
 ```

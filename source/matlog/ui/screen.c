@@ -1210,6 +1210,7 @@ static EditRow append_edit_row (
 	/* the preview of the result, dim, when the end of the text is visible */
 	if (
 		   row.result == ML_OK
+		&& ed->ghost
 		&& ed->state == ML_STATE_MATH
 		&& (
 			   ed->edit_domain == ML_DOMAIN_ALGEBRA

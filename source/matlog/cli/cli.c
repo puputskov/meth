@@ -7,6 +7,8 @@
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
 #include <matlog/session/steps.h>
+#include <matlog/session/options.h>
+#include <matlog/session/settings.h>
 #include <matlog/ui/theme.h>
 
 #define VERSION "matlog 0.3.0"
@@ -31,6 +33,7 @@ static const char *const help_overview =
 	"  docs list|show|search|check   the documentation\n"
 	"  export FILE FMT   a session as latex, mathml or markdown\n"
 	"  theme [NAME]   the built in themes, or one as a theme file\n"
+	"  config list|get|set|path   the settings\n"
 	"  schema         the shape of the JSON output\n"
 	"  commands       the list of commands (--format json for tools)\n"
 	"  version        the version\n"
@@ -66,6 +69,22 @@ static const char *const help_eval =
 	"  matlog eval \"det([[1,2],[3,4]])\"\n"
 	"  matlog eval --domain boolean \"a -> b\" \"table a & b\"\n"
 	"  matlog eval --domain lambda \"succ = \\x n f. f (n f)\" \"succ 2\"\n";
+
+static const char *const help_config =
+	"matlog config list [--format text|json]\n"
+	"matlog config get NAME [--format text|json]\n"
+	"matlog config set NAME VALUE\n"
+	"matlog config path\n"
+	"\n"
+	"Reads and changes the settings of settings.mlcfg (theme, colors, "
+	"highlight,\n"
+	"ghost). A setting that is not in the file has its default, and the "
+	"value auto\n"
+	"means that the terminal decides. MATLOG_CONFIG names another settings "
+	"folder.\n"
+	"The key bindings are the section [keys] of the file, see the page "
+	"keys of\n"
+	"matlog docs.\n";
 
 static const char *const help_run =
 	"matlog run FILE [--format text|json]\n"
@@ -201,6 +220,7 @@ static const CommandInfo commands [] =
 	{ .name = "docs", .summary = "read, search and check the documentation" },
 	{ .name = "export", .summary = "a session as latex, mathml or markdown" },
 	{ .name = "theme", .summary = "the built in themes as theme files" },
+	{ .name = "config", .summary = "read and change the settings" },
 	{ .name = "schema", .summary = "shape of the JSON output" },
 	{ .name = "commands", .summary = "list of commands" },
 	{ .name = "version", .summary = "the version" }
@@ -1314,7 +1334,15 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 						ml_choose (
 							is (name, "steps"),
 							help_steps,
-							ml_choose (is (name, "export"), help_export, NULL)
+							ml_choose (
+								is (name, "export"),
+								help_export,
+								ml_choose (
+									is (name, "config"),
+									help_config,
+									NULL
+								)
+							)
 						)
 					)
 				)
@@ -1733,6 +1761,210 @@ static int32_t cmd_theme (const Options *o, MlStr *out, MlStr *err)
 	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
 }
 
+/* ---- config ---- */
+
+/* One setting, as a text line or a JSON object. */
+static MlResult config_entry (
+	MlStr    *out,
+	int32_t  json,
+	uint64_t index,
+	MlSlice  value,
+	int32_t  from_file
+)
+{
+	MlOption o = ml_option_at (index);
+	MlResult r = ML_OK;
+
+	if (json)
+	{
+		r = ml_str_appendf (
+			out,
+			"{\"name\":\"%s\",\"section\":\"%s\",\"value\":",
+			o.name,
+			o.section
+		);
+		r = ml_choose (r == ML_OK, json_string (out, value), r);
+		r = ml_choose (
+			r == ML_OK,
+			ml_str_appendf (
+				out,
+				",\"default\":\"%s\",\"source\":\"%s\"}\n",
+				o.initial,
+				ml_choose (from_file, "file", "default")
+			),
+			r
+		);
+	}
+
+	else
+	{
+		r = ml_str_appendf (out, "%s = ", o.name);
+		r = ml_choose (r == ML_OK, ml_str_append (out, value), r);
+		r = ml_choose (r == ML_OK, add (out, "\n"), r);
+	}
+
+	return r;
+}
+
+/* The value of a setting in the file, else its default. */
+static MlResult config_value (uint64_t index, MlStr *value, int32_t *from_file)
+{
+	MlOption o = ml_option_at (index);
+	MlStr    raw;
+	MlStr    good;
+	MlResult r;
+
+	ml_str_init (&raw);
+	ml_str_init (&good);
+	*from_file = 0;
+	r = ml_settings_get (
+		&raw,
+		ml_slice_cstr (o.section),
+		ml_slice_cstr (o.name),
+		from_file
+	);
+
+	if (
+		   r == ML_OK
+		&& *from_file
+		&& ml_option_check (index, ml_str_view (raw), &good) == ML_OK
+	)
+	{
+		r = ml_str_append (value, ml_str_view (good));
+	}
+
+	else if (r == ML_OK)
+	{
+		*from_file = 0;
+		r = add (value, o.initial);
+	}
+
+	ml_str_free (&good);
+	ml_str_free (&raw);
+	return r;
+}
+
+static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
+{
+	MlResult r    = ML_OK;
+	int32_t  code = ML_EXIT_OK;
+	MlSlice  sub  = ml_choose (
+		o->rest.len > 0,
+		o->rest.data [0],
+		ml_slice ("", 0)
+	);
+
+	if (is (sub, "path") && o->rest.len == 1)
+	{
+		r = ml_settings_path (out);
+		r = ml_choose (r == ML_OK, add (out, "\n"), r);
+
+		if (r == ML_ERR_IO)
+		{
+			code = ML_EXIT_IO;
+			r    = ML_OK;
+			add (err, "matlog: no settings folder\n");
+		}
+	}
+
+	else if (is (sub, "list") && o->rest.len == 1)
+	{
+		for (uint64_t i = 0; i < ml_option_count () && r == ML_OK; i++)
+		{
+			MlStr   value;
+			int32_t from_file = 0;
+
+			ml_str_init (&value);
+			r = config_value (i, &value, &from_file);
+			r = ml_choose (
+				r == ML_OK,
+				config_entry (out, o->json, i, ml_str_view (value), from_file),
+				r
+			);
+			ml_str_free (&value);
+		}
+	}
+
+	else if (
+		   (is (sub, "get") && o->rest.len == 2)
+		|| (is (sub, "set") && o->rest.len == 3)
+	)
+	{
+		uint64_t index = ml_option_find (o->rest.data [1]);
+
+		if (index >= ml_option_count ())
+		{
+			code = usage_error (err, "no such setting", o->rest.data [1]);
+		}
+
+		else if (is (sub, "set"))
+		{
+			MlStr good;
+
+			ml_str_init (&good);
+
+			if (ml_option_check (index, o->rest.data [2], &good) != ML_OK)
+			{
+				code = usage_error (
+					err,
+					"not a value for the setting",
+					o->rest.data [2]
+				);
+			}
+
+			else
+			{
+				r = ml_settings_set (
+					ml_slice_cstr (ml_option_at (index).section),
+					ml_slice_cstr (ml_option_at (index).name),
+					ml_str_view (good)
+				);
+
+				if (r == ML_ERR_IO)
+				{
+					code = ML_EXIT_IO;
+					r    = ML_OK;
+					add (err, "matlog: cannot write the settings file\n");
+				}
+			}
+
+			ml_str_free (&good);
+		}
+
+		else
+		{
+			MlStr   value;
+			int32_t from_file = 0;
+
+			ml_str_init (&value);
+			r = config_value (index, &value, &from_file);
+			r = ml_choose (
+				r == ML_OK,
+				config_entry (
+					out,
+					o->json,
+					index,
+					ml_str_view (value),
+					from_file
+				),
+				r
+			);
+			ml_str_free (&value);
+		}
+	}
+
+	else
+	{
+		code = usage_error (
+			err,
+			"config needs list, get NAME, set NAME VALUE or path",
+			ml_slice ("", 0)
+		);
+	}
+
+	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
+}
+
 static int32_t cmd_commands (const Options *o, MlStr *out)
 {
 	MlResult r = ML_OK;
@@ -1837,6 +2069,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "theme"))
 	{
 		code = cmd_theme (&o, out, err);
+	}
+
+	else if (is (cmd, "config"))
+	{
+		code = cmd_config (&o, out, err);
 	}
 
 	else if (is (cmd, "schema"))

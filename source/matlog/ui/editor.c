@@ -5,6 +5,7 @@
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
+#include <matlog/session/options.h>
 #include <matlog/session/settings.h>
 
 static const char *const state_names [ML_STATE_COUNT] =
@@ -74,6 +75,7 @@ void ml_editor_init (MlEditor *ed)
 	ed->mouse_line    = 0;
 	ed->mouse_byte    = 0;
 	ed->highlight     = 0;
+	ed->ghost         = 1;
 	ed->theme         = ml_theme_default ();
 	ed->colors        = ML_COLORS_24BIT;
 	ml_keymap_init (&ed->keymap);
@@ -1946,6 +1948,297 @@ MlResult ml_editor_load_keys (MlEditor *ed)
 	return r;
 }
 
+/* The value of a setting as the editor has it now. */
+static MlResult option_value (const MlEditor *ed, uint64_t index, MlStr *out)
+{
+	MlSlice name = ml_slice_cstr (ml_option_at (index).name);
+	MlResult r   = ML_OK;
+
+	if (ml_slice_equal (name, ml_slice_cstr ("theme")))
+	{
+		r = ml_str_append (out, ml_slice_cstr (ed->theme.name));
+	}
+
+	else if (ml_slice_equal (name, ml_slice_cstr ("colors")))
+	{
+		r = ml_str_append (
+			out,
+			ml_slice_cstr (ml_color_level_name (ed->colors))
+		);
+	}
+
+	else
+	{
+		int32_t on = ml_choose (
+			ml_slice_equal (name, ml_slice_cstr ("ghost")),
+			ed->ghost,
+			ed->highlight
+		);
+
+		r = ml_str_append (out, ml_slice_cstr (ml_choose (on, "on", "off")));
+	}
+
+	return r;
+}
+
+/* Puts a checked value of a setting in force. */
+static MlResult apply_option (MlEditor *ed, uint64_t index, MlSlice value)
+{
+	MlResult r    = ML_OK;
+	MlSlice  name = ml_slice_cstr (ml_option_at (index).name);
+
+	if (ml_slice_equal (name, ml_slice_cstr ("theme")))
+	{
+		r = set_theme (ed, value);
+	}
+
+	else if (ml_slice_equal (name, ml_slice_cstr ("colors")))
+	{
+		r = set_colors (ed, value);
+	}
+
+	else if (ml_slice_equal (name, ml_slice_cstr ("ghost")))
+	{
+		ed->ghost = ml_option_bool (value) > 0;
+	}
+
+	else
+	{
+		ed->highlight = ml_option_bool (value) > 0;
+	}
+
+	return r;
+}
+
+/*
+ * :set alone lists the settings, :set name shows one, :set name value
+ * changes it and keeps it in the settings file.
+ */
+static MlResult set_option (MlEditor *ed, MlSlice arg)
+{
+	MlResult r     = ML_OK;
+	uint64_t split = 0;
+	MlSlice  name;
+	MlSlice  value;
+	uint64_t index;
+
+	while (split < arg.len && arg.data [split] != ' ')
+	{
+		split++;
+	}
+
+	name  = ml_slice_sub (arg, 0, split);
+	value = trim (ml_slice_sub (arg, split, arg.len - split));
+	index = ml_option_find (name);
+	ml_str_clear (&ed->message);
+
+	if (arg.len == 0)
+	{
+		for (uint64_t i = 0; i < ml_option_count () && r == ML_OK; i++)
+		{
+			MlStr now;
+
+			ml_str_init (&now);
+			r = option_value (ed, i, &now);
+
+			if (r == ML_OK)
+			{
+				r = ml_str_appendf (
+					&ed->message,
+					"%s%s=%s",
+					ml_choose (i > 0, " ", ""),
+					ml_option_at (i).name,
+					ml_str_cstr (now)
+				);
+			}
+
+			ml_str_free (&now);
+		}
+	}
+
+	else if (index >= ml_option_count ())
+	{
+		r = ml_str_appendf (
+			&ed->message,
+			"no such setting: %.*s",
+			(int)name.len,
+			name.data
+		);
+	}
+
+	else if (value.len == 0)
+	{
+		MlStr now;
+
+		ml_str_init (&now);
+		r = option_value (ed, index, &now);
+
+		if (r == ML_OK)
+		{
+			r = ml_str_appendf (
+				&ed->message,
+				"%s=%s",
+				ml_option_at (index).name,
+				ml_str_cstr (now)
+			);
+		}
+
+		ml_str_free (&now);
+	}
+
+	else
+	{
+		MlStr good;
+
+		ml_str_init (&good);
+
+		if (ml_option_check (index, value, &good) != ML_OK)
+		{
+			MlOption o = ml_option_at (index);
+
+			r = ml_str_appendf (
+				&ed->message,
+				"%s: not a value%s%s",
+				o.name,
+				ml_choose (
+					o.kind == ML_OPTION_CHOICE,
+					", use ",
+					ml_choose (o.kind == ML_OPTION_BOOL, ", use on or off", "")
+				),
+				ml_choose (o.kind == ML_OPTION_CHOICE, o.values, "")
+			);
+		}
+
+		else
+		{
+			MlStr now;
+
+			ml_str_init (&now);
+			r = apply_option (ed, index, ml_str_view (good));
+
+			/* what is kept is what is in force, as a theme may be missing */
+			if (r == ML_OK)
+			{
+				r = option_value (ed, index, &now);
+			}
+
+			if (r == ML_OK)
+			{
+				ml_settings_set (
+					ml_slice_cstr (ml_option_at (index).section),
+					ml_slice_cstr (ml_option_at (index).name),
+					ml_str_view (now)
+				);
+			}
+
+			ml_str_free (&now);
+		}
+
+		ml_str_free (&good);
+	}
+
+	return r;
+}
+
+MlResult ml_editor_load_settings (MlEditor *ed)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t i = 0; i < ml_option_count () && r == ML_OK; i++)
+	{
+		MlOption o     = ml_option_at (i);
+		MlStr    value;
+		MlStr    good;
+		int32_t  found = 0;
+
+		ml_str_init (&value);
+		ml_str_init (&good);
+		r = ml_settings_get (
+			&value,
+			ml_slice_cstr (o.section),
+			ml_slice_cstr (o.name),
+			&found
+		);
+
+		if (
+			   r == ML_OK
+			&& found
+			&& ml_option_check (i, ml_str_view (value), &good) == ML_OK
+		)
+		{
+			r = apply_option (ed, i, ml_str_view (good));
+		}
+
+		ml_str_free (&good);
+		ml_str_free (&value);
+	}
+
+	ml_str_clear (&ed->message);
+	return r;
+}
+
+/*
+ * :config shows the page of the documentation about the settings, :config
+ * path says where the file is, :config reload reads it again (the settings
+ * and the key bindings).
+ */
+static MlResult config_command (MlEditor *ed, MlSlice arg)
+{
+	MlResult r = ML_OK;
+
+	if (ml_slice_equal (arg, ml_slice_cstr ("path")))
+	{
+		MlStr path;
+
+		ml_str_init (&path);
+		ml_str_clear (&ed->message);
+		r = ml_settings_path (&path);
+
+		if (r == ML_OK)
+		{
+			r = ml_str_appendf (
+				&ed->message,
+				"settings: %s",
+				ml_str_cstr (path)
+			);
+		}
+
+		else
+		{
+			r = set_message (ed, "no settings folder");
+		}
+
+		ml_str_free (&path);
+	}
+
+	else if (ml_slice_equal (arg, ml_slice_cstr ("reload")))
+	{
+		r = ml_editor_load_settings (ed);
+
+		if (r == ML_OK)
+		{
+			r = ml_editor_load_keys (ed);
+		}
+
+		if (r == ML_OK && ed->message.len == 0)
+		{
+			r = set_message (ed, "settings read");
+		}
+	}
+
+	else if (arg.len == 0)
+	{
+		r = open_help (ed, ml_slice_cstr ("settings"));
+	}
+
+	else
+	{
+		r = set_message (ed, "config: path, reload, or nothing for the help");
+	}
+
+	return r;
+}
+
 /* The name of the session file without its folder and its extension. */
 static MlSlice session_stem (const MlSession *s)
 {
@@ -2659,6 +2952,16 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "redo") || is_cmd (cmd, "red"))
 	{
 		r = undo_redo (ed, 1);
+	}
+
+	else if (is_cmd (cmd, "set"))
+	{
+		r = set_option (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "config"))
+	{
+		r = config_command (ed, arg);
 	}
 
 	else if (is_cmd (cmd, "keys") || is_cmd (cmd, "map"))
