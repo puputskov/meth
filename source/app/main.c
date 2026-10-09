@@ -1,5 +1,8 @@
 #include <matlog/cli/cli.h>
+#include <matlog/platform/config.h>
 #include <matlog/platform/console.h>
+#include <matlog/platform/fs.h>
+#include <matlog/platform/path.h>
 #include <matlog/session/folds.h>
 #include <matlog/session/mlog.h>
 #include <matlog/session/settings.h>
@@ -9,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define DEFAULT_SESSION "scratch.mlog"
 
@@ -161,6 +165,76 @@ static MlResult sync_look (const MlEditor *ed, MlStr *look)
 	return r;
 }
 
+/*
+ * The theme file being used: the stamp of name.theme in the settings folder
+ * when the theme is not a built in one (0 otherwise, and 0 for a file that is
+ * gone), kept to notice that the file was edited.
+ */
+typedef struct ThemeWatch
+{
+	char     name [ML_THEME_NAME_MAX];
+	uint64_t stamp;
+} ThemeWatch;
+
+static uint64_t theme_file_stamp (const MlEditor *ed)
+{
+	uint64_t stamp = 0;
+	MlTheme  built;
+	MlStr    dir;
+	MlStr    file;
+	MlStr    path;
+
+	ml_str_init (&dir);
+	ml_str_init (&file);
+	ml_str_init (&path);
+
+	if (
+		   ml_theme_builtin (&built, ml_slice_cstr (ed->theme.name)) != ML_OK
+		&& ml_config_dir (&dir) == ML_OK
+		&& ml_str_appendf (&file, "%s.theme", ed->theme.name) == ML_OK
+		&& ml_path_join (&path, ml_str_view (dir), ml_str_view (file)) == ML_OK
+	)
+	{
+		stamp = ml_fs_stamp (ml_str_view (path));
+	}
+
+	ml_str_free (&path);
+	ml_str_free (&file);
+	ml_str_free (&dir);
+	return stamp;
+}
+
+/* 1 while the theme in use is a file that can change under us. */
+static int32_t theme_is_file (const ThemeWatch *w)
+{
+	return w->stamp != 0;
+}
+
+/*
+ * Reads the theme file again when it was edited since the last look. A theme
+ * that was just chosen is only remembered, it was read a moment ago.
+ */
+static MlResult watch_theme (MlEditor *ed, ThemeWatch *w)
+{
+	MlResult r     = ML_OK;
+	uint64_t stamp = theme_file_stamp (ed);
+
+	if (strcmp (w->name, ed->theme.name) != 0)
+	{
+		strncpy (w->name, ed->theme.name, ML_THEME_NAME_MAX - 1);
+		w->name [ML_THEME_NAME_MAX - 1] = 0;
+		w->stamp = stamp;
+	}
+
+	else if (stamp != 0 && stamp != w->stamp)
+	{
+		w->stamp = stamp;
+		r        = ml_editor_apply_theme (ed, ml_slice_cstr (ed->theme.name));
+	}
+
+	return r;
+}
+
 /* Reads keys and edits until the editor asks to quit. */
 static MlResult run (
 	MlConsole *con,
@@ -173,6 +247,8 @@ static MlResult run (
 	MlStr    path;
 	MlStr    folds;
 	MlStr    look;
+	ThemeWatch watch = { .name = "", .stamp = 0 };
+	uint32_t   idle  = 0;
 
 	ml_str_init (&frame);
 	ml_str_init (&path);
@@ -183,6 +259,11 @@ static MlResult run (
 	if (r == ML_OK)
 	{
 		r = sync_look (ed, &look);
+	}
+
+	if (r == ML_OK)
+	{
+		r = watch_theme (ed, &watch);
 	}
 
 	while (r == ML_OK && !ed->quit)
@@ -205,15 +286,32 @@ static MlResult run (
 		);
 		r = draw (con, screen, &frame, ed);
 
-		/* an empty editor shows a hint that changes after a while */
+		/*
+		 * Waiting for a key is cut into seconds while something changes
+		 * without one: the hint of an empty editor, a theme file that is
+		 * edited in another window.
+		 */
+		idle = 0;
+
 		while (
 			   r == ML_OK
-			&& ml_screen_hint_active (ed)
-			&& !ml_console_wait (con, ML_HINT_SECONDS * 1000)
+			&& (ml_screen_hint_active (ed) || theme_is_file (&watch))
+			&& !ml_console_wait (con, 1000)
 		)
 		{
-			screen->hint_tick++;
-			r = draw (con, screen, &frame, ed);
+			idle++;
+
+			if (ml_screen_hint_active (ed) && idle % ML_HINT_SECONDS == 0)
+			{
+				screen->hint_tick++;
+			}
+
+			r = watch_theme (ed, &watch);
+
+			if (r == ML_OK)
+			{
+				r = draw (con, screen, &frame, ed);
+			}
 		}
 
 		if (r == ML_OK)
@@ -251,6 +349,11 @@ static MlResult run (
 		if (r == ML_OK)
 		{
 			r = sync_look (ed, &look);
+		}
+
+		if (r == ML_OK)
+		{
+			r = watch_theme (ed, &watch);
 		}
 
 		/* every committed change is written to the file right away */
