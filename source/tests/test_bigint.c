@@ -453,7 +453,7 @@ static void test_pow (void)
 	);
 
 	/* the largest allowed value is still fine */
-	CHECK (ml_big_ok         (ml_big_pow (&a, num (&a, "2"), 100000)));
+	CHECK (ml_big_ok (ml_big_pow (&a, num (&a, "2"), 100000)));
 	CHECK (
 		ml_big_bit_length (ml_big_pow (&a, num (&a, "2"), 100000)) == 100001
 	);
