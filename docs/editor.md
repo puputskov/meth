@@ -2,12 +2,14 @@ id: editor
 title: The editor and its keys
 summary: Typing, moving, selecting, blocks, folds and undo.
 keywords: keys, keyboard, shortcuts, block, domain, fold, select, undo, note, math line, ctrl+enter
-see: commands, fileformat
+see: commands, keys, fileformat
 
 The editor works like a plain text editor: the cursor is always in a line,
 and typing edits it. A new line is a note by default. A math line shows its
 result after it as you type, and the result of the line being typed is
 shown dim as a preview.
+
+All control keys can be changed, see [keys](keys).
 
 # Notes and blocks
 A note is free text; the Markdown marks `**bold**`, `*italic*`,

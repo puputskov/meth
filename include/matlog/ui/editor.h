@@ -7,6 +7,7 @@
 #include <matlog/session/steps.h>
 #include <matlog/ui/complete.h>
 #include <matlog/ui/help.h>
+#include <matlog/ui/keymap.h>
 #include <matlog/ui/lineedit.h>
 #include <matlog/ui/rewrite.h>
 #include <matlog/ui/theme.h>
@@ -117,6 +118,7 @@ typedef struct MlEditor
 	/* the theme files of the user, name.theme per line, read by Ctrl+P */
 	MlStr        theme_files;
 	MlHelp       help; /* the help viewer, shown in the state HELP */
+	MlKeymap     keymap; /* key to action, see keymap.h */
 } MlEditor;
 
 /* The selected text in text order; valid is 0 when nothing is selected. */
@@ -132,6 +134,13 @@ typedef struct MlTextRange
 MlTextRange ml_editor_selection (const MlEditor *ed);
 
 void ml_editor_init (MlEditor *ed);
+
+/*
+ * Resets the key bindings to the defaults and applies the [keys] section of
+ * the settings file (see keymap.h). A line that is not a binding is ignored
+ * and told in the message. Also :config reload.
+ */
+MlResult ml_editor_load_keys (MlEditor *ed);
 
 /*
  * Chooses a built in theme or a name.theme file of the settings folder, as

@@ -65,6 +65,14 @@ void ml_help_set_view (MlHelp *h, uint32_t cols, uint32_t rows);
 MlResult ml_help_open (MlHelp *h, MlSlice topic);
 
 /*
+ * Adds a page made at run time (a text in the format of docs/*.md), or
+ * replaces the page with the same id. ML_ERR_PARSE when the text is not a
+ * page. The page is not part of the built in documentation: it is gone when
+ * the program ends.
+ */
+MlResult ml_help_set_page (MlHelp *h, MlSlice text);
+
+/*
  * A key. The viewer closes itself (open is 0 afterwards); search is 1 when
  * the key asks for a search to be typed.
  */

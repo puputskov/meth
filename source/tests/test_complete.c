@@ -38,7 +38,7 @@ static void test_commands (void)
 	MlCompletion c = ml_complete_command (lit (""));
 
 	/* nothing typed: every command is listed, none is suggested */
-	CHECK (c.count == 30 && c.ghost == ML_MAX_CANDIDATES);
+	CHECK (c.count == 33 && c.ghost == ML_MAX_CANDIDATES);
 	CHECK (has_item (&c, "mode") && has_item (&c, "open!"));
 	CHECK (c.ghost_text.len == 0);
 
@@ -49,7 +49,8 @@ static void test_commands (void)
 	CHECK (c.append_space && c.token_start == 0);
 
 	c = ml_complete_command (lit ("m"));
-	CHECK (c.count == 2 && has_item (&c, "mode") && has_item (&c, "move"));
+	CHECK (c.count == 3 && has_item (&c, "mode") && has_item (&c, "move"));
+	CHECK (has_item (&c, "map"));
 	CHECK (ghost_is (c, "ode"));
 
 	/* several candidates: the first longer one is suggested */

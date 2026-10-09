@@ -39,6 +39,25 @@ MlResult ml_settings_text_set (
 	MlSlice value
 );
 
+/*
+ * The index-th entry (counting from 0) of section: its key and value, and the
+ * 1 based number of its line. found is 0 past the last entry. Used to read a
+ * whole section, such as the key bindings.
+ */
+typedef struct MlSettingEntry
+{
+	int32_t  found;
+	MlSlice  key;
+	MlSlice  value;
+	uint64_t line;
+} MlSettingEntry;
+
+MlSettingEntry ml_settings_text_entry (
+	MlSlice  text,
+	MlSlice  section,
+	uint64_t index
+);
+
 /* Appends to out the text without the entry of key in section. */
 MlResult ml_settings_text_remove (
 	MlStr   *out,
@@ -46,6 +65,9 @@ MlResult ml_settings_text_remove (
 	MlSlice section,
 	MlSlice key
 );
+
+/* Appends the whole text of the file to out (nothing when it is missing). */
+MlResult ml_settings_read (MlStr *out);
 
 /* Appends the value of an entry of the file to out; found is 0 if none. */
 MlResult ml_settings_get (

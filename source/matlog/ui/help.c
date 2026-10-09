@@ -91,6 +91,43 @@ static MlSlice trim (MlSlice s)
 	return ml_slice_sub (s, start, end - start);
 }
 
+MlResult ml_help_set_page (MlHelp *h, MlSlice text)
+{
+	MlResult  r = ensure_loaded (h);
+	MlDocPage p;
+	uint64_t  line = 0;
+
+	ml_doc_page_init (&p);
+
+	if (r == ML_OK)
+	{
+		r = ml_doc_parse (&p, text, &line);
+	}
+
+	if (r == ML_OK)
+	{
+		uint64_t at = ml_docs_find (&h->docs, ml_str_view (p.id));
+
+		if (at < h->docs.pages.len)
+		{
+			ml_doc_page_free (&h->docs.pages.data [at]);
+			h->docs.pages.data [at] = p;
+		}
+
+		else
+		{
+			r = MlDocPageVec_push (&h->docs.pages, p);
+		}
+	}
+
+	if (r != ML_OK)
+	{
+		ml_doc_page_free (&p);
+	}
+
+	return r;
+}
+
 MlResult ml_help_open (MlHelp *h, MlSlice topic)
 {
 	MlResult r    = ensure_loaded (h);

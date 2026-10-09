@@ -5,6 +5,7 @@
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
+#include <matlog/session/settings.h>
 
 static const char *const state_names [ML_STATE_COUNT] =
 {
@@ -75,6 +76,7 @@ void ml_editor_init (MlEditor *ed)
 	ed->highlight     = 0;
 	ed->theme         = ml_theme_default ();
 	ed->colors        = ML_COLORS_24BIT;
+	ml_keymap_init (&ed->keymap);
 }
 
 void ml_editor_set_size (MlEditor *ed, uint32_t cols, uint32_t rows)
@@ -99,6 +101,7 @@ void ml_editor_free (MlEditor *ed)
 	ml_rewriter_free (&ed->rewriter);
 	lines_free (&ed->yank);
 	ml_str_free (&ed->message);
+	ml_keymap_free (&ed->keymap);
 }
 
 static MlResult set_message (MlEditor *ed, const char *text)
@@ -275,19 +278,16 @@ static void set_domain (MlEditor *ed, MlDomain domain);
 static MlResult settle (MlEditor *ed);
 static MlResult resume (MlEditor *ed);
 
-/* Alt+Left and Alt+Right scroll through the domains. */
-static int32_t is_domain_cycle (MlKey key)
+/* What the key binding table (settings [keys]) makes of a key. */
+static MlAction key_action (const MlEditor *ed, MlKey key)
 {
-	return (
-		   (key.code == ML_KEY_LEFT || key.code == ML_KEY_RIGHT)
-		&& (key.mods & ML_MOD_ALT)
-	);
+	return ml_keymap_lookup (&ed->keymap, key);
 }
 
-static MlDomain next_domain (MlDomain domain, MlKey key)
+static MlDomain next_domain (MlDomain domain, int32_t forward)
 {
 	uint32_t count = ML_DOMAIN_COUNT;
-	uint32_t step  = ml_choose (key.code == ML_KEY_RIGHT, 1, count - 1);
+	uint32_t step  = ml_choose (forward, 1, count - 1);
 
 	return (MlDomain)(((uint32_t)domain + step) % count);
 }
@@ -296,13 +296,13 @@ static MlDomain next_domain (MlDomain domain, MlKey key)
  * The domain of the line being typed (and of the next ones), or of a note's
  * neighbours.
  */
-static MlResult cycle_line_domain (MlEditor *ed, MlKey key)
+static MlResult cycle_line_domain (MlEditor *ed, int32_t forward)
 {
 	MlResult r = ML_OK;
 
 	if (ed->edit_kind == ML_LINE_MATH || ed->edit_kind == ML_LINE_BLANK)
 	{
-		MlDomain next = next_domain (ed->edit_domain, key);
+		MlDomain next = next_domain (ed->edit_domain, forward);
 
 		ed->edit_domain = next;
 		ml_rewriter_set_domain (&ed->rewriter, next);
@@ -318,7 +318,7 @@ static MlResult cycle_line_domain (MlEditor *ed, MlKey key)
 	else
 	{
 		/* a note has no domain: the keys choose the one for new lines */
-		MlDomain next = next_domain (ed->session.domain, key);
+		MlDomain next = next_domain (ed->session.domain, forward);
 
 		set_domain (ed, next);
 		ed->edit_domain = next;
@@ -833,14 +833,6 @@ static MlResult line_split (MlEditor *ed)
 }
 
 /* Is it Ctrl+Enter, Shift+Enter or Ctrl+B: choose the block to start. */
-static int32_t is_block_key (MlKey key)
-{
-	return (
-		   key.code == ML_KEY_ENTER
-		&& (key.mods & (ML_MOD_CTRL | ML_MOD_SHIFT))
-	);
-}
-
 /* The domain starting with the letter after from, or from itself. */
 static MlDomain domain_by_letter (MlDomain from, uint32_t ch)
 {
@@ -1353,17 +1345,6 @@ static void jump_block (MlEditor *ed, int32_t forward)
 
 /* Takes back (or does again) the last user action. */
 /* Ctrl+Z is undo, Ctrl+Shift+Z and Ctrl+Y redo; 0 for another key. */
-static int32_t undo_key (MlKey key)
-{
-	int32_t ctrl = key.code == ML_KEY_CHAR && (key.mods & ML_MOD_CTRL);
-
-	return ml_choose (
-		ctrl && (key.cp == 'z' || key.cp == 'Z'),
-		ml_choose (key.mods & ML_MOD_SHIFT, 2, 1),
-		ml_choose (ctrl && (key.cp == 'y' || key.cp == 'r'), 2, 0)
-	);
-}
-
 static MlResult undo_redo (MlEditor *ed, int32_t redo)
 {
 	MlResult     r = ML_OK;
@@ -1764,6 +1745,204 @@ static MlResult set_colors (MlEditor *ed, MlSlice arg)
 		);
 	}
 
+	return r;
+}
+
+static MlResult open_help (MlEditor *ed, MlSlice topic);
+
+/*
+ * :keys and :map alone show the key bindings in use as a page of the help,
+ * made at the time of the command.
+ */
+static MlResult show_keys (MlEditor *ed)
+{
+	MlResult r = ML_OK;
+	MlStr    page;
+	MlStr    table;
+
+	ml_str_init (&page);
+	ml_str_init (&table);
+	r = ml_keymap_format (&table, &ed->keymap);
+
+	if (r == ML_OK)
+	{
+		r = ml_str_appendf (
+			&page,
+			"id: yourkeys\n"
+			"title: Your keys\n"
+			"summary: The key bindings in use.\n"
+			"see: keys\n"
+			"\n"
+			"The action, its keys and what it does. `:map KEY ACTION` "
+			"binds a key, `:unmap KEY` removes one; both are kept in "
+			"the settings file.\n"
+			"\n"
+			"```keys\n"
+			"%s"
+			"```\n",
+			ml_str_cstr (table)
+		);
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_help_set_page (&ed->help, ml_str_view (page));
+	}
+
+	if (r == ML_OK)
+	{
+		r = open_help (ed, ml_slice_cstr ("yourkeys"));
+	}
+
+	ml_str_free (&table);
+	ml_str_free (&page);
+	return r;
+}
+
+/* Keeps a binding in the settings file: the key and an action or none. */
+static void keep_binding (MlKey key, MlSlice action)
+{
+	MlStr spec;
+
+	ml_str_init (&spec);
+
+	if (ml_key_spec (&spec, key) == ML_OK)
+	{
+		ml_settings_set (
+			ml_slice_cstr ("keys"),
+			ml_str_view (spec),
+			action
+		);
+	}
+
+	ml_str_free (&spec);
+}
+
+/*
+ * :map KEY ACTION binds a key and :unmap KEY removes the binding; the change
+ * is written to the [keys] section of the settings file. KEY is written as
+ * in the file (Ctrl+Shift+Z), ACTION is one of the names of :keys.
+ */
+static MlResult map_key (MlEditor *ed, MlSlice arg, int32_t unmap)
+{
+	MlResult   r     = ML_OK;
+	uint64_t   split = 0;
+	MlKeyParse p;
+	MlAction   a;
+
+	while (split < arg.len && arg.data [split] != ' ')
+	{
+		split++;
+	}
+
+	p = ml_key_parse (ml_slice_sub (arg, 0, split));
+	a = ml_choose (
+		unmap,
+		ML_ACT_NONE,
+		ml_action_from_name (
+			trim (ml_slice_sub (arg, split, arg.len - split))
+		)
+	);
+
+	if (arg.len == 0 && !unmap)
+	{
+		r = show_keys (ed);
+	}
+
+	else if (p.result != ML_OK)
+	{
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (&ed->message, "%s", p.problem);
+	}
+
+	else if (a == ML_ACT_COUNT)
+	{
+		r = set_message (ed, "map KEY ACTION: no such action, see :keys");
+	}
+
+	else
+	{
+		MlStr spec;
+
+		ml_str_init (&spec);
+		r = ml_key_spec (&spec, p.key);
+
+		if (r == ML_OK && a == ML_ACT_NONE)
+		{
+			ml_keymap_unbind (&ed->keymap, p.key);
+		}
+
+		else if (r == ML_OK)
+		{
+			r = ml_keymap_bind (&ed->keymap, p.key, a);
+		}
+
+		if (r == ML_OK)
+		{
+			keep_binding (p.key, ml_slice_cstr (ml_action_name (a)));
+			ml_str_clear (&ed->message);
+			r = ml_str_appendf (
+				&ed->message,
+				"%s: %s",
+				ml_str_cstr (spec),
+				ml_action_name (a)
+			);
+		}
+
+		ml_str_free (&spec);
+	}
+
+	return r;
+}
+
+MlResult ml_editor_load_keys (MlEditor *ed)
+{
+	MlResult r = ML_OK;
+	MlStr    text;
+	MlStr    report;
+	uint64_t bad = 0;
+
+	ml_str_init (&text);
+	ml_str_init (&report);
+	ml_keymap_free (&ed->keymap);
+	r = ml_keymap_init (&ed->keymap);
+
+	if (r == ML_OK)
+	{
+		r = ml_settings_read (&text);
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_keymap_apply_text (
+			&ed->keymap,
+			ml_str_view (text),
+			&report,
+			&bad
+		);
+	}
+
+	if (r == ML_OK && bad > 0)
+	{
+		uint64_t first = 0;
+
+		while (first < report.len && report.data [first] != '\n')
+		{
+			first++;
+		}
+
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (
+			&ed->message,
+			"settings [keys], %.*s%s",
+			(int)first,
+			report.data,
+			ml_choose (bad > 1, " (and more)", "")
+		);
+	}
+
+	ml_str_free (&report);
+	ml_str_free (&text);
 	return r;
 }
 
@@ -2482,6 +2661,16 @@ static MlResult run_command (MlEditor *ed)
 		r = undo_redo (ed, 1);
 	}
 
+	else if (is_cmd (cmd, "keys") || is_cmd (cmd, "map"))
+	{
+		r = map_key (ed, arg, 0);
+	}
+
+	else if (is_cmd (cmd, "unmap"))
+	{
+		r = map_key (ed, arg, 1);
+	}
+
 	else if (range_command (cmd) != RC_NONE)
 	{
 		r = run_range_command (ed, range_command (cmd), rg, arg);
@@ -2610,16 +2799,6 @@ static void unfold_cursor (MlEditor *ed)
 }
 
 /* A key with Ctrl (and not Alt) and this lower case letter. */
-static int32_t is_ctrl_key (MlKey key, uint32_t letter)
-{
-	return (
-		   key.code == ML_KEY_CHAR
-		&& key.cp == letter
-		&& (key.mods & ML_MOD_CTRL)
-		&& !(key.mods & ML_MOD_ALT)
-	);
-}
-
 MlTextRange ml_editor_selection (const MlEditor *ed)
 {
 	uint64_t cl    = ed->edit_index;
@@ -3455,85 +3634,84 @@ static MlEditResult row_key (MlEditor *ed, MlKey key)
 		.handled = 1
 	};
 
-	int32_t      ctrl = (key.mods & ML_MOD_CTRL) != 0;
-	int32_t      alt  = (key.mods & ML_MOD_ALT) != 0;
+	MlAction     act = key_action (ed, key);
 
-	if (key.code == ML_KEY_DOWN && alt && !ctrl)
+	if (act == ML_ACT_LINES_DOWN)
 	{
 		res.result = row_move (ed, 1);
 	}
 
-	else if (key.code == ML_KEY_UP && alt && !ctrl)
+	else if (act == ML_ACT_LINES_UP)
 	{
 		res.result = row_move (ed, -1);
 	}
 
-	else if (key.code == ML_KEY_ENTER && alt)
+	else if (act == ML_ACT_FOLD)
 	{
 		res.result = row_fold (ed);
 	}
 
-	else if (key.code == ML_KEY_DOWN && ctrl && !alt)
+	else if (act == ML_ACT_BLOCK_NEXT)
 	{
 		res.result = row_block (ed, 1);
 	}
 
-	else if (key.code == ML_KEY_UP && ctrl && !alt)
+	else if (act == ML_ACT_BLOCK_PREV)
 	{
 		res.result = row_block (ed, 0);
 	}
 
-	else if (key.code == ML_KEY_HOME && ctrl)
+	else if (act == ML_ACT_GOTO_FIRST)
 	{
 		res.result = row_goto (ed, 0);
 	}
 
-	else if (key.code == ML_KEY_END && ctrl)
+	else if (act == ML_ACT_GOTO_LAST)
 	{
 		res.result = row_goto (ed, 1);
 	}
 
-	else if (is_ctrl_key (key, 'l'))
+	else if (act == ML_ACT_SELECT_LINE)
 	{
 		res.result = select_line (ed);
 	}
 
-	else if (is_ctrl_key (key, 'a'))
+	else if (act == ML_ACT_SELECT_ALL)
 	{
 		res.result = select_all (ed);
 	}
 
-	else if (is_ctrl_key (key, 'c'))
+	else if (act == ML_ACT_COPY)
 	{
 		res.result = row_copy (ed);
 	}
 
-	else if (is_ctrl_key (key, 'x'))
+	else if (act == ML_ACT_CUT)
 	{
 		res.result = row_cut (ed);
 	}
 
-	else if (is_ctrl_key (key, 'v'))
+	else if (act == ML_ACT_PASTE)
 	{
 		res.result = row_paste (ed);
 	}
 
-	else if (is_ctrl_key (key, 'p'))
+	else if (act == ML_ACT_COMMAND)
 	{
 		res.result = row_command (ed);
 	}
 
-	else if (is_ctrl_key (key, 's'))
+	else if (act == ML_ACT_SAVE)
 	{
 		res.result = row_file (ed, 0);
 	}
 
-	else if (is_ctrl_key (key, 'q'))
+	else if (act == ML_ACT_QUIT)
 	{
 		res.result = row_file (ed, 1);
 	}
 
-	else if (key.code == ML_KEY_F3)
+	else if (act == ML_ACT_STEPS)
 	{
 		res.result = row_steps (ed);
 	}
@@ -3547,7 +3725,7 @@ static MlEditResult row_key (MlEditor *ed, MlKey key)
 }
 
 /* Does the key keep a selection going, or act on it? */
-static int32_t is_selection_key (MlKey key)
+static int32_t is_selection_key (const MlEditor *ed, MlKey key)
 {
 	int32_t move = (
 		   (key.mods & ML_MOD_SHIFT)
@@ -3562,18 +3740,16 @@ static int32_t is_selection_key (MlKey key)
 			|| key.code == ML_KEY_PAGE_DOWN
 		)
 	);
-	int32_t ctrl = (
-		   is_ctrl_key (key, 'a')
-		|| is_ctrl_key (key, 'c')
-		|| is_ctrl_key (key, 'x')
-		|| is_ctrl_key (key, 'v')
-		|| is_ctrl_key (key, 'l')
-		|| is_ctrl_key (key, 'p')
+	MlAction act = key_action (ed, key);
+	int32_t  ctrl = (
+		   act == ML_ACT_SELECT_ALL
+		|| act == ML_ACT_COPY
+		|| act == ML_ACT_CUT
+		|| act == ML_ACT_PASTE
+		|| act == ML_ACT_SELECT_LINE
+		|| act == ML_ACT_COMMAND
 	);
-	int32_t alt = (
-		   (key.code == ML_KEY_UP || key.code == ML_KEY_DOWN)
-		&& (key.mods & ML_MOD_ALT)
-	);
+	int32_t alt = act == ML_ACT_LINES_UP || act == ML_ACT_LINES_DOWN;
 	int32_t edit = (
 		   key.code == ML_KEY_BACKSPACE
 		|| (
@@ -3721,9 +3897,12 @@ static MlResult text_edit_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (is_domain_cycle (key))
+	else if (
+		   key_action (ed, key) == ML_ACT_DOMAIN_NEXT
+		|| key_action (ed, key) == ML_ACT_DOMAIN_PREV
+	)
 	{
-		r = cycle_line_domain (ed, key);
+		r = cycle_line_domain (ed, key_action (ed, key) == ML_ACT_DOMAIN_NEXT);
 	}
 
 	else
@@ -3750,13 +3929,14 @@ static MlResult text_edit_key (MlEditor *ed, MlKey key)
 static MlResult text_key (MlEditor *ed, MlKey key)
 {
 	MlResult     r   = ML_OK;
+	MlAction     act = key_action (ed, key);
 	MlEditResult res =
 	{
 		.result  = ML_OK,
 		.handled = 0
 	};
 
-	if (!is_selection_key (key))
+	if (!is_selection_key (ed, key))
 	{
 		ed->selecting = 0;
 	}
@@ -3797,14 +3977,14 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (undo_key (key) != 0)
+	else if (act == ML_ACT_UNDO || act == ML_ACT_REDO)
 	{
 		/* the line being typed is kept, then the step before it undone */
 		r = settle (ed);
 
 		if (r == ML_OK)
 		{
-			r = undo_redo (ed, undo_key (key) == 2);
+			r = undo_redo (ed, act == ML_ACT_REDO);
 		}
 
 		if (r == ML_OK)
@@ -3813,20 +3993,20 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (is_block_key (key))
+	else if (act == ML_ACT_BLOCK_NEW)
 	{
 		/* Ctrl+Enter, Shift+Enter: a block of the domain used last */
 		r = start_block (ed, ed->session.domain);
 	}
 
-	else if (is_ctrl_key (key, 'b'))
+	else if (act == ML_ACT_BLOCK_PICK)
 	{
 		/* Ctrl+B: the domain is chosen first */
 		ed->picking = 1;
 		ed->pick    = ed->session.domain;
 	}
 
-	else if (is_ctrl_key (key, 'n'))
+	else if (act == ML_ACT_NOTE_TOGGLE)
 	{
 		/* Ctrl+N turns the line being edited into a note, or back */
 		int32_t note = ed->state != ML_STATE_NOTE;
@@ -3859,13 +4039,13 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 	MlResult r     = ML_OK;
 	uint64_t first = selection_first (ed);
 	uint64_t last  = selection_last (ed);
+	MlAction act   = key_action (ed, key);
 	int32_t  ctrl  = (key.mods & ML_MOD_CTRL) != 0;
-	int32_t  alt   = (key.mods & ML_MOD_ALT) != 0;
 	int32_t  shift = (key.mods & ML_MOD_SHIFT) != 0;
 
-	if (undo_key (key) != 0)
+	if (act == ML_ACT_UNDO || act == ML_ACT_REDO)
 	{
-		r = undo_redo (ed, undo_key (key) == 2);
+		r = undo_redo (ed, act == ML_ACT_REDO);
 
 		if (r == ML_OK)
 		{
@@ -3912,17 +4092,17 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 		r = resume (ed);
 	}
 
-	else if (key.code == ML_KEY_DOWN && alt)
+	else if (act == ML_ACT_LINES_DOWN)
 	{
 		r = shift_lines (ed, first, last, 1);
 	}
 
-	else if (key.code == ML_KEY_UP && alt)
+	else if (act == ML_ACT_LINES_UP)
 	{
 		r = shift_lines (ed, first, last, -1);
 	}
 
-	else if (key.code == ML_KEY_ENTER && alt)
+	else if (act == ML_ACT_FOLD)
 	{
 		r = fold_block (ed, 2);
 
@@ -3945,12 +4125,12 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (key.code == ML_KEY_F3)
+	else if (act == ML_ACT_STEPS)
 	{
 		r = toggle_steps (ed);
 	}
 
-	else if (is_ctrl_key (key, 'c'))
+	else if (act == ML_ACT_COPY)
 	{
 		r = yank_range (ed, first, last);
 
@@ -3960,7 +4140,7 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (is_ctrl_key (key, 'x'))
+	else if (act == ML_ACT_CUT)
 	{
 		r = delete_range (ed, first, last);
 
@@ -3970,7 +4150,7 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (is_ctrl_key (key, 'v') && ed->yank.len > 0)
+	else if (act == ML_ACT_PASTE && ed->yank.len > 0)
 	{
 		/*
 		 * the selection is replaced, the register stays as it was; a folded
@@ -3995,7 +4175,7 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (is_ctrl_key (key, 'p'))
+	else if (act == ML_ACT_COMMAND)
 	{
 		MlBlock b = ml_session_block (&ed->session, first);
 
@@ -4320,7 +4500,7 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 	ml_str_clear (&ed->message);
 	ml_session_checkpoint (&ed->session);
 
-	if (key.code == ML_KEY_F1 && ed->state != ML_STATE_HELP)
+	if (key_action (ed, key) == ML_ACT_HELP && ed->state != ML_STATE_HELP)
 	{
 		r = help_key_f1 (ed);
 	}

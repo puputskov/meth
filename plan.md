@@ -428,8 +428,8 @@ generated static website.
   `~/.config/matlog`, macOS `~/Library/Application Support/matlog`; the folder is found in the `platform` module). The theme file `.theme`, the
   tutorial progress and the history of the command line live in the same folder. `MATLOG_CONFIG` overrides the folder, which also makes the tests and
   the CLI independent of the real home of the user.
-- The format is line based, `key = value`, `#` starts a comment, sections in `[brackets]` group the keys (`[editor]`, `[display]`, `[keys.normal]`,
-  `[keys.insert]`, `[keys.note]`, `[keys.visual]`, `[keys.command]`). A line that does not parse is reported (file, line number, reason) and ignored, so
+- The format is line based, `key = value`, `#` starts a comment, sections in `[brackets]` group the keys (`[editor]`, `[display]`, `[keys]`; the editor has no modes, so one key table serves the
+  text and the line selection). A line that does not parse is reported (file, line number, reason) and ignored, so
   the tool always starts; unknown keys are kept when the file is written again, so a newer file survives an older program.
 - Settings: theme, colour level, the default domain, the width of the result column, whether the ghost preview and the live Markdown preview are on,
   how many lines the undo history keeps, whether the last file is reopened at the start, and the confirm before `:q!`. Every setting has a built in
@@ -439,6 +439,9 @@ generated static website.
   characters, and the built in keys are the default table, so the free form keys of section 3.0 are the defaults (a vim like set can be added as a binding set) and a file entry replaces or removes one
   (`j = none`). The table is checked when it is loaded: unknown actions, unknown key names, a key that is a prefix of another in the same state, and
   conflicts are reported. Text keys (typing in insert and note states) are not bindable, only the control keys there.
+- **Key bindings are built** (`ui/keymap.h`): 25 actions, the default table, `[keys]` in the settings file, `:keys`, `:map`, `:unmap`, the page `keys`
+  of the documentation. Only keys that cannot be typed as text are bindable (Ctrl or Alt, function keys, Shift+Enter). Not built yet: sequences of keys,
+  bindings for the keys of the help viewer and the command line, and the tutorial and docs showing the user's own keys.
 - In the tool: `:set key value` changes a setting (Tab completes names and values) and writes it to the file, `:set` alone lists them, `:map state key
   action` and `:unmap state key` change a binding, `:map` lists them, `:config` shows the path of the file and opens the settings page of the
   documentation, `:config reload` reads the file again. The documentation (section 4.14) and the tutorial show the keys of the user, not the

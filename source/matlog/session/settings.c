@@ -145,6 +145,54 @@ MlSetting ml_settings_text_get (MlSlice text, MlSlice section, MlSlice key)
 	return s;
 }
 
+MlSettingEntry ml_settings_text_entry (
+	MlSlice  text,
+	MlSlice  section,
+	uint64_t index
+)
+{
+	MlSettingEntry e =
+	{
+		.found = 0,
+		.key   = ml_slice ("", 0),
+		.value = ml_slice ("", 0),
+		.line  = 0
+	};
+
+	LineIter it     = { .text = text, .pos = 0 };
+	int32_t  in     = 0;
+	uint64_t seen   = 0;
+	uint64_t number = 0;
+	MlSlice  raw;
+
+	while (iter_next (&it, &raw) && !e.found)
+	{
+		Parsed p = parse_line (raw);
+
+		number++;
+
+		if (p.header)
+		{
+			in = ml_slice_equal (p.name, section);
+		}
+
+		else if (in && p.entry)
+		{
+			if (seen == index)
+			{
+				e.found = 1;
+				e.key   = p.name;
+				e.value = p.value;
+				e.line  = number;
+			}
+
+			seen++;
+		}
+	}
+
+	return e;
+}
+
 /*
  * Writes the text without the entry of key in section, or with it set to
  * value when set is 1. The one routine behind text_set and text_remove.
@@ -287,6 +335,28 @@ static MlResult settings_path (MlStr *path, MlStr *dir)
 		);
 	}
 
+	return r;
+}
+
+MlResult ml_settings_read (MlStr *out)
+{
+	MlResult r = ML_OK;
+	MlStr    dir;
+	MlStr    path;
+
+	ml_str_init (&dir);
+	ml_str_init (&path);
+
+	if (
+		   settings_path (&path, &dir) == ML_OK
+		&& ml_fs_exists (ml_str_view (path))
+	)
+	{
+		r = ml_fs_read_file (out, ml_str_view (path));
+	}
+
+	ml_str_free (&path);
+	ml_str_free (&dir);
 	return r;
 }
 

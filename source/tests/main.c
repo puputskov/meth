@@ -24,6 +24,7 @@ void run_env_tests (void);
 void run_eval_tests (void);
 void run_results_tests (void);
 void run_ghost_tests (void);
+void run_keymap_tests (void);
 void run_matrix_tests (void);
 void run_steps_tests (void);
 void run_cli_tests (void);
@@ -61,6 +62,7 @@ int main (void)
 	run_eval_tests ();
 	run_results_tests ();
 	run_ghost_tests ();
+	run_keymap_tests ();
 	run_matrix_tests ();
 	run_steps_tests ();
 	run_cli_tests ();
