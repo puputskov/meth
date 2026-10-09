@@ -12,12 +12,16 @@
  * the colour level of the terminal: 24 bit, 256 colours, the 16 ANSI colours,
  * or none (only bold, dim, underline and reverse are left).
  *
- * A theme does not paint a background of its own: the terminal's background
- * stays. `background` is the colour the theme expects it to have, which the
- * contrast test and the choice of a built in theme use.
+ * `background` is the colour the theme expects behind the text, which the
+ * contrast test uses. With `paint` set the editor also draws that colour
+ * behind everything, and the foreground of the text class as the colour of
+ * all text that has no colour of its own; without it the background and the
+ * text colour of the terminal stay (the dark and mono themes do that).
  *
  * A user theme is a text file with one `class = style` entry per line:
  *
+ *	background = #ffffff
+ *	paint      = on
  *	number = #b5cea8
  *	error  = #f44747 underline
  *	status = #ffffff on #264f78 bold
@@ -85,6 +89,7 @@ typedef struct MlTheme
 {
 	char    name [ML_THEME_NAME_MAX];
 	MlColor background; /* what the theme expects behind the text */
+	int32_t paint;      /* 1: the editor draws the background itself */
 	MlStyle styles [ML_CLASS_COUNT];
 } MlTheme;
 

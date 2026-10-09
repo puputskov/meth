@@ -1274,6 +1274,30 @@ static void test_theme_switch (void)
 		ml_str_free (&out);
 	}
 
+	/* a painting theme draws its background behind every row, blank ones too */
+	{
+		MlStr out;
+
+		ml_str_init (&out);
+		ml_theme_builtin (&ed.theme, lit ("dark"));
+		CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
+		CHECK (strstr (ml_str_cstr (out), "48;2;") == NULL);
+		ml_str_clear (&out);
+		ml_theme_builtin (&ed.theme, lit ("light"));
+		CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
+		CHECK (
+			strstr (
+				ml_str_cstr (out),
+				"\x1b[38;2;31;31;31;48;2;255;255;255m"
+			) != NULL
+		);
+		CHECK (strstr (ml_str_cstr (out), "\x1b[7;1H") != NULL);
+		ml_str_free (&out);
+		l = ml_screen_layout (&s, &ed);
+		CHECK (l.rows.data [6].len == 0);
+		ml_layout_free (&l);
+	}
+
 	/* and contrast */
 	CHECK (ml_editor_handle_key (&ed, ctrl_p) == ML_OK);
 	type (&ed, "theme contrast");

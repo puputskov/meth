@@ -2248,10 +2248,91 @@ MlHit ml_screen_hit (
 	return hit;
 }
 
+/*
+ * The row with the base style (background and text colour of a painting
+ * theme) in front and after every reset inside it, so that nothing the row
+ * resets leaves the terminal's own colours behind.
+ */
+static MlResult paint_row (MlStr *row, MlSlice base)
+{
+	MlResult r     = ML_OK;
+	MlStr    out;
+	MlSlice  in    = ml_str_view (*row);
+	MlSlice  reset = ml_slice_cstr (STYLE_RESET);
+	uint64_t pos   = 0;
+
+	ml_str_init (&out);
+	r = ml_str_append (&out, base);
+
+	while (pos < in.len && r == ML_OK)
+	{
+		if (
+			   pos + reset.len <= in.len
+			&& ml_slice_equal (ml_slice_sub (in, pos, reset.len), reset)
+		)
+		{
+			r    = ml_str_append (&out, reset);
+			r    = ml_choose (r == ML_OK, ml_str_append (&out, base), r);
+			pos += reset.len;
+		}
+
+		else
+		{
+			r = ml_str_append (&out, ml_slice_sub (in, pos, 1));
+			pos++;
+		}
+	}
+
+	if (r == ML_OK)
+	{
+		ml_str_free (row);
+		*row = out;
+	}
+
+	else
+	{
+		ml_str_free (&out);
+	}
+
+	return r;
+}
+
+/* The style of a painting theme: its background and the colour of its text. */
+static MlResult paint_base (MlStr *base, const MlEditor *ed)
+{
+	MlResult r = ML_OK;
+	MlStyle  s =
+	{
+		.fg = ed->theme.styles [ML_CLASS_TEXT].fg,
+		.bg = ed->theme.background
+	};
+
+	if (ed->highlight && ed->theme.paint)
+	{
+		r = ml_style_sgr (base, s, ed->colors);
+	}
+
+	return r;
+}
+
 MlResult ml_screen_render (MlScreen *s, MlStr *out, const MlEditor *ed)
 {
 	MlLayout layout = ml_screen_layout (s, ed);
 	MlResult r      = layout.result;
+	MlStr    base;
+
+	ml_str_init (&base);
+
+	if (r == ML_OK)
+	{
+		r = paint_base (&base, ed);
+	}
+
+	/* a painting theme: the base style is part of every row */
+	for (uint64_t i = 0; i < layout.rows.len && r == ML_OK && base.len > 0; i++)
+	{
+		r = paint_row (&layout.rows.data [i], ml_str_view (base));
+	}
 
 	if (r == ML_OK)
 	{
@@ -2306,6 +2387,7 @@ MlResult ml_screen_render (MlScreen *s, MlStr *out, const MlEditor *ed)
 		MlRowVec_init (&layout.rows);
 	}
 
+	ml_str_free (&base);
 	ml_layout_free (&layout);
 	return r;
 }

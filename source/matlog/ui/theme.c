@@ -186,6 +186,7 @@ typedef struct Builtin
 {
 	const char *name;
 	uint32_t   background;
+	int32_t    paint;
 	MlStyle    styles [ML_CLASS_COUNT];
 } Builtin;
 
@@ -218,8 +219,10 @@ static const Builtin builtins [] =
 	{
 		.name       = "light",
 		.background = 0xFFFFFF,
+		.paint      = 1,
 		.styles     =
 		{
+			[ML_CLASS_TEXT]         = COLOR (0x1F1F1F),
 			[ML_CLASS_NUMBER]       = COLOR (0x098658),
 			[ML_CLASS_NAME]         = COLOR (0x001080),
 			[ML_CLASS_FUNCTION]     = COLOR (0x795E26),
@@ -242,6 +245,7 @@ static const Builtin builtins [] =
 	{
 		.name       = "contrast",
 		.background = 0x000000,
+		.paint      = 1,
 		.styles     =
 		{
 			[ML_CLASS_TEXT]         = COLOR (0xFFFFFF),
@@ -326,6 +330,7 @@ static void theme_from (MlTheme *out, const Builtin *b)
 
 	out->name [n]   = 0;
 	out->background = rgb (b->background);
+	out->paint      = b->paint;
 
 	for (uint32_t c = 0; c < ML_CLASS_COUNT; c++)
 	{
@@ -855,6 +860,23 @@ MlResult ml_theme_apply_line (MlTheme *theme, MlSlice line)
 			r = ML_ERR_PARSE;
 		}
 
+		else if (word_is (name, "paint"))
+		{
+			uint64_t pos  = 0;
+			MlSlice  word = next_word (rest, &pos);
+
+			r = ml_choose (
+				word_is (word, "on") || word_is (word, "off"),
+				ML_OK,
+				ML_ERR_PARSE
+			);
+
+			if (r == ML_OK)
+			{
+				theme->paint = word_is (word, "on");
+			}
+		}
+
 		else if (word_is (name, "background"))
 		{
 			uint64_t pos  = 0;
@@ -986,6 +1008,15 @@ MlResult ml_theme_format (MlStr *out, const MlTheme *theme)
 	if (r == ML_OK)
 	{
 		r = ml_str_append (out, ml_slice_cstr ("\n"));
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_str_appendf (
+			out,
+			"paint        = %s\n",
+			ml_choose (theme->paint, "on", "off")
+		);
 	}
 
 	for (uint32_t c = 0; c < ML_CLASS_COUNT && r == ML_OK; c++)

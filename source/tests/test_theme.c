@@ -140,6 +140,14 @@ static void test_builtin (void)
 		}
 	}
 
+	/* the light and the contrast themes draw their own background */
+	ml_theme_builtin (&t, lit ("light"));
+	CHECK (t.paint);
+	ml_theme_builtin (&t, lit ("contrast"));
+	CHECK (t.paint);
+	ml_theme_builtin (&t, lit ("dark"));
+	CHECK (!t.paint);
+
 	/* the mono theme uses no colour at all */
 	ml_theme_builtin (&t, lit ("mono"));
 
@@ -167,6 +175,11 @@ static void test_theme_file (void)
 	CHECK (t.styles [ML_CLASS_ERROR].underline);
 	CHECK (ml_theme_apply_line (&t, lit ("background = #ffffff")) == ML_OK);
 	CHECK (t.background.r == 255);
+	CHECK (ml_theme_apply_line (&t, lit ("paint = on")) == ML_OK);
+	CHECK (t.paint);
+	CHECK (ml_theme_apply_line (&t, lit ("paint = off")) == ML_OK);
+	CHECK (!t.paint);
+	CHECK (ml_theme_apply_line (&t, lit ("paint = maybe")) == ML_ERR_PARSE);
 	CHECK (ml_theme_apply_line (&t, lit ("")) == ML_OK);
 	CHECK (ml_theme_apply_line (&t, lit ("# a comment = bold")) == ML_OK);
 	CHECK (ml_theme_apply_line (&t, lit ("colour = bold")) == ML_ERR_PARSE);
@@ -273,6 +286,8 @@ static void test_format (void)
 		CHECK (ml_theme_format (&text, &want) == ML_OK);
 
 		/* from a theme that differs everywhere, so nothing is left over */
+		got.paint = !want.paint;
+
 		for (uint32_t c = 0; c < ML_CLASS_COUNT; c++)
 		{
 			got.styles [c].bold = 1;
@@ -284,6 +299,7 @@ static void test_format (void)
 		CHECK (ml_theme_apply_text (&got, all, NULL, &bad) == ML_OK);
 		CHECK (bad == 0);
 		CHECK (got.background.r == want.background.r);
+		CHECK (got.paint == want.paint);
 
 		for (uint32_t c = 0; c < ML_CLASS_COUNT; c++)
 		{
