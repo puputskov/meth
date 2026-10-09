@@ -194,7 +194,11 @@ MlResult ml_str_erase (MlStr *s, uint64_t pos, uint64_t n)
 
 		if (count > 0)
 		{
-			memmove (s->data + pos, s->data + pos + count, s->len - pos - count);
+			memmove (
+				s->data + pos,
+				s->data + pos + count,
+				s->len - pos - count
+			);
 			s->len -= count;
 			s->data [s->len] = '\0';
 		}

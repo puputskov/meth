@@ -26,7 +26,10 @@ void ml_str_clear (MlStr *s);
 /* View of the current contents. Invalidated by any mutating call. */
 MlSlice ml_str_view (MlStr s);
 
-/* Valid C string even for a fresh, empty string. Invalidated by any mutating call. */
+/*
+ * Valid C string even for a fresh, empty string. Invalidated by any mutating
+ * call.
+ */
 const char *ml_str_cstr (MlStr s);
 
 /* Ensures room for len bytes plus the terminator. */

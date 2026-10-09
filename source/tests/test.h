@@ -4,7 +4,10 @@
 #include <matlog/core/types.h>
 #include <stdio.h>
 
-/* Minimal test harness: each failed check is counted and reported, the run continues. */
+/*
+ * Minimal test harness: each failed check is counted and reported, the run
+ * continues.
+ */
 
 extern int32_t g_test_failures;
 extern int32_t g_test_checks;

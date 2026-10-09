@@ -31,7 +31,10 @@ int main (void)
 
 	if (r == ML_OK)
 	{
-		r = ml_str_append (&line, ml_slice_cstr ("Key demo: press keys, Ctrl+C or q quits."));
+		r = ml_str_append (
+			&line,
+			ml_slice_cstr ("Key demo: press keys, Ctrl+C or q quits.")
+		);
 	}
 
 	if (r == ML_OK)

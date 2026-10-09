@@ -72,7 +72,9 @@ static MlLineView classify (MlSlice line)
 	else if (starts_with (line, "m:"))
 	{
 		uint64_t       space = find_space (line);
-		MlDomainResult d     = ml_domain_from_name (ml_slice_sub (line, 2, space - 2));
+		MlDomainResult d     = ml_domain_from_name (
+			ml_slice_sub (line, 2, space - 2)
+		);
 
 		if (d.result == ML_OK)
 		{
@@ -88,7 +90,11 @@ static MlLineView classify (MlSlice line)
 		}
 	}
 
-	else if (starts_with (line, "include \"") && line.len >= 10 && line.data[line.len - 1] == '"')
+	else if (
+		   starts_with (line, "include \"")
+		&& line.len >= 10
+		&& line.data [line.len - 1] == '"'
+	)
 	{
 		view.kind = ML_LINE_INCLUDE;
 		view.text = ml_slice_sub (line, 9, line.len - 10);

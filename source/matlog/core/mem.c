@@ -63,7 +63,9 @@ static void *block_take (MlArenaBlock *b, uint64_t size, uint64_t align)
 	return p;
 }
 
-/* Oversized requests get a block of their own, slotted behind the active one. */
+/*
+ * Oversized requests get a block of their own, slotted behind the active one.
+ */
 static void *alloc_in_new_block (MlArena *a, uint64_t size, uint64_t align)
 {
 	void *p = NULL;

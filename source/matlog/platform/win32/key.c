@@ -52,7 +52,7 @@ static MlKeyCode code_from_vk (uint16_t vk)
 {
 	MlKeyCode code = ML_KEY_NONE;
 
-	for (uint64_t i = 0; i < sizeof vk_table / sizeof vk_table [0] && code == ML_KEY_NONE; i++)
+	for (uint64_t i = 0; i < ml_count (vk_table) && code == ML_KEY_NONE; i++)
 	{
 		code = ml_choose (
 			vk_table [i].vk == vk,
@@ -124,7 +124,11 @@ MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 		if (pending_high != 0)
 		{
 			res.key.code = ML_KEY_CHAR;
-			res.key.cp   = 0x10000u + (((uint32_t)pending_high - 0xD800u) << 10) + (cp - 0xDC00u);
+			res.key.cp   = (
+				  0x10000u
+				+ (((uint32_t)pending_high - 0xD800u) << 10)
+				+ (cp - 0xDC00u)
+			);
 			res.key.mods = mods & ~ML_MOD_SHIFT;
 		}
 
@@ -141,7 +145,9 @@ MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 
 		if (cp < 0x20)
 		{
-			/* Ctrl+A is 0x01 ... Ctrl+Z is 0x1A, Ctrl+\ ] ^ _ are 0x1C ... 0x1F */
+			/*
+			 * Ctrl+A is 0x01 ... Ctrl+Z is 0x1A, Ctrl+\ ] ^ _ are 0x1C ... 0x1F
+			 */
 			cp = ml_choose (
 				cp <= 26,
 				'a' + (cp - 1),
@@ -152,7 +158,10 @@ MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 
 		else if ((mods & ML_MOD_CTRL) && (mods & ML_MOD_ALT))
 		{
-			/* AltGr is reported as Ctrl+Alt; the character is already what the user typed */
+			/*
+			 * AltGr is reported as Ctrl+Alt; the character is already what the
+			 * user typed
+			 */
 			mods &= ~(ML_MOD_CTRL | ML_MOD_ALT);
 		}
 

@@ -29,7 +29,11 @@ static MlResult type (MlRewriter *rw, MlLineEdit *e, const char *text)
 }
 
 /* Types text in a fresh line of the given domain and checks the result. */
-static int32_t types_as (MlDomain domain, const char *text, const char *expected)
+static int32_t types_as (
+	MlDomain   domain,
+	const char *text,
+	const char *expected
+)
 {
 	MlRewriter rw;
 	MlLineEdit e;
@@ -38,11 +42,21 @@ static int32_t types_as (MlDomain domain, const char *text, const char *expected
 	ml_rewriter_init (&rw, domain);
 	ml_lineedit_init (&e);
 
-	ok = type (&rw, &e, text) == ML_OK && ml_slice_equal (ml_str_view (e.text), lit (expected));
+	ok = type (
+		&rw,
+		&e,
+		text
+	) == ML_OK && ml_slice_equal (ml_str_view (e.text), lit (expected));
 
 	if (!ok)
 	{
-		printf ("  typed \"%s\" in %s, got \"%s\", expected \"%s\"\n", text, ml_domain_name (domain), ml_str_cstr (e.text), expected);
+		printf (
+			"  typed \"%s\" in %s, got \"%s\", expected \"%s\"\n",
+			text,
+			ml_domain_name (domain),
+			ml_str_cstr (e.text),
+			expected
+		);
 	}
 
 	ml_lineedit_free (&e);
@@ -51,7 +65,11 @@ static int32_t types_as (MlDomain domain, const char *text, const char *expected
 }
 
 /* Same as types_as, but flushes the pending token at the end first. */
-static int32_t types_flushed (MlDomain domain, const char *text, const char *expected)
+static int32_t types_flushed (
+	MlDomain   domain,
+	const char *text,
+	const char *expected
+)
 {
 	MlRewriter rw;
 	MlLineEdit e;
@@ -68,7 +86,13 @@ static int32_t types_flushed (MlDomain domain, const char *text, const char *exp
 
 	if (!ok)
 	{
-		printf ("  typed+flushed \"%s\" in %s, got \"%s\", expected \"%s\"\n", text, ml_domain_name (domain), ml_str_cstr (e.text), expected);
+		printf (
+			"  typed+flushed \"%s\" in %s, got \"%s\", expected \"%s\"\n",
+			text,
+			ml_domain_name (domain),
+			ml_str_cstr (e.text),
+			expected
+		);
 	}
 
 	ml_lineedit_free (&e);
@@ -79,7 +103,13 @@ static int32_t types_flushed (MlDomain domain, const char *text, const char *exp
 static void test_acceptance (void)
 {
 	/* the milestone's acceptance example */
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "x^2 + sqrt(y)", "x\xC2\xB2 + \xE2\x88\x9A" "y"));
+	CHECK (
+		types_as (
+			ML_DOMAIN_ALGEBRA,
+			"x^2 + sqrt(y)",
+			"x\xC2\xB2 + \xE2\x88\x9A" "y"
+		)
+	);
 }
 
 static void test_literals (void)
@@ -104,10 +134,10 @@ static void test_words (void)
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "sin(pi)", "sin(\xCF\x80)"));
 
 	/* only whole words, and only once the token is complete */
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "pi", "pi"));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "spin ", "spin "));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "pi2 ", "pi2 "));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "2pi ", "2pi "));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "pi", "pi"));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "spin ", "spin "));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "pi2 ", "pi2 "));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "2pi ", "2pi "));
 	CHECK (types_flushed (ML_DOMAIN_ALGEBRA, "pi", "\xCF\x80"));
 	CHECK (types_flushed (ML_DOMAIN_ALGEBRA, "spin", "spin"));
 }
@@ -115,24 +145,28 @@ static void test_words (void)
 static void test_escapes (void)
 {
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "\\alpha ", "\xCE\xB1 "));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "\\alpha+\\beta)", "\xCE\xB1+\xCE\xB2)"));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "\\Omega ", "\xCE\xA9 "));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "\\pi ", "\xCF\x80 "));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "a \\leq b", "a \xE2\x89\xA4 b"));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "\\infty ", "\xE2\x88\x9E "));
+	CHECK (
+		types_as (ML_DOMAIN_ALGEBRA, "\\alpha+\\beta)", "\xCE\xB1+\xCE\xB2)")
+	);
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "\\Omega ", "\xCE\xA9 "));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "\\pi ", "\xCF\x80 "));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "a \\leq b", "a \xE2\x89\xA4 b"));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "\\infty ", "\xE2\x88\x9E "));
 	CHECK (types_flushed (ML_DOMAIN_ALGEBRA, "\\theta", "\xCE\xB8"));
 
-	/* unknown names are left alone and the word rules do not fire inside them */
+	/*
+	 * unknown names are left alone and the word rules do not fire inside them
+	 */
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "\\foo ", "\\foo "));
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "\\alpha", "\\alpha"));
 }
 
 static void test_superscripts (void)
 {
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "x^2 ", "x\xC2\xB2 "));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "x^2 ", "x\xC2\xB2 "));
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "x^10 ", "x\xC2\xB9\xE2\x81\xB0 "));
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "x^-1)", "x\xE2\x81\xBB\xC2\xB9)"));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "(x^3)", "(x\xC2\xB3)"));
+	CHECK (types_as      (ML_DOMAIN_ALGEBRA, "(x^3)", "(x\xC2\xB3)"));
 	CHECK (types_flushed (ML_DOMAIN_ALGEBRA, "x^23", "x\xC2\xB2\xC2\xB3"));
 
 	/* still being typed, a decimal point, no digits */
@@ -154,9 +188,19 @@ static void test_sqrt (void)
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "sqrt(2)", "\xE2\x88\x9A" "2"));
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "sqrt(x+1)", "\xE2\x88\x9A(x+1)"));
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "1+sqrt(x)*2", "1+\xE2\x88\x9A" "x*2"));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "sqrt(sqrt(x))", "\xE2\x88\x9A(\xE2\x88\x9A" "x)"));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "sqrt(x^2)", "\xE2\x88\x9A(x\xC2\xB2)"));
-	CHECK (types_as (ML_DOMAIN_ALGEBRA, "sqrt(\xCF\x80)", "\xE2\x88\x9A\xCF\x80"));
+	CHECK (
+		types_as (
+			ML_DOMAIN_ALGEBRA,
+			"sqrt(sqrt(x))",
+			"\xE2\x88\x9A(\xE2\x88\x9A" "x)"
+		)
+	);
+	CHECK (
+		types_as (ML_DOMAIN_ALGEBRA, "sqrt(x^2)", "\xE2\x88\x9A(x\xC2\xB2)")
+	);
+	CHECK (
+		types_as (ML_DOMAIN_ALGEBRA, "sqrt(\xCF\x80)", "\xE2\x88\x9A\xCF\x80")
+	);
 
 	/* not a sqrt call, or nothing to take the root of */
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "mysqrt(x)", "mysqrt(x)"));
@@ -176,7 +220,13 @@ static void test_domains (void)
 	CHECK (types_as (ML_DOMAIN_LAMBDA, "\\lambda x", "\xCE\xBB x"));
 
 	/* boolean */
-	CHECK (types_as (ML_DOMAIN_BOOLEAN, "a&&b||~c", "a\xE2\x88\xA7" "b\xE2\x88\xA8\xC2\xAC" "c"));
+	CHECK (
+		types_as (
+			ML_DOMAIN_BOOLEAN,
+			"a&&b||~c",
+			"a\xE2\x88\xA7" "b\xE2\x88\xA8\xC2\xAC" "c"
+		)
+	);
 	CHECK (types_as (ML_DOMAIN_ALGEBRA, "a&&b||~c", "a&&b||~c"));
 	CHECK (types_as (ML_DOMAIN_BOOLEAN, "a->b", "a\xE2\x86\x92" "b"));
 }
@@ -190,62 +240,71 @@ static void test_undo (void)
 	ml_lineedit_init (&e);
 
 	/* a word rewrite: the character that triggered it stays */
-	CHECK (type (&rw, &e, "x^2 ") == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("x\xC2\xB2 ")));
+	CHECK (type                  (&rw, &e, "x^2 ") == ML_OK);
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("x\xC2\xB2 ")));
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("x^2 ")) && e.cursor == 4);
+	CHECK (
+		ml_slice_equal (ml_str_view (e.text), lit ("x^2 ")) && e.cursor == 4
+	);
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("x^2")));
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("x^2")));
 
 	/* a literal rewrite */
 	ml_lineedit_clear (&e);
-	CHECK (type (&rw, &e, "a<=") == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a\xE2\x89\xA4")));
+	CHECK (type                  (&rw, &e, "a<=") == ML_OK);
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("a\xE2\x89\xA4")));
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
 	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a<=")) && e.cursor == 3);
 
 	/* sqrt */
 	ml_lineedit_clear (&e);
-	CHECK (type (&rw, &e, "sqrt(x+1)") == ML_OK);
+	CHECK (type                  (&rw, &e, "sqrt(x+1)") == ML_OK);
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("sqrt(x+1)")) && e.cursor == 9);
+	CHECK (
+		ml_slice_equal (
+			ml_str_view (e.text),
+			lit ("sqrt(x+1)")
+		) && e.cursor == 9
+	);
 
 	/* a swallowed trigger comes back with the original */
 	rw.domain = ML_DOMAIN_LAMBDA;
 	ml_lineedit_clear (&e);
-	CHECK (type (&rw, &e, "lambda ") == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("\xCE\xBB")));
+	CHECK (type                  (&rw, &e, "lambda ") == ML_OK);
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("\xCE\xBB")));
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("lambda ")) && e.cursor == 7);
+	CHECK (
+		ml_slice_equal (ml_str_view (e.text), lit ("lambda ")) && e.cursor == 7
+	);
 	rw.domain = ML_DOMAIN_ALGEBRA;
 
 	/* one step only: text typed afterwards is deleted normally */
 	ml_lineedit_clear (&e);
-	CHECK (type (&rw, &e, "a<=b") == ML_OK);
+	CHECK (type                  (&rw, &e, "a<=b") == ML_OK);
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a\xE2\x89\xA4")));
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("a\xE2\x89\xA4")));
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a")));
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("a")));
 
 	/* after an undo, backspace is normal again */
 	ml_lineedit_clear (&e);
-	CHECK (type (&rw, &e, "a->") == ML_OK);
+	CHECK (type                  (&rw, &e, "a->") == ML_OK);
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a->")));
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("a->")));
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a-")));
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("a-")));
 
 	/* plain backspace without any rewrite */
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a")));
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("a")));
 
 	/* a flush can be undone too */
 	ml_lineedit_clear (&e);
-	CHECK (type (&rw, &e, "x^2") == ML_OK);
-	CHECK (ml_rewriter_flush (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("x\xC2\xB2")));
+	CHECK (type                  (&rw, &e, "x^2") == ML_OK);
+	CHECK (ml_rewriter_flush     (&rw, &e) == ML_OK);
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("x\xC2\xB2")));
 	CHECK (ml_rewriter_backspace (&rw, &e) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("x^2")));
+	CHECK (ml_slice_equal        (ml_str_view (e.text), lit ("x^2")));
 
 	ml_lineedit_free (&e);
 	ml_rewriter_free (&rw);
@@ -275,13 +334,13 @@ static void test_keys (void)
 
 	CHECK (ml_rewriter_handle_key (&rw, &e, ch ('<')).handled);
 	CHECK (ml_rewriter_handle_key (&rw, &e, ch ('=')).handled);
-	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("\xE2\x89\xA4")));
+	CHECK (ml_slice_equal         (ml_str_view (e.text), lit ("\xE2\x89\xA4")));
 
 	/* moving the cursor makes the rewrite final */
 	CHECK (ml_rewriter_handle_key (&rw, &e, code (ML_KEY_LEFT)).handled);
 	CHECK (ml_rewriter_handle_key (&rw, &e, code (ML_KEY_RIGHT)).handled);
 	CHECK (ml_rewriter_handle_key (&rw, &e, code (ML_KEY_BACKSPACE)).handled);
-	CHECK (ml_str_view (e.text).len == 0);
+	CHECK (ml_str_view            (e.text).len == 0);
 
 	/* keys that are not editing keys pass through unhandled */
 	CHECK (!ml_rewriter_handle_key (&rw, &e, code (ML_KEY_ENTER)).handled);
@@ -292,7 +351,7 @@ static void test_keys (void)
 		MlKey k = { .code = ML_KEY_CHAR, .cp = 'a', .mods = ML_MOD_CTRL };
 
 		CHECK (ml_rewriter_handle_key (&rw, &e, k).handled);
-		CHECK (ml_str_view (e.text).len == 0);
+		CHECK (ml_str_view            (e.text).len == 0);
 	}
 
 	/* a domain change disarms */
@@ -300,7 +359,7 @@ static void test_keys (void)
 	CHECK (ml_rewriter_handle_key (&rw, &e, ch ('=')).handled);
 	ml_rewriter_set_domain (&rw, ML_DOMAIN_ALGEBRA);
 	CHECK (ml_rewriter_handle_key (&rw, &e, code (ML_KEY_BACKSPACE)).handled);
-	CHECK (ml_str_view (e.text).len == 0);
+	CHECK (ml_str_view            (e.text).len == 0);
 
 	ml_lineedit_free (&e);
 	ml_rewriter_free (&rw);
@@ -316,13 +375,13 @@ static void test_middle_of_line (void)
 
 	CHECK (ml_lineedit_set (&e, lit ("ab")) == ML_OK);
 	ml_lineedit_left (&e);
-	CHECK (type (&rw, &e, "<=") == ML_OK);
+	CHECK (type           (&rw, &e, "<=") == ML_OK);
 	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("a\xE2\x89\xA4" "b")));
 	CHECK (e.cursor == 4);
 
 	CHECK (ml_lineedit_set (&e, lit ("x^2y")) == ML_OK);
 	ml_lineedit_left (&e);
-	CHECK (type (&rw, &e, "+") == ML_OK);
+	CHECK (type           (&rw, &e, "+") == ML_OK);
 	CHECK (ml_slice_equal (ml_str_view (e.text), lit ("x\xC2\xB2+y")));
 
 	ml_lineedit_free (&e);

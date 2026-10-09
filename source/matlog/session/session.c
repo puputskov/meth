@@ -113,7 +113,12 @@ MlLineView ml_session_get (const MlSession *s, uint64_t idx)
 }
 
 /* Builds a line owning a copy of text. On failure nothing is left allocated. */
-static MlResult line_make (MlLine *out, MlLineKind kind, MlDomain domain, MlSlice text)
+static MlResult line_make (
+	MlLine     *out,
+	MlLineKind kind,
+	MlDomain   domain,
+	MlSlice    text
+)
 {
 	MlResult r = ML_OK;
 
@@ -121,7 +126,11 @@ static MlResult line_make (MlLine *out, MlLineKind kind, MlDomain domain, MlSlic
 	out->domain = domain;
 	ml_str_init (&out->text);
 
-	if (kind == ML_LINE_NONE || (int32_t)domain < 0 || domain >= ML_DOMAIN_COUNT)
+	if (
+		   kind == ML_LINE_NONE
+		|| (int32_t)domain < 0
+		|| domain >= ML_DOMAIN_COUNT
+	)
 	{
 		r = ML_ERR_INVALID;
 	}
@@ -139,7 +148,13 @@ static MlResult line_make (MlLine *out, MlLineKind kind, MlDomain domain, MlSlic
 	return r;
 }
 
-MlResult ml_session_insert (MlSession *s, uint64_t idx, MlLineKind kind, MlDomain domain, MlSlice text)
+MlResult ml_session_insert (
+	MlSession  *s,
+	uint64_t   idx,
+	MlLineKind kind,
+	MlDomain   domain,
+	MlSlice    text
+)
 {
 	MlResult r = ml_choose (
 		idx <= s->lines.len,
@@ -181,12 +196,23 @@ MlResult ml_session_insert (MlSession *s, uint64_t idx, MlLineKind kind, MlDomai
 	return r;
 }
 
-MlResult ml_session_append (MlSession *s, MlLineKind kind, MlDomain domain, MlSlice text)
+MlResult ml_session_append (
+	MlSession  *s,
+	MlLineKind kind,
+	MlDomain   domain,
+	MlSlice    text
+)
 {
 	return ml_session_insert (s, s->lines.len, kind, domain, text);
 }
 
-MlResult ml_session_replace (MlSession *s, uint64_t idx, MlLineKind kind, MlDomain domain, MlSlice text)
+MlResult ml_session_replace (
+	MlSession  *s,
+	uint64_t   idx,
+	MlLineKind kind,
+	MlDomain   domain,
+	MlSlice    text
+)
 {
 	MlResult r = ml_choose (
 		idx < s->lines.len,

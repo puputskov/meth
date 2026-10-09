@@ -33,6 +33,23 @@ Interactive math shell written in C. See `plan.md` for the design.
 - Use fixed-width types: `int32_t`, `uint32_t`, `uint8_t`, `int64_t`... instead of `int`, `unsigned int`, `unsigned char`, `long long`.
   Sizes, counts and indices are `uint64_t`, not `size_t` (64 bit targets only, enforced in `matlog/core/types.h`). `char` stays for text bytes,
   and `int main` stays as the C standard requires.
+- Lines are at most 80 columns (a tab counts as 4). Break a long call so that each argument has its own line and the closing
+  parenthesis is on a line of its own; wrap comments at 80 too. Long string literals are split into adjacent literals, one per line.
+  Parameters of declarations are aligned: type column, then name column (the star belongs to the name).
+- A boolean expression with four or more operands, or one that does not fit, is written vertically in parentheses, one operand per
+  line, the operator leading, operands aligned after the operator:
+  ```c
+  ok = (
+  	   ok
+  	&& !(n == 2      && c <  0x00080)
+  	&& !(c >= 0xD800 && c <= 0x0DFFF)
+  	&& c <= 0x10FFFF
+  );
+  ```
+  Inside such blocks the comparison operators and numbers are aligned where that is possible (hex numbers are zero padded to one width).
+- In consecutive `CHECK (...)` lines whose first argument is a call, the call names are padded so that their opening parentheses line up
+  (a leading `!` counts as part of the name): `CHECK (ml_slice_equal  (...))` / `CHECK (!ml_slice_equal (...))`.
+- Use `ml_count (array)` instead of `sizeof array / sizeof array [0]`.
 - Never use the `?:` operator. Use the `ml_choose (cond, a, b)` macro from `matlog/core/types.h` (same lazy evaluation) and write its arguments one
   per line, with the closing parenthesis on its own line. When it is nested in another call, that call's arguments go one per line too:
   ```c

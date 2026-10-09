@@ -2,7 +2,9 @@
 
 #include <string.h>
 
-/* Sequence length from the lead byte; 0 for bytes that cannot start a sequence. */
+/*
+ * Sequence length from the lead byte; 0 for bytes that cannot start a sequence.
+ */
 static uint64_t seq_len (uint8_t lead)
 {
 	uint64_t n = 0;
@@ -35,7 +37,10 @@ static uint8_t byte_at (MlSlice s, uint64_t i)
 	return (uint8_t)s.data [i];
 }
 
-/* The payload bits of a lead byte: a 1 byte sequence uses 7 bits, a 2, 3, 4 byte one 5, 4, 3. */
+/*
+ * The payload bits of a lead byte: a 1 byte sequence uses 7 bits, a 2, 3, 4
+ * byte one 5, 4, 3.
+ */
 static uint32_t lead_payload (uint8_t lead, uint64_t n)
 {
 	return ml_choose (
@@ -142,7 +147,10 @@ int32_t ml_utf8_valid (MlSlice s)
 	{
 		MlDecoded d = ml_utf8_decode (ml_slice_sub (s, pos, s.len - pos));
 
-		/* a genuine U+FFFD takes 3 bytes; a 1 byte result for it means malformed */
+		/*
+		 * a genuine U+FFFD takes 3 bytes; a 1 byte result for it means
+		 * malformed
+		 */
 		ok = !(d.cp == ML_CP_REPLACEMENT && d.size == 1);
 		pos += d.size;
 	}
@@ -205,19 +213,32 @@ typedef struct Range
 /* Code points >= U+0300 that are not one column wide. */
 static const Range special_widths [] =
 {
-	{ .lo = 0x0300, .hi = 0x036F, .width = 0 }, { .lo = 0x0483, .hi = 0x0489, .width = 0 },
-	{ .lo = 0x0591, .hi = 0x05BD, .width = 0 }, { .lo = 0x1100, .hi = 0x115F, .width = 2 },
-	{ .lo = 0x1AB0, .hi = 0x1AFF, .width = 0 }, { .lo = 0x1DC0, .hi = 0x1DFF, .width = 0 },
-	{ .lo = 0x200B, .hi = 0x200F, .width = 0 }, { .lo = 0x202A, .hi = 0x202E, .width = 0 },
-	{ .lo = 0x2060, .hi = 0x2064, .width = 0 }, { .lo = 0x20D0, .hi = 0x20FF, .width = 0 },
-	{ .lo = 0x2E80, .hi = 0x303E, .width = 2 }, { .lo = 0x3041, .hi = 0x33FF, .width = 2 },
-	{ .lo = 0x3400, .hi = 0x4DBF, .width = 2 }, { .lo = 0x4E00, .hi = 0xA4CF, .width = 2 },
-	{ .lo = 0xA960, .hi = 0xA97F, .width = 2 }, { .lo = 0xAC00, .hi = 0xD7A3, .width = 2 },
-	{ .lo = 0xF900, .hi = 0xFAFF, .width = 2 }, { .lo = 0xFE00, .hi = 0xFE0F, .width = 0 },
-	{ .lo = 0xFE20, .hi = 0xFE2F, .width = 0 }, { .lo = 0xFE30, .hi = 0xFE6F, .width = 2 },
-	{ .lo = 0xFEFF, .hi = 0xFEFF, .width = 0 }, { .lo = 0xFF00, .hi = 0xFF60, .width = 2 },
-	{ .lo = 0xFFE0, .hi = 0xFFE6, .width = 2 }, { .lo = 0x1F300, .hi = 0x1F64F, .width = 2 },
-	{ .lo = 0x1F900, .hi = 0x1F9FF, .width = 2 }, { .lo = 0x20000, .hi = 0x3FFFD, .width = 2 },
+	{ .lo = 0x0300, .hi = 0x036F, .width = 0 },
+	{ .lo = 0x0483, .hi = 0x0489, .width = 0 },
+	{ .lo = 0x0591, .hi = 0x05BD, .width = 0 },
+	{ .lo = 0x1100, .hi = 0x115F, .width = 2 },
+	{ .lo = 0x1AB0, .hi = 0x1AFF, .width = 0 },
+	{ .lo = 0x1DC0, .hi = 0x1DFF, .width = 0 },
+	{ .lo = 0x200B, .hi = 0x200F, .width = 0 },
+	{ .lo = 0x202A, .hi = 0x202E, .width = 0 },
+	{ .lo = 0x2060, .hi = 0x2064, .width = 0 },
+	{ .lo = 0x20D0, .hi = 0x20FF, .width = 0 },
+	{ .lo = 0x2E80, .hi = 0x303E, .width = 2 },
+	{ .lo = 0x3041, .hi = 0x33FF, .width = 2 },
+	{ .lo = 0x3400, .hi = 0x4DBF, .width = 2 },
+	{ .lo = 0x4E00, .hi = 0xA4CF, .width = 2 },
+	{ .lo = 0xA960, .hi = 0xA97F, .width = 2 },
+	{ .lo = 0xAC00, .hi = 0xD7A3, .width = 2 },
+	{ .lo = 0xF900, .hi = 0xFAFF, .width = 2 },
+	{ .lo = 0xFE00, .hi = 0xFE0F, .width = 0 },
+	{ .lo = 0xFE20, .hi = 0xFE2F, .width = 0 },
+	{ .lo = 0xFE30, .hi = 0xFE6F, .width = 2 },
+	{ .lo = 0xFEFF, .hi = 0xFEFF, .width = 0 },
+	{ .lo = 0xFF00, .hi = 0xFF60, .width = 2 },
+	{ .lo = 0xFFE0, .hi = 0xFFE6, .width = 2 },
+	{ .lo = 0x1F300, .hi = 0x1F64F, .width = 2 },
+	{ .lo = 0x1F900, .hi = 0x1F9FF, .width = 2 },
+	{ .lo = 0x20000, .hi = 0x3FFFD, .width = 2 },
 	{ .lo = 0xE0100, .hi = 0xE01EF, .width = 0 }
 };
 
@@ -233,7 +254,7 @@ int32_t ml_cp_width (uint32_t cp)
 
 	else if (cp >= 0x300)
 	{
-		for (uint64_t i = 0; i < sizeof special_widths / sizeof special_widths [0] && !found; i++)
+		for (uint64_t i = 0; i < ml_count (special_widths) && !found; i++)
 		{
 			found = cp >= special_widths [i].lo && cp <= special_widths [i].hi;
 			w     = ml_choose (

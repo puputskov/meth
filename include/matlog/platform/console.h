@@ -39,7 +39,10 @@ MlResult ml_console_open (MlConsole *c);
 
 void ml_console_close (MlConsole *c);
 
-/* Blocks until a key press (or a resize) arrives. Key releases and bare modifier presses are skipped. */
+/*
+ * Blocks until a key press (or a resize) arrives. Key releases and bare
+ * modifier presses are skipped.
+ */
 MlKeyResult ml_console_read_key (MlConsole *c);
 
 /* Visible window size in character cells (0 x 0 when unknown). */

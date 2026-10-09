@@ -45,13 +45,19 @@ typedef enum MlKeyCode
 typedef struct MlKey
 {
 	MlKeyCode code;
-	uint32_t  cp;   /* code point, only for ML_KEY_CHAR */
-	uint32_t  mods; /* ML_MOD_* flags. Ctrl+letter arrives as ML_KEY_CHAR with the lowercase letter and ML_MOD_CTRL */
+	uint32_t  cp; /* code point, only for ML_KEY_CHAR */
+	/*
+	 * ML_MOD_* flags. Ctrl+letter arrives as ML_KEY_CHAR with the lowercase
+	 * letter and ML_MOD_CTRL.
+	 */
+	uint32_t mods;
 } MlKey;
 
 const char *ml_key_code_name (MlKeyCode code);
 
-/* Appends a readable form such as "Ctrl+Alt+Left", "Char 'a' U+0061" or "Esc". */
+/*
+ * Appends a readable form such as "Ctrl+Alt+Left", "Char 'a' U+0061" or "Esc".
+ */
 MlResult ml_key_format (MlStr *out, MlKey key);
 
 #endif /* MATLOG_PLATFORM_KEY_H */

@@ -41,10 +41,31 @@ static void test_edit (void)
 	CHECK (s.lines.len == 0 && !s.dirty);
 	CHECK (ml_session_get (&s, 0).kind == ML_LINE_NONE);
 
-	CHECK (ml_session_append (&s, ML_LINE_MATH, ML_DOMAIN_MATRIX, lit ("A = [[1,2],[3,4]]")) == ML_OK);
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_MATH,
+			ML_DOMAIN_MATRIX,
+			lit ("A = [[1,2],[3,4]]")
+		) == ML_OK
+	);
 	CHECK (s.dirty);
-	CHECK (ml_session_append (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, lit ("a note")) == ML_OK);
-	CHECK (ml_session_append (&s, ML_LINE_MATH, ML_DOMAIN_LAMBDA, lit ("\xCE\xBB" "x.x")) == ML_OK);
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("a note")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_MATH,
+			ML_DOMAIN_LAMBDA,
+			lit ("\xCE\xBB" "x.x")
+		) == ML_OK
+	);
 	CHECK (s.lines.len == 3);
 
 	v = ml_session_get (&s, 0);
@@ -55,8 +76,24 @@ static void test_edit (void)
 	CHECK (ml_slice_equal (v.text, lit ("\xCE\xBB" "x.x")));
 
 	/* insert in the middle and at the front */
-	CHECK (ml_session_insert (&s, 1, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, lit ("")) == ML_OK);
-	CHECK (ml_session_insert (&s, 0, ML_LINE_INCLUDE, ML_DOMAIN_ALGEBRA, lit ("consts.mlog")) == ML_OK);
+	CHECK (
+		ml_session_insert (
+			&s,
+			1,
+			ML_LINE_BLANK,
+			ML_DOMAIN_ALGEBRA,
+			lit ("")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_insert (
+			&s,
+			0,
+			ML_LINE_INCLUDE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("consts.mlog")
+		) == ML_OK
+	);
 	CHECK (s.lines.len == 5);
 	CHECK (ml_session_get (&s, 0).kind == ML_LINE_INCLUDE);
 	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("consts.mlog")));
@@ -65,16 +102,64 @@ static void test_edit (void)
 	CHECK (ml_session_get (&s, 3).kind == ML_LINE_NOTE);
 
 	/* bad arguments leave the session alone */
-	CHECK (ml_session_insert (&s, 99, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, lit ("x")) == ML_ERR_RANGE);
-	CHECK (ml_session_insert (&s, 0, ML_LINE_NONE, ML_DOMAIN_ALGEBRA, lit ("x")) == ML_ERR_INVALID);
-	CHECK (ml_session_insert (&s, 0, ML_LINE_NOTE, (MlDomain)99, lit ("x")) == ML_ERR_INVALID);
+	CHECK (
+		ml_session_insert (
+			&s,
+			99,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("x")
+		) == ML_ERR_RANGE
+	);
+	CHECK (
+		ml_session_insert (
+			&s,
+			0,
+			ML_LINE_NONE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("x")
+		) == ML_ERR_INVALID
+	);
+	CHECK (
+		ml_session_insert (
+			&s,
+			0,
+			ML_LINE_NOTE,
+			(MlDomain)99,
+			lit ("x")
+		) == ML_ERR_INVALID
+	);
 	CHECK (s.lines.len == 5);
 
 	/* replace */
-	CHECK (ml_session_replace (&s, 3, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, lit ("changed")) == ML_OK);
+	CHECK (
+		ml_session_replace (
+			&s,
+			3,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("changed")
+		) == ML_OK
+	);
 	CHECK (ml_slice_equal (ml_session_get (&s, 3).text, lit ("changed")));
-	CHECK (ml_session_replace (&s, 5, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, lit ("x")) == ML_ERR_RANGE);
-	CHECK (ml_session_replace (&s, 3, ML_LINE_NONE, ML_DOMAIN_ALGEBRA, lit ("x")) == ML_ERR_INVALID);
+	CHECK (
+		ml_session_replace (
+			&s,
+			5,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("x")
+		) == ML_ERR_RANGE
+	);
+	CHECK (
+		ml_session_replace (
+			&s,
+			3,
+			ML_LINE_NONE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("x")
+		) == ML_ERR_INVALID
+	);
 	CHECK (ml_slice_equal (ml_session_get (&s, 3).text, lit ("changed")));
 
 	/* delete */
@@ -100,7 +185,14 @@ static void test_cursor (void)
 
 	for (uint32_t i = 0; i < 5; i++)
 	{
-		CHECK (ml_session_append (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, lit ("n")) == ML_OK);
+		CHECK (
+			ml_session_append (
+				&s,
+				ML_LINE_NOTE,
+				ML_DOMAIN_ALGEBRA,
+				lit ("n")
+			) == ML_OK
+		);
 	}
 
 	ml_session_set_cursor (&s, 2);
@@ -142,9 +234,9 @@ static void test_misc (void)
 	ml_session_init (&s);
 	CHECK (s.path.len == 0);
 	CHECK (ml_session_set_path (&s, lit ("physics.mlog")) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (s.path), lit ("physics.mlog")));
+	CHECK (ml_slice_equal      (ml_str_view (s.path), lit ("physics.mlog")));
 	CHECK (ml_session_set_path (&s, lit ("other.mlog")) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (s.path), lit ("other.mlog")));
+	CHECK (ml_slice_equal      (ml_str_view (s.path), lit ("other.mlog")));
 
 	CHECK (s.domain == ML_DOMAIN_ALGEBRA);
 	ml_session_set_domain (&s, ML_DOMAIN_PGA2);

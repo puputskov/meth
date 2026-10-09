@@ -30,7 +30,10 @@ MlResult ml_mlog_format (MlStr *out, const MlSession *s);
  */
 MlResult ml_mlog_load (MlSession *s, MlSlice path);
 
-/* Writes the session to its path (atomically) and clears the dirty flag. ML_ERR_INVALID without a path. */
+/*
+ * Writes the session to its path (atomically) and clears the dirty flag.
+ * ML_ERR_INVALID without a path.
+ */
 MlResult ml_mlog_save (MlSession *s);
 
 #endif /* MATLOG_SESSION_MLOG_H */

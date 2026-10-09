@@ -11,7 +11,10 @@
  * OS API accepts.
  */
 
-/* Directory part of path without the trailing separator ("" when there is none). */
+/*
+ * Directory part of path without the trailing separator ("" when there is
+ * none).
+ */
 MlSlice ml_path_dir (MlSlice path);
 
 /* File name part of path (everything after the last separator). */

@@ -22,7 +22,8 @@ typedef struct MlLineEdit
 typedef struct MlEditResult
 {
 	MlResult result;
-	int32_t  handled; /* 1 when the key was an editing key and has been applied */
+	/* 1 when the key was an editing key and has been applied */
+	int32_t handled;
 } MlEditResult;
 
 void ml_lineedit_init (MlLineEdit *e);
@@ -70,6 +71,12 @@ MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key);
  * prompt itself may contain escape sequences). When the text is wider than
  * the terminal it scrolls horizontally so the cursor stays visible.
  */
-MlResult ml_lineedit_render (MlStr *out, const MlLineEdit *e, MlSlice prompt, uint32_t prompt_width, uint32_t cols);
+MlResult ml_lineedit_render (
+	MlStr            *out,
+	const MlLineEdit *e,
+	MlSlice          prompt,
+	uint32_t         prompt_width,
+	uint32_t         cols
+);
 
 #endif /* MATLOG_UI_LINEEDIT_H */

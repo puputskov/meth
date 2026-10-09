@@ -42,5 +42,8 @@ MlSlice ml_slice_sub (MlSlice s, uint64_t pos, uint64_t n)
 
 int32_t ml_slice_equal (MlSlice a, MlSlice b)
 {
-	return a.len == b.len && (a.len == 0 || memcmp (a.data, b.data, a.len) == 0);
+	return (
+		   a.len == b.len
+		&& (a.len == 0 || memcmp (a.data, b.data, a.len) == 0)
+	);
 }

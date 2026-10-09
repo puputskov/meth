@@ -17,8 +17,9 @@ typedef struct MlDecoded
 
 typedef struct MlEncoded
 {
-	char     bytes [4];
-	uint64_t size; /* bytes used, 0 when the code point is not a valid scalar value */
+	char bytes [4];
+	/* bytes used, 0 when the code point is not a valid scalar value */
+	uint64_t size;
 } MlEncoded;
 
 /*
@@ -41,13 +42,19 @@ uint64_t ml_utf8_next (MlSlice s, uint64_t pos);
 /* Byte offset of the code point boundary before pos (0 when pos is 0). */
 uint64_t ml_utf8_prev (MlSlice s, uint64_t pos);
 
-/* Terminal columns used by a code point: 0 (combining/zero width), 1 or 2 (wide). */
+/*
+ * Terminal columns used by a code point: 0 (combining/zero width), 1 or 2
+ * (wide).
+ */
 int32_t ml_cp_width (uint32_t cp);
 
 /* Terminal columns used by a UTF-8 slice. */
 uint64_t ml_utf8_width (MlSlice s);
 
-/* 1 for characters that form words: ASCII letters, digits, '_' and letters of the Latin, Greek, Cyrillic and CJK scripts. */
+/*
+ * 1 for characters that form words: ASCII letters, digits, '_' and letters of
+ * the Latin, Greek, Cyrillic and CJK scripts.
+ */
 int32_t ml_cp_is_word (uint32_t cp);
 
 #endif /* MATLOG_CORE_UTF8_H */

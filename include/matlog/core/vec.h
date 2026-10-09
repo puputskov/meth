@@ -25,7 +25,8 @@
  *	MlResult Name_set (Name *v, uint64_t idx, T value);
  *	MlResult Name_remove (Name *v, uint64_t idx);
  *	MlResult Name_pop (Name *v);
- *	T        Name_get (const Name *v, uint64_t idx);			zeroed T when idx is out of range
+ *	T        Name_get (const Name *v, uint64_t idx);
+ *		idx out of range gives a zeroed T
  *
  * The container itself is always passed by pointer, since it is mutated.
  */
@@ -110,7 +111,11 @@ static inline MlResult Name##_insert (Name *v, uint64_t idx, T value) \
 \
 	if (r == ML_OK) \
 	{ \
-		memmove (v->data + idx + 1, v->data + idx, (v->len - idx) * sizeof (T)); \
+		memmove ( \
+			v->data + idx + 1, \
+			v->data + idx, \
+			(v->len - idx) * sizeof (T) \
+		); \
 		v->data [idx] = value; \
 		v->len++; \
 	} \
@@ -149,7 +154,11 @@ static inline MlResult Name##_remove (Name *v, uint64_t idx) \
 \
 	if (r == ML_OK) \
 	{ \
-		memmove (v->data + idx, v->data + idx + 1, (v->len - idx - 1) * sizeof (T)); \
+		memmove ( \
+			v->data + idx, \
+			v->data + idx + 1, \
+			(v->len - idx - 1) * sizeof (T) \
+		); \
 		v->len--; \
 	} \
 \

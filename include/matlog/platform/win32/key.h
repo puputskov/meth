@@ -18,8 +18,10 @@ typedef struct MlRawKey
 
 typedef struct MlDecodeResult
 {
-	MlKey    key;          /* ML_KEY_NONE when the event produced no key (modifier alone, high surrogate) */
-	uint16_t pending_high; /* high surrogate waiting for its pair, pass it back in on the next call */
+	/* ML_KEY_NONE when the event gave no key (a modifier, a high surrogate) */
+	MlKey key;
+	/* high surrogate waiting for its pair, pass it back in on the next call */
+	uint16_t pending_high;
 } MlDecodeResult;
 
 MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high);

@@ -31,12 +31,12 @@ static void test_slice (void)
 	MlSlice sub = ml_slice_sub (s, 1, 3);
 
 	CHECK (s.len == 5);
-	CHECK (ml_slice_equal (sub, lit ("ell")));
-	CHECK (ml_slice_equal (ml_slice_sub (s, 3, 100), lit ("lo")));
-	CHECK (ml_slice_sub (s, 9, 1).len == 0);
-	CHECK (ml_slice_cstr (NULL).len == 0);
+	CHECK (ml_slice_equal  (sub, lit ("ell")));
+	CHECK (ml_slice_equal  (ml_slice_sub (s, 3, 100), lit ("lo")));
+	CHECK (ml_slice_sub    (s, 9, 1).len == 0);
+	CHECK (ml_slice_cstr   (NULL).len == 0);
 	CHECK (!ml_slice_equal (lit ("a"), lit ("b")));
-	CHECK (ml_slice_equal (lit (""), ml_slice (NULL, 0)));
+	CHECK (ml_slice_equal  (lit (""), ml_slice (NULL, 0)));
 }
 
 static void test_arena (void)
@@ -144,7 +144,9 @@ static void test_vec (void)
 static void test_utf8 (void)
 {
 	/* "π√x≤" : 2, 3, 1, 3 bytes */
-	MlSlice               s      = lit ("\xCF\x80\xE2\x88\x9A" "x" "\xE2\x89\xA4");
+	MlSlice s = lit (
+		"\xCF\x80\xE2\x88\x9A" "x" "\xE2\x89\xA4"
+	);
 	MlDecoded             d;
 	MlEncoded             e;
 	static const uint32_t cps [] =
@@ -180,7 +182,7 @@ static void test_utf8 (void)
 	CHECK (ml_utf8_prev (s, 0) == 0);
 
 	/* encode / decode round trip over the interesting boundaries */
-	for (uint64_t i = 0; i < sizeof cps / sizeof cps [0]; i++)
+	for (uint64_t i = 0; i < ml_count (cps); i++)
 	{
 		e = ml_utf8_encode (cps [i]);
 		CHECK (e.size >= 1);
@@ -191,7 +193,9 @@ static void test_utf8 (void)
 	CHECK (ml_utf8_encode (0xD800).size == 0);
 	CHECK (ml_utf8_encode (0x110000).size == 0);
 
-	/* malformed: lone continuation, truncated, overlong, surrogate, too large */
+	/*
+	 * malformed: lone continuation, truncated, overlong, surrogate, too large
+	 */
 	CHECK (!ml_utf8_valid (ml_slice ("\x80", 1)));
 	CHECK (!ml_utf8_valid (ml_slice ("\xE2\x88", 2)));
 	CHECK (!ml_utf8_valid (ml_slice ("\xC0\xAF", 2)));
@@ -204,10 +208,10 @@ static void test_utf8 (void)
 
 	/* widths */
 	CHECK (ml_cp_width ('a') == 1);
-	CHECK (ml_cp_width (0x0301) == 0);  /* combining acute */
-	CHECK (ml_cp_width (0x4E2D) == 2);  /* CJK */
-	CHECK (ml_cp_width (0x1F600) == 2); /* emoji */
-	CHECK (ml_cp_width ('\n') == 0);
+	CHECK (ml_cp_width   (0x0301) == 0);  /* combining acute */
+	CHECK (ml_cp_width   (0x4E2D) == 2);  /* CJK */
+	CHECK (ml_cp_width   (0x1F600) == 2); /* emoji */
+	CHECK (ml_cp_width   ('\n') == 0);
 	CHECK (ml_utf8_width (ml_slice ("e\xCC\x81", 3)) == 1);
 }
 
@@ -221,17 +225,17 @@ static void test_str (void)
 
 	CHECK (ml_str_append (&s, lit ("hello")) == ML_OK);
 	CHECK (ml_str_append (&s, lit (" world!")) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "hello world!") == 0);
+	CHECK (strcmp        (ml_str_cstr (s), "hello world!") == 0);
 
 	CHECK (ml_str_insert (&s, 0, lit (">> ")) == ML_OK);
 	CHECK (ml_str_insert (&s, s.len, lit ("<")) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), ">> hello world!<") == 0);
+	CHECK (strcmp        (ml_str_cstr (s), ">> hello world!<") == 0);
 	CHECK (ml_str_insert (&s, s.len + 1, lit ("x")) == ML_ERR_RANGE);
 
-	CHECK (ml_str_erase (&s, 0, 3) == ML_OK);
-	CHECK (ml_str_erase (&s, 11, 100) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "hello world") == 0);
-	CHECK (ml_str_erase (&s, 99, 1) == ML_ERR_RANGE);
+	CHECK (ml_str_erase   (&s, 0, 3) == ML_OK);
+	CHECK (ml_str_erase   (&s, 11, 100) == ML_OK);
+	CHECK (strcmp         (ml_str_cstr (s), "hello world") == 0);
+	CHECK (ml_str_erase   (&s, 99, 1) == ML_ERR_RANGE);
 	CHECK (ml_slice_equal (ml_str_view (s), lit ("hello world")));
 
 	ml_str_clear (&s);
@@ -244,7 +248,7 @@ static void test_str (void)
 
 	ml_str_clear (&s);
 	CHECK (ml_str_appendf (&s, "%d-%s-%05.1f", 42, "ab", 3.14159) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "42-ab-003.1") == 0);
+	CHECK (strcmp         (ml_str_cstr (s), "42-ab-003.1") == 0);
 
 	/* growth across many appends */
 	ml_str_clear (&s);
@@ -261,9 +265,9 @@ static void test_str (void)
 
 static void test_err (void)
 {
-	CHECK (strcmp (ml_result_str (ML_OK), "ok") == 0);
+	CHECK (strcmp        (ml_result_str (ML_OK), "ok") == 0);
 	CHECK (ml_result_str (ML_ERR_NOMEM) != NULL);
-	CHECK (strcmp (ml_result_str ((MlResult)999), "unknown error") == 0);
+	CHECK (strcmp        (ml_result_str ((MlResult)999), "unknown error") == 0);
 }
 
 void run_core_tests (void)

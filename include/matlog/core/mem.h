@@ -39,7 +39,10 @@ void ml_arena_reset (MlArena *a);
 /* Releases everything. The arena can be ml_arena_init'ed again. */
 void ml_arena_free (MlArena *a);
 
-#define ML_ARENA_NEW(a, T)          ((T *)ml_arena_alloc_zero ((a), sizeof (T), _Alignof (T)))
-#define ML_ARENA_NEW_ARRAY(a, T, n) ((T *)ml_arena_alloc_zero ((a), sizeof (T) * (n), _Alignof (T)))
+#define ML_ARENA_NEW(a, T) \
+	((T *)ml_arena_alloc_zero ((a), sizeof (T), _Alignof (T)))
+
+#define ML_ARENA_NEW_ARRAY(a, T, n) \
+	((T *)ml_arena_alloc_zero ((a), sizeof (T) * (n), _Alignof (T)))
 
 #endif /* MATLOG_CORE_MEM_H */

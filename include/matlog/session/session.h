@@ -69,7 +69,9 @@ typedef struct MlSession
 /* "algebra", "matrix", ... ("unknown" for an invalid value). */
 const char *ml_domain_name (MlDomain domain);
 
-/* Parses a domain name as used in the file format. ML_ERR_PARSE when unknown. */
+/*
+ * Parses a domain name as used in the file format. ML_ERR_PARSE when unknown.
+ */
 MlDomainResult ml_domain_from_name (MlSlice name);
 
 void ml_session_init (MlSession *s);
@@ -80,18 +82,41 @@ MlResult ml_session_set_path (MlSession *s, MlSlice path);
 /* Reads line idx; kind is ML_LINE_NONE when idx is out of range. */
 MlLineView ml_session_get (const MlSession *s, uint64_t idx);
 
-/* Copies text into a new line before idx (idx == lines.len appends). Marks the session dirty. */
-MlResult ml_session_insert (MlSession *s, uint64_t idx, MlLineKind kind, MlDomain domain, MlSlice text);
+/*
+ * Copies text into a new line before idx (idx == lines.len appends). Marks the
+ * session dirty.
+ */
+MlResult ml_session_insert (
+	MlSession  *s,
+	uint64_t   idx,
+	MlLineKind kind,
+	MlDomain   domain,
+	MlSlice    text
+);
 
-MlResult ml_session_append (MlSession *s, MlLineKind kind, MlDomain domain, MlSlice text);
+MlResult ml_session_append (
+	MlSession  *s,
+	MlLineKind kind,
+	MlDomain   domain,
+	MlSlice    text
+);
 
 /* Replaces line idx. On failure the old line is left untouched. */
-MlResult ml_session_replace (MlSession *s, uint64_t idx, MlLineKind kind, MlDomain domain, MlSlice text);
+MlResult ml_session_replace (
+	MlSession  *s,
+	uint64_t   idx,
+	MlLineKind kind,
+	MlDomain   domain,
+	MlSlice    text
+);
 
 /* Removes line idx and keeps the cursor on a valid line. */
 MlResult ml_session_delete (MlSession *s, uint64_t idx);
 
-/* Moves the cursor to idx, clamped to the last line (0 when the session is empty). */
+/*
+ * Moves the cursor to idx, clamped to the last line (0 when the session is
+ * empty).
+ */
 void ml_session_set_cursor (MlSession *s, uint64_t idx);
 
 /* Moves the cursor by delta lines, clamped to the first and last line. */

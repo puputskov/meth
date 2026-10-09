@@ -5,7 +5,8 @@
 #include <windows.h>
 
 #define MODE_IN_RAW  (ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS)
-#define MODE_OUT_ADD (ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+#define MODE_OUT_ADD \
+	(ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
 
 static HANDLE to_handle (uint64_t h)
 {
@@ -101,7 +102,10 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 		INPUT_RECORD rec;
 		DWORD        count = 0;
 
-		if (!ReadConsoleInputW (to_handle (c->in_handle), &rec, 1, &count) || count == 0)
+		if (
+			   !ReadConsoleInputW (to_handle (c->in_handle), &rec, 1, &count)
+			|| count == 0
+		)
 		{
 			res.result = ML_ERR_IO;
 		}
@@ -161,7 +165,16 @@ MlResult ml_console_write (const MlConsole *c, MlSlice text)
 			text.len - pos
 		);
 
-		if (WriteFile (to_handle (c->out_handle), text.data + pos, chunk, &written, NULL) && written > 0)
+		if (
+			   WriteFile (
+					to_handle (c->out_handle),
+					text.data + pos,
+					chunk,
+					&written,
+					NULL
+				)
+			&& written > 0
+		)
 		{
 			pos += written;
 		}

@@ -107,7 +107,9 @@ static void test_key_decode (void)
 	d = ml_key_decode_win32 (hi, 0);
 	CHECK (d.key.code == ML_KEY_NONE && d.pending_high == 0xD83D);
 	d = ml_key_decode_win32 (lo, d.pending_high);
-	CHECK (d.key.code == ML_KEY_CHAR && d.key.cp == 0x1F600 && d.pending_high == 0);
+	CHECK (
+		d.key.code == ML_KEY_CHAR && d.key.cp == 0x1F600 && d.pending_high == 0
+	);
 	d = ml_key_decode_win32 (lo, 0);
 	CHECK (d.key.code == ML_KEY_NONE);
 }
@@ -136,15 +138,15 @@ static void test_key_format (void)
 
 	ml_str_init (&s);
 	CHECK (ml_key_format (&s, esc) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "Esc") == 0);
+	CHECK (strcmp        (ml_str_cstr (s), "Esc") == 0);
 
 	ml_str_clear (&s);
 	CHECK (ml_key_format (&s, left) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "Ctrl+Alt+Left") == 0);
+	CHECK (strcmp        (ml_str_cstr (s), "Ctrl+Alt+Left") == 0);
 
 	ml_str_clear (&s);
 	CHECK (ml_key_format (&s, pi) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "Char '\xCF\x80' U+03C0") == 0);
+	CHECK (strcmp        (ml_str_cstr (s), "Char '\xCF\x80' U+03C0") == 0);
 
 	CHECK (strcmp (ml_key_code_name (ML_KEY_RESIZE), "Resize") == 0);
 	CHECK (strcmp (ml_key_code_name ((MlKeyCode)999), "Unknown") == 0);
@@ -158,36 +160,38 @@ static void test_path (void)
 	ml_str_init (&s);
 
 	CHECK (ml_slice_equal (ml_path_name (lit ("a/b/c.mlog")), lit ("c.mlog")));
-	CHECK (ml_slice_equal (ml_path_name (lit ("a\\b\\c.mlog")), lit ("c.mlog")));
+	CHECK (
+		ml_slice_equal (ml_path_name (lit ("a\\b\\c.mlog")), lit ("c.mlog"))
+	);
 	CHECK (ml_slice_equal (ml_path_name (lit ("c.mlog")), lit ("c.mlog")));
-	CHECK (ml_path_name (lit ("dir/")).len == 0);
+	CHECK (ml_path_name   (lit ("dir/")).len == 0);
 
 	CHECK (ml_slice_equal (ml_path_dir (lit ("a/b/c.mlog")), lit ("a/b")));
 	CHECK (ml_slice_equal (ml_path_dir (lit ("a\\c.mlog")), lit ("a")));
-	CHECK (ml_path_dir (lit ("c.mlog")).len == 0);
+	CHECK (ml_path_dir    (lit ("c.mlog")).len == 0);
 	CHECK (ml_slice_equal (ml_path_dir (lit ("/c.mlog")), lit ("/")));
 	CHECK (ml_slice_equal (ml_path_dir (lit ("dir/")), lit ("dir")));
 
-	CHECK (ml_path_is_absolute (lit ("/x")));
-	CHECK (ml_path_is_absolute (lit ("\\\\server\\share")));
-	CHECK (ml_path_is_absolute (lit ("C:\\x")));
+	CHECK (ml_path_is_absolute  (lit ("/x")));
+	CHECK (ml_path_is_absolute  (lit ("\\\\server\\share")));
+	CHECK (ml_path_is_absolute  (lit ("C:\\x")));
 	CHECK (!ml_path_is_absolute (lit ("x/y")));
 	CHECK (!ml_path_is_absolute (lit ("")));
 
 	CHECK (ml_path_join (&s, lit ("a/b"), lit ("c.mlog")) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "a/b/c.mlog") == 0);
+	CHECK (strcmp       (ml_str_cstr (s), "a/b/c.mlog") == 0);
 
 	ml_str_clear (&s);
 	CHECK (ml_path_join (&s, lit ("a/b/"), lit ("c")) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "a/b/c") == 0);
+	CHECK (strcmp       (ml_str_cstr (s), "a/b/c") == 0);
 
 	ml_str_clear (&s);
 	CHECK (ml_path_join (&s, lit (""), lit ("c")) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "c") == 0);
+	CHECK (strcmp       (ml_str_cstr (s), "c") == 0);
 
 	ml_str_clear (&s);
 	CHECK (ml_path_join (&s, lit ("a"), lit ("C:\\abs")) == ML_OK);
-	CHECK (strcmp (ml_str_cstr (s), "C:\\abs") == 0);
+	CHECK (strcmp       (ml_str_cstr (s), "C:\\abs") == 0);
 
 	ml_str_free (&s);
 }
@@ -203,22 +207,22 @@ static void test_fs (void)
 	ml_str_init (&big);
 	ml_fs_remove (path);
 
-	CHECK (!ml_fs_exists (path));
+	CHECK (!ml_fs_exists   (path));
 	CHECK (ml_fs_read_file (&s, path) == ML_ERR_IO);
 	CHECK (s.len == 0);
 	CHECK (ml_fs_remove (path) == ML_ERR_IO);
 
 	CHECK (ml_fs_write_file_atomic (path, lit ("hello \xCF\x80\n")) == ML_OK);
-	CHECK (ml_fs_exists (path));
-	CHECK (!ml_fs_exists (tmp));
-	CHECK (ml_fs_read_file (&s, path) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (s), lit ("hello \xCF\x80\n")));
+	CHECK (ml_fs_exists            (path));
+	CHECK (!ml_fs_exists           (tmp));
+	CHECK (ml_fs_read_file         (&s, path) == ML_OK);
+	CHECK (ml_slice_equal          (ml_str_view (s), lit ("hello \xCF\x80\n")));
 
 	/* replacing an existing file */
 	CHECK (ml_fs_write_file_atomic (path, lit ("second")) == ML_OK);
 	ml_str_clear (&s);
 	CHECK (ml_fs_read_file (&s, path) == ML_OK);
-	CHECK (ml_slice_equal (ml_str_view (s), lit ("second")));
+	CHECK (ml_slice_equal  (ml_str_view (s), lit ("second")));
 
 	/* a file larger than the read buffer, and reading appends */
 	for (int32_t i = 0; i < 5000; i++)
@@ -241,7 +245,7 @@ static void test_fs (void)
 	/* invalid UTF-8 path */
 	CHECK (ml_fs_read_file (&s, ml_slice ("\xFF\xFE", 2)) == ML_ERR_UTF8);
 
-	CHECK (ml_fs_remove (path) == ML_OK);
+	CHECK (ml_fs_remove  (path) == ML_OK);
 	CHECK (!ml_fs_exists (path));
 
 	ml_str_free (&big);
@@ -253,7 +257,10 @@ static void test_console (void)
 	MlConsole c;
 	MlResult  r = ml_console_open (&c);
 
-	/* Under a test runner stdin/stdout are usually not a console; both outcomes are valid. */
+	/*
+	 * Under a test runner stdin/stdout are usually not a console; both outcomes
+	 * are valid.
+	 */
 	CHECK (r == ML_OK || r == ML_ERR_IO);
 
 	if (r == ML_OK)

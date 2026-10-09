@@ -71,13 +71,17 @@ static int32_t word_before (MlSlice s, uint64_t pos)
 {
 	uint64_t start = ml_utf8_prev (s, pos);
 
-	return ml_cp_is_word (ml_utf8_decode (ml_slice_sub (s, start, pos - start)).cp);
+	return ml_cp_is_word (
+		ml_utf8_decode (ml_slice_sub (s, start, pos - start)).cp
+	);
 }
 
 /* Is the code point that starts at pos a word character? */
 static int32_t word_at (MlSlice s, uint64_t pos)
 {
-	return ml_cp_is_word (ml_utf8_decode (ml_slice_sub (s, pos, s.len - pos)).cp);
+	return ml_cp_is_word (
+		ml_utf8_decode (ml_slice_sub (s, pos, s.len - pos)).cp
+	);
 }
 
 static uint64_t word_left_pos (MlSlice s, uint64_t pos)
@@ -114,7 +118,10 @@ static uint64_t word_right_pos (MlSlice s, uint64_t pos)
 	return p;
 }
 
-/* Removes the bytes between from and to (from <= to) and puts the cursor at from. */
+/*
+ * Removes the bytes between from and to (from <= to) and puts the cursor at
+ * from.
+ */
 static void remove_range (MlLineEdit *e, uint64_t from, uint64_t to)
 {
 	ml_str_erase (&e->text, from, to - from);
@@ -123,7 +130,11 @@ static void remove_range (MlLineEdit *e, uint64_t from, uint64_t to)
 
 void ml_lineedit_backspace (MlLineEdit *e)
 {
-	remove_range (e, ml_utf8_prev (ml_str_view (e->text), e->cursor), e->cursor);
+	remove_range (
+		e,
+		ml_utf8_prev (ml_str_view (e->text), e->cursor),
+		e->cursor
+	);
 }
 
 void ml_lineedit_delete (MlLineEdit *e)
@@ -135,7 +146,11 @@ void ml_lineedit_delete (MlLineEdit *e)
 
 void ml_lineedit_delete_word_left (MlLineEdit *e)
 {
-	remove_range (e, word_left_pos (ml_str_view (e->text), e->cursor), e->cursor);
+	remove_range (
+		e,
+		word_left_pos (ml_str_view (e->text), e->cursor),
+		e->cursor
+	);
 }
 
 void ml_lineedit_delete_word_right (MlLineEdit *e)
@@ -299,14 +314,22 @@ MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key)
 	return res;
 }
 
-/* Appends the part of text that fits into avail columns starting at start_col. Returns the column of the first shown character. */
+/*
+ * Appends the part of text that fits into avail columns starting at start_col.
+ * Returns the column of the first shown character.
+ */
 typedef struct Window
 {
 	MlResult result;
 	uint64_t first_col;
 } Window;
 
-static Window append_window (MlStr *out, MlSlice text, uint64_t start_col, uint64_t avail)
+static Window append_window (
+	MlStr    *out,
+	MlSlice  text,
+	uint64_t start_col,
+	uint64_t avail
+)
 {
 	Window w =
 	{
@@ -321,9 +344,11 @@ static Window append_window (MlStr *out, MlSlice text, uint64_t start_col, uint6
 
 	while (w.result == ML_OK && pos < text.len && !done)
 	{
-		MlDecoded d    = ml_utf8_decode (ml_slice_sub (text, pos, text.len - pos));
-		uint64_t  cw   = (uint64_t)ml_cp_width (d.cp);
-		int32_t   show = 0;
+		MlDecoded d = ml_utf8_decode (
+			ml_slice_sub (text, pos, text.len - pos)
+		);
+		uint64_t cw   = (uint64_t)ml_cp_width (d.cp);
+		int32_t  show = 0;
 
 		if (cw == 0)
 		{
@@ -356,7 +381,13 @@ static Window append_window (MlStr *out, MlSlice text, uint64_t start_col, uint6
 	return w;
 }
 
-MlResult ml_lineedit_render (MlStr *out, const MlLineEdit *e, MlSlice prompt, uint32_t prompt_width, uint32_t cols)
+MlResult ml_lineedit_render (
+	MlStr            *out,
+	const MlLineEdit *e,
+	MlSlice          prompt,
+	uint32_t         prompt_width,
+	uint32_t         cols
+)
 {
 	MlResult r     = ML_OK;
 	uint64_t avail = ml_choose (

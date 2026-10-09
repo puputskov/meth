@@ -13,7 +13,7 @@ static const char *const names [] =
 
 const char *ml_result_str (MlResult r)
 {
-	int32_t known = (int32_t)r >= 0 && (uint64_t)r < sizeof names / sizeof names [0];
+	int32_t known = (int32_t)r >= 0 && (uint64_t)r < ml_count (names);
 
 	return ml_choose (
 		known,

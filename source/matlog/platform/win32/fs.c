@@ -22,7 +22,14 @@ static MlResult wide_from_utf8 (WideVec *out, MlSlice s)
 
 	else if (s.len > 0)
 	{
-		n = MultiByteToWideChar (CP_UTF8, MB_ERR_INVALID_CHARS, s.data, (int32_t)s.len, NULL, 0);
+		n = MultiByteToWideChar (
+			CP_UTF8,
+			MB_ERR_INVALID_CHARS,
+			s.data,
+			(int32_t)s.len,
+			NULL,
+			0
+		);
 		r = ml_choose (
 			n > 0,
 			ML_OK,
@@ -39,7 +46,14 @@ static MlResult wide_from_utf8 (WideVec *out, MlSlice s)
 	{
 		if (n > 0)
 		{
-			MultiByteToWideChar (CP_UTF8, MB_ERR_INVALID_CHARS, s.data, (int32_t)s.len, (LPWSTR)out->data, n);
+			MultiByteToWideChar (
+				CP_UTF8,
+				MB_ERR_INVALID_CHARS,
+				s.data,
+				(int32_t)s.len,
+				(LPWSTR)out->data,
+				n
+			);
 		}
 
 		out->data [n] = 0;
@@ -60,7 +74,10 @@ int32_t ml_fs_exists (MlSlice path)
 	{
 		DWORD attr = GetFileAttributesW ((LPCWSTR)wide.data);
 
-		exists = attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+		exists = (
+			   attr != INVALID_FILE_ATTRIBUTES
+			&& !(attr & FILE_ATTRIBUTE_DIRECTORY)
+		);
 	}
 
 	WideVec_free (&wide);
@@ -80,8 +97,15 @@ MlResult ml_fs_read_file (MlStr *out, MlSlice path)
 
 	if (r == ML_OK)
 	{
-		file = CreateFileW ((LPCWSTR)wide.data, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-			FILE_ATTRIBUTE_NORMAL, NULL);
+		file = CreateFileW (
+			(LPCWSTR)wide.data,
+			GENERIC_READ,
+			FILE_SHARE_READ,
+			NULL,
+			OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL
+		);
 		r = ml_choose (
 			file != INVALID_HANDLE_VALUE,
 			ML_OK,
@@ -157,8 +181,15 @@ MlResult ml_fs_write_file_atomic (MlSlice path, MlSlice data)
 
 	if (r == ML_OK)
 	{
-		file = CreateFileW ((LPCWSTR)wide_tmp.data, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
-			FILE_ATTRIBUTE_NORMAL, NULL);
+		file = CreateFileW (
+			(LPCWSTR)wide_tmp.data,
+			GENERIC_WRITE,
+			0,
+			NULL,
+			CREATE_ALWAYS,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL
+		);
 		r = ml_choose (
 			file != INVALID_HANDLE_VALUE,
 			ML_OK,
@@ -175,7 +206,10 @@ MlResult ml_fs_write_file_atomic (MlSlice path, MlSlice data)
 			data.len - pos
 		);
 
-		if (WriteFile (file, data.data + pos, chunk, &written, NULL) && written > 0)
+		if (
+			   WriteFile (file, data.data + pos, chunk, &written, NULL)
+			&& written > 0
+		)
 		{
 			pos += written;
 		}
@@ -196,8 +230,14 @@ MlResult ml_fs_write_file_atomic (MlSlice path, MlSlice data)
 		CloseHandle (file);
 	}
 
-	if (r == ML_OK && !MoveFileExW ((LPCWSTR)wide_tmp.data, (LPCWSTR)wide_dst.data,
-		MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	if (
+		   r == ML_OK
+		&& !MoveFileExW (
+				(LPCWSTR)wide_tmp.data,
+				(LPCWSTR)wide_dst.data,
+				MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH
+			)
+	)
 	{
 		r = ML_ERR_IO;
 	}
