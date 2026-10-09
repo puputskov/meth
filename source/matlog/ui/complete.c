@@ -137,7 +137,59 @@ static void choose_ghost (MlCompletion *c, MlSlice typed)
 	}
 }
 
+/* Adds the names of the theme files (name.theme per line) as candidates. */
+static void add_theme_files (MlCompletion *c, MlSlice typed, MlSlice files)
+{
+	MlSlice suffix = ml_slice_cstr (".theme");
+	uint64_t pos   = 0;
+
+	while (pos < files.len)
+	{
+		uint64_t end = pos;
+
+		while (end < files.len && files.data [end] != '\n')
+		{
+			end++;
+		}
+
+		if (
+			   end - pos > suffix.len
+			&& ml_slice_equal (
+				   ml_slice_sub (files, end - suffix.len, suffix.len),
+				   suffix
+			   )
+		)
+		{
+			MlSlice name = ml_slice_sub (files, pos, end - pos - suffix.len);
+			int32_t known = 0;
+
+			for (uint64_t i = 0; i < c->count; i++)
+			{
+				known = known || ml_slice_equal (c->items [i], name);
+			}
+
+			if (
+				   !known
+				&& c->count < ML_MAX_CANDIDATES
+				&& name.len >= typed.len
+				&& ml_slice_equal (ml_slice_sub (name, 0, typed.len), typed)
+			)
+			{
+				c->items [c->count] = name;
+				c->count++;
+			}
+		}
+
+		pos = end + 1;
+	}
+}
+
 MlCompletion ml_complete_command (MlSlice line)
+{
+	return ml_complete_command_with (line, ml_slice ("", 0));
+}
+
+MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files)
 {
 	MlCompletion c     = completion_new (0);
 	uint64_t     space = 0;
@@ -191,6 +243,7 @@ MlCompletion ml_complete_command (MlSlice line)
 			}
 
 			add_candidate (&c, typed, "reload");
+			add_theme_files (&c, typed, theme_files);
 		}
 
 		else if (kind == ARG_COLORS && !more)

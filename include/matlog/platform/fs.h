@@ -27,4 +27,18 @@ MlResult ml_fs_remove (MlSlice path);
  */
 MlResult ml_fs_make_dirs (MlSlice path);
 
+/*
+ * Appends the names of the files in a folder whose name ends with suffix
+ * (suffix may be empty), each followed by a newline, in no particular order.
+ * A folder that is not there lists nothing.
+ */
+MlResult ml_fs_list (MlStr *out, MlSlice dir, MlSlice suffix);
+
+/*
+ * A number that changes whenever the file is written (its modification time
+ * and size), 0 when there is no such file. Meant for noticing that a file
+ * was edited, not for ordering files by age.
+ */
+uint64_t ml_fs_stamp (MlSlice path);
+
 #endif /* MATLOG_PLATFORM_FS_H */

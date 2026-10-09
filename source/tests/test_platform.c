@@ -261,6 +261,61 @@ static void test_fs (void)
 	ml_str_free (&s);
 }
 
+static void test_fs_list (void)
+{
+	MlSlice dir = lit ("matlog_test_dir.tmp");
+	MlStr   names;
+	MlStr   a;
+	MlStr   b;
+	MlStr   c;
+	uint64_t stamp;
+
+	ml_str_init (&names);
+	ml_str_init (&a);
+	ml_str_init (&b);
+	ml_str_init (&c);
+	CHECK (ml_fs_make_dirs (dir) == ML_OK);
+	ml_str_append (&a, dir);
+	ml_str_append (&a, lit ("/a.theme"));
+	ml_str_append (&b, dir);
+	ml_str_append (&b, lit ("/b.theme"));
+	ml_str_append (&c, dir);
+	ml_str_append (&c, lit ("/c.txt"));
+	CHECK (ml_fs_write_file_atomic (ml_str_view (a), lit ("1")) == ML_OK);
+	CHECK (ml_fs_write_file_atomic (ml_str_view (b), lit ("22")) == ML_OK);
+	CHECK (ml_fs_write_file_atomic (ml_str_view (c), lit ("3")) == ML_OK);
+
+	/* only the files with the suffix, one per line, in any order */
+	CHECK (ml_fs_list (&names, dir, lit (".theme")) == ML_OK);
+	CHECK (names.len == 16);
+	CHECK (strstr (ml_str_cstr (names), "a.theme\n") != NULL);
+	CHECK (strstr (ml_str_cstr (names), "b.theme\n") != NULL);
+	CHECK (strstr (ml_str_cstr (names), "c.txt") == NULL);
+
+	/* a folder that is not there lists nothing */
+	ml_str_clear (&names);
+	CHECK (ml_fs_list (&names, lit ("no_such_dir.tmp"), lit ("")) == ML_OK);
+	CHECK (names.len == 0);
+
+	/* the stamp changes with the content, and is 0 without a file */
+	stamp = ml_fs_stamp (ml_str_view (a));
+	CHECK (stamp != 0);
+	CHECK (ml_fs_stamp (ml_str_view (a)) == stamp);
+	CHECK (
+		ml_fs_write_file_atomic (ml_str_view (a), lit ("longer text")) == ML_OK
+	);
+	CHECK (ml_fs_stamp (ml_str_view (a)) != stamp);
+	CHECK (ml_fs_stamp (lit ("no_such_file.tmp")) == 0);
+
+	ml_fs_remove (ml_str_view (a));
+	ml_fs_remove (ml_str_view (b));
+	ml_fs_remove (ml_str_view (c));
+	ml_str_free (&c);
+	ml_str_free (&b);
+	ml_str_free (&a);
+	ml_str_free (&names);
+}
+
 static void test_console (void)
 {
 	MlConsole c;
@@ -299,5 +354,6 @@ void run_platform_tests (void)
 	test_key_format ();
 	test_path ();
 	test_fs ();
+	test_fs_list ();
 	test_console ();
 }

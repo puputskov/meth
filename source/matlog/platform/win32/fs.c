@@ -270,6 +270,146 @@ MlResult ml_fs_remove (MlSlice path)
 	return r;
 }
 
+/* Appends the UTF-16 text as UTF-8. */
+static MlResult utf8_append_wide (MlStr *out, const WCHAR *text)
+{
+	MlResult r = ML_OK;
+	int32_t  n = WideCharToMultiByte (
+		CP_UTF8,
+		0,
+		text,
+		-1,
+		NULL,
+		0,
+		NULL,
+		NULL
+	);
+
+	if (n > 1)
+	{
+		char *buf = (char *)malloc ((uint64_t)n);
+
+		if (buf == NULL)
+		{
+			r = ML_ERR_NOMEM;
+		}
+
+		else
+		{
+			WideCharToMultiByte (CP_UTF8, 0, text, -1, buf, n, NULL, NULL);
+			r = ml_str_append (out, ml_slice (buf, (uint64_t)n - 1));
+			free (buf);
+		}
+	}
+
+	return r;
+}
+
+MlResult ml_fs_list (MlStr *out, MlSlice dir, MlSlice suffix)
+{
+	MlResult        r = ML_OK;
+	MlStr           pattern;
+	WideVec         wide;
+	WIN32_FIND_DATAW data = { .dwFileAttributes = 0 };
+	HANDLE          find;
+
+	ml_str_init (&pattern);
+	WideVec_init (&wide);
+	r = ml_str_append (&pattern, dir);
+
+	if (r == ML_OK)
+	{
+		r = ml_str_append (&pattern, ml_slice_cstr ("\\*"));
+	}
+
+	if (r == ML_OK)
+	{
+		r = wide_from_utf8 (&wide, ml_str_view (pattern));
+	}
+
+	find = ml_choose (
+		r == ML_OK,
+		FindFirstFileW ((LPCWSTR)wide.data, &data),
+		INVALID_HANDLE_VALUE
+	);
+
+	while (r == ML_OK && find != INVALID_HANDLE_VALUE)
+	{
+		MlStr name;
+
+		ml_str_init (&name);
+
+		if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+		{
+			r = utf8_append_wide (&name, data.cFileName);
+		}
+
+		if (
+			   r == ML_OK
+			&& name.len >= suffix.len
+			&& name.len > 0
+			&& ml_slice_equal (
+				   ml_slice_sub (
+					   ml_str_view (name),
+					   name.len - suffix.len,
+					   suffix.len
+				   ),
+				   suffix
+			   )
+		)
+		{
+			r = ml_str_append (out, ml_str_view (name));
+
+			if (r == ML_OK)
+			{
+				r = ml_str_append (out, ml_slice_cstr ("\n"));
+			}
+		}
+
+		ml_str_free (&name);
+
+		if (!FindNextFileW (find, &data))
+		{
+			FindClose (find);
+			find = INVALID_HANDLE_VALUE;
+		}
+	}
+
+	WideVec_free (&wide);
+	ml_str_free (&pattern);
+	return r;
+}
+
+uint64_t ml_fs_stamp (MlSlice path)
+{
+	uint64_t stamp = 0;
+	WideVec  wide;
+
+	WideVec_init (&wide);
+
+	if (wide_from_utf8 (&wide, path) == ML_OK)
+	{
+		WIN32_FILE_ATTRIBUTE_DATA info;
+
+		if (GetFileAttributesExW (
+			(LPCWSTR)wide.data,
+			GetFileExInfoStandard,
+			&info
+		))
+		{
+			uint64_t time = (
+				  ((uint64_t)info.ftLastWriteTime.dwHighDateTime << 32)
+				| info.ftLastWriteTime.dwLowDateTime
+			);
+
+			stamp = time ^ ((uint64_t)info.nFileSizeLow << 40) ^ 1;
+		}
+	}
+
+	WideVec_free (&wide);
+	return stamp;
+}
+
 MlResult ml_fs_make_dirs (MlSlice path)
 {
 	MlResult r = ML_OK;

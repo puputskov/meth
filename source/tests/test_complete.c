@@ -438,8 +438,34 @@ static void test_math (void)
 	ml_env_free (&env);
 }
 
+static void test_theme_args (void)
+{
+	MlSlice      files = lit ("solar.theme\ndark.theme\nnotes.txt\nsea.theme\n");
+	MlCompletion c     = ml_complete_command (lit ("theme "));
+
+	/* the built in themes and reload */
+	CHECK (has_item (&c, "dark") && has_item (&c, "mono"));
+	CHECK (has_item (&c, "reload") && !has_item (&c, "solar"));
+
+	/* the theme files of the user come with them, once, without the suffix */
+	c = ml_complete_command_with (lit ("theme "), files);
+	CHECK (has_item (&c, "solar") && has_item (&c, "sea"));
+	CHECK (!has_item (&c, "notes") && !has_item (&c, "notes.txt"));
+	CHECK (!has_item (&c, "solar.theme"));
+	CHECK (c.count == 4 + 1 + 2);
+
+	/* typing narrows them, and the rest becomes the ghost text */
+	c = ml_complete_command_with (lit ("theme so"), files);
+	CHECK (c.count == 1 && ghost_is (c, "lar"));
+
+	/* other commands do not get them */
+	c = ml_complete_command_with (lit ("mode "), files);
+	CHECK (!has_item (&c, "solar"));
+}
+
 void run_complete_tests (void)
 {
+	test_theme_args ();
 	test_commands ();
 	test_arguments ();
 	test_editor_keys ();

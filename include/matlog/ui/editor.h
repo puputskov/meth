@@ -110,6 +110,8 @@ typedef struct MlEditor
 	int32_t      highlight;
 	MlTheme      theme;
 	MlColorLevel colors;
+	/* the theme files of the user, name.theme per line, read by Ctrl+P */
+	MlStr        theme_files;
 } MlEditor;
 
 /* The selected text in text order; valid is 0 when nothing is selected. */

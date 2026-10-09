@@ -47,6 +47,7 @@ void ml_editor_init (MlEditor *ed)
 	ed->steps_open    = 0;
 	ed->steps_line    = 0;
 	ml_str_init (&ed->steps);
+	ml_str_init (&ed->theme_files);
 	ml_lineedit_init (&ed->edit);
 	ml_rewriter_init (&ed->rewriter, ML_DOMAIN_ALGEBRA);
 	MlLineVec_init (&ed->yank);
@@ -82,6 +83,7 @@ void ml_editor_free (MlEditor *ed)
 {
 	ml_results_free (&ed->results);
 	ml_str_free (&ed->steps);
+	ml_str_free (&ed->theme_files);
 	ml_session_free (&ed->session);
 	ml_lineedit_free (&ed->edit);
 	ml_rewriter_free (&ed->rewriter);
@@ -1139,6 +1141,26 @@ static MlResult edit_cursor_line (MlEditor *ed)
 	return r;
 }
 
+/* Reads the names of the theme files again, for the completion of :theme. */
+static void refresh_theme_files (MlEditor *ed)
+{
+	MlStr dir;
+
+	ml_str_init (&dir);
+	ml_str_clear (&ed->theme_files);
+
+	if (ml_config_dir (&dir) == ML_OK)
+	{
+		ml_fs_list (
+			&ed->theme_files,
+			ml_str_view (dir),
+			ml_slice_cstr (".theme")
+		);
+	}
+
+	ml_str_free (&dir);
+}
+
 static MlResult begin_command (MlEditor *ed)
 {
 	MlResult r = ml_lineedit_set (&ed->edit, ml_slice ("", 0));
@@ -1146,6 +1168,7 @@ static MlResult begin_command (MlEditor *ed)
 	if (r == ML_OK)
 	{
 		ed->state = ML_STATE_COMMAND;
+		refresh_theme_files (ed);
 	}
 
 	return r;
@@ -2164,7 +2187,10 @@ MlCompletion ml_editor_completion (const MlEditor *ed)
 		&& ed->edit.cursor == ed->edit.text.len
 	)
 	{
-		c = ml_complete_command (ml_str_view (ed->edit.text));
+		c = ml_complete_command_with (
+			ml_str_view (ed->edit.text),
+			ml_str_view (ed->theme_files)
+		);
 	}
 
 	return c;

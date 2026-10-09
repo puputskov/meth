@@ -4,6 +4,7 @@
 
 #include <matlog/core/utf8.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -189,6 +190,75 @@ MlResult ml_fs_remove (MlSlice path)
 
 	ml_str_free (&p);
 	return r;
+}
+
+MlResult ml_fs_list (MlStr *out, MlSlice dir, MlSlice suffix)
+{
+	MlResult r = ML_OK;
+	MlStr    p;
+	DIR      *d = NULL;
+
+	ml_str_init (&p);
+	r = path_cstr (&p, dir);
+
+	if (r == ML_OK)
+	{
+		d = opendir (ml_str_cstr (p));
+	}
+
+	while (r == ML_OK && d != NULL)
+	{
+		struct dirent *e = readdir (d);
+
+		if (e == NULL)
+		{
+			closedir (d);
+			d = NULL;
+		}
+
+		else
+		{
+			MlSlice name = ml_slice_cstr (e->d_name);
+
+			if (
+				   name.len >= suffix.len
+				&& name.len > 0
+				&& name.data [0] != '.'
+				&& ml_slice_equal (
+					   ml_slice_sub (name, name.len - suffix.len, suffix.len),
+					   suffix
+				   )
+			)
+			{
+				r = ml_str_append (out, name);
+
+				if (r == ML_OK)
+				{
+					r = ml_str_append (out, ml_slice_cstr ("\n"));
+				}
+			}
+		}
+	}
+
+	ml_str_free (&p);
+	return r;
+}
+
+uint64_t ml_fs_stamp (MlSlice path)
+{
+	uint64_t    stamp = 0;
+	MlStr       p;
+	struct stat st;
+
+	ml_str_init (&p);
+
+	if (path_cstr (&p, path) == ML_OK && stat (ml_str_cstr (p), &st) == 0)
+	{
+		stamp = ((uint64_t)st.st_mtime << 20) ^ (uint64_t)st.st_size ^ 1;
+	}
+
+	ml_str_free (&p);
+	return stamp;
 }
 
 MlResult ml_fs_make_dirs (MlSlice path)

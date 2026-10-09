@@ -39,6 +39,13 @@ MlCompletion ml_completion_none (void);
 MlCompletion ml_complete_command (MlSlice line);
 
 /*
+ * The same, with the names of the theme files of the user (the file names of
+ * name.theme, one per line) offered after :theme. The text must stay valid
+ * as long as the completion is used.
+ */
+MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files);
+
+/*
  * Completion of a math line. text is the line up to the cursor; the word being
  * typed is the name at its end (digits in front of it, as in 2x, are not part
  * of it). The candidates are the names that start with the word and are longer
