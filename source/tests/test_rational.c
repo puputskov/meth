@@ -370,7 +370,7 @@ static void test_to_double (void)
 			ml_big_from_u64 (&a, 1)
 		)
 	);
-	CHECK (fabs             (ml_rat_to_double (&a, big) - 10.0) < 1e-12);
+	CHECK (fabs (ml_rat_to_double (&a, big) - 10.0) < 1e-12);
 	CHECK (
 		isinf (
 			ml_rat_to_double (

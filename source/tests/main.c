@@ -14,6 +14,7 @@ void run_screen_tests (void);
 void run_complete_tests (void);
 void run_bigint_tests (void);
 void run_rational_tests (void);
+void run_value_tests (void);
 
 int main (void)
 {
@@ -28,6 +29,7 @@ int main (void)
 	run_complete_tests ();
 	run_bigint_tests ();
 	run_rational_tests ();
+	run_value_tests ();
 
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);
 	return ml_choose (
