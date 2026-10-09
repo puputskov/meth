@@ -310,4 +310,4 @@ mode switch, matrices, units, autocompletion.
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Next step: implement the milestone 2 tasks in order (tasks 1 to 9 are done, next is 10, ghost mode).
+Next step: implement the milestone 2 tasks in order (tasks 1 to 10 are done, next is 11, wiring and acceptance).

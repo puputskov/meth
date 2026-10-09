@@ -1,6 +1,7 @@
 #include <matlog/ui/screen.h>
 
 #include <matlog/core/utf8.h>
+#include <matlog/ui/ghost.h>
 
 #define STYLE_REVERSE "\x1b[7m"
 #define STYLE_DIM     "\x1b[2m"
@@ -380,6 +381,44 @@ static EditRow append_edit_row (
 			avail
 		);
 		row.result = w.result;
+	}
+
+	/* the preview of the result, dim, when the end of the text is visible */
+	if (
+		   row.result == ML_OK
+		&& ed->state == ML_STATE_INSERT
+		&& ed->edit_domain == ML_DOMAIN_ALGEBRA
+	)
+	{
+		MlStr    value;
+		MlGhost  g;
+		uint64_t used = ml_utf8_width (ml_str_view (ed->edit.text));
+
+		ml_str_init (&value);
+		g = ml_ghost (
+			&value,
+			&ed->results,
+			ed->edit_index,
+			ml_str_view (ed->edit.text)
+		);
+		row.result = g.result;
+
+		if (row.result == ML_OK && g.shown && used <= w.first_col + avail)
+		{
+			MlResultView view =
+			{
+				.kind = ML_RESULT_VALUE,
+				.text = ml_str_view (value)
+			};
+
+			row.result = append_result (
+				out,
+				view,
+				cols - head.used - (used - w.first_col)
+			);
+		}
+
+		ml_str_free (&value);
 	}
 
 	if (row.result == ML_OK)
