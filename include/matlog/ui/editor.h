@@ -84,6 +84,9 @@ typedef struct MlEditor
 	int32_t    edit_existing;
 	MlLineKind edit_kind;
 	MlDomain   edit_domain;
+	/* 1 while the block to start is chosen (Ctrl+Enter, Shift+Enter) */
+	int32_t    picking;
+	MlDomain   pick; /* the domain chosen so far */
 	int32_t    quit; /* a quit command was given */
 } MlEditor;
 
@@ -92,6 +95,9 @@ void ml_editor_free (MlEditor *ed);
 
 /* Starts typing a new math line at the end of the session. */
 MlResult ml_editor_begin (MlEditor *ed);
+
+/* Starts typing a new note at the end of the session (free form editing). */
+MlResult ml_editor_begin_note (MlEditor *ed);
 
 /*
  * Handles a key. When it changed the session (a committed line, dd, p, :open)

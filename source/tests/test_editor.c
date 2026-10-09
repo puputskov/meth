@@ -99,7 +99,7 @@ static void test_insert (void)
 	press (&ed, ML_KEY_ENTER);
 	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "x\xC2\xB2"));
 
-	/* Enter on an empty line writes a blank line */
+	/* Enter on an empty line writes a blank line; a note follows */
 	press (&ed, ML_KEY_ENTER);
 	CHECK (line_is (&ed, 2, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, ""));
 
@@ -109,7 +109,7 @@ static void test_insert (void)
 	CHECK (ed.state == ML_STATE_NORMAL);
 	CHECK (ed.session.lines.len == 4);
 	CHECK (
-		line_is (&ed, 3, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "y\xE2\x89\xA4" "3")
+		line_is (&ed, 3, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "y\xE2\x89\xA4" "3")
 	);
 	CHECK (ed.session.cursor == 3);
 	CHECK (status_is (&ed, "-- NORMAL -- algebra>"));
@@ -343,6 +343,68 @@ static void test_modeless (void)
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "2+2"));
 
+	ml_editor_free (&ed);
+}
+
+static void test_pick_block (void)
+{
+	MlEditor ed;
+	MlKey    shift_enter =
+	{
+		.code = ML_KEY_ENTER,
+		.cp   = 0,
+		.mods = ML_MOD_SHIFT
+	};
+	MlStr    status;
+
+	ml_editor_init (&ed);
+	ml_str_init (&status);
+
+	/* the editor starts on a note */
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	CHECK (ed.state == ML_STATE_NOTE);
+	type (&ed, "intro");
+
+	/* Shift+Enter chooses the block; letters and arrows move the choice */
+	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
+	CHECK (ed.picking && ed.pick == ML_DOMAIN_ALGEBRA);
+	type (&ed, "m");
+	CHECK (ed.pick == ML_DOMAIN_MATRIX);
+	press (&ed, ML_KEY_RIGHT);
+	CHECK (ed.pick == ML_DOMAIN_VECTOR);
+	press (&ed, ML_KEY_LEFT);
+	CHECK (ml_editor_status (&status, &ed) == ML_OK);
+	CHECK (strstr (ml_str_cstr (status), "[matrix]") != NULL);
+
+	/* Enter starts the block on a new line below */
+	press (&ed, ML_KEY_ENTER);
+	CHECK (!ed.picking && ed.state == ML_STATE_INSERT);
+	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
+	type (&ed, "A = 1");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "B = 2");
+
+	/* Enter on an empty line of the block ends it: a note follows */
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.state == ML_STATE_NOTE);
+	type (&ed, "after");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (texts_are (&ed, "intro|A = 1|B = 2||after"));
+	CHECK (ml_session_get (&ed.session, 1).kind == ML_LINE_MATH);
+	CHECK (ml_session_get (&ed.session, 1).domain == ML_DOMAIN_MATRIX);
+	CHECK (ml_session_get (&ed.session, 4).kind == ML_LINE_NOTE);
+
+	/* Esc cancels the choice, an empty line becomes the block's first line */
+	type (&ed, "N");
+	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (!ed.picking && ed.state == ML_STATE_NOTE);
+	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.state == ML_STATE_INSERT && ed.edit_index == 5);
+
+	ml_str_free (&status);
 	ml_editor_free (&ed);
 }
 
@@ -1231,6 +1293,17 @@ static void test_note_rewrites (void)
 	ml_editor_free (&ed);
 }
 
+/* Ctrl+Enter, then Enter: starts a block of the session domain. */
+static void press_block (MlEditor *ed)
+{
+	MlKey k = { .code = ML_KEY_ENTER, .cp = 0, .mods = ML_MOD_CTRL };
+
+	CHECK (ml_editor_handle_key (ed, k) == ML_OK);
+	CHECK (ed->picking);
+	press (ed, ML_KEY_ENTER);
+	CHECK (!ed->picking);
+}
+
 /* A note, a block of three math lines, a blank line, a block of two. */
 static void block_lines (MlEditor *ed)
 {
@@ -1248,6 +1321,7 @@ static void block_lines (MlEditor *ed)
 	type (ed, "c");
 	press (ed, ML_KEY_ENTER);
 	press (ed, ML_KEY_ENTER);
+	press_block (ed);
 	type (ed, "d");
 	press (ed, ML_KEY_ENTER);
 	type (ed, "e");
@@ -1408,6 +1482,7 @@ void run_editor_tests (void)
 	test_note_below_code ();
 	test_ctrl_z ();
 	test_modeless ();
+	test_pick_block ();
 	test_navigation ();
 	test_yank_paste ();
 	test_edit_line ();

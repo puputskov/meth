@@ -29,7 +29,7 @@ static MlResult open_session (MlEditor *ed, MlSlice path)
 	if (r == ML_OK)
 	{
 		ml_session_set_domain (&ed->session, ed->session.domain);
-		r = ml_editor_begin (ed);
+		r = ml_editor_begin_note (ed);
 	}
 
 	return r;

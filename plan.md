@@ -43,6 +43,11 @@ cursor in one of them; typing edits that line in place, no key is needed to star
 - Done: the tool starts on a line that is being edited; Up and Down move to the neighbouring line (math or note) and keep the column; Left at the
   start and Right at the end cross to the neighbour; Backspace at the start joins the line with the previous one and Delete at the end joins the next
   one in; Enter splits the line at the cursor; `Ctrl+N` turns the line into a note and back; `Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes.
+- **Notes are the default**: the tool starts on a note and Enter goes on with a note. `Ctrl+Enter` or `Shift+Enter` (or `Ctrl+B` where the terminal
+  cannot tell Enter's modifiers) opens the block choice: the status line shows the domains (`-- BLOCK -- algebra  [matrix]  vector ...`), Left/Right/
+  Up/Down/Tab move the choice, a letter jumps to the next domain starting with it, Enter starts the block (an empty line becomes its first line, else
+  the line is split at the cursor), Esc cancels. Enter in a block goes on with the block; Enter on an empty line of a block ends it (a blank line
+  closes the block and a note follows).
 - Next: the line commands get keys that work while editing, so that Normal can be dropped: `Ctrl+P` opens the command line, `Shift+Up/Down` select
   lines, `Ctrl+C`, `Ctrl+X`, `Ctrl+V` copy, cut and paste lines or the selected text, `Ctrl+Shift+K` deletes a line, `Alt+Up/Down` move lines,
   `Ctrl+[` and `Ctrl+]` fold and unfold the block, `Page Up/Down` and `Ctrl+Home/End` move far. Ranges (`:5,8m 2`) stay as command line

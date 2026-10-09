@@ -76,6 +76,8 @@ void ml_editor_init (MlEditor *ed)
 	ed->edit_existing = 0;
 	ed->edit_kind     = ML_LINE_MATH;
 	ed->edit_domain   = ML_DOMAIN_ALGEBRA;
+	ed->picking       = 0;
+	ed->pick          = ML_DOMAIN_ALGEBRA;
 	ed->quit          = 0;
 }
 
@@ -180,6 +182,28 @@ MlResult ml_editor_begin (MlEditor *ed)
 			ed,
 			ML_STATE_INSERT,
 			ML_LINE_MATH,
+			ed->session.domain,
+			ed->session.lines.len,
+			0,
+			ml_slice ("", 0)
+		);
+	}
+
+	return r;
+}
+
+MlResult ml_editor_begin_note (MlEditor *ed)
+{
+	MlResult r = ml_editor_refresh (ed);
+
+	ml_str_clear (&ed->message);
+
+	if (r == ML_OK)
+	{
+		r = begin_line (
+			ed,
+			ML_STATE_NOTE,
+			ML_LINE_NOTE,
 			ed->session.domain,
 			ed->session.lines.len,
 			0,
@@ -647,10 +671,13 @@ static MlEditResult line_edge_key (MlEditor *ed, MlKey key)
  * kind; at the end of a math line the new line is a fresh one of the session
  * domain.
  */
-static MlResult line_split (MlEditor *ed)
+static MlResult line_split_to (
+	MlEditor   *ed,
+	MlLineKind kind,
+	MlDomain   domain
+)
 {
-	MlResult r    = ml_rewriter_flush (&ed->rewriter, &ed->edit);
-	int32_t  note = ed->state == ML_STATE_NOTE;
+	MlResult r = ml_rewriter_flush (&ed->rewriter, &ed->edit);
 	MlStr    tail;
 
 	ml_str_init (&tail);
@@ -677,13 +704,9 @@ static MlResult line_split (MlEditor *ed)
 	{
 		r = begin_line (
 			ed,
-			ed->state,
-			ml_choose (note, ML_LINE_NOTE, ML_LINE_MATH),
-			ml_choose (
-				note || tail.len > 0,
-				ed->edit_domain,
-				ed->session.domain
-			),
+			state_for (kind),
+			kind,
+			domain,
 			ed->edit_index + 1,
 			0,
 			ml_str_view (tail)
@@ -692,6 +715,117 @@ static MlResult line_split (MlEditor *ed)
 	}
 
 	ml_str_free (&tail);
+
+	return r;
+}
+
+/*
+ * Enter: a note goes on with a note. A math line goes on with a math line
+ * of the same block, and an empty one ends the block: it stays as a blank
+ * line and a note follows.
+ */
+static MlResult line_split (MlEditor *ed)
+{
+	int32_t note  = ed->state == ML_STATE_NOTE;
+	int32_t empty = ed->edit.text.len == 0;
+
+	return line_split_to (
+		ed,
+		ml_choose (note || empty, ML_LINE_NOTE, ML_LINE_MATH),
+		ml_choose (
+			note || empty || ed->edit.cursor < ed->edit.text.len,
+			ed->edit_domain,
+			ed->session.domain
+		)
+	);
+}
+
+/* Is it Ctrl+Enter, Shift+Enter or Ctrl+B: choose the block to start. */
+static int32_t is_block_key (MlKey key)
+{
+	return (
+		   (
+			   key.code == ML_KEY_ENTER
+			&& (key.mods & (ML_MOD_CTRL | ML_MOD_SHIFT))
+		)
+		|| (
+			   key.code == ML_KEY_CHAR
+			&& key.cp == 'b'
+			&& (key.mods & ML_MOD_CTRL)
+		)
+	);
+}
+
+/* The domain starting with the letter after from, or from itself. */
+static MlDomain domain_by_letter (MlDomain from, uint32_t ch)
+{
+	MlDomain found = from;
+	int32_t  hit   = 0;
+
+	for (uint32_t i = 1; i <= ML_DOMAIN_COUNT && !hit; i++)
+	{
+		MlDomain d    = (MlDomain)(((uint32_t)from + i) % ML_DOMAIN_COUNT);
+		MlSlice  name = ml_slice_cstr (ml_domain_name (d));
+
+		hit = name.len > 0 && (uint32_t)name.data [0] == ch;
+
+		if (hit)
+		{
+			found = d;
+		}
+	}
+
+	return found;
+}
+
+/* The keys while the block is chosen: move, pick by letter, Enter, Esc. */
+static MlResult pick_key (MlEditor *ed, MlKey key)
+{
+	MlResult r = ML_OK;
+
+	if (key.code == ML_KEY_ESCAPE)
+	{
+		ed->picking = 0;
+	}
+
+	else if (key.code == ML_KEY_LEFT || key.code == ML_KEY_UP)
+	{
+		ed->pick = (MlDomain)(((uint32_t)ed->pick + ML_DOMAIN_COUNT - 1)
+			% ML_DOMAIN_COUNT);
+	}
+
+	else if (
+		   key.code == ML_KEY_RIGHT
+		|| key.code == ML_KEY_DOWN
+		|| key.code == ML_KEY_TAB
+	)
+	{
+		ed->pick = (MlDomain)(((uint32_t)ed->pick + 1) % ML_DOMAIN_COUNT);
+	}
+
+	else if (key.code == ML_KEY_CHAR && !(key.mods & ML_MOD_CTRL))
+	{
+		ed->pick = domain_by_letter (ed->pick, key.cp);
+	}
+
+	else if (key.code == ML_KEY_ENTER)
+	{
+		ed->picking = 0;
+		set_domain (ed, ed->pick);
+
+		if (ed->edit.text.len == 0)
+		{
+			/* an empty line becomes the first line of the block */
+			ed->state       = ML_STATE_INSERT;
+			ed->edit_kind   = ML_LINE_MATH;
+			ed->edit_domain = ed->pick;
+		}
+
+		else
+		{
+			r = line_split_to (ed, ML_LINE_MATH, ed->pick);
+		}
+	}
 
 	return r;
 }
@@ -708,7 +842,12 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 		.handled = 0
 	};
 
-	if (key.code == ML_KEY_ESCAPE)
+	if (ed->picking)
+	{
+		r = pick_key (ed, key);
+	}
+
+	else if (key.code == ML_KEY_ESCAPE)
 	{
 		r = leave_line (ed);
 	}
@@ -722,6 +861,12 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 		{
 			r = undo_redo (ed, undo_key (key) == 2);
 		}
+	}
+
+	else if (is_block_key (key) && ed->state != ML_STATE_COMMAND)
+	{
+		ed->picking = 1;
+		ed->pick    = ed->session.domain;
 	}
 
 	else if (
@@ -2347,6 +2492,20 @@ MlResult ml_editor_status (MlStr *out, const MlEditor *ed)
 		if (r == ML_OK)
 		{
 			r = ml_str_append (out, ml_str_view (ed->edit.text));
+		}
+	}
+
+	else if (ed->picking)
+	{
+		r = ml_str_append (out, ml_slice_cstr ("-- BLOCK --"));
+
+		for (uint32_t d = 0; d < ML_DOMAIN_COUNT && r == ML_OK; d++)
+		{
+			r = ml_str_appendf (
+				out,
+				ml_choose (d == (uint32_t)ed->pick, " [%s]", "  %s "),
+				ml_domain_name ((MlDomain)d)
+			);
 		}
 	}
 
