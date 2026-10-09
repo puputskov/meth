@@ -11,3 +11,9 @@ build/
 
 # Scratch session created by running matlog without a file
 scratch.mlog
+
+# Object files and test leftovers
+*.o
+*.a
+*.tmp
+matlog_test_config/
