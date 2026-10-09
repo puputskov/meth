@@ -1,4 +1,5 @@
 #include "test.h"
+#include "test_keys.h"
 
 #include <matlog/ui/complete.h>
 #include <matlog/ui/editor.h>
@@ -162,11 +163,11 @@ static void test_editor_keys (void)
 
 	/* no completion outside the command line */
 	CHECK (ml_editor_completion (&ed).count == 0);
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (ml_editor_completion (&ed).count == 0);
 
 	/* :mo then Tab gives ":mode ", the values are listed, typing narrows */
-	type (&ed, ":mod");
+	test_normal (&ed, ":mod");
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is           (&ed, "mode "));
@@ -179,7 +180,7 @@ static void test_editor_keys (void)
 	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
 
 	/* Right at the end of the line accepts the ghost text as well */
-	type (&ed, ":mode b");
+	test_normal (&ed, ":mode b");
 	press (&ed, ML_KEY_RIGHT);
 	CHECK (command_is (&ed, "mode boolean"));
 	press (&ed, ML_KEY_RIGHT);
@@ -188,23 +189,23 @@ static void test_editor_keys (void)
 	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
 
 	/* Tab without a suggestion does nothing */
-	type (&ed, ":zzz");
+	test_normal (&ed, ":zzz");
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is (&ed, "zzz"));
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, ":mode ");
+	test_normal (&ed, ":mode ");
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is (&ed, "mode "));
 	press (&ed, ML_KEY_ESCAPE);
 
 	/* a command that needs no argument gets no space */
-	type (&ed, ":qu");
+	test_normal (&ed, ":qu");
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is (&ed, "quit"));
 	press (&ed, ML_KEY_ESCAPE);
 
 	/* the ghost text only exists with the cursor at the end of the line */
-	type (&ed, ":mo");
+	test_normal (&ed, ":mo");
 	press (&ed, ML_KEY_LEFT);
 	CHECK (ml_editor_completion (&ed).count == 0);
 	press (&ed, ML_KEY_TAB);
@@ -286,7 +287,7 @@ static void test_screen (void)
 	 * the ghost text follows the typed text in a dim style; the cursor stays
 	 * after the typed text
 	 */
-	type (&ed, ":mod");
+	test_normal (&ed, ":mod");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (plain_row_is (&l, 4, ":mode"));
 	CHECK (
@@ -331,7 +332,7 @@ static void test_screen (void)
 	/* a narrow terminal clips the list and the ghost text */
 	ml_screen_resize (&s, 12, 5);
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, ":mode ");
+	test_normal (&ed, ":mode ");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (plain_row_is (&l, 3, "  algebra  e"));
 	ml_layout_free (&l);

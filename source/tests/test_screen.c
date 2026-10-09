@@ -1,4 +1,5 @@
 #include "test.h"
+#include "test_keys.h"
 
 #include <matlog/ui/screen.h>
 
@@ -139,7 +140,7 @@ static void fill (MlEditor *ed, uint32_t count)
 		ml_str_free (&text);
 	}
 
-	press (ed, ML_KEY_ESCAPE);
+	test_leave (ed);
 }
 
 static void test_basic_layout (void)
@@ -154,16 +155,13 @@ static void test_basic_layout (void)
 	type (&ed, "1+2");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "x");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "gm");
-	type (&ed, "o");
+	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "gm");
+	test_normal (&ed, "o");
 	type (&ed, "A = 1");
 	press (&ed, ML_KEY_ENTER);
-	type (&ed, "");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "N");
+	test_key (&ed, ML_KEY_CHAR, 'n', ML_MOD_CTRL);
 	type (&ed, "a note");
-	press (&ed, ML_KEY_ESCAPE);
 
 	l = ml_screen_layout (&s, &ed);
 	CHECK (l.result == ML_OK);
@@ -173,11 +171,10 @@ static void test_basic_layout (void)
 	CHECK (row_is (&l, 2, " 3 mat> A = 1"));
 	CHECK (row_is (&l, 3, " 4 a note"));
 	CHECK (row_is (&l, 4, ""));
-	CHECK (row_is (&l, 5, "-- NORMAL -- matrix>       [no name] [+]"));
+	CHECK (row_is (&l, 5, "-- NOTE -- matrix>         [no name] [+]"));
 
-	/* the cursor sits at the start of the highlighted cursor line */
-	CHECK (l.cursor.row == 4 && l.cursor.col == 1);
-	CHECK (ed.session.cursor == 3);
+	/* the cursor sits at the end of the line being edited */
+	CHECK (l.cursor.row == 4 && l.cursor.col == 3 + 6 + 1);
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -200,7 +197,7 @@ static void test_typing_row (void)
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, " 1 alg> ab"));
 	CHECK (row_is (&l, 1, " 2    \xE2\x94\x94 x\xC2\xB2 + y"));
-	CHECK (row_is (&l, 4, "-- INSERT -- algebra>   "));
+	CHECK (row_is (&l, 4, "-- MATH -- algebra>     "));
 	/*
 	 * number 3 + gutter 5, "xÂ² + y" is 6 columns: the cursor is in column 15
 	 */
@@ -208,9 +205,9 @@ static void test_typing_row (void)
 	ml_layout_free (&l);
 
 	/* a new line typed in the middle of the session pushes the rest down */
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "kk");
-	type (&ed, "N");
+	test_leave (&ed);
+	test_normal (&ed, "kk");
+	test_normal (&ed, "N");
 	type (&ed, "between");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, " 1 alg> ab"));
@@ -220,8 +217,8 @@ static void test_typing_row (void)
 	ml_layout_free (&l);
 
 	/* the command line takes the last row */
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, ":mode vec");
+	test_leave (&ed);
+	test_normal (&ed, ":mode vec");
 	l = ml_screen_layout (&s, &ed);
 	/* the ghost text "tor" completes "vec" to "vector" */
 	CHECK (row_is (&l, 4, ":mode vector"));
@@ -252,33 +249,33 @@ static void test_scrolling (void)
 	ml_layout_free (&l);
 
 	/* moving up inside the window does not scroll */
-	type (&ed, "kk");
+	test_normal (&ed, "kk");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 15);
 	CHECK (l.cursor.row == 3);
 	ml_layout_free (&l);
 
 	/* moving above the window scrolls just enough */
-	type (&ed, "kkk");
+	test_normal (&ed, "kkk");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 14);
 	CHECK (row_has (&l, 0, "15    \xE2\x94\x82 line 14"));
 	CHECK (l.cursor.row == 1);
 	ml_layout_free (&l);
 
-	type (&ed, "gg");
+	test_normal (&ed, "gg");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 0);
 	CHECK (row_has (&l, 0, " 1 alg> line 0"));
 	ml_layout_free (&l);
 
-	type (&ed, "G");
+	test_normal (&ed, "G");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 15);
 	ml_layout_free (&l);
 
 	/* typing a new line at the end scrolls it into view */
-	type (&ed, "o");
+	test_normal (&ed, "o");
 	type (&ed, "new");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 16);
@@ -288,11 +285,11 @@ static void test_scrolling (void)
 
 	/* the session shrinking pulls the window back */
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "gg");
-	type (&ed, "dd");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "dd");
 	for (uint32_t i = 0; i < 17; i++)
 	{
-		type (&ed, "dd");
+		test_normal (&ed, "dd");
 	}
 
 	l = ml_screen_layout (&s, &ed);
@@ -317,7 +314,7 @@ static void test_clipping (void)
 	type (&ed, "0123456789abcdef");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "short");
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_ENTER);
 
 	/* a long line is clipped to the width */
 	l = ml_screen_layout (&s, &ed);
@@ -325,15 +322,14 @@ static void test_clipping (void)
 	ml_layout_free (&l);
 
 	/* the line being typed scrolls with its cursor */
-	type (&ed, "kk");
-	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "kk");
+	press (&ed, ML_KEY_END);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> cdef"));
 	CHECK (l.cursor.row == 1 && l.cursor.col == 13);
 	ml_layout_free (&l);
 
 	/* wide characters are not cut in half */
-	press (&ed, ML_KEY_ESCAPE);
 	ml_screen_free (&s);
 	ml_editor_free (&ed);
 	ml_editor_init (&ed);
@@ -348,9 +344,9 @@ static void test_clipping (void)
 		CHECK (ml_editor_handle_key (&ed, wide) == ML_OK);
 	}
 
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_HOME);
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, " 1 alg> ab\xE4\xB8\xAD"));
+	CHECK (row_is (&l, 0, " 1 alg> ab"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -378,7 +374,7 @@ static void test_small_sizes (void)
 	ml_layout_free (&l);
 
 	ml_screen_resize (&s, 1, 2);
-	type (&ed, "o");
+	test_normal (&ed, "o");
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (l.result == ML_OK && l.rows.len == 2);
@@ -406,7 +402,7 @@ static void test_render (void)
 	type (&ed, "a");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "b");
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_ENTER);
 
 	/* the first frame clears and draws every row */
 	CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
@@ -421,17 +417,16 @@ static void test_render (void)
 	CHECK (strstr           (ml_str_cstr (out), "\x1b[K") == NULL);
 	CHECK (strstr           (ml_str_cstr (out), "\x1b[2J") == NULL);
 
-	/* moving the cursor line redraws the two rows involved and the status */
-	type (&ed, "k");
+	/* moving to the line above redraws the rows involved, not the first */
+	test_normal (&ed, "k");
 	ml_str_clear (&out);
 	CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
-	CHECK (strstr           (ml_str_cstr (out), "\x1b[1;1H") != NULL);
-	CHECK (strstr           (ml_str_cstr (out), "\x1b[2;1H") != NULL);
-	CHECK (strstr           (ml_str_cstr (out), "\x1b[3;1H") == NULL);
+	CHECK (strstr           (ml_str_cstr (out), "\x1b[1;1H") == NULL);
+	CHECK (strstr           (ml_str_cstr (out), "\x1b[3;1H") != NULL);
 
 	/* typing a character changes the typed row and the status line only */
-	type (&ed, "j");
-	type (&ed, "o");
+	test_normal (&ed, "j");
+	test_normal (&ed, "o");
 	ml_str_clear (&out);
 	CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
 	type (&ed, "c");
@@ -439,7 +434,6 @@ static void test_render (void)
 	CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
 	CHECK (strstr           (ml_str_cstr (out), "\x1b[3;1H") != NULL);
 	CHECK (strstr           (ml_str_cstr (out), "\x1b[1;1H") == NULL);
-	CHECK (strstr           (ml_str_cstr (out), "\x1b[2;1H") == NULL);
 
 	/* a resize redraws everything */
 	ml_screen_resize (&s, 30, 5);
@@ -475,7 +469,7 @@ static void test_line_numbers (void)
 	ml_layout_free (&l);
 
 	/* the line being typed has the next number */
-	type (&ed, "o");
+	test_normal (&ed, "o");
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 3, "121    \xE2\x94\x94 x"));
@@ -483,9 +477,9 @@ static void test_line_numbers (void)
 	ml_layout_free (&l);
 
 	/* the numbers follow the lines: after deleting one the rest move up */
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "gg");
-	type (&ed, "dd");
+	test_leave (&ed);
+	test_normal (&ed, "gg");
+	test_normal (&ed, "dd");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, "  1 alg> line 1"));
 	CHECK (row_has (&l, 1, "  2    \xE2\x94\x82 line 2"));
@@ -503,10 +497,10 @@ static void test_lambda_gutter (void)
 
 	ml_editor_init (&ed);
 	ml_screen_init (&s, 20, 4);
-	type (&ed, "gl");
+	test_normal (&ed, "gl");
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "x");
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_ENTER);
 
 	/* the lambda domain is marked with the lambda sign, then the > */
 	l = ml_screen_layout (&s, &ed);
@@ -535,10 +529,9 @@ static void test_results (void)
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "f(x) = x");
 	press (&ed, ML_KEY_ENTER);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "N");
+	test_normal (&ed, "N");
 	type (&ed, "1 + 1");
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_ENTER);
 
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> a = 3  = 3"));
@@ -572,7 +565,6 @@ static void test_results_clipping (void)
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "1000000 + 1");
 	press (&ed, ML_KEY_ENTER);
-	press (&ed, ML_KEY_ESCAPE);
 
 	/* the result is cut to the columns the text leaves */
 	l = ml_screen_layout (&s, &ed);
@@ -609,7 +601,6 @@ static void test_results_follow_edits (void)
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "a * 21");
 	press (&ed, ML_KEY_ENTER);
-	press (&ed, ML_KEY_ESCAPE);
 
 	/* a committed line has its result without any extra call */
 	l = ml_screen_layout (&s, &ed);
@@ -618,19 +609,23 @@ static void test_results_follow_edits (void)
 	ml_layout_free (&l);
 
 	/* editing the first line changes the one below it */
-	type (&ed, "gg");
-	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "gg");
+	press (&ed, ML_KEY_END);
 	type (&ed, "0");
+	test_normal (&ed, "G");
+	press (&ed, ML_KEY_END);
 	press (&ed, ML_KEY_ENTER);
-	press (&ed, ML_KEY_ESCAPE);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> a = 20  = 20"));
 	CHECK (row_is (&l, 1, " 2    \xE2\x94\x94 a * 21  = 420"));
 	ml_layout_free (&l);
 
 	/* deleting a line */
-	type (&ed, "gg");
-	type (&ed, "dd");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "dd");
+	test_normal (&ed, "G");
+	press (&ed, ML_KEY_END);
+	press (&ed, ML_KEY_ENTER);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> a * 21  ! undefined name 'a'"));
 	ml_layout_free (&l);
@@ -654,7 +649,6 @@ static void test_matrix_rows (void)
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "[1,2,3]");
 	press (&ed, ML_KEY_ENTER);
-	press (&ed, ML_KEY_ESCAPE);
 
 	/* the matrix is drawn under its line, the number stays on its row */
 	l = ml_screen_layout (&s, &ed);
@@ -667,11 +661,11 @@ static void test_matrix_rows (void)
 	ml_layout_free (&l);
 
 	/* the cursor line is still found: line 3 is on row 5 */
-	type (&ed, "gg");
+	test_normal (&ed, "gg");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (l.cursor.row == 1);
 	ml_layout_free (&l);
-	type (&ed, "jj");
+	test_normal (&ed, "jj");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (l.cursor.row == 5);
 	ml_layout_free (&l);
@@ -703,16 +697,15 @@ static void test_steps_rows (void)
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "1 + 1");
 	press (&ed, ML_KEY_ENTER);
-	press (&ed, ML_KEY_ESCAPE);
 
 	/* a line without steps says so and opens nothing */
-	type (&ed, "s");
+	test_normal (&ed, "s");
 	CHECK (!ed.steps_open);
 	CHECK (strcmp (ml_str_cstr (ed.message), "no steps for this line") == 0);
 
 	/* s on det (A) opens its steps under it, s again closes them */
-	type (&ed, "k");
-	type (&ed, "s");
+	test_normal (&ed, "kk");
+	test_normal (&ed, "s");
 	CHECK (ed.steps_open && ed.steps_line == 1);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 3, " 2    \xE2\x94\x82 det(A)"));
@@ -721,18 +714,18 @@ static void test_steps_rows (void)
 	CHECK (row_has (&l, 7, "          R2 \xE2\x86\x90 R2 \xE2\x88\x92 3"));
 	CHECK (row_has (&l, 11, " 3    \xE2\x94\x94 1 + 1"));
 	ml_layout_free (&l);
-	type (&ed, "s");
+	test_normal (&ed, "s");
 	CHECK (!ed.steps_open);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 4, " 3    \xE2\x94\x94 1 + 1"));
 	ml_layout_free (&l);
 
 	/* :steps does the same, and an edit of the session closes the steps */
-	type (&ed, ":steps");
+	test_normal (&ed, ":steps");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.steps_open);
-	type (&ed, "G");
-	type (&ed, "dd");
+	test_normal (&ed, "G");
+	test_normal (&ed, "dd");
 	CHECK (!ed.steps_open);
 
 	ml_screen_free (&s);
@@ -748,10 +741,10 @@ static void test_note_styles (void)
 	ml_editor_init (&ed);
 	ml_screen_init (&s, 30, 5);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "N");
+	test_leave (&ed);
+	test_normal (&ed, "N");
 	type (&ed, "a **bold** *it* <u>un</u> done");
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_ENTER);
 
 	/* the marks are not shown, the text is styled */
 	l = ml_screen_layout (&s, &ed);
@@ -769,7 +762,8 @@ static void test_note_styles (void)
 
 	/* while the note is edited its text is shown as typed */
 	ml_screen_resize (&s, 60, 5);
-	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_UP);
+	press (&ed, ML_KEY_END);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, " 1 a **bold** *it* <u>un</u> done"));
 	ml_layout_free (&l);
@@ -788,14 +782,14 @@ static void test_bar (void)
 	ml_screen_init (&s, 30, 5);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "1+1");
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_ENTER);
 
 	/* the line number and the gutter are one dim bar, then the text */
 	l = ml_screen_layout (&s, &ed);
 	CHECK (
 		strstr (
 			ml_str_cstr (l.rows.data [0]),
-			"\x1b[7m 1 alg> \x1b[0m1+1"
+			"\x1b[2m 1 alg> \x1b[0m1+1"
 		) != NULL
 	);
 	ml_layout_free (&l);
@@ -813,8 +807,8 @@ static void test_rule (void)
 	ml_editor_init (&ed);
 	ml_screen_init (&s, 12, 5);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "N");
+	test_leave (&ed);
+	test_normal (&ed, "N");
 	type (&ed, "---");
 
 	/* typed as it is */
@@ -823,7 +817,7 @@ static void test_rule (void)
 	ml_layout_free (&l);
 
 	/* a rule across the rest of the row once the note is done */
-	press (&ed, ML_KEY_ESCAPE);
+	press (&ed, ML_KEY_ENTER);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (
 		strstr (
@@ -849,25 +843,23 @@ static void test_blocks_layout (void)
 	ml_editor_init (&ed);
 	ml_screen_init (&s, 40, 12);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "N");
+	test_leave (&ed);
+	test_normal (&ed, "N");
 	type (&ed, "A **note**");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "second line");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "o");
+	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "o");
 	type (&ed, "a = 1");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "b = 2");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "a + b");
 	press (&ed, ML_KEY_ENTER);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "gm");
-	type (&ed, "o");
+	test_normal (&ed, "gm");
+	test_normal (&ed, "o");
 	type (&ed, "[1,2]");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "gg");
+	press (&ed, ML_KEY_ENTER);
 
 	/* the label is on the first row of a block, a rule runs down, text has
 	   no gutter, a new domain is a new block */
@@ -881,8 +873,9 @@ static void test_blocks_layout (void)
 	ml_layout_free (&l);
 
 	/* a folded block is one row with the number of lines behind it */
-	type (&ed, "2j");
-	type (&ed, "za");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "2j");
+	test_normal (&ed, "za");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 2, " 3 alg> \xE2\x96\xB8 a = 1  +2 lines"));
 	CHECK (row_has (&l, 3, " 6 mat> [1,2]"));
@@ -890,8 +883,8 @@ static void test_blocks_layout (void)
 	ml_layout_free (&l);
 
 	/* so is a folded text block, its text still formatted */
-	type (&ed, "gg");
-	type (&ed, "za");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "za");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 \xE2\x96\xB8 A note  +1 line"));
 	CHECK (row_has (&l, 1, " 3 alg> \xE2\x96\xB8 a = 1"));
@@ -899,12 +892,12 @@ static void test_blocks_layout (void)
 	ml_layout_free (&l);
 
 	/* the line being typed joins the block above it and opens the block */
-	type (&ed, "zR");
-	type (&ed, "2j");
-	type (&ed, "G");
-	type (&ed, "k");
-	type (&ed, "ga");
-	type (&ed, "o");
+	test_normal (&ed, "zR");
+	test_normal (&ed, "2j");
+	test_normal (&ed, "G");
+	test_normal (&ed, "k");
+	test_normal (&ed, "ga");
+	test_normal (&ed, "o");
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 4, " 5    \xE2\x94\x82 a + b"));

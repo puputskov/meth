@@ -543,6 +543,62 @@ typedef struct EditRow
 	uint32_t cursor_col; /* 1 based */
 } EditRow;
 
+/*
+ * The text with the bytes lo..hi (the selection) reversed, from column
+ * start_col on, avail columns wide; a wide character is not cut in half.
+ */
+static MlTextWindow append_selected (
+	MlStr    *out,
+	MlSlice  text,
+	uint64_t start_col,
+	uint64_t avail,
+	uint64_t lo,
+	uint64_t hi
+)
+{
+	MlTextWindow w =
+	{
+		.result    = ML_OK,
+		.first_col = start_col
+	};
+	uint64_t pos     = 0;
+	uint64_t col     = 0;
+	int32_t  reverse = 0;
+
+	while (pos < text.len && w.result == ML_OK && col < start_col + avail)
+	{
+		uint64_t next  = ml_utf8_next (text, pos);
+		MlSlice  cp    = ml_slice_sub (text, pos, next - pos);
+		uint64_t width = ml_utf8_width (cp);
+		int32_t  shown = col >= start_col && col + width <= start_col + avail;
+		int32_t  want  = pos >= lo && pos < hi;
+
+		if (shown && want != reverse)
+		{
+			w.result = append_cstr (
+				out,
+				ml_choose (want, STYLE_REVERSE, STYLE_RESET)
+			);
+			reverse  = want;
+		}
+
+		if (shown && w.result == ML_OK)
+		{
+			w.result = ml_str_append (out, cp);
+		}
+
+		col += width;
+		pos  = next;
+	}
+
+	if (w.result == ML_OK && reverse)
+	{
+		w.result = append_cstr (out, STYLE_RESET);
+	}
+
+	return w;
+}
+
 /* The row of the line being typed. */
 static EditRow append_edit_row (
 	MlStr          *out,
@@ -578,9 +634,33 @@ static EditRow append_edit_row (
 		.first_col = 0
 	};
 
+	uint64_t lo = ml_choose (
+		ed->sel_anchor < ed->edit.cursor,
+		ed->sel_anchor,
+		ed->edit.cursor
+	);
+	uint64_t hi = ml_choose (
+		ed->sel_anchor > ed->edit.cursor,
+		ed->sel_anchor,
+		ed->edit.cursor
+	);
+
 	row.result = head.result;
 
-	if (row.result == ML_OK && ed->state == ML_STATE_NOTE)
+	if (row.result == ML_OK && ed->selecting && lo < hi)
+	{
+		w = append_selected (
+			out,
+			ml_str_view (ed->edit.text),
+			ml_lineedit_start_col (&ed->edit, avail),
+			avail,
+			lo,
+			hi
+		);
+		row.result = w.result;
+	}
+
+	else if (row.result == ML_OK && ed->state == ML_STATE_NOTE)
 	{
 		w = append_live_note (
 			out,
@@ -605,7 +685,7 @@ static EditRow append_edit_row (
 	/* the preview of the result, dim, when the end of the text is visible */
 	if (
 		   row.result == ML_OK
-		&& ed->state == ML_STATE_INSERT
+		&& ed->state == ML_STATE_MATH
 		&& ed->edit_domain == ML_DOMAIN_ALGEBRA
 	)
 	{
@@ -955,12 +1035,12 @@ static MlSlice block_row (MlSlice block, uint64_t n)
 	);
 }
 
-/* The selected lines of the Visual state. */
+/* The selected lines. */
 static uint64_t selection_first (const MlEditor *ed)
 {
 	return ml_choose (
-		ed->visual_anchor < ed->session.cursor,
-		ed->visual_anchor,
+		ed->anchor < ed->session.cursor,
+		ed->anchor,
 		ed->session.cursor
 	);
 }
@@ -968,8 +1048,8 @@ static uint64_t selection_first (const MlEditor *ed)
 static uint64_t selection_last (const MlEditor *ed)
 {
 	return ml_choose (
-		ed->visual_anchor > ed->session.cursor,
-		ed->visual_anchor,
+		ed->anchor > ed->session.cursor,
+		ed->anchor,
 		ed->session.cursor
 	);
 }
@@ -978,7 +1058,7 @@ static uint64_t selection_last (const MlEditor *ed)
 static MlSlice steps_of (const MlEditor *ed, uint64_t src, int32_t editing)
 {
 	return ml_choose (
-		ed->steps_open && !editing && ed->steps_line == src,
+		ed->steps_open && ed->steps_line == src,
 		ml_str_view (ed->steps),
 		ml_slice ("", 0)
 	);
@@ -1043,8 +1123,9 @@ static MlResult vlines_build (
 					ed->state == ML_STATE_NOTE,
 					ML_LINE_NOTE,
 					ml_choose (
-						ed->edit_kind == ML_LINE_BLANK,
-						ML_LINE_MATH,
+						ed->edit_kind == ML_LINE_BLANK
+						|| ed->edit.text.len == 0,
+						ML_LINE_BLANK,
 						ed->edit_kind
 					)
 				),
@@ -1173,7 +1254,7 @@ static uint64_t scroll_top (
 )
 {
 	int32_t  editing = (
-		   ed->state == ML_STATE_INSERT
+		   ed->state == ML_STATE_MATH
 		|| ed->state == ML_STATE_NOTE
 	);
 	uint64_t t       = ml_choose (focus < top, focus, top);
@@ -1209,7 +1290,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 		}
 	};
 	int32_t editing = (
-		   ed->state == ML_STATE_INSERT
+		   ed->state == ML_STATE_MATH
 		|| ed->state == ML_STATE_NOTE
 	);
 	int32_t  editing_new = editing && !ed->edit_existing;
@@ -1324,10 +1405,10 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			(void)inside;
 			highlight = (
 				   !editing
-				&& ed->state != ML_STATE_VISUAL
+				&& ed->state != ML_STATE_SELECT
 				&& ml_choose (l.folded, here, src == ed->session.cursor)
 			) || (
-				   ed->state == ML_STATE_VISUAL
+				   ed->state == ML_STATE_SELECT
 				&& ml_choose (
 					l.folded,
 					   selection_first (ed) <= vl.data [l.last].src
@@ -1356,10 +1437,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 
 			if (
 				   here
-				&& (
-					   ed->state == ML_STATE_NORMAL
-					|| ed->state == ML_STATE_VISUAL
-				)
+				&& ed->state == ML_STATE_SELECT
 				&& ml_choose (l.folded, 1, src == ed->session.cursor)
 			)
 			{

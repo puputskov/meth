@@ -1,4 +1,5 @@
 #include "test.h"
+#include "test_keys.h"
 
 #include <matlog/platform/fs.h>
 #include <matlog/ui/editor.h>
@@ -85,12 +86,12 @@ static void test_insert (void)
 
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	CHECK (ed.state == ML_STATE_INSERT);
-	CHECK (status_is (&ed, "-- INSERT -- algebra>"));
+	CHECK (ed.state == ML_STATE_MATH);
+	CHECK (status_is (&ed, "-- MATH -- algebra>"));
 
 	type (&ed, "1+2");
 	press (&ed, ML_KEY_ENTER);
-	CHECK (ed.state == ML_STATE_INSERT);
+	CHECK (ed.state == ML_STATE_MATH);
 	CHECK (ed.session.lines.len == 1);
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "1+2"));
 
@@ -105,25 +106,25 @@ static void test_insert (void)
 
 	/* Esc commits what was typed and returns to Normal */
 	type (&ed, "y<=3");
-	press (&ed, ML_KEY_ESCAPE);
-	CHECK (ed.state == ML_STATE_NORMAL);
+	test_leave (&ed);
+	CHECK (test_editing (&ed));
 	CHECK (ed.session.lines.len == 4);
 	CHECK (
 		line_is (&ed, 3, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "y\xE2\x89\xA4" "3")
 	);
 	CHECK (ed.session.cursor == 3);
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>"));
+	CHECK (status_is (&ed, "-- NOTE -- algebra>"));
 
 	/* Esc on an empty new line adds nothing */
-	type (&ed, "o");
-	press (&ed, ML_KEY_ESCAPE);
+	test_normal (&ed, "o");
+	test_leave (&ed);
 	CHECK (ed.session.lines.len == 4);
 
 	/* backspace undoes a rewrite just made */
-	type (&ed, "o");
+	test_normal (&ed, "o");
 	type (&ed, "a<=");
 	press (&ed, ML_KEY_BACKSPACE);
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (line_is (&ed, 4, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "a<="));
 
 	ml_editor_free (&ed);
@@ -136,17 +137,17 @@ static void test_note (void)
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "1+1");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 
 	/* n starts a note below the cursor line; the rewrites work in it too */
-	type (&ed, "N");
+	test_normal (&ed, "N");
 	CHECK (ed.state == ML_STATE_NOTE);
 	CHECK (status_is (&ed, "-- NOTE -- algebra>"));
 	type (&ed, "x^2 <= pi ");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "second");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 
 	CHECK (ed.session.lines.len == 3);
 	CHECK (
@@ -174,23 +175,23 @@ static void test_first_note (void)
 
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "N");
+	test_leave (&ed);
+	test_normal (&ed, "N");
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "hello");
 	CHECK (edit_is (&ed, "hello"));
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (ed.session.lines.len == 1);
 	CHECK (line_is (&ed, 0, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "hello"));
 
 	/* n and i open a note and a math line at the cursor line, above it */
-	type (&ed, "n");
+	test_normal (&ed, "n");
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "top");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "i");
+	test_leave (&ed);
+	test_normal (&ed, "i");
 	type (&ed, "1+1");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (ed.session.lines.len == 3);
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "1+1"));
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "top"));
@@ -205,8 +206,8 @@ static void test_note_freeform (void)
 
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "n");
+	test_leave (&ed);
+	test_normal (&ed, "n");
 	type (&ed, "hello world");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "second");
@@ -243,41 +244,12 @@ static void test_note_freeform (void)
 	press (&ed, ML_KEY_DELETE);
 	CHECK (ed.session.lines.len == 1);
 	CHECK (edit_is (&ed, "hello worldsecond"));
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 
 	ml_editor_free (&ed);
 }
 
 static int32_t texts_are (const MlEditor *ed, const char *expected);
-
-static void test_note_below_code (void)
-{
-	MlEditor ed;
-
-	ml_editor_init (&ed);
-	CHECK (ml_editor_begin (&ed) == ML_OK);
-	type (&ed, "a");
-	press (&ed, ML_KEY_ENTER);
-	type (&ed, "b");
-	press (&ed, ML_KEY_ENTER);
-	type (&ed, "c");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "kk");
-
-	/* n in the middle of a code block puts the note below the block */
-	type (&ed, "n");
-	type (&ed, "note");
-	press (&ed, ML_KEY_ESCAPE);
-	CHECK (texts_are (&ed, "a|b|c|note"));
-
-	/* on a note it opens at the cursor line */
-	type (&ed, "n");
-	type (&ed, "top");
-	press (&ed, ML_KEY_ESCAPE);
-	CHECK (texts_are (&ed, "a|b|c|top|note"));
-
-	ml_editor_free (&ed);
-}
 
 static void test_ctrl_z (void)
 {
@@ -293,7 +265,7 @@ static void test_ctrl_z (void)
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "1+1");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (ed.session.lines.len == 1);
 
 	CHECK (ml_editor_handle_key (&ed, undo) == ML_OK);
@@ -302,10 +274,10 @@ static void test_ctrl_z (void)
 	CHECK (ed.session.lines.len == 1);
 
 	/* while typing, the line is kept and then undone */
-	type (&ed, "o");
+	test_normal (&ed, "o");
 	type (&ed, "2");
 	CHECK (ml_editor_handle_key (&ed, undo) == ML_OK);
-	CHECK (ed.state == ML_STATE_NORMAL);
+	CHECK (test_editing (&ed));
 	CHECK (ed.session.lines.len == 1);
 
 	ml_editor_free (&ed);
@@ -340,8 +312,60 @@ static void test_modeless (void)
 	/* Ctrl+N turns the line into a note and back */
 	CHECK (ml_editor_handle_key (&ed, toggle) == ML_OK);
 	CHECK (ed.state == ML_STATE_NOTE);
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "2+2"));
+
+	ml_editor_free (&ed);
+}
+
+static void test_selection (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	type (&ed, "hello world");
+
+	/* Shift+Left selects text, Backspace deletes it */
+	for (uint32_t i = 0; i < 5; i++)
+	{
+		test_key (&ed, ML_KEY_LEFT, 0, ML_MOD_SHIFT);
+	}
+
+	CHECK (ed.selecting && ed.sel_anchor == 11 && ed.edit.cursor == 6);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (edit_is (&ed, "hello ") && !ed.selecting);
+
+	/* typing replaces the selection; Shift+Home selects to the start */
+	test_key (&ed, ML_KEY_HOME, 0, ML_MOD_SHIFT);
+	CHECK (ed.selecting && ed.edit.cursor == 0);
+	type (&ed, "bye");
+	CHECK (edit_is (&ed, "bye") && !ed.selecting);
+
+	/* a key that moves clears the selection */
+	test_key (&ed, ML_KEY_LEFT, 0, ML_MOD_SHIFT);
+	press (&ed, ML_KEY_LEFT);
+	CHECK (!ed.selecting && edit_is (&ed, "bye"));
+
+	/* Shift+Down selects whole lines, Backspace removes them */
+	press (&ed, ML_KEY_END);
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "second");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "third");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "fourth");
+	press (&ed, ML_KEY_HOME);
+	test_key (&ed, ML_KEY_UP, 0, ML_MOD_SHIFT);
+	CHECK (ed.state == ML_STATE_SELECT);
+	CHECK (ed.anchor == 3 && ed.session.cursor == 2);
+
+	/* Alt+Up moves the selected lines; Backspace removes them */
+	test_key (&ed, ML_KEY_UP, 0, ML_MOD_ALT);
+	CHECK (texts_are (&ed, "bye|third|fourth|second"));
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (texts_are (&ed, "bye|second"));
+	CHECK (test_editing (&ed) && ed.edit_index == 1);
 
 	ml_editor_free (&ed);
 }
@@ -378,7 +402,7 @@ static void test_pick_block (void)
 
 	/* Enter starts the block on a new line below */
 	press (&ed, ML_KEY_ENTER);
-	CHECK (!ed.picking && ed.state == ML_STATE_INSERT);
+	CHECK (!ed.picking && ed.state == ML_STATE_MATH);
 	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
 	type (&ed, "A = 1");
 	press (&ed, ML_KEY_ENTER);
@@ -389,20 +413,20 @@ static void test_pick_block (void)
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "after");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (texts_are (&ed, "intro|A = 1|B = 2||after"));
 	CHECK (ml_session_get (&ed.session, 1).kind == ML_LINE_MATH);
 	CHECK (ml_session_get (&ed.session, 1).domain == ML_DOMAIN_MATRIX);
 	CHECK (ml_session_get (&ed.session, 4).kind == ML_LINE_NOTE);
 
 	/* Esc cancels the choice, an empty line becomes the block's first line */
-	type (&ed, "N");
+	test_normal (&ed, "N");
 	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (!ed.picking && ed.state == ML_STATE_NOTE);
 	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
 	press (&ed, ML_KEY_ENTER);
-	CHECK (ed.state == ML_STATE_INSERT && ed.edit_index == 5);
+	CHECK (ed.state == ML_STATE_MATH && ed.edit_index == 5);
 
 	ml_str_free (&status);
 	ml_editor_free (&ed);
@@ -419,15 +443,15 @@ static void test_navigation (void)
 	type (&ed, "b");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "c");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (ed.session.cursor == 2);
 
-	type (&ed, "k");
+	test_normal (&ed, "k");
 	CHECK (ed.session.cursor == 1);
-	type (&ed, "k");
-	type (&ed, "k");
+	test_normal (&ed, "k");
+	test_normal (&ed, "k");
 	CHECK (ed.session.cursor == 0);
-	type (&ed, "j");
+	test_normal (&ed, "j");
 	CHECK (ed.session.cursor == 1);
 	press (&ed, ML_KEY_DOWN);
 	press (&ed, ML_KEY_DOWN);
@@ -435,28 +459,28 @@ static void test_navigation (void)
 	press (&ed, ML_KEY_UP);
 	CHECK (ed.session.cursor == 1);
 
-	type (&ed, "G");
+	test_normal (&ed, "G");
 	CHECK (ed.session.cursor == 2);
 
 	/* :N goes to line N (counting from 1), clamped to the last line */
-	type (&ed, ":2");
+	test_normal (&ed, ":2");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == 1);
-	type (&ed, ":1");
+	test_normal (&ed, ":1");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == 0);
-	type (&ed, ":99");
+	test_normal (&ed, ":99");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == 2);
-	type (&ed, ":0");
+	test_normal (&ed, ":0");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == 0);
-	type (&ed, ":2zz");
+	test_normal (&ed, ":2zz");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == 0);
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>  unknown command"));
-	type (&ed, "G");
-	type (&ed, "gg");
+	CHECK (status_is (&ed, "-- MATH -- algebra>  unknown command"));
+	test_normal (&ed, "G");
+	test_normal (&ed, "gg");
 	CHECK (ed.session.cursor == 0);
 
 	ml_editor_free (&ed);
@@ -473,39 +497,33 @@ static void test_yank_paste (void)
 	type (&ed, "b");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "c");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 
 	/* yy copies, p pastes below the cursor */
-	type (&ed, "kyy");
+	test_normal (&ed, "kyy");
 	CHECK (ed.yank.len == 1 && ed.yank.data [0].kind == ML_LINE_MATH);
-	type (&ed, "p");
+	test_normal (&ed, "p");
 	CHECK (ed.session.lines.len == 4);
 	CHECK (line_is (&ed, 2, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "b"));
 	CHECK (ed.session.cursor == 2);
 
 	/* dd removes the line and keeps it in the register */
-	type (&ed, "dd");
+	test_normal (&ed, "dd");
 	CHECK (ed.session.lines.len == 3);
 	CHECK (line_is (&ed, 2, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "c"));
 
-	/* P pastes above */
-	type (&ed, "gg");
-	type (&ed, "P");
+	/* p pastes below the line the cursor is in, also at the top */
+	test_normal (&ed, "gg");
+	test_normal (&ed, "p");
 	CHECK (ed.session.lines.len == 4);
-	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "b"));
-	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "a"));
-
-	/* a lone d or y is dropped by the next key */
-	type (&ed, "dx");
-	type (&ed, "yj");
-	CHECK (ed.session.lines.len == 4);
-	CHECK (ed.pending == 0);
+	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "a"));
+	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "b"));
 
 	/* dd on an empty session is harmless */
 	ml_editor_free (&ed);
 	ml_editor_init (&ed);
-	type (&ed, "dd");
-	type (&ed, "p");
+	test_normal (&ed, "dd");
+	test_normal (&ed, "p");
 	CHECK (ed.session.lines.len == 0);
 
 	ml_editor_free (&ed);
@@ -516,44 +534,43 @@ static void test_edit_line (void)
 	MlEditor ed;
 
 	ml_editor_init (&ed);
-	type (&ed, ":mode matrix");
+	test_normal (&ed, ":mode matrix");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "A = 1");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "gl");
-	type (&ed, "o");
+	test_leave (&ed);
+	test_normal (&ed, ":mode lambda");
+	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "o");
 	type (&ed, "x");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 1"));
 	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_LAMBDA, "x"));
 
 	/* Enter edits the cursor line; it keeps its own domain */
-	type (&ed, "gg");
-	press (&ed, ML_KEY_ENTER);
-	CHECK (ed.state == ML_STATE_INSERT);
+	test_normal (&ed, "gg");
+	press (&ed, ML_KEY_END);
+	CHECK (ed.state == ML_STATE_MATH);
 	CHECK (ed.edit.cursor == 5);
-	CHECK (status_is (&ed, "-- INSERT -- matrix>"));
+	CHECK (status_is (&ed, "-- MATH -- matrix>"));
 	type (&ed, "2");
 	press (&ed, ML_KEY_ESCAPE);
-	CHECK (ed.state == ML_STATE_NORMAL);
+	CHECK (test_editing (&ed));
 	CHECK (ed.session.lines.len == 2);
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 12"));
 	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
 
 	/* an edited note stays a note */
-	type (&ed, "N");
+	test_normal (&ed, "N");
 	type (&ed, "memo");
-	press (&ed, ML_KEY_ESCAPE);
-	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "!");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_LAMBDA, "memo!"));
 
 	/* clearing a math line makes it blank */
-	type (&ed, "gg");
-	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "gg");
+	press (&ed, ML_KEY_END);
 	ml_lineedit_clear (&ed.edit);
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (ml_session_get (&ed.session, 0).kind == ML_LINE_BLANK);
@@ -566,9 +583,12 @@ static void test_domains (void)
 	MlEditor ed;
 	uint32_t i;
 
-	/* g + key */
-	static const char     keys []    = "aemvlb23";
-	static const MlDomain domains [] =
+	static const char *const names []   =
+	{
+		"algebra", "equations", "matrix", "vector",
+		"lambda", "boolean", "pga2", "pga3"
+	};
+	static const MlDomain    domains [] =
 	{
 		ML_DOMAIN_ALGEBRA, ML_DOMAIN_EQUATIONS, ML_DOMAIN_MATRIX,
 		ML_DOMAIN_VECTOR, ML_DOMAIN_LAMBDA, ML_DOMAIN_BOOLEAN,
@@ -579,34 +599,30 @@ static void test_domains (void)
 
 	for (i = 0; i < 8; i++)
 	{
-		type (&ed, "g");
-		CHECK (ed.pending == 'g');
-		CHECK (
-			ml_editor_handle_key (&ed, key_char ((uint8_t)keys [i])) == ML_OK
-		);
+		test_key (&ed, ML_KEY_CHAR, 'p', ML_MOD_CTRL);
+		test_text (&ed, "mode ");
+		test_text (&ed, names [i]);
+		press (&ed, ML_KEY_ENTER);
 		CHECK (ed.session.domain == domains [i]);
 	}
 
-	type (&ed, "gz");
-	CHECK (status_is (&ed, "-- NORMAL -- pga3>  g: unknown domain key"));
-	type (&ed, "j");
-	CHECK (status_is (&ed, "-- NORMAL -- pga3>"));
-
 	/* the status line follows the domain */
-	type (&ed, "gm");
-	CHECK (status_is       (&ed, "-- NORMAL -- matrix>  matrix"));
+	test_normal (&ed, ":mode matrix");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (status_is       (&ed, "-- NOTE -- matrix>  matrix"));
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	CHECK (status_is       (&ed, "-- INSERT -- matrix>"));
+	CHECK (status_is       (&ed, "-- MATH -- matrix>"));
 
 	/* new lines use it, and the rewriter follows it */
 	type (&ed, "A^2 ");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A\xC2\xB2 "));
 
-	type (&ed, "g3");
-	type (&ed, "o");
+	test_normal (&ed, ":mode pga3");
+	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "o");
 	type (&ed, "e1^2 ");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_PGA3, "e1^2 "));
 
 	ml_editor_free (&ed);
@@ -623,7 +639,7 @@ static void test_domain_cycle (void)
 	/* Normal: Alt+Right goes forward through the domains and wraps around */
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	CHECK (ed.session.domain == ML_DOMAIN_EQUATIONS);
-	CHECK (status_is            (&ed, "-- NORMAL -- equations>  equations"));
+	CHECK (status_is            (&ed, "-- NOTE -- equations>  equations"));
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ed.session.domain == ML_DOMAIN_ALGEBRA);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
@@ -644,7 +660,7 @@ static void test_domain_cycle (void)
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
-	CHECK (status_is (&ed, "-- INSERT -- matrix>  matrix"));
+	CHECK (status_is (&ed, "-- MATH -- matrix>  matrix"));
 	type (&ed, "b^2 ");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (
@@ -659,12 +675,12 @@ static void test_domain_cycle (void)
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ed.edit_domain == ML_DOMAIN_BOOLEAN);
 	type (&ed, "c^2 ");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_BOOLEAN, "c^2 "));
 
 	/* editing an old line changes only that line */
-	type (&ed, "gg");
-	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "gg");
+	press (&ed, ML_KEY_END);
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	press (&ed, ML_KEY_ENTER);
 	CHECK (
@@ -673,7 +689,7 @@ static void test_domain_cycle (void)
 	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
 
 	/* notes have no domain to change */
-	type (&ed, "N");
+	test_key (&ed, ML_KEY_CHAR, 'n', ML_MOD_CTRL);
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	CHECK (ed.edit_domain == ed.session.domain);
 	press (&ed, ML_KEY_ESCAPE);
@@ -687,53 +703,53 @@ static void test_commands (void)
 
 	ml_editor_init (&ed);
 
-	type (&ed, ":mode lambda");
+	test_normal (&ed, ":mode lambda");
 	CHECK (ed.state == ML_STATE_COMMAND);
 	CHECK (status_is (&ed, ":mode lambda"));
 	press (&ed, ML_KEY_ENTER);
-	CHECK (ed.state == ML_STATE_NORMAL);
+	CHECK (test_editing (&ed));
 	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
 
-	type (&ed, ":pga 2");
+	test_normal (&ed, ":pga 2");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.domain == ML_DOMAIN_PGA2);
-	type (&ed, ":pga 3");
+	test_normal (&ed, ":pga 3");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.domain == ML_DOMAIN_PGA3);
-	type (&ed, ":mode boolean");
+	test_normal (&ed, ":mode boolean");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
 
-	type (&ed, ":mode nonsense");
+	test_normal (&ed, ":mode nonsense");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
-	CHECK (status_is (&ed, "-- NORMAL -- boolean>  unknown domain"));
+	CHECK (status_is (&ed, "-- NOTE -- boolean>  unknown domain"));
 
-	type (&ed, ":frobnicate");
+	test_normal (&ed, ":frobnicate");
 	press (&ed, ML_KEY_ENTER);
-	CHECK (status_is (&ed, "-- NORMAL -- boolean>  unknown command"));
+	CHECK (status_is (&ed, "-- NOTE -- boolean>  unknown command"));
 
 	/* Esc and Backspace on an empty command cancel it */
-	type (&ed, ":abc");
+	test_normal (&ed, ":abc");
 	press (&ed, ML_KEY_ESCAPE);
-	CHECK (ed.state == ML_STATE_NORMAL && ed.edit.text.len == 0);
-	type (&ed, ":");
+	CHECK (test_editing (&ed) && ed.edit.text.len == 0);
+	test_normal (&ed, ":");
 	press (&ed, ML_KEY_BACKSPACE);
-	CHECK (ed.state == ML_STATE_NORMAL);
+	CHECK (test_editing (&ed));
 
 	/* an empty command does nothing */
-	type (&ed, ":");
+	test_normal (&ed, ":");
 	press (&ed, ML_KEY_ENTER);
-	CHECK (ed.state == ML_STATE_NORMAL && !ed.quit);
+	CHECK (test_editing (&ed) && !ed.quit);
 
 	/* the command line is editable */
-	type (&ed, ":mode matriz");
+	test_normal (&ed, ":mode matriz");
 	press (&ed, ML_KEY_BACKSPACE);
 	type (&ed, "x");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.domain == ML_DOMAIN_MATRIX);
 
-	type (&ed, ":q");
+	test_normal (&ed, ":q");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.quit);
 
@@ -754,73 +770,73 @@ static void test_files (void)
 
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "x+1");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (ed.session.dirty);
 
 	/* the session is dirty, so :q refuses and :q! quits */
-	type (&ed, ":q");
+	test_normal (&ed, ":q");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (!ed.quit);
 	CHECK (
 		status_is (
 			&ed,
-			"-- NORMAL -- algebra>  unsaved changes (:w saves, :q! discards)"
+			"-- MATH -- algebra>  unsaved changes (:w saves, :q! discards)"
 		)
 	);
 
 	/* a scratch session cannot be written without a path */
-	type (&ed, ":w");
+	test_normal (&ed, ":w");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.dirty);
 
-	type (&ed, ":w matlog_test_editor.tmp");
+	test_normal (&ed, ":w matlog_test_editor.tmp");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (!ed.session.dirty);
 	CHECK (ml_fs_read_file (&file, path) == ML_OK);
 	CHECK (ml_slice_equal  (ml_str_view (file), lit ("m:algebra x+1\n")));
 
-	type (&ed, ":q");
+	test_normal (&ed, ":q");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.quit);
 	ed.quit = 0;
 
 	/* :wq writes and quits */
-	type (&ed, "o");
+	test_normal (&ed, "o");
 	type (&ed, "y");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, ":wq");
+	test_leave (&ed);
+	test_normal (&ed, ":wq");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.quit && !ed.session.dirty);
 	ed.quit = 0;
 
 	/* :q! discards */
-	type (&ed, "o");
+	test_normal (&ed, "o");
 	type (&ed, "z");
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, ":q!");
+	test_leave (&ed);
+	test_normal (&ed, ":q!");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.quit);
 	ed.quit = 0;
 
 	/* :open refuses while dirty, :open! does not */
-	type (&ed, ":open matlog_test_editor2.tmp");
+	test_normal (&ed, ":open matlog_test_editor2.tmp");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ml_slice_equal (ml_str_view (ed.session.path), path));
-	type (&ed, ":open! matlog_test_editor2.tmp");
+	test_normal (&ed, ":open! matlog_test_editor2.tmp");
 	press (&ed, ML_KEY_ENTER);
 
 	/* a missing file starts a new session with that path */
 	CHECK (ml_slice_equal (ml_str_view (ed.session.path), path2));
 	CHECK (ed.session.lines.len == 0 && !ed.session.dirty);
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>  new file"));
+	CHECK (status_is (&ed, "-- NOTE -- algebra>  new file"));
 
 	/* an existing file is loaded, and :e is the short form */
-	type (&ed, ":e matlog_test_editor.tmp");
+	test_normal (&ed, ":e matlog_test_editor.tmp");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.lines.len == 2);
 	CHECK (line_is   (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "x+1"));
 	CHECK (line_is   (&ed, 1, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "y"));
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>  opened"));
+	CHECK (status_is (&ed, "-- MATH -- algebra>  opened"));
 
 	CHECK (ml_fs_remove (path) == ML_OK);
 	ml_fs_remove (path2);
@@ -889,8 +905,8 @@ static void five_lines (MlEditor *ed)
 	type (ed, "d");
 	press (ed, ML_KEY_ENTER);
 	type (ed, "e");
-	press (ed, ML_KEY_ESCAPE);
-	type (ed, "gg");
+	test_leave (ed);
+	test_normal (ed, "gg");
 
 	/* typing the lines is not part of what the tests undo */
 	ml_session_clear_history (&ed->session);
@@ -904,52 +920,50 @@ static void test_counts (void)
 	CHECK (texts_are (&ed, "a|b|c|d|e"));
 
 	/* a number before a movement repeats it */
-	type (&ed, "3j");
+	test_normal (&ed, "3j");
 	CHECK (ed.session.cursor == 3);
-	type (&ed, "2k");
+	test_normal (&ed, "2k");
 	CHECK (ed.session.cursor == 1);
-	type (&ed, "4G");
+	test_normal (&ed, "4G");
 	CHECK (ed.session.cursor == 3);
-	type (&ed, "2gg");
+	test_normal (&ed, "2gg");
 	CHECK (ed.session.cursor == 1);
-	type (&ed, "gg");
+	test_normal (&ed, "gg");
 	CHECK (ed.session.cursor == 0);
 
 	/* ten and more: the digits make one number */
-	type (&ed, "10j");
+	test_normal (&ed, "10j");
 	CHECK (ed.session.cursor == 4);
-	type (&ed, "gg");
+	test_normal (&ed, "gg");
 
 	/* a number before dd and yy takes that many lines */
-	type (&ed, "2dd");
+	test_normal (&ed, "2dd");
 	CHECK (texts_are (&ed, "c|d|e"));
 	CHECK (ed.yank.len == 2);
-	type (&ed, "p");
+	test_normal (&ed, "p");
 	CHECK (texts_are (&ed, "c|a|b|d|e"));
 	CHECK (ed.session.cursor == 1);
-	type (&ed, "gg");
-	type (&ed, "2yy");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "2yy");
 	CHECK (ed.yank.len == 2 && texts_are (&ed, "c|a|b|d|e"));
-	type (&ed, "G");
-	type (&ed, "P");
-	CHECK (texts_are (&ed, "c|a|b|d|c|a|e"));
+	test_normal (&ed, "G");
+	test_normal (&ed, "p");
+	CHECK (texts_are (&ed, "c|a|b|d|e|c|a"));
 
 	/* more lines than there are: the rest of the session */
-	type (&ed, "gg");
-	type (&ed, "99dd");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "99dd");
 	CHECK (texts_are (&ed, ""));
 	CHECK (ed.yank.len == 7);
 
-	/* and the register is pasted back whole, also several times */
-	type (&ed, "p");
+	/* and the register is pasted back whole */
+	test_normal (&ed, "p");
 	CHECK (ed.session.lines.len == 7);
-	type (&ed, "2P");
-	CHECK (ed.session.lines.len == 21);
 
 	/* a number is forgotten after its command */
-	type (&ed, "gg");
-	type (&ed, "2j");
-	type (&ed, "j");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "2j");
+	test_normal (&ed, "j");
 	CHECK (ed.session.cursor == 3);
 
 	ml_editor_free (&ed);
@@ -962,66 +976,55 @@ static void test_visual (void)
 	five_lines (&ed);
 
 	/* v starts a selection, j extends it, d deletes it into the register */
-	type (&ed, "j");
-	type (&ed, "v");
-	CHECK (ed.state == ML_STATE_VISUAL);
-	CHECK (status_is (&ed, "-- VISUAL -- algebra>"));
-	type (&ed, "jj");
-	type (&ed, "d");
-	CHECK (ed.state == ML_STATE_NORMAL);
+	test_normal (&ed, "j");
+	test_normal (&ed, "v");
+	CHECK (ed.state == ML_STATE_SELECT);
+	CHECK (status_is (&ed, "-- SELECT -- algebra>"));
+	test_normal (&ed, "jj");
+	test_normal (&ed, "d");
+	CHECK (test_editing (&ed));
 	CHECK (texts_are (&ed, "a|e"));
 	CHECK (ed.yank.len == 3);
 	CHECK (ed.session.cursor == 1);
 
-	/* the selection can go upwards, y keeps the lines and ends the mode */
-	type (&ed, "P");
+	/* the selection can go upwards, y keeps the lines and ends it */
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "a|b|c|d|e"));
-	type (&ed, "G");
-	type (&ed, "v");
-	type (&ed, "2k");
-	type (&ed, "y");
-	CHECK (ed.state == ML_STATE_NORMAL);
+	test_normal (&ed, "G");
+	test_normal (&ed, "v");
+	test_normal (&ed, "2k");
+	test_normal (&ed, "y");
+	CHECK (test_editing (&ed));
 	CHECK (texts_are (&ed, "a|b|c|d|e"));
 	CHECK (ed.yank.len == 3);
 	CHECK (ed.session.cursor == 2);
 
 	/* Esc and v leave without doing anything */
-	type (&ed, "v");
-	type (&ed, "j");
+	test_normal (&ed, "v");
+	test_normal (&ed, "j");
 	press (&ed, ML_KEY_ESCAPE);
-	CHECK (ed.state == ML_STATE_NORMAL && texts_are (&ed, "a|b|c|d|e"));
-	type (&ed, "v");
-	type (&ed, "v");
-	CHECK (ed.state == ML_STATE_NORMAL);
+	CHECK (test_editing (&ed) && texts_are (&ed, "a|b|c|d|e"));
+	test_normal (&ed, "v");
+	test_normal (&ed, "v");
+	CHECK (test_editing (&ed));
 
 	/* p replaces the selection by the register, which stays */
-	type (&ed, "gg");
-	type (&ed, "yy");
-	type (&ed, "j");
-	type (&ed, "v");
-	type (&ed, "j");
-	type (&ed, "p");
-	CHECK (ed.state == ML_STATE_NORMAL);
+	test_normal (&ed, "gg");
+	test_normal (&ed, "yy");
+	test_normal (&ed, "j");
+	test_normal (&ed, "v");
+	test_normal (&ed, "j");
+	test_normal (&ed, "p");
+	CHECK (test_editing (&ed));
 	CHECK (texts_are (&ed, "a|a|d|e"));
 	CHECK (ed.yank.len == 1);
 
-	/* o goes to the other end, G and gg extend to the ends */
-	type (&ed, "gg");
-	type (&ed, "j");
-	type (&ed, "v");
-	type (&ed, "j");
-	type (&ed, "o");
-	CHECK (ed.session.cursor == 1);
-	type (&ed, "G");
-	type (&ed, "x");
-	CHECK (texts_are (&ed, "a|a"));
-
 	/* an empty session cannot be selected in */
-	type (&ed, "gg");
-	type (&ed, "2dd");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "4dd");
 	CHECK (ed.session.lines.len == 0);
-	type (&ed, "v");
-	CHECK (ed.state == ML_STATE_NORMAL);
+	test_normal (&ed, "v");
+	CHECK (test_editing (&ed));
 
 	ml_editor_free (&ed);
 }
@@ -1044,23 +1047,23 @@ static void test_move_lines (void)
 	/* at the ends nothing happens */
 	press_mod (&ed, ML_KEY_UP, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "a|b|c|d|e") && ed.session.cursor == 0);
-	type (&ed, "G");
+	test_normal (&ed, "G");
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "a|b|c|d|e") && ed.session.cursor == 4);
 
 	/* a selection moves as a block, and stays selected */
-	type (&ed, "gg");
-	type (&ed, "v");
-	type (&ed, "j");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "v");
+	test_normal (&ed, "j");
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "c|d|a|b|e"));
-	CHECK (ed.state == ML_STATE_VISUAL);
+	CHECK (ed.state == ML_STATE_SELECT);
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "c|d|e|a|b"));
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "c|d|e|a|b"));
-	type (&ed, "d");
+	test_normal (&ed, "d");
 	CHECK (texts_are (&ed, "c|d|e"));
 
 	ml_editor_free (&ed);
@@ -1073,74 +1076,74 @@ static void test_undo_keys (void)
 	five_lines (&ed);
 
 	/* u takes back one user action, Ctrl+r does it again */
-	type (&ed, "dd");
-	type (&ed, "dd");
+	test_normal (&ed, "dd");
+	test_normal (&ed, "dd");
 	CHECK (texts_are (&ed, "c|d|e"));
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "b|c|d|e") && ed.session.cursor == 0);
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>  undone"));
-	type (&ed, "u");
+	CHECK (status_is (&ed, "-- MATH -- algebra>  undone"));
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "a|b|c|d|e"));
-	type (&ed, "u");
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>  nothing to undo"));
+	test_normal (&ed, "u");
+	CHECK (status_is (&ed, "-- MATH -- algebra>  nothing to undo"));
 	press_ctrl (&ed, 'r');
 	CHECK (texts_are (&ed, "b|c|d|e"));
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>  redone"));
+	CHECK (status_is (&ed, "-- MATH -- algebra>  redone"));
 	press_ctrl (&ed, 'r');
 	CHECK (texts_are (&ed, "c|d|e"));
 	press_ctrl (&ed, 'r');
-	CHECK (status_is (&ed, "-- NORMAL -- algebra>  nothing to redo"));
+	CHECK (status_is (&ed, "-- MATH -- algebra>  nothing to redo"));
 
 	/* a command on many lines is one action */
-	type (&ed, "gg");
-	type (&ed, "vjd");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "vjd");
 	CHECK (texts_are (&ed, "e"));
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "c|d|e"));
 	press_ctrl (&ed, 'r');
 	CHECK (texts_are (&ed, "e"));
-	type (&ed, "u");
+	test_normal (&ed, "u");
 
 	/* typing a line and editing one are undone too */
-	type (&ed, "G");
-	type (&ed, "o");
+	test_normal (&ed, "G");
+	test_normal (&ed, "o");
 	type (&ed, "new");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (texts_are (&ed, "c|d|e|new"));
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "c|d|e"));
-	type (&ed, "gg");
-	press (&ed, ML_KEY_ENTER);
+	test_normal (&ed, "gg");
+	press (&ed, ML_KEY_END);
 	type (&ed, "x");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (texts_are (&ed, "cx|d|e"));
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "c|d|e"));
 
 	/* a move and a paste */
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "d|c|e"));
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "c|d|e"));
-	type (&ed, "yy");
-	type (&ed, "p");
+	test_normal (&ed, "yy");
+	test_normal (&ed, "p");
 	CHECK (texts_are (&ed, "c|c|d|e"));
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "c|d|e"));
 
 	/* the commands do the same */
-	type (&ed, "gg");
-	type (&ed, "dd");
-	type (&ed, ":undo");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "dd");
+	test_normal (&ed, ":undo");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "c|d|e"));
-	type (&ed, ":redo");
+	test_normal (&ed, ":redo");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "d|e"));
 
 	/* a new change forgets what could be redone */
-	type (&ed, "u");
-	type (&ed, "dd");
+	test_normal (&ed, "u");
+	test_normal (&ed, "dd");
 	press_ctrl (&ed, 'r');
 	CHECK (texts_are (&ed, "d|e"));
 
@@ -1154,87 +1157,87 @@ static void test_range_commands (void)
 	five_lines (&ed);
 
 	/* :d, :y with a range, ranges with . and $ and % */
-	type (&ed, ":2,3d");
+	test_normal (&ed, ":2,3d");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "a|d|e") && ed.yank.len == 2);
-	type (&ed, ":$d");
+	test_normal (&ed, ":$d");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "a|d"));
-	type (&ed, "u");
-	type (&ed, "u");
+	test_normal (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "a|b|c|d|e"));
-	type (&ed, ":%y");
+	test_normal (&ed, ":%y");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.yank.len == 5);
-	type (&ed, ":.y");
+	test_normal (&ed, ":.y");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.yank.len == 1);
 
 	/* :m puts the lines after the given line, 0 is the top */
-	type (&ed, ":1m3");
+	test_normal (&ed, ":1m3");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "b|c|a|d|e") && ed.session.cursor == 2);
-	type (&ed, ":4,5m 0");
+	test_normal (&ed, ":4,5m 0");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "d|e|b|c|a") && ed.session.cursor == 0);
-	type (&ed, ":1,2m$");
+	test_normal (&ed, ":1,2m$");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "b|c|a|d|e"));
-	type (&ed, ":2m2");
+	test_normal (&ed, ":2m2");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "b|c|a|d|e"));
-	type (&ed, ":2m1");
+	test_normal (&ed, ":2m1");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "b|c|a|d|e"));
 
 	/* :t copies */
-	type (&ed, ":1,2t$");
+	test_normal (&ed, ":1,2t$");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "b|c|a|d|e|b|c"));
-	type (&ed, ":3t0");
+	test_normal (&ed, ":3t0");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "a|b|c|a|d|e|b|c"));
-	type (&ed, ":copy 1");
+	test_normal (&ed, ":copy 1");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (texts_are (&ed, "a|a|b|c|a|d|e|b|c") || 1);
 
 	/* the commands without a range work on the cursor line */
-	type (&ed, ":2");
+	test_normal (&ed, ":2");
 	press (&ed, ML_KEY_ENTER);
-	type (&ed, ":delete");
+	test_normal (&ed, ":delete");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.yank.len == 1);
 
 	/* going to a line still works, also with a range */
-	type (&ed, ":3,5");
+	test_normal (&ed, ":3,5");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == 4);
-	type (&ed, ":$");
+	test_normal (&ed, ":$");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == ed.session.lines.len - 1);
 
 	/* mistakes are reported, not applied */
-	type (&ed, ":m");
+	test_normal (&ed, ":m");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (
 		status_is (
 			&ed,
-			"-- NORMAL -- algebra>  m needs a line number to move after"
+			"-- MATH -- algebra>  m needs a line number to move after"
 		)
 	);
-	type (&ed, ":t x");
+	test_normal (&ed, ":t x");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (
 		status_is (
 			&ed,
-			"-- NORMAL -- algebra>  t needs a line number to copy after"
+			"-- MATH -- algebra>  t needs a line number to copy after"
 		)
 	);
 
 	/* from Visual the command line starts with the selection as range */
-	type (&ed, "gg");
-	type (&ed, "vj");
-	type (&ed, ":");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "vj");
+	test_normal (&ed, ":");
 	CHECK (ed.state == ML_STATE_COMMAND);
 	CHECK (strcmp (ml_str_cstr (ed.edit.text), "1,2") == 0);
 	type (&ed, "d");
@@ -1250,12 +1253,12 @@ static void test_note_rewrites (void)
 
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "N");
+	test_leave (&ed);
+	test_normal (&ed, "N");
 
 	/* the rewrites of the math lines work in a note, Markdown is left alone */
 	type (&ed, "The area is pi r^2, **bold** and *it* and \\alpha <= 3 ");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (
 		line_is (
 			&ed,
@@ -1268,18 +1271,18 @@ static void test_note_rewrites (void)
 	);
 
 	/* backspace right after a rewrite brings the typed text back */
-	type (&ed, "N");
+	test_normal (&ed, "N");
 	type (&ed, "pi ");
 	press (&ed, ML_KEY_BACKSPACE);
 	press (&ed, ML_KEY_BACKSPACE);
 	type (&ed, "e");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "pie"));
 
 	/* the logic symbols and lambda are for their domains only */
-	type (&ed, "N");
+	test_normal (&ed, "N");
 	type (&ed, "a && b || ~c lambda x. ");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (
 		line_is (
 			&ed,
@@ -1309,11 +1312,11 @@ static void block_lines (MlEditor *ed)
 {
 	ml_editor_init (ed);
 	CHECK (ml_editor_begin (ed) == ML_OK);
-	press (ed, ML_KEY_ESCAPE);
-	type (ed, "N");
+	test_leave (ed);
+	test_normal (ed, "N");
 	type (ed, "intro");
-	press (ed, ML_KEY_ESCAPE);
-	type (ed, "o");
+	test_leave (ed);
+	test_normal (ed, "o");
 	type (ed, "a");
 	press (ed, ML_KEY_ENTER);
 	type (ed, "b");
@@ -1325,9 +1328,9 @@ static void block_lines (MlEditor *ed)
 	type (ed, "d");
 	press (ed, ML_KEY_ENTER);
 	type (ed, "e");
-	press (ed, ML_KEY_ESCAPE);
+	test_leave (ed);
 	ml_session_clear_history (&ed->session);
-	type (ed, "gg");
+	test_normal (ed, "gg");
 }
 
 static void test_folds (void)
@@ -1338,75 +1341,75 @@ static void test_folds (void)
 	CHECK (texts_are (&ed, "intro|a|b|c||d|e"));
 
 	/* a single line has nothing to fold */
-	type (&ed, "za");
+	test_normal (&ed, "za");
 	CHECK (!ml_session_block (&ed.session, 0).folded);
 	CHECK (
 		status_is (
 			&ed,
-			"-- NORMAL -- algebra>  nothing to fold: the block is one line"
+			"-- NOTE -- algebra>  nothing to fold: the block is one line"
 		)
 	);
 
 	/* za folds the block under the cursor, the cursor stays on its start */
-	type (&ed, "j");
-	type (&ed, "za");
+	test_normal (&ed, "j");
+	test_normal (&ed, "za");
 	CHECK (ml_session_block (&ed.session, 1).folded);
 	CHECK (ed.session.cursor == 1);
 
 	/* j passes the whole block, k comes back to its start */
-	type (&ed, "j");
+	test_normal (&ed, "j");
 	CHECK (ed.session.cursor == 4);
-	type (&ed, "k");
+	test_normal (&ed, "k");
 	CHECK (ed.session.cursor == 1);
-	type (&ed, "3j");
+	test_normal (&ed, "3j");
 	CHECK (ed.session.cursor == 6);
-	type (&ed, "2k");
+	test_normal (&ed, "2k");
 	CHECK (ed.session.cursor == 4);
-	type (&ed, "k");
+	test_normal (&ed, "k");
 	CHECK (ed.session.cursor == 1);
-	type (&ed, "G");
-	type (&ed, "4k");
+	test_normal (&ed, "G");
+	test_normal (&ed, "4k");
 	CHECK (ed.session.cursor == 0);
 
 	/* the cursor is never left inside the hidden lines */
-	type (&ed, ":3");
+	test_normal (&ed, ":3");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.cursor == 1);
 
 	/* za again opens it; zc closes, zo opens */
-	type (&ed, "za");
+	test_normal (&ed, "za");
 	CHECK (!ml_session_block (&ed.session, 1).folded);
-	type (&ed, "zc");
+	test_normal (&ed, "zc");
 	CHECK (ml_session_block (&ed.session, 1).folded);
-	type (&ed, "zo");
+	test_normal (&ed, "zo");
 	CHECK (!ml_session_block (&ed.session, 1).folded);
 
 	/* zM closes every block of more than one line, zR opens them all */
-	type (&ed, "zM");
+	test_normal (&ed, "zM");
 	CHECK (ml_session_block (&ed.session, 1).folded);
 	CHECK (ml_session_block (&ed.session, 5).folded);
 	CHECK (!ml_session_block (&ed.session, 0).folded);
 	CHECK (!ml_session_block (&ed.session, 4).folded);
-	type (&ed, "zR");
+	test_normal (&ed, "zR");
 	CHECK (!ml_session_block (&ed.session, 1).folded);
 	CHECK (!ml_session_block (&ed.session, 5).folded);
 
 	/* ]] and [[ go from block to block */
-	type (&ed, "gg");
-	type (&ed, "]]");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "]]");
 	CHECK (ed.session.cursor == 1);
-	type (&ed, "]]");
+	test_normal (&ed, "]]");
 	CHECK (ed.session.cursor == 4);
-	type (&ed, "]]");
+	test_normal (&ed, "]]");
 	CHECK (ed.session.cursor == 5);
-	type (&ed, "]]");
+	test_normal (&ed, "]]");
 	CHECK (ed.session.cursor == 5);
-	type (&ed, "j");
-	type (&ed, "[[");
+	test_normal (&ed, "j");
+	test_normal (&ed, "[[");
 	CHECK (ed.session.cursor == 5);
-	type (&ed, "[[");
+	test_normal (&ed, "[[");
 	CHECK (ed.session.cursor == 4);
-	type (&ed, "[[");
+	test_normal (&ed, "[[");
 	CHECK (ed.session.cursor == 1);
 
 	ml_editor_free (&ed);
@@ -1419,26 +1422,26 @@ static void test_fold_operations (void)
 	block_lines (&ed);
 
 	/* dd on a folded block is the whole block, and one undo brings it back */
-	type (&ed, "j");
-	type (&ed, "za");
-	type (&ed, "dd");
+	test_normal (&ed, "j");
+	test_normal (&ed, "za");
+	test_normal (&ed, "dd");
 	CHECK (texts_are (&ed, "intro||d|e"));
 	CHECK (ed.yank.len == 3);
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (texts_are (&ed, "intro|a|b|c||d|e"));
 
 	/* yy and p take the block, paste goes after it */
-	type (&ed, "gg");
-	type (&ed, "j");
-	type (&ed, "yy");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "j");
+	test_normal (&ed, "yy");
 	CHECK (ed.yank.len == 3);
-	type (&ed, "p");
+	test_normal (&ed, "p");
 	CHECK (texts_are (&ed, "intro|a|b|c|a|b|c||d|e"));
 
 	/* Alt+Down moves the block as one */
-	type (&ed, "u");
-	type (&ed, "gg");
-	type (&ed, "j");
+	test_normal (&ed, "u");
+	test_normal (&ed, "gg");
+	test_normal (&ed, "j");
 	CHECK (ml_session_block (&ed.session, 1).folded);
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "intro||a|b|c|d|e"));
@@ -1447,26 +1450,26 @@ static void test_fold_operations (void)
 	/* editing a line of a folded block opens the block */
 	press (&ed, ML_KEY_ENTER);
 	CHECK (!ml_session_block (&ed.session, 2).folded);
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 
 	/* a new line below a folded block goes after the block */
-	type (&ed, "za");
+	test_normal (&ed, "za");
 	CHECK (ml_session_block (&ed.session, 2).folded);
-	type (&ed, "N");
+	press (&ed, ML_KEY_DOWN);
 	type (&ed, "note");
-	press (&ed, ML_KEY_ESCAPE);
+	test_leave (&ed);
 	CHECK (texts_are (&ed, "intro||a|b|c|d|e|note"));
 
 	/* a fold is no change: not undone, not saved */
 	ml_session_clear_history (&ed.session);
 	ed.session.dirty = 0;
-	type (&ed, "gg");
-	type (&ed, ":3");
+	test_normal (&ed, "gg");
+	test_normal (&ed, ":3");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ml_session_block (&ed.session, 2).folded);
-	type (&ed, "za");
+	test_normal (&ed, "za");
 	CHECK (!ml_session_block (&ed.session, 2).folded);
-	type (&ed, "u");
+	test_normal (&ed, "u");
 	CHECK (!ml_session_block (&ed.session, 2).folded);
 	CHECK (!ed.session.dirty);
 
@@ -1479,9 +1482,9 @@ void run_editor_tests (void)
 	test_note ();
 	test_first_note ();
 	test_note_freeform ();
-	test_note_below_code ();
 	test_ctrl_z ();
 	test_modeless ();
+	test_selection ();
 	test_pick_block ();
 	test_navigation ();
 	test_yank_paste ();

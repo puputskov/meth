@@ -9,53 +9,46 @@
 #include <matlog/ui/rewrite.h>
 
 /*
- * The modal editor: the input states and the domain mode on top of a
- * session. It takes key events and changes the session; it does no drawing
- * and no console input, so it can be driven by tests.
+ * The editor: free form editing on top of a session, and no modes. It takes
+ * key events and changes the session; it does no drawing and no console
+ * input, so it can be driven by tests.
  *
- *	Normal   j k (or Down Up)  move the cursor line     G gg  last / first line
- *	         dd yy p P         delete / yank / paste after / paste before
- *	         3dd 3yy 3p 5j 5G  a number first: that many lines, times, or
- *	                           the line with that number
- *	         v                 select lines (Visual state, see below)
- *	         Alt+Up Alt+Down   move the cursor line up or down
- *	         u  Ctrl+r         undo / redo, one user action at a time
- *	         za zo zc zM zR   fold: toggle / open / close the block of the
- *	                           cursor line, close / open all blocks
- *	         ]] [[             go to the next / previous block
- *	         s                 show or hide the steps of the cursor line
- *	         Enter             edit the cursor line     i  new math line below
- *	         n                 new note line below      :  command line
- *	         Alt+Left / Alt+Right  previous / next domain (also in Insert,
- *	                          where it changes the domain of the typed line)
- *	         g + m l a e v b 2 3   set the domain (matrix, lambda, algebra,
- *	                           equations, vector, boolean, pga2, pga3)
- *	Visual   j k G gg 5j       extend the selection of whole lines
- *	         d x / y           delete / yank the selected lines
- *	         p P               replace the selected lines by the register
- *	         Alt+Up Alt+Down   move the selected lines
- *	         o                 go to the other end of the selection
- *	         :                 command line with the range 3,5 filled in
- *	         Esc v             back to Normal
- *	Insert   typing, with the rewrites of rewrite.h; Enter commits the line
- *	         and starts the next one, Esc commits and returns to Normal
- *	Note     like Insert for free text: no rewrites
+ * The cursor is always in a line (a note by default) and typing edits it.
+ *	Text     typing, with the rewrites of rewrite.h; Left Right Home End
+ *	         Up Down move the cursor, across lines too; Backspace at the
+ *	         start joins a line with the one before, Delete at the end with
+ *	         the next; Enter splits the line; Esc writes the line into the
+ *	         session (it is also written when the cursor leaves it)
+ *	         Shift+Left Right Home End  select text; Backspace, Delete or
+ *	         typing replace it
+ *	Lines    Shift+Up Shift+Down  select whole lines, Ctrl+L the line;
+ *	         there Backspace and Delete remove them, Ctrl+C copies, Ctrl+X cuts, Ctrl+V
+ *	         replaces them by the copied lines, Alt+Up Alt+Down move them,
+ *	         arrows and Esc go back to editing
+ *	         without a selection Ctrl+C Ctrl+X Ctrl+V and Alt+Up Alt+Down
+ *	         work on the line the cursor is in
+ *	         Alt+Enter  fold or unfold the block (a folded block is selected)
+ *	         Ctrl+Up Ctrl+Down  previous / next block;  Ctrl+Home Ctrl+End
+ *	         Ctrl+Enter, Shift+Enter, Ctrl+B  choose the domain of a new
+ *	         block; Ctrl+N  turn the line into a note or back
+ *	         Alt+Left / Alt+Right  previous / next domain of the line
+ *	         Ctrl+Z  undo;  Ctrl+Shift+Z, Ctrl+Y  redo
+ *	         F3  show or hide the steps of the line
+ *	         Ctrl+S  save;  Ctrl+Q  quit;  Ctrl+P  command line
  *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3 :steps
  *	         :undo :redo  :[range]d  :[range]y  :[range]m dest  :[range]t dest
  *	         ranges: 3  3,5  %  .  $  (1 based); m and t put the lines after
  *	         line dest (0 is the top)
  *	         :12 goes to line 12; Tab accepts the ghost text, see complete.h
- *
- * A new editor starts in Insert, in the domain of its session.
+ *	         (the command is typed after Ctrl+P, without a colon)
  */
 
 typedef enum MlInputState
 {
-	ML_STATE_NORMAL = 0,
-	ML_STATE_INSERT,
-	ML_STATE_NOTE,
-	ML_STATE_COMMAND,
-	ML_STATE_VISUAL,
+	ML_STATE_MATH = 0, /* a math line is being edited */
+	ML_STATE_NOTE,     /* a note is being edited */
+	ML_STATE_COMMAND,  /* the command line */
+	ML_STATE_SELECT,   /* whole lines are selected */
 	ML_STATE_COUNT
 } MlInputState;
 
@@ -65,7 +58,7 @@ typedef struct MlEditor
 	MlResults    results; /* of the session lines, see results.h */
 	/* the session revision the results were computed for */
 	uint64_t     results_rev;
-	/* the steps shown under a line (Normal state `s`, or :steps) */
+	/* the steps shown under a line (F3, or :steps) */
 	int32_t      steps_open;
 	uint64_t     steps_line;
 	MlStr        steps;
@@ -74,10 +67,9 @@ typedef struct MlEditor
 	MlRewriter   rewriter;
 	MlLineVec    yank;    /* the line register: whole lines, with their kinds */
 	MlStr        message; /* shown in the status line until the next key */
-	/* first key of a two key command (d, y or g), 0 when none */
-	uint32_t pending;
-	uint64_t count;         /* the number typed before a command, 0 if none */
-	uint64_t visual_anchor; /* the fixed end of the selection */
+	uint64_t anchor;     /* the fixed end of the selected lines */
+	int32_t  selecting;  /* 1 while text of the line is selected */
+	uint64_t sel_anchor; /* the fixed end of it, a byte offset */
 	/* where the line being typed lives, or will be inserted */
 	uint64_t edit_index;
 	/* 1 when editing a line that is already in the session */

@@ -4,30 +4,10 @@
 
 static const char *const state_names [ML_STATE_COUNT] =
 {
-	[ML_STATE_NORMAL]  = "NORMAL",
-	[ML_STATE_INSERT]  = "INSERT",
+	[ML_STATE_MATH]    = "MATH",
 	[ML_STATE_NOTE]    = "NOTE",
 	[ML_STATE_COMMAND] = "COMMAND",
-	[ML_STATE_VISUAL]  = "VISUAL"
-};
-
-typedef struct DomainKey
-{
-	uint32_t key;
-	MlDomain domain;
-} DomainKey;
-
-/* The key after g that selects a domain. */
-static const DomainKey domain_keys [] =
-{
-	{ .key = 'a', .domain = ML_DOMAIN_ALGEBRA },
-	{ .key = 'e', .domain = ML_DOMAIN_EQUATIONS },
-	{ .key = 'm', .domain = ML_DOMAIN_MATRIX },
-	{ .key = 'v', .domain = ML_DOMAIN_VECTOR },
-	{ .key = 'l', .domain = ML_DOMAIN_LAMBDA },
-	{ .key = 'b', .domain = ML_DOMAIN_BOOLEAN },
-	{ .key = '2', .domain = ML_DOMAIN_PGA2 },
-	{ .key = '3', .domain = ML_DOMAIN_PGA3 }
+	[ML_STATE_SELECT]  = "SELECT"
 };
 
 const char *ml_input_state_name (MlInputState state)
@@ -68,10 +48,10 @@ void ml_editor_init (MlEditor *ed)
 	ml_rewriter_init (&ed->rewriter, ML_DOMAIN_ALGEBRA);
 	MlLineVec_init (&ed->yank);
 	ml_str_init (&ed->message);
-	ed->count         = 0;
-	ed->visual_anchor = 0;
-	ed->state         = ML_STATE_NORMAL;
-	ed->pending       = 0;
+	ed->anchor        = 0;
+	ed->state         = ML_STATE_NOTE;
+	ed->selecting     = 0;
+	ed->sel_anchor    = 0;
 	ed->edit_index    = 0;
 	ed->edit_existing = 0;
 	ed->edit_kind     = ML_LINE_MATH;
@@ -118,6 +98,13 @@ static MlResult begin_line (
 		ed->edit_domain   = domain;
 		ed->edit_index    = index;
 		ed->edit_existing = existing;
+		ed->selecting     = 0;
+
+		if (existing)
+		{
+			ml_session_set_cursor (&ed->session, index);
+		}
+
 		ml_rewriter_set_domain (
 			&ed->rewriter,
 			ml_choose (state == ML_STATE_NOTE, ML_REWRITE_NOTES, domain)
@@ -143,33 +130,6 @@ static uint64_t line_below_cursor (const MlEditor *ed)
 	);
 }
 
-/* The index a line opened above the cursor line gets. */
-static uint64_t line_above_cursor (const MlEditor *ed)
-{
-	MlBlock b = ml_session_block (&ed->session, ed->session.cursor);
-
-	return ml_choose (
-		ed->session.lines.len > 0,
-		ml_choose (b.folded, b.first, ed->session.cursor),
-		0
-	);
-}
-
-/*
- * Where n opens a note: below the code block the cursor is in, since a note
- * does not belong inside one, else at the cursor line.
- */
-static uint64_t note_spot (const MlEditor *ed)
-{
-	MlLineView v = ml_session_get (&ed->session, ed->session.cursor);
-
-	return ml_choose (
-		v.kind == ML_LINE_MATH || v.kind == ML_LINE_INCLUDE,
-		ml_session_block (&ed->session, ed->session.cursor).last + 1,
-		line_above_cursor (ed)
-	);
-}
-
 MlResult ml_editor_begin (MlEditor *ed)
 {
 	MlResult r = ml_editor_refresh (ed);
@@ -180,7 +140,7 @@ MlResult ml_editor_begin (MlEditor *ed)
 	{
 		r = begin_line (
 			ed,
-			ML_STATE_INSERT,
+			ML_STATE_MATH,
 			ML_LINE_MATH,
 			ed->session.domain,
 			ed->session.lines.len,
@@ -192,6 +152,20 @@ MlResult ml_editor_begin (MlEditor *ed)
 	return r;
 }
 
+/* A new empty note at the end of the session. */
+static MlResult new_note (MlEditor *ed)
+{
+	return begin_line (
+		ed,
+		ML_STATE_NOTE,
+		ML_LINE_NOTE,
+		ed->session.domain,
+		ed->session.lines.len,
+		0,
+		ml_slice ("", 0)
+	);
+}
+
 MlResult ml_editor_begin_note (MlEditor *ed)
 {
 	MlResult r = ml_editor_refresh (ed);
@@ -200,15 +174,7 @@ MlResult ml_editor_begin_note (MlEditor *ed)
 
 	if (r == ML_OK)
 	{
-		r = begin_line (
-			ed,
-			ML_STATE_NOTE,
-			ML_LINE_NOTE,
-			ed->session.domain,
-			ed->session.lines.len,
-			0,
-			ml_slice ("", 0)
-		);
+		r = new_note (ed);
 	}
 
 	return r;
@@ -221,7 +187,7 @@ static MlResult commit_line (MlEditor *ed)
 	MlSlice    text = ml_str_view (ed->edit.text);
 	MlLineKind kind = ed->edit_kind;
 
-	if (ed->state == ML_STATE_INSERT || ed->state == ML_STATE_NOTE)
+	if (ed->state == ML_STATE_MATH || ed->state == ML_STATE_NOTE)
 	{
 		r    = ml_rewriter_flush (&ed->rewriter, &ed->edit);
 		text = ml_str_view (ed->edit.text);
@@ -239,13 +205,23 @@ static MlResult commit_line (MlEditor *ed)
 
 	if (r == ML_OK && ed->edit_existing)
 	{
-		r = ml_session_replace (
-			&ed->session,
-			ed->edit_index,
-			kind,
-			ed->edit_domain,
-			text
-		);
+		MlLineView old = ml_session_get (&ed->session, ed->edit_index);
+
+		/* an unchanged line is no change: nothing to undo */
+		if (
+			   old.kind != kind
+			|| old.domain != ed->edit_domain
+			|| !ml_slice_equal (old.text, text)
+		)
+		{
+			r = ml_session_replace (
+				&ed->session,
+				ed->edit_index,
+				kind,
+				ed->edit_domain,
+				text
+			);
+		}
 	}
 
 	else if (r == ML_OK)
@@ -262,66 +238,6 @@ static MlResult commit_line (MlEditor *ed)
 	if (r == ML_OK)
 	{
 		ml_session_set_cursor (&ed->session, ed->edit_index);
-	}
-
-	return r;
-}
-
-/*
- * Enter while typing: commit and go on with the next line, or finish an edit.
- */
-static MlResult finish_line (MlEditor *ed)
-{
-	MlResult     r        = commit_line (ed);
-	MlInputState state    = ed->state;
-	int32_t      existing = ed->edit_existing;
-	uint64_t     next     = ed->edit_index + 1;
-
-	if (r == ML_OK && existing)
-	{
-		ed->state = ML_STATE_NORMAL;
-		ml_lineedit_clear (&ed->edit);
-	}
-
-	else if (r == ML_OK)
-	{
-		r = begin_line (
-			ed,
-			state,
-			ml_choose (
-				state == ML_STATE_NOTE,
-				ML_LINE_NOTE,
-				ML_LINE_MATH
-			),
-			ml_choose (
-				state == ML_STATE_NOTE,
-				ed->edit_domain,
-				ed->session.domain
-			),
-			next,
-			0,
-			ml_slice ("", 0)
-		);
-	}
-
-	return r;
-}
-
-/* Esc while typing: keep what was typed and return to Normal. */
-static MlResult leave_line (MlEditor *ed)
-{
-	MlResult r = ML_OK;
-
-	if (ed->edit_existing || ed->edit.text.len > 0)
-	{
-		r = commit_line (ed);
-	}
-
-	if (r == ML_OK)
-	{
-		ed->state = ML_STATE_NORMAL;
-		ml_lineedit_clear (&ed->edit);
-		ml_session_set_cursor (&ed->session, ed->session.cursor);
 	}
 
 	return r;
@@ -346,16 +262,8 @@ static MlDomain next_domain (MlDomain domain, MlKey key)
 	return (MlDomain)(((uint32_t)domain + step) % count);
 }
 
-/* In Normal: the domain for new lines. */
-static MlResult cycle_domain (MlEditor *ed, MlKey key)
-{
-	MlDomain next = next_domain (ed->session.domain, key);
-
-	set_domain (ed, next);
-	return set_message (ed, ml_domain_name (next));
-}
-
-/* While typing a math line: the domain of that line (and of the next ones). */
+/* The domain of the line being typed (and of the next ones), or of a note's
+   neighbours. */
 static MlResult cycle_line_domain (MlEditor *ed, MlKey key)
 {
 	MlResult r = ML_OK;
@@ -375,6 +283,16 @@ static MlResult cycle_line_domain (MlEditor *ed, MlKey key)
 		r = set_message (ed, ml_domain_name (next));
 	}
 
+	else
+	{
+		/* a note has no domain: the keys choose the one for new lines */
+		MlDomain next = next_domain (ed->session.domain, key);
+
+		set_domain (ed, next);
+		ed->edit_domain = next;
+		r = set_message (ed, ml_domain_name (next));
+	}
+
 	return r;
 }
 
@@ -390,6 +308,17 @@ static void edit_to_column (MlEditor *ed, uint64_t col)
 	{
 		ml_lineedit_right (&ed->edit);
 	}
+}
+
+/* Selects the line idx (a folded block whole): no line is being edited. */
+static void enter_select (MlEditor *ed, uint64_t idx)
+{
+	ml_lineedit_clear (&ed->edit);
+	ml_session_set_cursor (&ed->session, idx);
+	ed->anchor    = ed->session.cursor;
+	ed->state     = ML_STATE_SELECT;
+	ed->selecting = 0;
+	ed->picking   = 0;
 }
 
 /* The line at idx, or a line of kind ML_LINE_NONE (also for includes). */
@@ -416,7 +345,7 @@ typedef enum LineSpot
 /* The input state that edits a line of this kind. */
 static MlInputState state_for (MlLineKind kind)
 {
-	return ml_choose (kind == ML_LINE_NOTE, ML_STATE_NOTE, ML_STATE_INSERT);
+	return ml_choose (kind == ML_LINE_NOTE, ML_STATE_NOTE, ML_STATE_MATH);
 }
 
 /* Starts editing the line idx of the session, with its own kind. */
@@ -457,14 +386,27 @@ static MlResult line_move (MlEditor *ed, int32_t dir, LineSpot spot)
 
 		if (r == ML_OK)
 		{
-			r = edit_line_at (
-				ed,
-				next + (dir > 0 && !exists && stored),
-				ml_str_view (text)
-			);
+			uint64_t at = next + (dir > 0 && !exists && stored);
+			MlBlock  tb = ml_session_block (&ed->session, at);
+
+			/* a folded block is not edited, it is selected */
+			if (tb.folded && tb.last > tb.first)
+			{
+				enter_select (ed, tb.first);
+			}
+
+			else
+			{
+				r = edit_line_at (ed, at, ml_str_view (text));
+			}
 		}
 
-		if (r == ML_OK && spot == LINE_SPOT_COLUMN)
+		if (r == ML_OK && ed->state == ML_STATE_SELECT)
+		{
+			col = 0;
+		}
+
+		else if (r == ML_OK && spot == LINE_SPOT_COLUMN)
 		{
 			edit_to_column (ed, col);
 		}
@@ -816,7 +758,7 @@ static MlResult pick_key (MlEditor *ed, MlKey key)
 		if (ed->edit.text.len == 0)
 		{
 			/* an empty line becomes the first line of the block */
-			ed->state       = ML_STATE_INSERT;
+			ed->state       = ML_STATE_MATH;
 			ed->edit_kind   = ML_LINE_MATH;
 			ed->edit_domain = ed->pick;
 		}
@@ -825,99 +767,6 @@ static MlResult pick_key (MlEditor *ed, MlKey key)
 		{
 			r = line_split_to (ed, ML_LINE_MATH, ed->pick);
 		}
-	}
-
-	return r;
-}
-
-static int32_t undo_key (MlKey key);
-static MlResult undo_redo (MlEditor *ed, int32_t redo);
-
-static MlResult text_key (MlEditor *ed, MlKey key)
-{
-	MlResult     r   = ML_OK;
-	MlEditResult res =
-	{
-		.result  = ML_OK,
-		.handled = 0
-	};
-
-	if (ed->picking)
-	{
-		r = pick_key (ed, key);
-	}
-
-	else if (key.code == ML_KEY_ESCAPE)
-	{
-		r = leave_line (ed);
-	}
-
-	else if (undo_key (key) != 0)
-	{
-		/* the line being typed is kept, then the step before it undone */
-		r = leave_line (ed);
-
-		if (r == ML_OK)
-		{
-			r = undo_redo (ed, undo_key (key) == 2);
-		}
-	}
-
-	else if (is_block_key (key) && ed->state != ML_STATE_COMMAND)
-	{
-		ed->picking = 1;
-		ed->pick    = ed->session.domain;
-	}
-
-	else if (
-		   key.code == ML_KEY_CHAR
-		&& key.cp == 'n'
-		&& (key.mods & ML_MOD_CTRL)
-		&& ed->state != ML_STATE_COMMAND
-	)
-	{
-		/* Ctrl+N turns the line being edited into a note, or back */
-		int32_t note = ed->state != ML_STATE_NOTE;
-
-		ed->state     = ml_choose (note, ML_STATE_NOTE, ML_STATE_INSERT);
-		ed->edit_kind = ml_choose (note, ML_LINE_NOTE, ML_LINE_MATH);
-		ml_rewriter_set_domain (
-			&ed->rewriter,
-			ml_choose (note, ML_REWRITE_NOTES, ed->edit_domain)
-		);
-	}
-
-	else if (key.code == ML_KEY_ENTER && ed->state != ML_STATE_COMMAND)
-	{
-		r = line_split (ed);
-	}
-
-	else if (key.code == ML_KEY_ENTER)
-	{
-		r = finish_line (ed);
-	}
-
-	else if (is_domain_cycle (key))
-	{
-		r = cycle_line_domain (ed, key);
-	}
-
-	else if (ed->state == ML_STATE_INSERT || ed->state == ML_STATE_NOTE)
-	{
-		res = line_edge_key (ed, key);
-
-		if (!res.handled)
-		{
-			res = ml_rewriter_handle_key (&ed->rewriter, &ed->edit, key);
-		}
-
-		r = res.result;
-	}
-
-	else
-	{
-		res = ml_lineedit_handle_key (&ed->edit, key);
-		r   = res.result;
 	}
 
 	return r;
@@ -1013,19 +862,6 @@ static MlResult paste_lines (MlEditor *ed, uint64_t at, uint64_t reps)
 	return r;
 }
 
-static MlResult paste_line (MlEditor *ed, int32_t below)
-{
-	return paste_lines (
-		ed,
-		ml_choose (
-			below,
-			line_below_cursor (ed),
-			ed->session.cursor
-		),
-		ml_choose (ed->count > 0, ed->count, 1)
-	);
-}
-
 /* Removes the lines first..last; the cursor goes to where they were. */
 static MlResult remove_range (MlEditor *ed, uint64_t first, uint64_t last)
 {
@@ -1066,22 +902,6 @@ static MlResult delete_range (MlEditor *ed, uint64_t first, uint64_t last)
 	if (r == ML_OK)
 	{
 		r = remove_range (ed, first, last);
-	}
-
-	return r;
-}
-
-static MlResult delete_line (MlEditor *ed)
-{
-	MlResult r = ML_OK;
-
-	if (ed->session.lines.len > 0)
-	{
-		r = delete_range (
-			ed,
-			ed->session.cursor,
-			range_end (ed, ml_choose (ed->count > 0, ed->count, 1))
-		);
 	}
 
 	return r;
@@ -1130,8 +950,8 @@ static MlResult shift_lines (
 	{
 		ed->session.cursor += to;
 		ed->session.cursor -= first;
-		ed->visual_anchor  += to;
-		ed->visual_anchor  -= first;
+		ed->anchor  += to;
+		ed->anchor  -= first;
 	}
 
 	return r;
@@ -1143,39 +963,6 @@ static void set_domain (MlEditor *ed, MlDomain domain)
 	ml_rewriter_set_domain (&ed->rewriter, domain);
 }
 
-/* The key after g: a domain, or g again for the first line. */
-static MlResult goto_key (MlEditor *ed, uint32_t ch)
-{
-	MlResult r     = ML_OK;
-	int32_t  found = 0;
-
-	for (uint64_t i = 0; i < ml_count (domain_keys) && !found; i++)
-	{
-		found = domain_keys [i].key == ch;
-
-		if (found)
-		{
-			set_domain (ed, domain_keys [i].domain);
-			r = set_message (ed, ml_domain_name (domain_keys [i].domain));
-		}
-	}
-
-	if (!found && ch == 'g')
-	{
-		ml_session_set_cursor (
-			&ed->session,
-			ml_choose (ed->count > 0, ed->count - 1, 0)
-		);
-	}
-
-	else if (!found)
-	{
-		r = set_message (ed, "g: unknown domain key");
-	}
-
-	return r;
-}
-
 static MlResult edit_cursor_line (MlEditor *ed)
 {
 	MlResult   r = ML_OK;
@@ -1183,7 +970,7 @@ static MlResult edit_cursor_line (MlEditor *ed)
 
 	if (v.kind == ML_LINE_NONE)
 	{
-		r = ml_editor_begin (ed);
+		r = new_note (ed);
 	}
 
 	else
@@ -1196,11 +983,7 @@ static MlResult edit_cursor_line (MlEditor *ed)
 		);
 		r = begin_line (
 			ed,
-			ml_choose (
-				v.kind == ML_LINE_NOTE,
-				ML_STATE_NOTE,
-				ML_STATE_INSERT
-			),
+			state_for (v.kind),
 			v.kind,
 			v.domain,
 			ed->session.cursor,
@@ -1228,86 +1011,6 @@ static MlResult fold_block (MlEditor *ed, int32_t how);
 static void fold_all (MlEditor *ed, int32_t how);
 static void jump_block (MlEditor *ed, int32_t forward);
 static void normalize_cursor (MlEditor *ed);
-
-/* The key after z: za toggles, zo opens, zc closes, zM / zR all blocks. */
-static MlResult zed_key (MlEditor *ed, uint32_t ch)
-{
-	MlResult r = ML_OK;
-
-	if (ch == 'a')
-	{
-		r = fold_block (ed, 2);
-	}
-
-	else if (ch == 'o')
-	{
-		r = fold_block (ed, 0);
-	}
-
-	else if (ch == 'c')
-	{
-		r = fold_block (ed, 1);
-	}
-
-	else if (ch == 'M')
-	{
-		fold_all (ed, 1);
-	}
-
-	else if (ch == 'R')
-	{
-		fold_all (ed, 0);
-	}
-
-	else
-	{
-		r = set_message (ed, "z: unknown key");
-	}
-
-	return r;
-}
-
-/* The second key of d, y, g, z, ] and [. */
-static MlResult pending_key (MlEditor *ed, uint32_t first, uint32_t ch)
-{
-	MlResult r = ML_OK;
-
-	if (first == 'd' && ch == 'd')
-	{
-		r = delete_line (ed);
-	}
-
-	else if (first == 'y' && ch == 'y' && ed->session.lines.len > 0)
-	{
-		r = yank_range (
-			ed,
-			ed->session.cursor,
-			range_end (ed, ml_choose (ed->count > 0, ed->count, 1))
-		);
-	}
-
-	else if (first == 'g')
-	{
-		r = goto_key (ed, ch);
-	}
-
-	else if (first == 'z')
-	{
-		r = zed_key (ed, ch);
-	}
-
-	else if (first == ']' && ch == ']')
-	{
-		jump_block (ed, 1);
-	}
-
-	else if (first == '[' && ch == '[')
-	{
-		jump_block (ed, 0);
-	}
-
-	return r;
-}
 
 /* Shows the steps of the cursor line under it, or hides them again. */
 static MlResult toggle_steps (MlEditor *ed)
@@ -1514,327 +1217,29 @@ static MlResult undo_redo (MlEditor *ed, int32_t redo)
 	return r;
 }
 
-/* The selected lines of the Visual state, first and last. */
+/* The selected lines, first and last; a folded block is taken whole. */
 static uint64_t selection_first (const MlEditor *ed)
 {
-	return ml_choose (
-		ed->visual_anchor < ed->session.cursor,
-		ed->visual_anchor,
+	uint64_t at = ml_choose (
+		ed->anchor < ed->session.cursor,
+		ed->anchor,
 		ed->session.cursor
 	);
+	MlBlock  b  = ml_session_block (&ed->session, at);
+
+	return ml_choose (b.folded, b.first, at);
 }
 
 static uint64_t selection_last (const MlEditor *ed)
 {
-	return ml_choose (
-		ed->visual_anchor > ed->session.cursor,
-		ed->visual_anchor,
+	uint64_t at = ml_choose (
+		ed->anchor > ed->session.cursor,
+		ed->anchor,
 		ed->session.cursor
 	);
-}
+	MlBlock  b  = ml_session_block (&ed->session, at);
 
-static int32_t is_alt_arrow (MlKey key, MlKeyCode code)
-{
-	return key.code == code && (key.mods & ML_MOD_ALT);
-}
-
-static MlResult begin_command (MlEditor *ed);
-
-/* The keys of the Visual state: whole lines are selected. */
-static MlResult visual_key (MlEditor *ed, MlKey key)
-{
-	MlResult r     = ML_OK;
-	uint64_t first = selection_first (ed);
-	uint64_t last  = selection_last (ed);
-	uint32_t ch    = ml_choose (
-		key.code == ML_KEY_CHAR && !(key.mods & (ML_MOD_CTRL | ML_MOD_ALT)),
-		key.cp,
-		0
-	);
-	uint64_t reps  = ml_choose (ed->count > 0, ed->count, 1);
-
-	if (ch >= '1' && ch <= '9')
-	{
-		ed->count = ed->count * 10 + (ch - '0');
-	}
-
-	else if (ch == '0' && ed->count > 0)
-	{
-		ed->count = ed->count * 10;
-	}
-
-	else
-	{
-		if (ed->pending != 0)
-		{
-			/* only gg is a two key command here */
-			ed->pending = 0;
-			ml_session_set_cursor (
-				&ed->session,
-				ml_choose (
-					ch == 'g',
-					ml_choose (ed->count > 0, ed->count - 1, 0),
-					ed->session.cursor
-				)
-			);
-		}
-
-		else if (key.code == ML_KEY_ESCAPE || ch == 'v' || ch == 'V')
-		{
-			ed->state = ML_STATE_NORMAL;
-		}
-
-		else if (is_alt_arrow (key, ML_KEY_DOWN))
-		{
-			r = shift_lines (ed, first, last, 1);
-		}
-
-		else if (is_alt_arrow (key, ML_KEY_UP))
-		{
-			r = shift_lines (ed, first, last, -1);
-		}
-
-		else if (ch == 'j' || key.code == ML_KEY_DOWN)
-		{
-			move_down (ed, reps);
-		}
-
-		else if (ch == 'k' || key.code == ML_KEY_UP)
-		{
-			move_up (ed, reps);
-		}
-
-		else if (ch == 'G')
-		{
-			ml_session_set_cursor (
-				&ed->session,
-				ml_choose (ed->count > 0, ed->count - 1, ed->session.lines.len)
-			);
-		}
-
-		else if (ch == 'g')
-		{
-			ed->pending = ch;
-		}
-
-		else if (ch == 'o')
-		{
-			uint64_t t = ed->visual_anchor;
-
-			ed->visual_anchor = ed->session.cursor;
-			ml_session_set_cursor (&ed->session, t);
-		}
-
-		else if (ch == 'd' || ch == 'x')
-		{
-			r         = delete_range (ed, first, last);
-			ed->state = ML_STATE_NORMAL;
-		}
-
-		else if (ch == 'y')
-		{
-			r = yank_range (ed, first, last);
-			ml_session_set_cursor (&ed->session, first);
-			ed->state = ML_STATE_NORMAL;
-		}
-
-		else if (ch == 'p' || ch == 'P')
-		{
-			/* the selection is replaced; the register stays as it was */
-			r = remove_range (ed, first, last);
-
-			if (r == ML_OK)
-			{
-				r = paste_lines (ed, first, 1);
-			}
-
-			ed->state = ML_STATE_NORMAL;
-		}
-
-		else if (ch == ':')
-		{
-			r = begin_command (ed);
-
-			if (r == ML_OK)
-			{
-				r = ml_str_appendf (
-					&ed->edit.text,
-					"%u,%u",
-					(uint32_t)(first + 1),
-					(uint32_t)(last + 1)
-				);
-				ed->edit.cursor = ed->edit.text.len;
-			}
-		}
-
-		if (ed->pending == 0)
-		{
-			ed->count = 0;
-		}
-	}
-
-	return r;
-}
-
-static MlResult normal_key (MlEditor *ed, MlKey key)
-{
-	MlResult r    = ML_OK;
-	uint32_t ch   = ml_choose (
-		key.code == ML_KEY_CHAR && !(key.mods & (ML_MOD_CTRL | ML_MOD_ALT)),
-		key.cp,
-		0
-	);
-	uint64_t reps = ml_choose (ed->count > 0, ed->count, 1);
-	uint64_t at   = ed->session.cursor;
-
-	if (ed->pending != 0)
-	{
-		uint32_t first = ed->pending;
-
-		ed->pending = 0;
-		r           = pending_key (ed, first, ch);
-	}
-
-	else if (ch >= '1' && ch <= '9')
-	{
-		ed->count = ed->count * 10 + (ch - '0');
-	}
-
-	else if (ch == '0' && ed->count > 0)
-	{
-		ed->count = ed->count * 10;
-	}
-
-	else if (is_domain_cycle (key))
-	{
-		r = cycle_domain (ed, key);
-	}
-
-	else if (is_alt_arrow (key, ML_KEY_DOWN) && ed->session.lines.len > 0)
-	{
-		r = shift_lines (ed, at, range_end (ed, 1), 1);
-	}
-
-	else if (is_alt_arrow (key, ML_KEY_UP) && ed->session.lines.len > 0)
-	{
-		r = shift_lines (ed, at, range_end (ed, 1), -1);
-	}
-
-	else if (ch == 'j' || key.code == ML_KEY_DOWN)
-	{
-		move_down (ed, reps);
-	}
-
-	else if (ch == 'k' || key.code == ML_KEY_UP)
-	{
-		move_up (ed, reps);
-	}
-
-	else if (ch == 'G')
-	{
-		ml_session_set_cursor (
-			&ed->session,
-			ml_choose (ed->count > 0, ed->count - 1, ed->session.lines.len)
-		);
-	}
-
-	else if (
-		   ch == 'd'
-		|| ch == 'y'
-		|| ch == 'g'
-		|| ch == 'z'
-		|| ch == ']'
-		|| ch == '['
-	)
-	{
-		ed->pending = ch;
-	}
-
-	else if (ch == 'v' || ch == 'V')
-	{
-		if (ed->session.lines.len > 0)
-		{
-			ed->state         = ML_STATE_VISUAL;
-			ed->visual_anchor = ed->session.cursor;
-		}
-	}
-
-	else if (ch == 'u')
-	{
-		r = undo_redo (ed, 0);
-	}
-
-	else if (undo_key (key) != 0)
-	{
-		r = undo_redo (ed, undo_key (key) == 2);
-	}
-
-	else if (ch == 's')
-	{
-		r = toggle_steps (ed);
-	}
-
-	else if (ch == 'p')
-	{
-		r = paste_line (ed, 1);
-	}
-
-	else if (ch == 'P')
-	{
-		r = paste_line (ed, 0);
-	}
-
-	else if (key.code == ML_KEY_ENTER)
-	{
-		r = edit_cursor_line (ed);
-	}
-
-	else if (ch == 'i' || ch == 'o')
-	{
-		r = begin_line (
-			ed,
-			ML_STATE_INSERT,
-			ML_LINE_MATH,
-			ed->session.domain,
-			ml_choose (
-				ch == 'i',
-				line_above_cursor (ed),
-				line_below_cursor (ed)
-			),
-			0,
-			ml_slice ("", 0)
-		);
-	}
-
-	else if (ch == 'n' || ch == 'N')
-	{
-		r = begin_line (
-			ed,
-			ML_STATE_NOTE,
-			ML_LINE_NOTE,
-			ed->session.domain,
-			ml_choose (
-				ch == 'n',
-				note_spot (ed),
-				line_below_cursor (ed)
-			),
-			0,
-			ml_slice ("", 0)
-		);
-	}
-
-	else if (ch == ':')
-	{
-		r = begin_command (ed);
-	}
-
-	/* a number belongs to the command after it; pending keys keep it */
-	if (ed->pending == 0 && !(ch >= '0' && ch <= '9'))
-	{
-		ed->count = 0;
-	}
-
-	return r;
+	return ml_choose (b.folded, b.last, at);
 }
 
 static MlSlice trim (MlSlice s)
@@ -2302,6 +1707,16 @@ static MlResult run_command (MlEditor *ed)
 		r = set_mode (ed, arg);
 	}
 
+	else if (is_cmd (cmd, "fold") || is_cmd (cmd, "unfold"))
+	{
+		r = fold_block (ed, is_cmd (cmd, "fold"));
+	}
+
+	else if (is_cmd (cmd, "foldall") || is_cmd (cmd, "unfoldall"))
+	{
+		fold_all (ed, is_cmd (cmd, "foldall"));
+	}
+
 	else if (is_cmd (cmd, "steps"))
 	{
 		r = toggle_steps (ed);
@@ -2365,6 +1780,837 @@ MlCompletion ml_editor_completion (const MlEditor *ed)
 }
 
 /* Types the ghost text of the completion, if there is one. */
+/*
+ * Writes the typed line into the session, unless it is an empty new one, and
+ * goes on editing it.
+ */
+static MlResult settle (MlEditor *ed)
+{
+	MlResult r       = ML_OK;
+	int32_t  editing = ed->state == ML_STATE_MATH || ed->state == ML_STATE_NOTE;
+
+	if (editing && (ed->edit_existing || ed->edit.text.len > 0))
+	{
+		r = commit_line (ed);
+
+		if (r == ML_OK)
+		{
+			ed->edit_existing = 1;
+		}
+	}
+
+	else if (editing)
+	{
+		ml_session_set_cursor (&ed->session, ed->edit_index);
+	}
+
+	return r;
+}
+
+/*
+ * Edits the cursor line (a new note when there is none). A folded block is
+ * not edited, it is selected.
+ */
+static MlResult resume (MlEditor *ed)
+{
+	MlResult r = ML_OK;
+	MlBlock  b;
+
+	normalize_cursor (ed);
+	b             = ml_session_block (&ed->session, ed->session.cursor);
+	ed->selecting = 0;
+	ed->picking   = 0;
+
+	if (b.folded && b.last > b.first)
+	{
+		enter_select (ed, b.first);
+	}
+
+	else
+	{
+		r = edit_cursor_line (ed);
+	}
+
+	return r;
+}
+
+/* Opens the folded block of the cursor line, to edit it. */
+static void unfold_cursor (MlEditor *ed)
+{
+	ml_session_set_folded (
+		&ed->session,
+		ml_session_block (&ed->session, ed->session.cursor).first,
+		0
+	);
+}
+
+static MlResult resume_at (MlEditor *ed, uint64_t col)
+{
+	MlResult r = resume (ed);
+
+	edit_to_column (ed, col);
+
+	return r;
+}
+
+/* A key with Ctrl (and not Alt) and this lower case letter. */
+static int32_t is_ctrl_key (MlKey key, uint32_t letter)
+{
+	return (
+		   key.code == ML_KEY_CHAR
+		&& key.cp == letter
+		&& (key.mods & ML_MOD_CTRL)
+		&& !(key.mods & ML_MOD_ALT)
+	);
+}
+
+/* The keys that work on the whole line being edited, not on its text. */
+static MlResult row_copy (MlEditor *ed)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK && ed->edit_existing)
+	{
+		r = yank_range (ed, ed->session.cursor, range_end (ed, 1));
+
+		if (r == ML_OK)
+		{
+			r = set_message (ed, "line copied");
+		}
+	}
+
+	return r;
+}
+
+static MlResult row_cut (MlEditor *ed)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK && ed->edit_existing)
+	{
+		r = delete_range (ed, ed->session.cursor, range_end (ed, 1));
+
+		if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
+	}
+
+	return r;
+}
+
+static MlResult row_paste (MlEditor *ed)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK && ed->yank.len == 0)
+	{
+		r = set_message (ed, "nothing to paste");
+	}
+
+	else if (r == ML_OK)
+	{
+		r = paste_lines (
+			ed,
+			ml_choose (
+				ed->edit_existing,
+				line_below_cursor (ed),
+				ed->edit_index
+			),
+			1
+		);
+
+		if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
+	}
+
+	return r;
+}
+
+/* Alt+Up and Alt+Down: the line (the block, when folded) moves. */
+static MlResult row_move (MlEditor *ed, int64_t delta)
+{
+	MlResult r   = settle (ed);
+	uint64_t col = ml_lineedit_cursor_col (&ed->edit);
+
+	if (r == ML_OK && ed->edit_existing)
+	{
+		r = shift_lines (
+			ed,
+			ed->session.cursor,
+			range_end (ed, 1),
+			delta
+		);
+
+		if (r == ML_OK)
+		{
+			r = resume_at (ed, col);
+		}
+	}
+
+	return r;
+}
+
+/* Alt+Enter: folds the block of the line, which is then selected. */
+static MlResult row_fold (MlEditor *ed)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK && ed->edit_existing)
+	{
+		r = fold_block (ed, 2);
+
+		if (r == ML_OK && ml_session_block (
+			&ed->session,
+			ed->session.cursor
+		).folded)
+		{
+			enter_select (ed, ed->session.cursor);
+		}
+	}
+
+	return r;
+}
+
+/* Shift+Up and Shift+Down start selecting whole lines, Ctrl+L one line. */
+static MlResult select_start (MlEditor *ed, int32_t dir)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK && ed->session.lines.len > 0)
+	{
+		enter_select (ed, ed->session.cursor);
+
+		if (ed->edit_existing && dir > 0)
+		{
+			move_down (ed, 1);
+		}
+
+		else if (ed->edit_existing && dir < 0)
+		{
+			move_up (ed, 1);
+		}
+	}
+
+	return r;
+}
+
+static MlResult row_goto (MlEditor *ed, int32_t last)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK)
+	{
+		ml_session_set_cursor (
+			&ed->session,
+			ml_choose (last, ed->session.lines.len, 0)
+		);
+		r = resume (ed);
+	}
+
+	return r;
+}
+
+static MlResult row_block (MlEditor *ed, int32_t forward)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK)
+	{
+		jump_block (ed, forward);
+		r = resume (ed);
+	}
+
+	return r;
+}
+
+static MlResult row_command (MlEditor *ed)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK)
+	{
+		r = begin_command (ed);
+	}
+
+	return r;
+}
+
+/* Ctrl+S and Ctrl+Q */
+static MlResult row_file (MlEditor *ed, int32_t leave)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK && leave)
+	{
+		r = quit (ed, 0);
+	}
+
+	else if (r == ML_OK)
+	{
+		r = save (ed, ml_slice ("", 0));
+	}
+
+	return r;
+}
+
+static MlResult row_steps (MlEditor *ed)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK)
+	{
+		r = toggle_steps (ed);
+	}
+
+	/* the steps are drawn under a line that is not being edited */
+	if (r == ML_OK && ed->steps_open)
+	{
+		enter_select (ed, ed->session.cursor);
+	}
+
+	return r;
+}
+
+/* The keys of free form editing that leave the text of the line alone. */
+static MlEditResult row_key (MlEditor *ed, MlKey key)
+{
+	MlEditResult res =
+	{
+		.result  = ML_OK,
+		.handled = 1
+	};
+	int32_t      ctrl = (key.mods & ML_MOD_CTRL) != 0;
+	int32_t      alt  = (key.mods & ML_MOD_ALT) != 0;
+
+	if (key.code == ML_KEY_DOWN && key.mods == ML_MOD_SHIFT)
+	{
+		res.result = select_start (ed, 1);
+	}
+
+	else if (key.code == ML_KEY_UP && key.mods == ML_MOD_SHIFT)
+	{
+		res.result = select_start (ed, -1);
+	}
+
+	else if (key.code == ML_KEY_DOWN && alt && !ctrl)
+	{
+		res.result = row_move (ed, 1);
+	}
+
+	else if (key.code == ML_KEY_UP && alt && !ctrl)
+	{
+		res.result = row_move (ed, -1);
+	}
+
+	else if (key.code == ML_KEY_ENTER && alt)
+	{
+		res.result = row_fold (ed);
+	}
+
+	else if (key.code == ML_KEY_DOWN && ctrl && !alt)
+	{
+		res.result = row_block (ed, 1);
+	}
+
+	else if (key.code == ML_KEY_UP && ctrl && !alt)
+	{
+		res.result = row_block (ed, 0);
+	}
+
+	else if (key.code == ML_KEY_HOME && ctrl)
+	{
+		res.result = row_goto (ed, 0);
+	}
+
+	else if (key.code == ML_KEY_END && ctrl)
+	{
+		res.result = row_goto (ed, 1);
+	}
+
+	else if (is_ctrl_key (key, 'l'))
+	{
+		res.result = select_start (ed, 0);
+	}
+
+	else if (is_ctrl_key (key, 'c'))
+	{
+		res.result = row_copy (ed);
+	}
+
+	else if (is_ctrl_key (key, 'x'))
+	{
+		res.result = row_cut (ed);
+	}
+
+	else if (is_ctrl_key (key, 'v'))
+	{
+		res.result = row_paste (ed);
+	}
+
+	else if (is_ctrl_key (key, 'p'))
+	{
+		res.result = row_command (ed);
+	}
+
+	else if (is_ctrl_key (key, 's'))
+	{
+		res.result = row_file (ed, 0);
+	}
+
+	else if (is_ctrl_key (key, 'q'))
+	{
+		res.result = row_file (ed, 1);
+	}
+
+	else if (key.code == ML_KEY_F3)
+	{
+		res.result = row_steps (ed);
+	}
+
+	else
+	{
+		res.handled = 0;
+	}
+
+	return res;
+}
+
+/* The selected text of the line being edited: [*lo, *hi), maybe empty. */
+static int32_t text_selection (const MlEditor *ed, uint64_t *lo, uint64_t *hi)
+{
+	*lo = ml_choose (
+		ed->sel_anchor < ed->edit.cursor,
+		ed->sel_anchor,
+		ed->edit.cursor
+	);
+	*hi = ml_choose (
+		ed->sel_anchor > ed->edit.cursor,
+		ed->sel_anchor,
+		ed->edit.cursor
+	);
+
+	return ed->selecting && *lo < *hi && *hi <= ed->edit.text.len;
+}
+
+/*
+ * Shift with Left, Right, Home and End selects text of the line; Backspace,
+ * Delete and typing replace the selection.
+ */
+static MlEditResult text_select_key (MlEditor *ed, MlKey key)
+{
+	MlEditResult res =
+	{
+		.result  = ML_OK,
+		.handled = 0
+	};
+	uint64_t     lo;
+	uint64_t     hi;
+	int32_t      grow = (
+		   key.mods == ML_MOD_SHIFT
+		&& (
+			   key.code == ML_KEY_LEFT
+			|| key.code == ML_KEY_RIGHT
+			|| key.code == ML_KEY_HOME
+			|| key.code == ML_KEY_END
+		)
+	);
+	int32_t      has  = text_selection (ed, &lo, &hi);
+	int32_t      typed = (
+		   key.code == ML_KEY_CHAR
+		&& !(key.mods & (ML_MOD_CTRL | ML_MOD_ALT))
+	);
+
+	if (grow)
+	{
+		if (!ed->selecting)
+		{
+			ed->selecting  = 1;
+			ed->sel_anchor = ed->edit.cursor;
+		}
+
+		if (key.code == ML_KEY_LEFT)
+		{
+			ml_lineedit_left (&ed->edit);
+		}
+
+		else if (key.code == ML_KEY_RIGHT)
+		{
+			ml_lineedit_right (&ed->edit);
+		}
+
+		else if (key.code == ML_KEY_HOME)
+		{
+			ml_lineedit_home (&ed->edit);
+		}
+
+		else
+		{
+			ml_lineedit_end (&ed->edit);
+		}
+
+		res.handled = 1;
+	}
+
+	else if (
+		   has
+		&& key.mods == 0
+		&& (key.code == ML_KEY_BACKSPACE || key.code == ML_KEY_DELETE)
+	)
+	{
+		res.result = ml_rewriter_flush (&ed->rewriter, &ed->edit);
+
+		if (res.result == ML_OK)
+		{
+			text_selection (ed, &lo, &hi);
+			res.result = ml_str_erase (&ed->edit.text, lo, hi - lo);
+			ed->edit.cursor = lo;
+		}
+
+		ed->selecting = 0;
+		res.handled   = 1;
+	}
+
+	else if (has && typed)
+	{
+		res.result = ml_rewriter_flush (&ed->rewriter, &ed->edit);
+
+		if (res.result == ML_OK)
+		{
+			text_selection (ed, &lo, &hi);
+			res.result = ml_str_erase (&ed->edit.text, lo, hi - lo);
+			ed->edit.cursor = lo;
+		}
+
+		ed->selecting = 0;
+	}
+
+	else
+	{
+		ed->selecting = 0;
+	}
+
+	return res;
+}
+
+/* The keys that edit the text of a line. */
+static MlResult text_edit_key (MlEditor *ed, MlKey key)
+{
+	MlResult     r   = ML_OK;
+	MlEditResult res =
+	{
+		.result  = ML_OK,
+		.handled = 0
+	};
+
+	if (key.code == ML_KEY_ENTER)
+	{
+		ed->selecting = 0;
+		r             = line_split (ed);
+	}
+
+	else if (is_domain_cycle (key))
+	{
+		r = cycle_line_domain (ed, key);
+	}
+
+	else
+	{
+		res = text_select_key (ed, key);
+
+		if (!res.handled)
+		{
+			res = line_edge_key (ed, key);
+		}
+
+		if (!res.handled)
+		{
+			res = ml_rewriter_handle_key (&ed->rewriter, &ed->edit, key);
+		}
+
+		r = res.result;
+	}
+
+	return r;
+}
+
+/* A key while a math line or a note is edited (the cursor is in a line). */
+static MlResult text_key (MlEditor *ed, MlKey key)
+{
+	MlResult     r   = ML_OK;
+	MlEditResult res =
+	{
+		.result  = ML_OK,
+		.handled = 0
+	};
+
+	if (ed->picking)
+	{
+		r = pick_key (ed, key);
+	}
+
+	else if (key.code == ML_KEY_ESCAPE)
+	{
+		/* Esc keeps what was typed, the way it is */
+		ed->selecting = 0;
+		r             = settle (ed);
+	}
+
+	else if (undo_key (key) != 0)
+	{
+		/* the line being typed is kept, then the step before it undone */
+		r = settle (ed);
+
+		if (r == ML_OK)
+		{
+			r = undo_redo (ed, undo_key (key) == 2);
+		}
+
+		if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
+	}
+
+	else if (is_block_key (key))
+	{
+		ed->picking = 1;
+		ed->pick    = ed->session.domain;
+	}
+
+	else if (is_ctrl_key (key, 'n'))
+	{
+		/* Ctrl+N turns the line being edited into a note, or back */
+		int32_t note = ed->state != ML_STATE_NOTE;
+
+		ed->state     = ml_choose (note, ML_STATE_NOTE, ML_STATE_MATH);
+		ed->edit_kind = ml_choose (note, ML_LINE_NOTE, ML_LINE_MATH);
+		ml_rewriter_set_domain (
+			&ed->rewriter,
+			ml_choose (note, ML_REWRITE_NOTES, ed->edit_domain)
+		);
+	}
+
+	else
+	{
+		res = row_key (ed, key);
+		r   = res.result;
+
+		if (!res.handled)
+		{
+			r = text_edit_key (ed, key);
+		}
+	}
+
+	return r;
+}
+
+/* The keys while whole lines are selected. */
+static MlResult select_key (MlEditor *ed, MlKey key)
+{
+	MlResult r     = ML_OK;
+	uint64_t first = selection_first (ed);
+	uint64_t last  = selection_last (ed);
+	int32_t  ctrl  = (key.mods & ML_MOD_CTRL) != 0;
+	int32_t  alt   = (key.mods & ML_MOD_ALT) != 0;
+	int32_t  shift = (key.mods & ML_MOD_SHIFT) != 0;
+
+	if (undo_key (key) != 0)
+	{
+		r = undo_redo (ed, undo_key (key) == 2);
+
+		if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
+	}
+
+	else if (key.code == ML_KEY_DOWN && shift)
+	{
+		move_down (ed, 1);
+	}
+
+	else if (key.code == ML_KEY_UP && shift)
+	{
+		move_up (ed, 1);
+	}
+
+	else if (key.code == ML_KEY_DOWN && alt)
+	{
+		r = shift_lines (ed, first, last, 1);
+	}
+
+	else if (key.code == ML_KEY_UP && alt)
+	{
+		r = shift_lines (ed, first, last, -1);
+	}
+
+	else if (key.code == ML_KEY_ENTER && alt)
+	{
+		r = fold_block (ed, 2);
+
+		if (
+			   r == ML_OK
+			&& !ml_session_block (&ed->session, ed->session.cursor).folded
+		)
+		{
+			r = resume (ed);
+		}
+	}
+
+	else if (key.code == ML_KEY_BACKSPACE || key.code == ML_KEY_DELETE)
+	{
+		r = remove_range (ed, first, last);
+
+		if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
+	}
+
+	else if (key.code == ML_KEY_F3)
+	{
+		r = toggle_steps (ed);
+	}
+
+	else if (is_ctrl_key (key, 'c'))
+	{
+		r = yank_range (ed, first, last);
+
+		if (r == ML_OK)
+		{
+			r = set_message (ed, "lines copied");
+		}
+	}
+
+	else if (is_ctrl_key (key, 'x'))
+	{
+		r = delete_range (ed, first, last);
+
+		if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
+	}
+
+	else if (is_ctrl_key (key, 'v') && ed->yank.len > 0)
+	{
+		/*
+		 * the selection is replaced, the register stays as it was; a folded
+		 * block is only where the cursor is, the lines go after it
+		 */
+		MlBlock b    = ml_session_block (&ed->session, first);
+		int32_t fold = b.folded && b.first == first && b.last == last;
+
+		if (!fold)
+		{
+			r = remove_range (ed, first, last);
+		}
+
+		if (r == ML_OK)
+		{
+			r = paste_lines (ed, ml_choose (fold, last + 1, first), 1);
+		}
+
+		if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
+	}
+
+	else if (is_ctrl_key (key, 'p'))
+	{
+		MlBlock b = ml_session_block (&ed->session, first);
+
+		r = begin_command (ed);
+
+		/* one line, or one folded block, needs no range */
+		if (r == ML_OK && first != last && !(b.folded && b.last == last))
+		{
+			r = ml_str_appendf (
+				&ed->edit.text,
+				"%u,%u",
+				(uint32_t)(first + 1),
+				(uint32_t)(last + 1)
+			);
+			ed->edit.cursor = ed->edit.text.len;
+		}
+	}
+
+	else if (
+		   (
+			   key.code == ML_KEY_UP
+			|| key.code == ML_KEY_DOWN
+			|| key.code == ML_KEY_LEFT
+			|| key.code == ML_KEY_RIGHT
+			|| key.code == ML_KEY_ESCAPE
+			|| key.code == ML_KEY_ENTER
+		)
+		&& !ctrl
+	)
+	{
+		/* an arrow goes on from the end of the selection */
+		if (
+			   key.code != ML_KEY_UP
+			&& key.code != ML_KEY_DOWN
+		)
+		{
+			unfold_cursor (ed);
+		}
+
+		if (key.code == ML_KEY_UP)
+		{
+			ml_session_set_cursor (&ed->session, first);
+			step_up (ed);
+		}
+
+		else if (key.code == ML_KEY_DOWN)
+		{
+			ml_session_set_cursor (&ed->session, last);
+			step_down (ed);
+		}
+
+		/* below the last line there is a new note */
+		if (key.code == ML_KEY_DOWN && last + 1 >= ed->session.lines.len)
+		{
+			ed->selecting = 0;
+			r             = new_note (ed);
+		}
+
+		else
+		{
+			r = resume (ed);
+		}
+	}
+
+	else
+	{
+		MlEditResult res = row_key (ed, key);
+
+		r = res.result;
+
+		/* typing leaves the selection, and goes into the line */
+		if (
+			   !res.handled
+			&& key.code == ML_KEY_CHAR
+			&& !(key.mods & (ML_MOD_CTRL | ML_MOD_ALT))
+		)
+		{
+			unfold_cursor (ed);
+			r = resume (ed);
+
+			if (r == ML_OK)
+			{
+				r = text_key (ed, key);
+			}
+		}
+	}
+
+	return r;
+}
+
 static MlResult accept_completion (MlEditor *ed)
 {
 	MlResult     r = ML_OK;
@@ -2396,15 +2642,24 @@ static MlResult command_key (MlEditor *ed, MlKey key)
 		)
 	)
 	{
-		ed->state = ML_STATE_NORMAL;
 		ml_lineedit_clear (&ed->edit);
+		r = resume (ed);
 	}
 
 	else if (key.code == ML_KEY_ENTER)
 	{
-		r         = run_command (ed);
-		ed->state = ML_STATE_NORMAL;
+		r = run_command (ed);
 		ml_lineedit_clear (&ed->edit);
+
+		if (r == ML_OK && ed->steps_open)
+		{
+			enter_select (ed, ed->session.cursor);
+		}
+
+		else if (r == ML_OK)
+		{
+			r = resume (ed);
+		}
 	}
 
 	else if (
@@ -2448,14 +2703,9 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 	ml_str_clear (&ed->message);
 	ml_session_checkpoint (&ed->session);
 
-	if (ed->state == ML_STATE_NORMAL)
+	if (ed->state == ML_STATE_SELECT)
 	{
-		r = normal_key (ed, key);
-	}
-
-	else if (ed->state == ML_STATE_VISUAL)
-	{
-		r = visual_key (ed, key);
+		r = select_key (ed, key);
 	}
 
 	else if (ed->state == ML_STATE_COMMAND)
@@ -2473,7 +2723,7 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 		r = ml_editor_refresh (ed);
 	}
 
-	if (ed->state == ML_STATE_NORMAL || ed->state == ML_STATE_VISUAL)
+	if (ed->state == ML_STATE_SELECT)
 	{
 		normalize_cursor (ed);
 	}
@@ -2516,7 +2766,7 @@ MlResult ml_editor_status (MlStr *out, const MlEditor *ed)
 			"-- %s -- %s>",
 			ml_input_state_name (ed->state),
 			ml_domain_name (ml_choose (
-				ed->state == ML_STATE_INSERT,
+				ed->state == ML_STATE_MATH,
 				ed->edit_domain,
 				ed->session.domain
 			))

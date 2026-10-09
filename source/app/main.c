@@ -35,15 +35,6 @@ static MlResult open_session (MlEditor *ed, MlSlice path)
 	return r;
 }
 
-static int32_t is_ctrl_c (MlKey key)
-{
-	return (
-		   key.code == ML_KEY_CHAR
-		&& key.cp == 'c'
-		&& (key.mods & ML_MOD_CTRL)
-	);
-}
-
 /* Draws the editor if anything changed. */
 static MlResult draw (
 	MlConsole      *con,
@@ -101,11 +92,6 @@ static MlResult run (
 			MlConsoleSize size = ml_console_size (con);
 
 			ml_screen_resize (screen, size.cols, size.rows);
-		}
-
-		else if (r == ML_OK && is_ctrl_c (k.key))
-		{
-			ed->quit = 1;
 		}
 
 		else if (r == ML_OK)
