@@ -120,6 +120,48 @@ Two independent layers.
 - Each included line keeps its own domain; its definitions are visible in every domain of the including session.
 - The including file never stores copies of the included file's results.
 
+### 4.9 Tutorial mode
+An interactive tutorial that teaches the tool by doing, inside the real editor. Started with `matlog --tutorial`, `:tutorial` or on the very first
+run (when no session file exists), and left at any time with `:q` or `:tutorial off`. It has two stages; the second one can be started on its own
+with `:tutorial syntax`. Progress (the last finished lesson) is kept in a small file next to the user's files, so the tutorial can be resumed.
+
+Shape of a lesson:
+- A tutorial session is an ordinary session (a scratch `.mlog` that is never saved over the user's files) with a lesson panel drawn above the
+  line area: the title, a short text, and the current task ("Press `j` to move down one line").
+- A lesson is a list of steps. Each step has a prompt and a check that watches the real editor: a key event, a state change, the content of a
+  line, or the result of the line. The tutorial only observes the editor (through the same key events and session), it has no private input path,
+  so everything the user learns is exactly what the tool does.
+- A step is done when its check passes, and the panel marks it and shows the next one. Wrong tries get a hint after a few attempts, never an error.
+  `Tab` skips a step, `Shift+Tab` goes back, and the last lines of the panel always show how to quit.
+- Where a step needs a starting text (a line to move to, a line to fix) the tutorial inserts it as a note or a math line first.
+- Lessons are data: a table of lesson, steps, texts and checks (`tutorial/lessons.h`), so adding or changing a lesson does not need new code.
+  Texts are plain UTF-8 and use the same pretty symbols the tool shows.
+
+Stage 1, usage of the tool (the keys and the commands):
+1. Insert and normal state: type a line, `Esc`, `i`, `Enter` to edit a line, what the status line says.
+2. Moving: `j k`, `gg G`, arrows, `:12`, scrolling in a long session.
+3. Editing lines: `dd`, `yy`, `p`, `P`, undoing a rewrite with backspace.
+4. Notes: `n`, how notes differ from math lines.
+5. Domains: `gm gl ga ...`, `Alt+Left/Right`, the gutter, `:mode`, `:pga 2|3`.
+6. Files: `:w`, `:wq`, `:open`, `:q!`, includes, what is saved and what is recomputed.
+7. Results and ghost mode: the live preview, results at the end of a line, errors in red.
+8. Steps: `s` and `?` once steps exist (milestone 4 and later; the lesson is added then).
+9. Command line: `Tab` completion and the list of all commands.
+
+Stage 2, the syntax (what to type, domain by domain):
+1. Numbers and operators: exact fractions, `^`, unary minus (`-2^2`), factorial, decimals, the approximation marker `≈`.
+2. Names: variables, `a = 3`, functions `f(x) = 2x + 1`, redefinition, built-in functions and constants.
+3. Implicit multiplication and the whole-word names (`2x`, `xy`, `2(x+1)`).
+4. ASCII and unicode spellings and the inline rewrites (`sqrt(x)` to `√x`, `pi`, `<=`).
+5. Errors: reading the message, the marked range, fixing the line.
+6. One lesson per further domain as it is implemented: matrices and vectors (`[[1,2],[3,4]]`, `^T`, `^-1`, `det`, `dot`), equations,
+   lambda calculus, boolean algebra, PGA, units. Each lesson is added together with its domain (its "done when" includes the lesson).
+- Syntax lessons use exercises with a target: "write a line whose result is `1/2`", "define `g` so that `g(2)` is `7`". The check evaluates what the
+  user wrote, so every correct answer is accepted, not just one spelling. A "show me" key types the model answer into the line for the user to read.
+
+Tests: every lesson is driven in the test executable by feeding it the model answer (keys or text) and checking that it completes, so a lesson that
+can no longer be finished (a key was renamed, a syntax changed) fails the build.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -133,6 +175,7 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 7. `session`: lines, modes, notes, persistence.
 8. `ui`: terminal input (line editor, modes, ghost text, completion) and output rendering.
 9. `app`: `main.c`, wiring.
+10. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
 
 ## 6. Coding rules
 
@@ -164,6 +207,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 6. Lambda calculus and boolean algebra.
 7. PGA.
 8. Visualization and notes polish, completion.
+9. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
+   exist; the milestone 3 to 7 lessons of stage 2 are added together with the domains. The whole tutorial is complete when the last domain is done.
 
 ## 8. Milestone 1 tasks
 
@@ -340,6 +385,7 @@ steps can be shown on request.
 - ASCII and unicode input equivalent, ASCII auto-rewritten to pretty unicode inline.
 - Integrals start with polynomials/tables; PGA both 2D and 3D via a generic signature.
 - Includes are read-only and acyclic.
+- A built in interactive tutorial in two stages (usage of the tool, then the syntax); lessons are data, they only observe the real editor, and each is tested by playing the model answer.
 
 ## 12. Open questions
 
