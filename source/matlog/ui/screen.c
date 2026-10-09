@@ -133,8 +133,9 @@ typedef struct Head
 } Head;
 
 /*
- * The start of a row: the line number, then the gutter. The Normal state
- * cursor line is shown reversed, notes are dimmed, other line numbers are dim.
+ * The start of a row, the bar on the left: the line number and the gutter
+ * are one piece, dim, reversed on the Normal state cursor line. Notes dim
+ * their text too.
  */
 static Head append_head (
 	MlStr    *out,
@@ -188,11 +189,6 @@ static Head append_head (
 		head.result = ml_str_append (out, ml_str_view (shown));
 	}
 
-	if (head.result == ML_OK && !highlight && !note)
-	{
-		head.result = append_cstr (out, STYLE_RESET);
-	}
-
 	if (head.result == ML_OK)
 	{
 		head.result = ml_text_window (out, gutter, 0, cols - head.used).result;
@@ -200,7 +196,7 @@ static Head append_head (
 		head.used = ml_choose (head.used > cols, cols, head.used);
 	}
 
-	if (head.result == ML_OK && highlight)
+	if (head.result == ML_OK && (highlight || !note))
 	{
 		head.result = append_cstr (out, STYLE_RESET);
 	}
