@@ -248,6 +248,37 @@ static void test_note_freeform (void)
 	ml_editor_free (&ed);
 }
 
+static int32_t texts_are (const MlEditor *ed, const char *expected);
+
+static void test_note_below_code (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "a");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "b");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "c");
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "kk");
+
+	/* n in the middle of a code block puts the note below the block */
+	type (&ed, "n");
+	type (&ed, "note");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (texts_are (&ed, "a|b|c|note"));
+
+	/* on a note it opens at the cursor line */
+	type (&ed, "n");
+	type (&ed, "top");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (texts_are (&ed, "a|b|c|top|note"));
+
+	ml_editor_free (&ed);
+}
+
 static void test_navigation (void)
 {
 	MlEditor ed;
@@ -1307,6 +1338,7 @@ void run_editor_tests (void)
 	test_note ();
 	test_first_note ();
 	test_note_freeform ();
+	test_note_below_code ();
 	test_navigation ();
 	test_yank_paste ();
 	test_edit_line ();

@@ -153,6 +153,21 @@ static uint64_t line_above_cursor (const MlEditor *ed)
 	);
 }
 
+/*
+ * Where n opens a note: below the code block the cursor is in, since a note
+ * does not belong inside one, else at the cursor line.
+ */
+static uint64_t note_spot (const MlEditor *ed)
+{
+	MlLineView v = ml_session_get (&ed->session, ed->session.cursor);
+
+	return ml_choose (
+		v.kind == ML_LINE_MATH || v.kind == ML_LINE_INCLUDE,
+		ml_session_block (&ed->session, ed->session.cursor).last + 1,
+		line_above_cursor (ed)
+	);
+}
+
 MlResult ml_editor_begin (MlEditor *ed)
 {
 	MlResult r = ml_editor_refresh (ed);
@@ -1577,7 +1592,7 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 			ed->session.domain,
 			ml_choose (
 				ch == 'n',
-				line_above_cursor (ed),
+				note_spot (ed),
 				line_below_cursor (ed)
 			),
 			0,
