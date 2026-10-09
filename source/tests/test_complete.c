@@ -440,7 +440,9 @@ static void test_math (void)
 
 static void test_theme_args (void)
 {
-	MlSlice      files = lit ("solar.theme\ndark.theme\nnotes.txt\nsea.theme\n");
+	MlSlice      files = lit (
+		"solar.theme\ndark.theme\nnotes.txt\nsea.theme\n"
+	);
 	MlCompletion c     = ml_complete_command (lit ("theme "));
 
 	/* the built in themes and reload */
