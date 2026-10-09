@@ -1,4 +1,5 @@
 #include <matlog/cli/cli.h>
+#include <matlog/docs/docs.h>
 #include <matlog/export/export.h>
 #include <matlog/platform/fs.h>
 
@@ -27,6 +28,7 @@ static const char *const help_overview =
 	"  steps EXPR     the steps of an expression, or of FILE:LINE\n"
 	"  help [CMD]     this text, or the help of one command\n"
 	"  syntax         the syntax, functions and domains\n"
+	"  docs list|show|search|check   the documentation\n"
 	"  export FILE FMT   a session as latex, mathml or markdown\n"
 	"  theme [NAME]   the built in themes, or one as a theme file\n"
 	"  schema         the shape of the JSON output\n"
@@ -175,6 +177,7 @@ static const CommandInfo commands [] =
 	{ .name = "steps", .summary = "steps of an expression or a line" },
 	{ .name = "help", .summary = "usage" },
 	{ .name = "syntax", .summary = "the syntax and functions" },
+	{ .name = "docs", .summary = "read, search and check the documentation" },
 	{ .name = "export", .summary = "a session as latex, mathml or markdown" },
 	{ .name = "theme", .summary = "the built in themes as theme files" },
 	{ .name = "schema", .summary = "shape of the JSON output" },
@@ -282,6 +285,7 @@ static MlResult json_string (MlStr *out, MlSlice text)
 typedef struct Options
 {
 	int32_t    json;
+	int32_t    markdown; /* --format markdown (docs show) */
 	MlSlice    session;
 	int32_t    write;
 	int32_t    symbols; /* --symbols: unknown names are symbols */
@@ -304,8 +308,9 @@ static MlResult options_read (
 	MlResult r = ML_OK;
 	uint64_t i = first;
 
-	o->json    = 0;
-	o->session = ml_slice ("", 0);
+	o->json     = 0;
+	o->markdown = 0;
+	o->session  = ml_slice ("", 0);
 	o->write   = 0;
 	o->symbols = 0;
 	o->problem = NULL;
@@ -328,9 +333,11 @@ static MlResult options_read (
 			);
 
 			i += ml_choose (is (a, "--format"), 1, 0);
-			o->json = is (value, "json");
+			o->json     = is (value, "json");
+			o->markdown = is (value, "markdown");
 
-			if (!is (value, "json") && !is (value, "text"))
+			if (!is (value, "json") && !is (value, "text")
+				&& !is (value, "markdown"))
 			{
 				o->problem = "--format needs text or json";
 			}
@@ -1285,6 +1292,271 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 	return code;
 }
 
+/* ---- docs ---- */
+
+static MlResult docs_json_page (MlStr *out, const MlDocPage *p, int32_t full)
+{
+	MlResult r = add (out, "{\"id\":");
+
+	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->id)), r);
+	r = ml_choose (r == ML_OK, add (out, ",\"title\":"), r);
+	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->title)), r);
+	r = ml_choose (r == ML_OK, add (out, ",\"summary\":"), r);
+	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->summary)), r);
+
+	if (r == ML_OK && full)
+	{
+		r = add (out, ",\"keywords\":");
+		r = ml_choose (
+			r == ML_OK,
+			json_string (out, ml_str_view (p->keywords)),
+			r
+		);
+		r = ml_choose (r == ML_OK, add (out, ",\"see\":"), r);
+		r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->see)), r);
+		r = ml_choose (r == ML_OK, add (out, ",\"blocks\":["), r);
+
+		for (uint64_t i = 0; i < p->blocks.len && r == ML_OK; i++)
+		{
+			r = add (out, ml_choose (i > 0, ",{\"kind\":\"", "{\"kind\":\""));
+			r = ml_choose (
+				r == ML_OK,
+				add (out, ml_doc_block_name (p->blocks.data [i].kind)),
+				r
+			);
+			r = ml_choose (r == ML_OK, add (out, "\",\"text\":"), r);
+			r = ml_choose (
+				r == ML_OK,
+				json_string (out, ml_str_view (p->blocks.data [i].text)),
+				r
+			);
+			r = ml_choose (r == ML_OK, add (out, "}"), r);
+		}
+
+		r = ml_choose (r == ML_OK, add (out, "]"), r);
+	}
+
+	return ml_choose (r == ML_OK, add (out, "}\n"), r);
+}
+
+/* One page as text: the laid out lines at 78 columns. */
+static MlResult docs_show_text (MlStr *out, const MlDocPage *p)
+{
+	MlResult     r = ML_OK;
+	MlDocLineVec lines;
+
+	MlDocLineVec_init (&lines);
+	r = ml_doc_layout (&lines, p, 78);
+
+	for (uint64_t i = 0; i < lines.len && r == ML_OK; i++)
+	{
+		r = ml_str_append (out, ml_str_view (lines.data [i].text));
+		r = ml_choose (r == ML_OK, add (out, "\n"), r);
+	}
+
+	ml_doc_lines_free (&lines);
+	return r;
+}
+
+static MlResult docs_search_out (
+	MlStr       *out,
+	const MlDocs *d,
+	MlSlice     query,
+	int32_t     json
+)
+{
+	MlResult    r = ML_OK;
+	MlDocHitVec hits;
+
+	MlDocHitVec_init (&hits);
+	r = ml_docs_search (d, query, &hits);
+
+	for (uint64_t i = 0; i < hits.len && r == ML_OK; i++)
+	{
+		const MlDocPage *p = &d->pages.data [hits.data [i].page];
+
+		if (json)
+		{
+			r = ml_str_appendf (
+				out,
+				"{\"score\":%u,\"id\":",
+				(uint32_t)hits.data [i].score
+			);
+			r = ml_choose (
+				r == ML_OK,
+				json_string (out, ml_str_view (p->id)),
+				r
+			);
+			r = ml_choose (r == ML_OK, add (out, ",\"title\":"), r);
+			r = ml_choose (
+				r == ML_OK,
+				json_string (out, ml_str_view (p->title)),
+				r
+			);
+			r = ml_choose (r == ML_OK, add (out, ",\"where\":"), r);
+			r = ml_choose (
+				r == ML_OK,
+				json_string (out, ml_str_view (hits.data [i].where)),
+				r
+			);
+			r = ml_choose (r == ML_OK, add (out, "}\n"), r);
+		}
+
+		else
+		{
+			r = ml_str_appendf (
+				out,
+				"%u\t%.*s\t%.*s\t%.*s\n",
+				(uint32_t)hits.data [i].score,
+				(int)p->id.len,
+				p->id.data,
+				(int)p->title.len,
+				p->title.data,
+				(int)hits.data [i].where.len,
+				hits.data [i].where.data
+			);
+		}
+	}
+
+	ml_doc_hits_free (&hits);
+	return r;
+}
+
+/* matlog docs list | show ID | search WORDS... | check */
+static int32_t cmd_docs (const Options *o, MlStr *out, MlStr *err)
+{
+	int32_t  code = ML_EXIT_OK;
+	MlResult r    = ML_OK;
+	MlDocs   d;
+	uint64_t bad_page;
+	uint64_t bad_line;
+	MlSlice  sub
+		= ml_choose (o->rest.len > 0, o->rest.data [0], ml_slice ("", 0));
+
+	ml_docs_init (&d);
+
+	if (o->rest.len == 0)
+	{
+		code = usage_error (
+			err,
+			"docs needs list, show, search or check",
+			ml_slice ("", 0)
+		);
+	}
+
+	else if (ml_docs_load (&d, &bad_page, &bad_line) != ML_OK)
+	{
+		code = ML_EXIT_IO;
+		ml_str_appendf (
+			err,
+			"matlog: page %u of the documentation is broken at line %u\n",
+			(uint32_t)bad_page,
+			(uint32_t)bad_line
+		);
+	}
+
+	else if (is (sub, "list"))
+	{
+		for (uint64_t i = 0; i < d.pages.len && r == ML_OK; i++)
+		{
+			const MlDocPage *p = &d.pages.data [i];
+
+			if (o->json)
+			{
+				r = docs_json_page (out, p, 0);
+			}
+
+			else
+			{
+				r = ml_str_appendf (
+					out,
+					"%.*s\t%.*s\t%.*s\n",
+					(int)p->id.len,
+					p->id.data,
+					(int)p->title.len,
+					p->title.data,
+					(int)p->summary.len,
+					p->summary.data
+				);
+			}
+		}
+	}
+
+	else if (is (sub, "show") && o->rest.len == 2)
+	{
+		uint64_t at = ml_docs_find (&d, o->rest.data [1]);
+
+		if (at >= d.pages.len)
+		{
+			code = usage_error (err, "no such page", o->rest.data [1]);
+		}
+
+		else if (o->json)
+		{
+			r = docs_json_page (out, &d.pages.data [at], 1);
+		}
+
+		else if (o->markdown)
+		{
+			add (out, ml_doc_sources [at].text);
+		}
+
+		else
+		{
+			r = docs_show_text (out, &d.pages.data [at]);
+		}
+	}
+
+	else if (is (sub, "search") && o->rest.len >= 2)
+	{
+		MlStr query;
+
+		ml_str_init (&query);
+
+		for (uint64_t i = 1; i < o->rest.len; i++)
+		{
+			ml_str_append (&query, o->rest.data [i]);
+			ml_str_append (&query, ml_slice_cstr (" "));
+		}
+
+		r = docs_search_out (out, &d, ml_str_view (query), o->json);
+		ml_str_free (&query);
+	}
+
+	else if (is (sub, "check"))
+	{
+		uint64_t problems = 0;
+
+		r = ml_docs_check (&d, out, &problems);
+
+		if (r == ML_OK && problems > 0)
+		{
+			code = ML_EXIT_ERROR;
+		}
+
+		else if (r == ML_OK)
+		{
+			r = ml_str_appendf (
+				out,
+				"%u pages, no problems\n",
+				(uint32_t)d.pages.len
+			);
+		}
+	}
+
+	else
+	{
+		code = usage_error (
+			err,
+			"docs: list, show ID, search WORDS or check",
+			ml_slice ("", 0)
+		);
+	}
+
+	ml_docs_free (&d);
+	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
+}
+
 /* matlog export FILE FORMAT [WORDS...]: the session as a document. */
 static int32_t cmd_export (const Options *o, MlStr *out, MlStr *err)
 {
@@ -1502,6 +1774,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "syntax"))
 	{
 		add (out, syntax_text);
+	}
+
+	else if (is (cmd, "docs"))
+	{
+		code = cmd_docs (&o, out, err);
 	}
 
 	else if (is (cmd, "export"))
