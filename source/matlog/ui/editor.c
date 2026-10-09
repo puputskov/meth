@@ -61,6 +61,12 @@ void ml_editor_init (MlEditor *ed)
 	ed->picking       = 0;
 	ed->pick          = ML_DOMAIN_ALGEBRA;
 	ed->quit          = 0;
+	ed->page_rows     = 10;
+}
+
+void ml_editor_set_page (MlEditor *ed, uint64_t rows)
+{
+	ed->page_rows = ml_choose (rows > 0, rows, 1);
 }
 
 void ml_editor_free (MlEditor *ed)
@@ -560,6 +566,43 @@ static MlResult line_join (MlEditor *ed, int32_t dir)
 }
 
 /*
+ * Page Up and Page Down: a page of lines up or down, keeping the column. At
+ * the first or the last line the cursor goes to the start or the end of it.
+ */
+static MlResult page_lines (MlEditor *ed, int32_t dir)
+{
+	MlResult r     = ML_OK;
+	int32_t  moved = 0;
+
+	for (uint64_t i = 0; i < ed->page_rows && r == ML_OK; i++)
+	{
+		int32_t can = ml_choose (
+			dir < 0,
+			ed->edit_index > 0,
+			ed->edit_index + 1 < ed->session.lines.len
+		);
+
+		if (can)
+		{
+			r     = line_move (ed, dir, LINE_SPOT_COLUMN);
+			moved = 1;
+		}
+	}
+
+	if (r == ML_OK && !moved && dir < 0)
+	{
+		ml_lineedit_home (&ed->edit);
+	}
+
+	else if (r == ML_OK && !moved)
+	{
+		ml_lineedit_end (&ed->edit);
+	}
+
+	return r;
+}
+
+/*
  * The keys that cross the edge of a line: Up and Down, Left at the start,
  * Right at the end, Backspace at the start and Delete at the end.
  */
@@ -571,10 +614,47 @@ static MlEditResult line_edge_key (MlEditor *ed, MlKey key)
 		.handled = 0
 	};
 	int32_t      plain = key.mods == 0;
+	int32_t      word  = key.mods == ML_MOD_CTRL;
 	int32_t      start = ed->edit.cursor == 0;
 	int32_t      end   = ed->edit.cursor == ed->edit.text.len;
 
-	if (plain && key.code == ML_KEY_UP)
+	if (plain && key.code == ML_KEY_PAGE_UP)
+	{
+		res.result  = page_lines (ed, -1);
+		res.handled = 1;
+	}
+
+	else if (plain && key.code == ML_KEY_PAGE_DOWN)
+	{
+		res.result  = page_lines (ed, 1);
+		res.handled = 1;
+	}
+
+	else if (word && start && key.code == ML_KEY_LEFT)
+	{
+		res.result  = line_move (ed, -1, LINE_SPOT_END);
+		res.handled = 1;
+	}
+
+	else if (word && end && key.code == ML_KEY_RIGHT)
+	{
+		res.result  = line_move (ed, 1, LINE_SPOT_START);
+		res.handled = 1;
+	}
+
+	else if (word && start && key.code == ML_KEY_BACKSPACE)
+	{
+		res.result  = line_join (ed, -1);
+		res.handled = 1;
+	}
+
+	else if (word && end && key.code == ML_KEY_DELETE)
+	{
+		res.result  = line_join (ed, 1);
+		res.handled = 1;
+	}
+
+	else if (plain && key.code == ML_KEY_UP)
 	{
 		res.result  = line_move (ed, -1, LINE_SPOT_COLUMN);
 		res.handled = 1;
@@ -2597,6 +2677,28 @@ static MlResult select_move (MlEditor *ed, MlKey key)
 		}
 	}
 
+	else if (
+		   r == ML_OK
+		&& (key.code == ML_KEY_PAGE_UP || key.code == ML_KEY_PAGE_DOWN)
+	)
+	{
+		MlKey step =
+		{
+			.code = ml_choose (
+				key.code == ML_KEY_PAGE_UP,
+				ML_KEY_UP,
+				ML_KEY_DOWN
+			),
+			.cp   = 0,
+			.mods = ML_MOD_SHIFT
+		};
+
+		for (uint64_t i = 0; i < ed->page_rows && r == ML_OK; i++)
+		{
+			r = select_move (ed, step);
+		}
+	}
+
 	else if (r == ML_OK && key.code == ML_KEY_HOME)
 	{
 		ml_lineedit_home (&ed->edit);
@@ -2811,6 +2913,8 @@ static int32_t is_selection_key (MlKey key)
 			|| key.code == ML_KEY_DOWN
 			|| key.code == ML_KEY_HOME
 			|| key.code == ML_KEY_END
+			|| key.code == ML_KEY_PAGE_UP
+			|| key.code == ML_KEY_PAGE_DOWN
 		)
 	);
 	int32_t ctrl = (
@@ -2865,6 +2969,8 @@ static MlEditResult text_select_key (MlEditor *ed, MlKey key)
 			|| key.code == ML_KEY_DOWN
 			|| key.code == ML_KEY_HOME
 			|| key.code == ML_KEY_END
+			|| key.code == ML_KEY_PAGE_UP
+			|| key.code == ML_KEY_PAGE_DOWN
 		)
 	);
 
@@ -3097,6 +3203,35 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 	else if (key.code == ML_KEY_UP && shift)
 	{
 		move_up (ed, 1);
+	}
+
+	else if (key.code == ML_KEY_PAGE_DOWN && shift)
+	{
+		move_down (ed, ed->page_rows);
+	}
+
+	else if (key.code == ML_KEY_PAGE_UP && shift)
+	{
+		move_up (ed, ed->page_rows);
+	}
+
+	else if (key.code == ML_KEY_PAGE_DOWN || key.code == ML_KEY_PAGE_UP)
+	{
+		int32_t down = key.code == ML_KEY_PAGE_DOWN;
+
+		ml_session_set_cursor (&ed->session, ml_choose (down, last, first));
+
+		if (down)
+		{
+			move_down (ed, ed->page_rows);
+		}
+
+		else
+		{
+			move_up (ed, ed->page_rows);
+		}
+
+		r = resume (ed);
 	}
 
 	else if (key.code == ML_KEY_DOWN && alt)

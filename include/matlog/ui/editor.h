@@ -20,6 +20,9 @@
  *	         the next; Enter splits the line; Esc writes the line into the
  *	         session (also when the cursor leaves it) and, in a block,
  *	         starts a note below the block
+ *	Page     Page Up, Page Down move the cursor a page of lines (with Shift
+ *	         they select); Ctrl+Left at the start of a line goes to the end
+ *	         of the one before, Ctrl+Right at the end to the start of the next
  *	Select   as in other editors: Shift with Left Right Up Down Home End
  *	         (and Ctrl for words) selects text, also across lines; Ctrl+A
  *	         all, Ctrl+L the line; Backspace, Delete, Enter or typing
@@ -89,6 +92,8 @@ typedef struct MlEditor
 	int32_t    picking;
 	MlDomain   pick; /* the domain chosen so far */
 	int32_t    quit; /* a quit command was given */
+	/* how many lines Page Up and Page Down move, see ml_editor_set_page */
+	uint64_t   page_rows;
 } MlEditor;
 
 /* The selected text in text order; valid is 0 when nothing is selected. */
@@ -104,6 +109,9 @@ typedef struct MlTextRange
 MlTextRange ml_editor_selection (const MlEditor *ed);
 
 void ml_editor_init (MlEditor *ed);
+
+/* The lines a Page Up or Page Down moves: the height of the text area. */
+void ml_editor_set_page (MlEditor *ed, uint64_t rows);
 void ml_editor_free (MlEditor *ed);
 
 /* Starts typing a new math line at the end of the session. */

@@ -66,8 +66,10 @@ typing edits that line in place. There is no key to start or to leave editing. T
   with its range filled in). The tool saves a file given on the command line after every change.
 - **Parentheses:** with the cursor on or right after a bracket the bracket and its partner are drawn bold and underlined, a bracket without a partner
   bold and red; the pairs are counted per kind: `( )`, `[ ]`, `{ }`.
-- Not done yet: mouse selection, Page Up and Page Down, word wise
-  movement across lines. The key table of section 4.15 makes all of these keys changeable.
+- **Pages and words:** `Page Up` and `Page Down` move the cursor a page of lines (the height of the text area), `Shift` selects; Ctrl+Left at the
+  start of a line goes to the end of the one before, Ctrl+Right at the end to the start of the next, and Ctrl+Backspace and Ctrl+Delete join lines
+  there. The key table of section 4.15 makes all of these keys changeable.
+- Not done yet: mouse selection.
 
 ### 3.1 Replaced vim keys (kept for the history of the design)
 The first versions were modal (Normal, Insert, Note and Visual states with `j k dd yy p v u ] [ z g :`). They were removed in favour of 3.0; the line

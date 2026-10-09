@@ -79,6 +79,11 @@ static MlResult run (
 			}
 		};
 
+		/* a page is the text area, less one line of overlap */
+		ml_editor_set_page (
+			ed,
+			ml_choose (screen->rows > 2, screen->rows - 2, 1)
+		);
 		r = draw (con, screen, &frame, ed);
 
 		if (r == ML_OK)

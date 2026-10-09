@@ -1579,6 +1579,58 @@ static void test_fold_operations (void)
 	ml_editor_free (&ed);
 }
 
+static void test_paging (void)
+{
+	MlEditor ed;
+	MlTextRange sel;
+
+	ml_editor_init (&ed);
+	ml_editor_set_page (&ed, 3);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	type (&ed, "aa");
+
+	for (uint32_t i = 0; i < 7; i++)
+	{
+		press (&ed, ML_KEY_ENTER);
+		type (&ed, "bb");
+	}
+
+	/* eight lines; the cursor is on the last one */
+	CHECK (ed.edit_index == 7);
+	press (&ed, ML_KEY_PAGE_UP);
+	CHECK (ed.edit_index == 4 && ed.edit.cursor == 2);
+	press (&ed, ML_KEY_PAGE_UP);
+	press (&ed, ML_KEY_PAGE_UP);
+	CHECK (ed.edit_index == 0);
+	press (&ed, ML_KEY_PAGE_UP);
+	CHECK (ed.edit_index == 0 && ed.edit.cursor == 0);
+	press (&ed, ML_KEY_PAGE_DOWN);
+	CHECK (ed.edit_index == 3);
+	press (&ed, ML_KEY_PAGE_DOWN);
+	press (&ed, ML_KEY_PAGE_DOWN);
+	CHECK (ed.edit_index == 7);
+	press (&ed, ML_KEY_HOME);
+	press (&ed, ML_KEY_PAGE_DOWN);
+	CHECK (ed.edit_index == 7 && ed.edit.cursor == 2);
+
+	/* Shift selects the page */
+	press (&ed, ML_KEY_HOME);
+	shift_key (&ed, ML_KEY_PAGE_UP);
+	sel = ml_editor_selection (&ed);
+	CHECK (sel.valid && sel.first_line == 4 && sel.last_line == 7);
+	CHECK (sel.first_byte == 0 && sel.last_byte == 0);
+
+	/* Ctrl+Left at the start of a line goes to the end of the one before */
+	press (&ed, ML_KEY_RIGHT);
+	press (&ed, ML_KEY_HOME);
+	test_key (&ed, ML_KEY_LEFT, 0, ML_MOD_CTRL);
+	CHECK (ed.edit_index == 6 && ed.edit.cursor == 2);
+	test_key (&ed, ML_KEY_RIGHT, 0, ML_MOD_CTRL);
+	CHECK (ed.edit_index == 7 && ed.edit.cursor == 0);
+
+	ml_editor_free (&ed);
+}
+
 void run_editor_tests (void)
 {
 	test_insert ();
@@ -1606,4 +1658,5 @@ void run_editor_tests (void)
 	test_note_rewrites ();
 	test_folds ();
 	test_fold_operations ();
+	test_paging ();
 }
