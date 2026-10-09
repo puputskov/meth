@@ -105,15 +105,15 @@ static const UnitDef k_units [] =
 		.sym = "wk", .name = "week", .dk = DK_TIME,
 		.num = 604800, .fixed = 1
 	},
-	/* the mean month: a twelfth of the Julian year, 30.4375 days */
+	/* a twelfth of the year of 365 days */
 	{
 		.sym = "mo", .name = "month", .dk = DK_TIME,
-		.num = 2629800, .fixed = 1
+		.num = 2628000, .fixed = 1
 	},
-	/* the Julian year of 365.25 days */
+	/* the common year of 365 days, no leap days */
 	{
 		.sym = "yr", .name = "year", .dk = DK_TIME,
-		.num = 31557600, .fixed = 1
+		.num = 31536000, .fixed = 1
 	},
 	{ .sym = "L",   .name = "liter",  .dk = DK_VOLUME, .den = 1000 },
 	{ .sym = "l",   .name = "litre",  .dk = DK_VOLUME, .den = 1000 },

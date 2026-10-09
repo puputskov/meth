@@ -185,9 +185,9 @@ static void test_factors (void)
 	CHECK (factor_is ("h", "3600"));
 	CHECK (factor_is ("d", "86400"));
 	CHECK (factor_is ("week", "604800"));
-	CHECK (factor_is ("year", "31557600"));
-	CHECK (factor_is ("month", "2629800"));
-	CHECK (factor_is ("months", "2629800"));
+	CHECK (factor_is ("year", "31536000"));
+	CHECK (factor_is ("month", "2628000"));
+	CHECK (factor_is ("months", "2628000"));
 	CHECK (factor_is ("hours", "3600"));
 	CHECK (factor_is ("inches", "127/5000"));
 	CHECK (factor_is ("kilometers", "1000"));
