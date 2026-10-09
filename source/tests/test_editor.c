@@ -1048,6 +1048,174 @@ static void test_note_rewrites (void)
 	ml_editor_free (&ed);
 }
 
+/* A note, a block of three math lines, a blank line, a block of two. */
+static void block_lines (MlEditor *ed)
+{
+	ml_editor_init (ed);
+	CHECK (ml_editor_begin (ed) == ML_OK);
+	press (ed, ML_KEY_ESCAPE);
+	type (ed, "n");
+	type (ed, "intro");
+	press (ed, ML_KEY_ESCAPE);
+	type (ed, "i");
+	type (ed, "a");
+	press (ed, ML_KEY_ENTER);
+	type (ed, "b");
+	press (ed, ML_KEY_ENTER);
+	type (ed, "c");
+	press (ed, ML_KEY_ENTER);
+	press (ed, ML_KEY_ENTER);
+	type (ed, "d");
+	press (ed, ML_KEY_ENTER);
+	type (ed, "e");
+	press (ed, ML_KEY_ESCAPE);
+	ml_session_clear_history (&ed->session);
+	type (ed, "gg");
+}
+
+static void test_folds (void)
+{
+	MlEditor ed;
+
+	block_lines (&ed);
+	CHECK (texts_are (&ed, "intro|a|b|c||d|e"));
+
+	/* a single line has nothing to fold */
+	type (&ed, "za");
+	CHECK (!ml_session_block (&ed.session, 0).folded);
+	CHECK (
+		status_is (
+			&ed,
+			"-- NORMAL -- algebra>  nothing to fold: the block is one line"
+		)
+	);
+
+	/* za folds the block under the cursor, the cursor stays on its start */
+	type (&ed, "j");
+	type (&ed, "za");
+	CHECK (ml_session_block (&ed.session, 1).folded);
+	CHECK (ed.session.cursor == 1);
+
+	/* j passes the whole block, k comes back to its start */
+	type (&ed, "j");
+	CHECK (ed.session.cursor == 4);
+	type (&ed, "k");
+	CHECK (ed.session.cursor == 1);
+	type (&ed, "3j");
+	CHECK (ed.session.cursor == 6);
+	type (&ed, "2k");
+	CHECK (ed.session.cursor == 4);
+	type (&ed, "k");
+	CHECK (ed.session.cursor == 1);
+	type (&ed, "G");
+	type (&ed, "4k");
+	CHECK (ed.session.cursor == 0);
+
+	/* the cursor is never left inside the hidden lines */
+	type (&ed, ":3");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.session.cursor == 1);
+
+	/* za again opens it; zc closes, zo opens */
+	type (&ed, "za");
+	CHECK (!ml_session_block (&ed.session, 1).folded);
+	type (&ed, "zc");
+	CHECK (ml_session_block (&ed.session, 1).folded);
+	type (&ed, "zo");
+	CHECK (!ml_session_block (&ed.session, 1).folded);
+
+	/* zM closes every block of more than one line, zR opens them all */
+	type (&ed, "zM");
+	CHECK (ml_session_block (&ed.session, 1).folded);
+	CHECK (ml_session_block (&ed.session, 5).folded);
+	CHECK (!ml_session_block (&ed.session, 0).folded);
+	CHECK (!ml_session_block (&ed.session, 4).folded);
+	type (&ed, "zR");
+	CHECK (!ml_session_block (&ed.session, 1).folded);
+	CHECK (!ml_session_block (&ed.session, 5).folded);
+
+	/* ]] and [[ go from block to block */
+	type (&ed, "gg");
+	type (&ed, "]]");
+	CHECK (ed.session.cursor == 1);
+	type (&ed, "]]");
+	CHECK (ed.session.cursor == 4);
+	type (&ed, "]]");
+	CHECK (ed.session.cursor == 5);
+	type (&ed, "]]");
+	CHECK (ed.session.cursor == 5);
+	type (&ed, "j");
+	type (&ed, "[[");
+	CHECK (ed.session.cursor == 5);
+	type (&ed, "[[");
+	CHECK (ed.session.cursor == 4);
+	type (&ed, "[[");
+	CHECK (ed.session.cursor == 1);
+
+	ml_editor_free (&ed);
+}
+
+static void test_fold_operations (void)
+{
+	MlEditor ed;
+
+	block_lines (&ed);
+
+	/* dd on a folded block is the whole block, and one undo brings it back */
+	type (&ed, "j");
+	type (&ed, "za");
+	type (&ed, "dd");
+	CHECK (texts_are (&ed, "intro||d|e"));
+	CHECK (ed.yank.len == 3);
+	type (&ed, "u");
+	CHECK (texts_are (&ed, "intro|a|b|c||d|e"));
+
+	/* yy and p take the block, paste goes after it */
+	type (&ed, "gg");
+	type (&ed, "j");
+	type (&ed, "yy");
+	CHECK (ed.yank.len == 3);
+	type (&ed, "p");
+	CHECK (texts_are (&ed, "intro|a|b|c|a|b|c||d|e"));
+
+	/* Alt+Down moves the block as one */
+	type (&ed, "u");
+	type (&ed, "gg");
+	type (&ed, "j");
+	CHECK (ml_session_block (&ed.session, 1).folded);
+	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
+	CHECK (texts_are (&ed, "intro||a|b|c|d|e"));
+	CHECK (ed.session.cursor == 2);
+
+	/* editing a line of a folded block opens the block */
+	press (&ed, ML_KEY_ENTER);
+	CHECK (!ml_session_block (&ed.session, 2).folded);
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* a new line below a folded block goes after the block */
+	type (&ed, "za");
+	CHECK (ml_session_block (&ed.session, 2).folded);
+	type (&ed, "n");
+	type (&ed, "note");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (texts_are (&ed, "intro||a|b|c|d|e|note"));
+
+	/* a fold is no change: not undone, not saved */
+	ml_session_clear_history (&ed.session);
+	ed.session.dirty = 0;
+	type (&ed, "gg");
+	type (&ed, ":3");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ml_session_block (&ed.session, 2).folded);
+	type (&ed, "za");
+	CHECK (!ml_session_block (&ed.session, 2).folded);
+	type (&ed, "u");
+	CHECK (!ml_session_block (&ed.session, 2).folded);
+	CHECK (!ed.session.dirty);
+
+	ml_editor_free (&ed);
+}
+
 void run_editor_tests (void)
 {
 	test_insert ();
@@ -1065,4 +1233,6 @@ void run_editor_tests (void)
 	test_undo_keys ();
 	test_range_commands ();
 	test_note_rewrites ();
+	test_folds ();
+	test_fold_operations ();
 }

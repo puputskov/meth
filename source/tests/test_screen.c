@@ -169,9 +169,9 @@ static void test_basic_layout (void)
 	CHECK (l.result == ML_OK);
 	CHECK (l.rows.len == 6);
 	CHECK (row_has (&l, 0, " 1 alg> 1+2"));
-	CHECK (row_has (&l, 1, " 2 alg> x"));
+	CHECK (row_has (&l, 1, " 2    \xE2\x94\x94 x"));
 	CHECK (row_is (&l, 2, " 3 mat> A = 1"));
-	CHECK (row_is (&l, 3, " 4   #  a note"));
+	CHECK (row_is (&l, 3, " 4 a note"));
 	CHECK (row_is (&l, 4, ""));
 	CHECK (row_is (&l, 5, "-- NORMAL -- matrix>       [no name] [+]"));
 
@@ -199,7 +199,7 @@ static void test_typing_row (void)
 
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, " 1 alg> ab"));
-	CHECK (row_is (&l, 1, " 2 alg> x\xC2\xB2 + y"));
+	CHECK (row_is (&l, 1, " 2    \xE2\x94\x94 x\xC2\xB2 + y"));
 	CHECK (row_is (&l, 4, "-- INSERT -- algebra>   "));
 	/*
 	 * number 3 + gutter 5, "xÂ² + y" is 6 columns: the cursor is in column 15
@@ -214,9 +214,9 @@ static void test_typing_row (void)
 	type (&ed, "between");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, " 1 alg> ab"));
-	CHECK (row_is (&l, 1, " 2   #  between"));
+	CHECK (row_is (&l, 1, " 2 between"));
 	CHECK (row_has (&l, 2, " 3 alg> x\xC2\xB2 + y"));
-	CHECK (l.cursor.row == 2 && l.cursor.col == 8 + 7 + 1);
+	CHECK (l.cursor.row == 2 && l.cursor.col == 3 + 7 + 1);
 	ml_layout_free (&l);
 
 	/* the command line takes the last row */
@@ -246,8 +246,8 @@ static void test_scrolling (void)
 	/* the cursor is on the last line, which is at the bottom of the area */
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 15);
-	CHECK (row_has (&l, 0, "16 alg> line 15"));
-	CHECK (row_has (&l, 4, "20 alg> line 19"));
+	CHECK (row_has (&l, 0, "16    \xE2\x94\x82 line 15"));
+	CHECK (row_has (&l, 4, "20    \xE2\x94\x94 line 19"));
 	CHECK (l.cursor.row == 5);
 	ml_layout_free (&l);
 
@@ -262,7 +262,7 @@ static void test_scrolling (void)
 	type (&ed, "kkk");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 14);
-	CHECK (row_has (&l, 0, "15 alg> line 14"));
+	CHECK (row_has (&l, 0, "15    \xE2\x94\x82 line 14"));
 	CHECK (l.cursor.row == 1);
 	ml_layout_free (&l);
 
@@ -282,7 +282,7 @@ static void test_scrolling (void)
 	type (&ed, "new");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 16);
-	CHECK (row_is (&l, 4, "21 alg> new"));
+	CHECK (row_is (&l, 4, "21    \xE2\x94\x94 new"));
 	CHECK (l.cursor.row == 5);
 	ml_layout_free (&l);
 
@@ -470,15 +470,15 @@ static void test_line_numbers (void)
 
 	/* three digits once the session has 100 lines or more */
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_has (&l, 0, "117 alg> line 116"));
-	CHECK (row_has (&l, 3, "120 alg> line 119"));
+	CHECK (row_has (&l, 0, "117    \xE2\x94\x82 line 116"));
+	CHECK (row_has (&l, 3, "120    \xE2\x94\x94 line 119"));
 	ml_layout_free (&l);
 
 	/* the line being typed has the next number */
 	type (&ed, "i");
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 3, "121 alg> x"));
+	CHECK (row_is (&l, 3, "121    \xE2\x94\x94 x"));
 	CHECK (l.cursor.row == 4 && l.cursor.col == 4 + 5 + 1 + 1);
 	ml_layout_free (&l);
 
@@ -488,7 +488,7 @@ static void test_line_numbers (void)
 	type (&ed, "dd");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, "  1 alg> line 1"));
-	CHECK (row_has (&l, 1, "  2 alg> line 2"));
+	CHECK (row_has (&l, 1, "  2    \xE2\x94\x82 line 2"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -542,10 +542,10 @@ static void test_results (void)
 
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> a = 3  = 3"));
-	CHECK (row_is (&l, 1, " 2 alg> 1/3 + 1/6  = 1/2"));
-	CHECK (row_is (&l, 2, " 3 alg> 1/0  ! division by zero"));
-	CHECK (row_is (&l, 3, " 4 alg> f(x) = x"));
-	CHECK (row_is (&l, 4, " 5   #  1 + 1"));
+	CHECK (row_is (&l, 1, " 2    \xE2\x94\x82 1/3 + 1/6  = 1/2"));
+	CHECK (row_is (&l, 2, " 3    \xE2\x94\x82 1/0  ! division by zero"));
+	CHECK (row_is (&l, 3, " 4    \xE2\x94\x94 f(x) = x"));
+	CHECK (row_is (&l, 4, " 5 1 + 1"));
 
 	/* results are dim, errors are red */
 	ml_str_init (&raw);
@@ -577,14 +577,14 @@ static void test_results_clipping (void)
 	/* the result is cut to the columns the text leaves */
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> 10!  = 36288"));
-	CHECK (row_is (&l, 1, " 2 alg> 1000000 + 1"));
+	CHECK (row_is (&l, 1, " 2    \xE2\x94\x94 1000000 + 1"));
 	ml_layout_free (&l);
 
 	/* a width where the text fills the row leaves no result */
 	ml_screen_resize (&s, 16, 4);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> 10!  = 3"));
-	CHECK (row_is (&l, 1, " 2 alg> 1000000 "));
+	CHECK (row_is (&l, 1, " 2    \xE2\x94\x94 1000000 "));
 	ml_layout_free (&l);
 
 	ml_screen_resize (&s, 10, 4);
@@ -614,7 +614,7 @@ static void test_results_follow_edits (void)
 	/* a committed line has its result without any extra call */
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> a = 2  = 2"));
-	CHECK (row_is (&l, 1, " 2 alg> a * 21  = 42"));
+	CHECK (row_is (&l, 1, " 2    \xE2\x94\x94 a * 21  = 42"));
 	ml_layout_free (&l);
 
 	/* editing the first line changes the one below it */
@@ -625,7 +625,7 @@ static void test_results_follow_edits (void)
 	press (&ed, ML_KEY_ESCAPE);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> a = 20  = 20"));
-	CHECK (row_is (&l, 1, " 2 alg> a * 21  = 420"));
+	CHECK (row_is (&l, 1, " 2    \xE2\x94\x94 a * 21  = 420"));
 	ml_layout_free (&l);
 
 	/* deleting a line */
@@ -661,8 +661,8 @@ static void test_matrix_rows (void)
 	CHECK (row_has (&l, 0, " 1 alg> A = [[1,2],[3,4]]"));
 	CHECK (row_is (&l, 1, "          \xE2\x8E\xA1 1 2 \xE2\x8E\xA4"));
 	CHECK (row_is (&l, 2, "          \xE2\x8E\xA3 3 4 \xE2\x8E\xA6"));
-	CHECK (row_is (&l, 3, " 2 alg> 1 + 1  = 2"));
-	CHECK (row_has (&l, 4, " 3 alg> [1,2,3]"));
+	CHECK (row_is (&l, 3, " 2    \xE2\x94\x82 1 + 1  = 2"));
+	CHECK (row_has (&l, 4, " 3    \xE2\x94\x94 [1,2,3]"));
 	CHECK (row_is (&l, 5, "          \xE2\x8E\xA1 1 \xE2\x8E\xA4"));
 	ml_layout_free (&l);
 
@@ -681,7 +681,7 @@ static void test_matrix_rows (void)
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top >= 1);
 	CHECK (l.cursor.row >= 1 && l.cursor.row <= 3);
-	CHECK (row_has (&l, l.cursor.row - 1, " 3 alg> [1,2,3]"));
+	CHECK (row_has (&l, l.cursor.row - 1, " 3    \xE2\x94\x94 [1,2,3]"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -715,16 +715,16 @@ static void test_steps_rows (void)
 	type (&ed, "s");
 	CHECK (ed.steps_open && ed.steps_line == 1);
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_has (&l, 3, " 2 alg> det(A)"));
+	CHECK (row_has (&l, 3, " 2    \xE2\x94\x82 det(A)"));
 	CHECK (row_has (&l, 4, "          Eliminate below the diagonal:"));
 	CHECK (row_has (&l, 5, "          \xE2\x8E\xA1 1 2 \xE2\x8E\xA4"));
 	CHECK (row_has (&l, 7, "          R2 \xE2\x86\x90 R2 \xE2\x88\x92 3"));
-	CHECK (row_has (&l, 11, " 3 alg> 1 + 1"));
+	CHECK (row_has (&l, 11, " 3    \xE2\x94\x94 1 + 1"));
 	ml_layout_free (&l);
 	type (&ed, "s");
 	CHECK (!ed.steps_open);
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_has (&l, 4, " 3 alg> 1 + 1"));
+	CHECK (row_has (&l, 4, " 3    \xE2\x94\x94 1 + 1"));
 	ml_layout_free (&l);
 
 	/* :steps does the same, and an edit of the session closes the steps */
@@ -755,7 +755,7 @@ static void test_note_styles (void)
 
 	/* the marks are not shown, the text is styled */
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_has (&l, 0, " 1   #  a bold it un done"));
+	CHECK (row_has (&l, 0, " 1 a bold it un done"));
 	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[1mbold") != NULL);
 	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[3mit") != NULL);
 	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[4mun") != NULL);
@@ -764,14 +764,89 @@ static void test_note_styles (void)
 	/* the width counts the visible text: 18 columns hold "a bold it un" */
 	ml_screen_resize (&s, 18, 5);
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_has (&l, 0, " 1   #  a bold it"));
+	CHECK (row_has (&l, 0, " 1 a bold it un d"));
 	ml_layout_free (&l);
 
 	/* while the note is edited its text is shown as typed */
 	ml_screen_resize (&s, 60, 5);
 	press (&ed, ML_KEY_ENTER);
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_has (&l, 0, " 1   #  a **bold** *it* <u>un</u> done"));
+	CHECK (row_has (&l, 0, " 1 a **bold** *it* <u>un</u> done"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
+static void test_blocks_layout (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 40, 12);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "n");
+	type (&ed, "A **note**");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "second line");
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "i");
+	type (&ed, "a = 1");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "b = 2");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "a + b");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "gm");
+	type (&ed, "i");
+	type (&ed, "[1,2]");
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "gg");
+
+	/* the label is on the first row of a block, a rule runs down, text has
+	   no gutter, a new domain is a new block */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 A note"));
+	CHECK (row_is (&l, 1, " 2 second line"));
+	CHECK (row_is (&l, 2, " 3 alg> a = 1  = 1"));
+	CHECK (row_is (&l, 3, " 4    \xE2\x94\x82 b = 2  = 2"));
+	CHECK (row_is (&l, 4, " 5    \xE2\x94\x94 a + b  = 3"));
+	CHECK (row_has (&l, 5, " 6 mat> [1,2]"));
+	ml_layout_free (&l);
+
+	/* a folded block is one row with the number of lines behind it */
+	type (&ed, "2j");
+	type (&ed, "za");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 2, " 3 alg> \xE2\x96\xB8 a = 1  +2 lines"));
+	CHECK (row_has (&l, 3, " 6 mat> [1,2]"));
+	CHECK (l.cursor.row == 3);
+	ml_layout_free (&l);
+
+	/* so is a folded text block, its text still formatted */
+	type (&ed, "gg");
+	type (&ed, "za");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 \xE2\x96\xB8 A note  +1 line"));
+	CHECK (row_has (&l, 1, " 3 alg> \xE2\x96\xB8 a = 1"));
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[1mnote") != NULL);
+	ml_layout_free (&l);
+
+	/* the line being typed joins the block above it and opens the block */
+	type (&ed, "zR");
+	type (&ed, "2j");
+	type (&ed, "G");
+	type (&ed, "k");
+	type (&ed, "ga");
+	type (&ed, "i");
+	type (&ed, "x");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 4, " 5    \xE2\x94\x82 a + b"));
+	CHECK (row_has (&l, 5, " 6    \xE2\x94\x94 x"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -794,4 +869,5 @@ void run_screen_tests (void)
 	test_matrix_rows ();
 	test_steps_rows ();
 	test_note_styles ();
+	test_blocks_layout ();
 }

@@ -128,9 +128,15 @@ static MlResult begin_line (
 /* Index of a new line written below the cursor line. */
 static uint64_t line_below_cursor (const MlEditor *ed)
 {
+	MlBlock b = ml_session_block (&ed->session, ed->session.cursor);
+
 	return ml_choose (
 		ed->session.lines.len > 0,
-		ed->session.cursor + 1,
+		ml_choose (
+			b.folded && b.last > b.first,
+			b.last + 1,
+			ed->session.cursor + 1
+		),
 		0
 	);
 }
@@ -480,7 +486,14 @@ static MlResult remove_range (MlEditor *ed, uint64_t first, uint64_t last)
 /* The last line of a range of n lines from the cursor, inside the session. */
 static uint64_t range_end (const MlEditor *ed, uint64_t n)
 {
+	MlBlock  b    = ml_session_block (&ed->session, ed->session.cursor);
 	uint64_t last = ed->session.cursor + n - 1;
+
+	/* on a folded block the whole block is the line */
+	if (n == 1 && b.folded && b.last > b.first)
+	{
+		last = b.last;
+	}
 
 	return ml_choose (
 		last >= ed->session.lines.len,
@@ -618,6 +631,12 @@ static MlResult edit_cursor_line (MlEditor *ed)
 
 	else
 	{
+		/* a folded block is opened to be edited */
+		ml_session_set_folded (
+			&ed->session,
+			ml_session_block (&ed->session, ed->session.cursor).first,
+			0
+		);
 		r = begin_line (
 			ed,
 			ml_choose (
@@ -648,7 +667,50 @@ static MlResult begin_command (MlEditor *ed)
 	return r;
 }
 
-/* The second key of d, y and g. */
+static MlResult fold_block (MlEditor *ed, int32_t how);
+static void fold_all (MlEditor *ed, int32_t how);
+static void jump_block (MlEditor *ed, int32_t forward);
+static void normalize_cursor (MlEditor *ed);
+
+/* The key after z: za toggles, zo opens, zc closes, zM / zR all blocks. */
+static MlResult zed_key (MlEditor *ed, uint32_t ch)
+{
+	MlResult r = ML_OK;
+
+	if (ch == 'a')
+	{
+		r = fold_block (ed, 2);
+	}
+
+	else if (ch == 'o')
+	{
+		r = fold_block (ed, 0);
+	}
+
+	else if (ch == 'c')
+	{
+		r = fold_block (ed, 1);
+	}
+
+	else if (ch == 'M')
+	{
+		fold_all (ed, 1);
+	}
+
+	else if (ch == 'R')
+	{
+		fold_all (ed, 0);
+	}
+
+	else
+	{
+		r = set_message (ed, "z: unknown key");
+	}
+
+	return r;
+}
+
+/* The second key of d, y, g, z, ] and [. */
 static MlResult pending_key (MlEditor *ed, uint32_t first, uint32_t ch)
 {
 	MlResult r = ML_OK;
@@ -670,6 +732,21 @@ static MlResult pending_key (MlEditor *ed, uint32_t first, uint32_t ch)
 	else if (first == 'g')
 	{
 		r = goto_key (ed, ch);
+	}
+
+	else if (first == 'z')
+	{
+		r = zed_key (ed, ch);
+	}
+
+	else if (first == ']' && ch == ']')
+	{
+		jump_block (ed, 1);
+	}
+
+	else if (first == '[' && ch == '[')
+	{
+		jump_block (ed, 0);
 	}
 
 	return r;
@@ -708,6 +785,131 @@ static MlResult toggle_steps (MlEditor *ed)
 	}
 
 	return r;
+}
+
+/* A folded block: the lines after its first are hidden. */
+static int32_t is_folded (MlBlock b)
+{
+	return b.folded && b.last > b.first;
+}
+
+/* The cursor never rests on a line that is hidden in a folded block. */
+static void normalize_cursor (MlEditor *ed)
+{
+	MlBlock b = ml_session_block (&ed->session, ed->session.cursor);
+
+	if (is_folded (b) && ed->session.cursor != b.first)
+	{
+		ml_session_set_cursor (&ed->session, b.first);
+	}
+}
+
+/* One line down; a folded block is passed in one step. */
+static void step_down (MlEditor *ed)
+{
+	MlBlock b = ml_session_block (&ed->session, ed->session.cursor);
+
+	ml_session_set_cursor (
+		&ed->session,
+		ml_choose (is_folded (b), b.last + 1, ed->session.cursor + 1)
+	);
+	normalize_cursor (ed);
+}
+
+static void step_up (MlEditor *ed)
+{
+	ml_session_move_cursor (&ed->session, -1);
+	normalize_cursor (ed);
+}
+
+static void move_down (MlEditor *ed, uint64_t n)
+{
+	for (uint64_t i = 0; i < n; i++)
+	{
+		step_down (ed);
+	}
+}
+
+static void move_up (MlEditor *ed, uint64_t n)
+{
+	for (uint64_t i = 0; i < n; i++)
+	{
+		step_up (ed);
+	}
+}
+
+/* Folds, unfolds or toggles the block of the cursor line. */
+static MlResult fold_block (MlEditor *ed, int32_t how)
+{
+	MlResult r = ML_OK;
+	MlBlock  b = ml_session_block (&ed->session, ed->session.cursor);
+
+	if (b.kind == ML_BLOCK_NONE || b.last == b.first)
+	{
+		r = set_message (ed, "nothing to fold: the block is one line");
+	}
+
+	else
+	{
+		/* how: 0 unfold, 1 fold, 2 toggle */
+		ml_session_set_folded (
+			&ed->session,
+			b.first,
+			ml_choose (how == 2, !b.folded, how)
+		);
+		normalize_cursor (ed);
+	}
+
+	return r;
+}
+
+/* Folds (how 1) or unfolds (how 0) every block. */
+static void fold_all (MlEditor *ed, int32_t how)
+{
+	uint64_t i = 0;
+
+	while (i < ed->session.lines.len)
+	{
+		MlBlock b = ml_session_block (&ed->session, i);
+
+		ml_session_set_folded (
+			&ed->session,
+			b.first,
+			ml_choose (b.last > b.first, how, 0)
+		);
+		i = b.last + 1;
+	}
+
+	normalize_cursor (ed);
+}
+
+/* ]] and [[ : the start of the next block, or of this one or the one before. */
+static void jump_block (MlEditor *ed, int32_t forward)
+{
+	MlBlock b = ml_session_block (&ed->session, ed->session.cursor);
+
+	if (b.kind != ML_BLOCK_NONE && forward)
+	{
+		if (b.last + 1 < ed->session.lines.len)
+		{
+			ml_session_set_cursor (&ed->session, b.last + 1);
+		}
+	}
+
+	else if (b.kind != ML_BLOCK_NONE && ed->session.cursor > b.first)
+	{
+		ml_session_set_cursor (&ed->session, b.first);
+	}
+
+	else if (b.kind != ML_BLOCK_NONE && b.first > 0)
+	{
+		ml_session_set_cursor (
+			&ed->session,
+			ml_session_block (&ed->session, b.first - 1).first
+		);
+	}
+
+	normalize_cursor (ed);
 }
 
 /* Takes back (or does again) the last user action. */
@@ -825,12 +1027,12 @@ static MlResult visual_key (MlEditor *ed, MlKey key)
 
 		else if (ch == 'j' || key.code == ML_KEY_DOWN)
 		{
-			ml_session_move_cursor (&ed->session, (int64_t)reps);
+			move_down (ed, reps);
 		}
 
 		else if (ch == 'k' || key.code == ML_KEY_UP)
 		{
-			ml_session_move_cursor (&ed->session, -(int64_t)reps);
+			move_up (ed, reps);
 		}
 
 		else if (ch == 'G')
@@ -941,22 +1143,22 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 
 	else if (is_alt_arrow (key, ML_KEY_DOWN) && ed->session.lines.len > 0)
 	{
-		r = shift_lines (ed, at, at, 1);
+		r = shift_lines (ed, at, range_end (ed, 1), 1);
 	}
 
 	else if (is_alt_arrow (key, ML_KEY_UP) && ed->session.lines.len > 0)
 	{
-		r = shift_lines (ed, at, at, -1);
+		r = shift_lines (ed, at, range_end (ed, 1), -1);
 	}
 
 	else if (ch == 'j' || key.code == ML_KEY_DOWN)
 	{
-		ml_session_move_cursor (&ed->session, (int64_t)reps);
+		move_down (ed, reps);
 	}
 
 	else if (ch == 'k' || key.code == ML_KEY_UP)
 	{
-		ml_session_move_cursor (&ed->session, -(int64_t)reps);
+		move_up (ed, reps);
 	}
 
 	else if (ch == 'G')
@@ -967,7 +1169,14 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 		);
 	}
 
-	else if (ch == 'd' || ch == 'y' || ch == 'g')
+	else if (
+		   ch == 'd'
+		|| ch == 'y'
+		|| ch == 'g'
+		|| ch == 'z'
+		|| ch == ']'
+		|| ch == '['
+	)
 	{
 		ed->pending = ch;
 	}
@@ -1689,6 +1898,11 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 	if (r == ML_OK)
 	{
 		r = ml_editor_refresh (ed);
+	}
+
+	if (ed->state == ML_STATE_NORMAL || ed->state == ML_STATE_VISUAL)
+	{
+		normalize_cursor (ed);
 	}
 
 	return r;

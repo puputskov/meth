@@ -104,7 +104,8 @@ MlLineView ml_session_get (const MlSession *s, uint64_t idx)
 		{
 			.data = "",
 			.len  = 0
-		}
+		},
+		.folded = 0
 	};
 
 	if (idx < s->lines.len)
@@ -114,6 +115,7 @@ MlLineView ml_session_get (const MlSession *s, uint64_t idx)
 		view.kind   = line.kind;
 		view.domain = line.domain;
 		view.text   = ml_str_view (line.text);
+		view.folded = line.folded;
 	}
 
 	return view;
@@ -131,6 +133,7 @@ static MlResult line_make (
 
 	out->kind   = kind;
 	out->domain = domain;
+	out->folded = 0;
 	ml_str_init (&out->text);
 
 	if (
@@ -521,6 +524,95 @@ MlUndoResult ml_session_undo (MlSession *s)
 MlUndoResult ml_session_redo (MlSession *s)
 {
 	return step_history (s, &s->redo, &s->undo);
+}
+
+int32_t ml_block_continues (
+	MlLineKind a_kind,
+	MlDomain   a_domain,
+	MlLineKind b_kind,
+	MlDomain   b_domain
+)
+{
+	return (
+		   (
+			   a_kind == ML_LINE_MATH
+			&& b_kind == ML_LINE_MATH
+			&& a_domain == b_domain
+		)
+		|| (a_kind == ML_LINE_NOTE && b_kind == ML_LINE_NOTE)
+		|| (a_kind == ML_LINE_INCLUDE && b_kind == ML_LINE_INCLUDE)
+		|| (a_kind == ML_LINE_UNKNOWN && b_kind == ML_LINE_UNKNOWN)
+	);
+}
+
+static MlBlockKind block_kind_of (MlLineKind kind)
+{
+	MlBlockKind k = ML_BLOCK_NONE;
+
+	k = ml_choose (kind == ML_LINE_MATH, ML_BLOCK_CODE, k);
+	k = ml_choose (kind == ML_LINE_NOTE, ML_BLOCK_TEXT, k);
+	k = ml_choose (kind == ML_LINE_INCLUDE, ML_BLOCK_INCLUDE, k);
+	k = ml_choose (kind == ML_LINE_BLANK, ML_BLOCK_BLANK, k);
+	k = ml_choose (kind == ML_LINE_UNKNOWN, ML_BLOCK_UNKNOWN, k);
+	return k;
+}
+
+MlBlock ml_session_block (const MlSession *s, uint64_t idx)
+{
+	MlBlock b =
+	{
+		.kind   = ML_BLOCK_NONE,
+		.domain = ML_DOMAIN_ALGEBRA,
+		.first  = idx,
+		.last   = idx,
+		.folded = 0
+	};
+
+	if (idx < s->lines.len)
+	{
+		MlLine line = s->lines.data [idx];
+
+		b.kind   = block_kind_of (line.kind);
+		b.domain = line.domain;
+
+		while (
+			   b.first > 0
+			&& ml_block_continues (
+				s->lines.data [b.first - 1].kind,
+				s->lines.data [b.first - 1].domain,
+				line.kind,
+				line.domain
+			)
+		)
+		{
+			b.first--;
+		}
+
+		while (
+			   b.last + 1 < s->lines.len
+			&& ml_block_continues (
+				line.kind,
+				line.domain,
+				s->lines.data [b.last + 1].kind,
+				s->lines.data [b.last + 1].domain
+			)
+		)
+		{
+			b.last++;
+		}
+
+		b.folded = s->lines.data [b.first].folded;
+	}
+
+	return b;
+}
+
+void ml_session_set_folded (MlSession *s, uint64_t idx, int32_t folded)
+{
+	if (idx < s->lines.len)
+	{
+		s->lines.data [idx].folded = folded;
+	}
 }
 
 void ml_session_set_cursor (MlSession *s, uint64_t idx)

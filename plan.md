@@ -76,9 +76,9 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
   the number of lines, its first line and the last result (`alg> 12 lines   a = 3 ...  = 10`). A closed text block shows its first line. Collapsing never
   changes what is evaluated: the definitions of a closed block stay visible below it, like a cell that was run. The state is part of the view, not of the
   file; it is kept in the settings file per session path and block number so it survives a restart.
-- **Moving around**: `]]` / `[[` jump to the next / previous block, `j` and `k` still go line by line (a closed block is one step). `dab` / `yab` delete
-  or copy the whole block, `Alt+Shift+Up/Down` move a block, visual selection can start with `V` on a block, and the line operations above work on the
-  lines inside blocks and across them.
+- **Moving around**: `]]` / `[[` jump to the next / previous block, `j` and `k` still go line by line (a closed block is one step). On a closed block
+  `dd`, `yy`, `Alt+Up/Down` and `p` take the whole block as the line. (Not built yet: `dab` / `yab`, a Visual selection that treats a closed block
+  as one line, keeping the folds in the settings file.)
 - **Domain switching** (`gm`, `gl`, `Alt+Left/Right`) sets the domain of the next line that is typed; typing it in another domain than the block above starts a
   new block. On a line in the middle of a block the same keys change the domain of the whole block.
 - **File format**: unchanged. A line still starts with `m:domain ` (math) or `# ` (note), because the blocks follow from the lines, so old files, diffs and the
@@ -88,6 +88,7 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
   is its wrapped height. Scrolling, the cursor row and the Visual highlight work on lines as before.
 - **Interaction with the rest**: the tutorial and the documentation examples use the same blocks; export writes a text block as paragraphs and a code block
   as a code environment; the proof domain (section 4.12) is a code block whose steps align under one header.
+- Built: blocks, the one gutter per code block with a rule down to a corner at the last line, text blocks without gutter, `za zo zc zM zR`, `]] [[`.
 - Placement: before the highlight and export work (both need to know blocks), after milestone 3. "Done when": the rows of a session show one header per
   block; text blocks wrap and have no gutter; collapse hides and shows blocks and keeps the environment; tests drive the keys and check the layout rows.
 

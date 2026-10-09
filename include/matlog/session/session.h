@@ -40,9 +40,45 @@ typedef struct MlLine
 	MlLineKind kind;
 	MlDomain   domain; /* meaningful for ML_LINE_MATH only */
 	MlStr      text;
+	/* the block that starts with this line is shown as one row; not saved */
+	int32_t    folded;
 } MlLine;
 
 ML_VEC_DEFINE (MlLineVec, MlLine)
+
+/*
+ * Blocks, as in a notebook. The lines of a session are read as a sequence of
+ * blocks, nothing of it is stored in the file: a run of math lines in one
+ * domain is a code block, a run of notes is a text block, a run of include
+ * lines or of unreadable lines is a block of its own, and every blank line
+ * is a block by itself, so a blank line ends the block before it.
+ */
+typedef enum MlBlockKind
+{
+	ML_BLOCK_NONE = 0, /* no such line */
+	ML_BLOCK_CODE,
+	ML_BLOCK_TEXT,
+	ML_BLOCK_INCLUDE,
+	ML_BLOCK_BLANK,
+	ML_BLOCK_UNKNOWN
+} MlBlockKind;
+
+typedef struct MlBlock
+{
+	MlBlockKind kind;
+	MlDomain    domain; /* ML_BLOCK_CODE */
+	uint64_t    first;  /* the lines first..last, inclusive */
+	uint64_t    last;
+	int32_t     folded; /* drawn as one row */
+} MlBlock;
+
+/* 1 when a line b can follow a line a inside one block. */
+int32_t ml_block_continues (
+	MlLineKind a_kind,
+	MlDomain   a_domain,
+	MlLineKind b_kind,
+	MlDomain   b_domain
+);
 
 /*
  * The history of changes, for undo and redo. Every change of the lines
@@ -81,6 +117,7 @@ typedef struct MlLineView
 	MlLineKind kind;
 	MlDomain   domain;
 	MlSlice    text;
+	int32_t    folded;
 } MlLineView;
 
 typedef struct MlDomainResult
@@ -160,6 +197,18 @@ void ml_session_set_cursor (MlSession *s, uint64_t idx);
 void ml_session_move_cursor (MlSession *s, int64_t delta);
 
 void ml_session_set_domain (MlSession *s, MlDomain domain);
+
+/*
+ * The block that line idx belongs to (kind ML_BLOCK_NONE when idx is out of
+ * range). The block is folded when its first line is.
+ */
+MlBlock ml_session_block (const MlSession *s, uint64_t idx);
+
+/*
+ * Folds or unfolds the block that starts with line idx. A fold is a matter of
+ * the view: it is not a change (no undo, not dirty) and not saved.
+ */
+void ml_session_set_folded (MlSession *s, uint64_t idx, int32_t folded);
 
 /*
  * Moves the lines first..last (inclusive) so that they start at index dest

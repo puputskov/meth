@@ -456,6 +456,89 @@ static void test_undo_limit (void)
 	ml_session_free (&s);
 }
 
+static void add_line (MlSession *s, MlLineKind kind, MlDomain d, const char *t)
+{
+	CHECK (ml_session_append (s, kind, d, lit (t)) == ML_OK);
+}
+
+static void test_blocks (void)
+{
+	MlSession s;
+	MlBlock   b;
+
+	ml_session_init (&s);
+	b = ml_session_block (&s, 0);
+	CHECK (b.kind == ML_BLOCK_NONE);
+
+	/* note, two math lines, a matrix line, a blank, two notes, an include */
+	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "intro");
+	add_line (&s, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "a = 1");
+	add_line (&s, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "b = 2");
+	add_line (&s, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 1");
+	add_line (&s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, "");
+	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "more");
+	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "text");
+	add_line (&s, ML_LINE_INCLUDE, ML_DOMAIN_ALGEBRA, "x.mlog");
+	add_line (&s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, "");
+	add_line (&s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, "");
+
+	b = ml_session_block (&s, 0);
+	CHECK (b.kind == ML_BLOCK_TEXT && b.first == 0 && b.last == 0);
+	b = ml_session_block (&s, 2);
+	CHECK (b.kind == ML_BLOCK_CODE && b.first == 1 && b.last == 2);
+	CHECK (b.domain == ML_DOMAIN_ALGEBRA);
+	b = ml_session_block (&s, 3);
+	CHECK (b.kind == ML_BLOCK_CODE && b.first == 3 && b.last == 3);
+	CHECK (b.domain == ML_DOMAIN_MATRIX);
+	b = ml_session_block (&s, 4);
+	CHECK (b.kind == ML_BLOCK_BLANK && b.first == 4 && b.last == 4);
+	b = ml_session_block (&s, 6);
+	CHECK (b.kind == ML_BLOCK_TEXT && b.first == 5 && b.last == 6);
+	b = ml_session_block (&s, 7);
+	CHECK (b.kind == ML_BLOCK_INCLUDE && b.first == 7 && b.last == 7);
+
+	/* every blank line is a block of its own */
+	b = ml_session_block (&s, 8);
+	CHECK (b.kind == ML_BLOCK_BLANK && b.first == 8 && b.last == 8);
+	b = ml_session_block (&s, 9);
+	CHECK (b.first == 9 && b.last == 9);
+	CHECK (ml_session_block (&s, 10).kind == ML_BLOCK_NONE);
+
+	/* a fold belongs to the first line of the block, is no change */
+	CHECK (ml_session_block (&s, 2).folded == 0);
+	ml_session_clear_history (&s);
+	s.dirty = 0;
+	ml_session_set_folded (&s, 1, 1);
+	CHECK (ml_session_block (&s, 2).folded == 1);
+	CHECK (ml_session_block (&s, 1).folded == 1);
+	CHECK (ml_session_get (&s, 1).folded == 1);
+	CHECK (ml_session_get (&s, 2).folded == 0);
+	CHECK (!s.dirty && !ml_session_undo (&s).did);
+	ml_session_set_folded (&s, 99, 1);
+	ml_session_set_folded (&s, 1, 0);
+	CHECK (ml_session_block (&s, 1).folded == 0);
+
+	/* blocks follow the lines: a blank line splits, a deleted one joins */
+	CHECK (
+		ml_session_insert (
+			&s,
+			2,
+			ML_LINE_BLANK,
+			ML_DOMAIN_ALGEBRA,
+			lit ("")
+		) == ML_OK
+	);
+	b = ml_session_block (&s, 1);
+	CHECK (b.first == 1 && b.last == 1);
+	b = ml_session_block (&s, 3);
+	CHECK (b.first == 3 && b.last == 3);
+	CHECK (ml_session_delete (&s, 2) == ML_OK);
+	b = ml_session_block (&s, 1);
+	CHECK (b.first == 1 && b.last == 2);
+
+	ml_session_free (&s);
+}
+
 void run_session_tests (void)
 {
 	test_domains ();
@@ -466,4 +549,5 @@ void run_session_tests (void)
 	test_undo_redo ();
 	test_undo_groups ();
 	test_undo_limit ();
+	test_blocks ();
 }

@@ -61,18 +61,38 @@ void ml_layout_free (MlLayout *layout)
 	free_rows (&layout->rows);
 }
 
-static MlSlice gutter_for (MlLineKind kind, MlDomain domain)
+/*
+ * The gutter of a row. The first line of a block carries the label of the
+ * block (alg>), the other lines of a code block a rule that ends in a corner
+ * at the last line, text has none: only the numbers show where its lines are.
+ */
+static MlSlice gutter_for (
+	MlLineKind kind,
+	MlDomain   domain,
+	int32_t    first,
+	int32_t    last
+)
 {
-	const char *gutter = "\?\?\?> ";
+	const char *gutter = "     ";
 
-	if (kind == ML_LINE_MATH)
+	if (kind == ML_LINE_NOTE)
 	{
-		gutter = math_gutters [domain];
+		gutter = "";
 	}
 
-	else if (kind == ML_LINE_NOTE)
+	else if (kind == ML_LINE_BLANK)
 	{
-		gutter = "  #  ";
+		gutter = "     ";
+	}
+
+	else if (!first)
+	{
+		gutter = ml_choose (last, "   \xE2\x94\x94 ", "   \xE2\x94\x82 ");
+	}
+
+	else if (kind == ML_LINE_MATH)
+	{
+		gutter = math_gutters [domain];
 	}
 
 	else if (kind == ML_LINE_INCLUDE)
@@ -80,9 +100,9 @@ static MlSlice gutter_for (MlLineKind kind, MlDomain domain)
 		gutter = "inc> ";
 	}
 
-	else if (kind == ML_LINE_BLANK)
+	else
 	{
-		gutter = "     ";
+		gutter = "\?\?\?> ";
 	}
 
 	return ml_slice_cstr (gutter);
@@ -306,7 +326,8 @@ static MlResult append_note_text (MlStr *out, MlSlice text, uint64_t room)
 
 /*
  * One row of the line area: number and gutter, then the text clipped, then
- * the result if there is room.
+ * the result if there is room. A folded block is this one row, with the
+ * number of the lines hidden behind it.
  */
 static MlResult append_line_row (
 	MlStr        *out,
@@ -315,7 +336,9 @@ static MlResult append_line_row (
 	uint64_t     number,
 	uint64_t     num_width,
 	int32_t      highlight,
-	uint32_t     cols
+	uint32_t     cols,
+	MlSlice      gutter,
+	uint64_t     hidden
 )
 {
 	MlResult r    = ML_OK;
@@ -325,13 +348,9 @@ static MlResult append_line_row (
 		out,
 		number,
 		num_width,
-		ml_choose (
-			bare,
-			ml_slice ("", 0),
-			gutter_for (line.kind, line.domain)
-		),
+		ml_choose (bare, ml_slice ("", 0), gutter),
 		highlight,
-		note,
+		0,
 		cols
 	);
 
@@ -340,24 +359,70 @@ static MlResult append_line_row (
 	if (r == ML_OK && !bare)
 	{
 		uint64_t room = cols - head.used;
-		uint64_t used = ml_choose (
+		uint64_t mark = ml_choose (hidden > 0 && room >= 2, 2, 0);
+		uint64_t used;
+
+		/* the chevron of a folded block */
+		if (mark > 0)
+		{
+			r = append_cstr (out, "\xE2\x96\xB8 ");
+		}
+
+		room -= mark;
+		used  = ml_choose (
 			ml_utf8_width (line.text) < room,
 			ml_utf8_width (line.text),
 			room
 		);
 
-		if (note)
+		if (r == ML_OK && note)
 		{
 			r = append_note_text (out, line.text, room);
 		}
 
-		else
+		else if (r == ML_OK)
 		{
 			r = ml_text_window (out, line.text, 0, room).result;
 		}
 
+		if (r == ML_OK && hidden > 0 && room > used + 4)
+		{
+			MlStr more;
+
+			ml_str_init (&more);
+			r = ml_str_appendf (
+				&more,
+				"  +%u line%s",
+				(uint32_t)hidden,
+				ml_choose (hidden == 1, "", "s")
+			);
+
+			if (r == ML_OK)
+			{
+				r = append_cstr (out, STYLE_RESET STYLE_DIM);
+			}
+
+			if (r == ML_OK)
+			{
+				r = ml_text_window (
+					out,
+					ml_str_view (more),
+					0,
+					room - used
+				).result;
+			}
+
+			if (r == ML_OK)
+			{
+				r = append_cstr (out, STYLE_RESET);
+			}
+
+			used = room;
+			ml_str_free (&more);
+		}
+
 		/* a matrix is drawn under the line instead */
-		if (
+		else if (
 			   r == ML_OK
 			&& line.kind == ML_LINE_MATH
 			&& result.block.len == 0
@@ -387,7 +452,8 @@ static EditRow append_edit_row (
 	const MlEditor *ed,
 	uint64_t       number,
 	uint64_t       num_width,
-	uint32_t       cols
+	uint32_t       cols,
+	MlSlice        gutter
 )
 {
 	EditRow row =
@@ -395,15 +461,11 @@ static EditRow append_edit_row (
 		.result     = ML_OK,
 		.cursor_col = 1
 	};
-	int32_t note = ed->state == ML_STATE_NOTE;
 	Head    head = append_head (
 		out,
 		number,
 		num_width,
-		gutter_for (
-			ml_choose (note, ML_LINE_NOTE, ML_LINE_MATH),
-			ed->edit_domain
-		),
+		gutter,
 		0,
 		0,
 		cols
@@ -814,43 +876,176 @@ static MlSlice steps_of (const MlEditor *ed, uint64_t src, int32_t editing)
 	);
 }
 
-/* The rows a line takes: its own, the typeset result of a matrix, the steps. */
-static uint64_t line_height (
+/*
+ * What the layout needs to know of each line it draws, the lines of the
+ * session and the one being typed (a new line is not in the session yet).
+ */
+typedef struct VLine
+{
+	MlLineKind kind;
+	MlDomain   domain;
+	uint64_t   src;     /* index in the session, valid unless fresh */
+	int32_t    fresh;   /* the new line being typed */
+	int32_t    typing;  /* the line (fresh or not) being typed */
+	uint64_t   first;   /* the block of the line */
+	uint64_t   last;
+	int32_t    folded;  /* the block is one row */
+} VLine;
+
+ML_VEC_DEFINE (VLineVec, VLine)
+
+/* What a row past the last line is drawn from. */
+static const VLine no_line =
+{
+	.kind   = ML_LINE_NONE,
+	.domain = ML_DOMAIN_ALGEBRA,
+	.src    = 0,
+	.fresh  = 0,
+	.typing = 0,
+	.first  = 0,
+	.last   = 0,
+	.folded = 0
+};
+
+/* The lines to draw, with their blocks and folds. */
+static MlResult vlines_build (
+	VLineVec       *vl,
 	const MlEditor *ed,
-	uint64_t       idx,
 	int32_t        editing,
-	int32_t        editing_new
+	int32_t        editing_new,
+	uint64_t       total
 )
 {
-	uint64_t src    = ml_choose (
-		editing_new && idx > ed->edit_index,
-		idx - 1,
-		idx
-	);
-	int32_t  typing = editing && idx == ed->edit_index;
+	MlResult r = VLineVec_reserve (vl, total);
 
-	return 1 + ml_choose (
-		typing,
-		0,
-		  block_rows (ml_results_get (&ed->results, src).block)
-		+ block_rows (steps_of (ed, src, editing))
-	);
+	for (uint64_t v = 0; v < total && r == ML_OK; v++)
+	{
+		int32_t    fresh = editing_new && v == ed->edit_index;
+		uint64_t   src   = ml_choose (
+			editing_new && v > ed->edit_index,
+			v - 1,
+			v
+		);
+		MlLineView lv    = ml_session_get (&ed->session, src);
+		VLine      l     =
+		{
+			.kind   = ml_choose (
+				fresh,
+				ml_choose (
+					ed->state == ML_STATE_NOTE,
+					ML_LINE_NOTE,
+					ml_choose (
+						ed->edit_kind == ML_LINE_BLANK,
+						ML_LINE_MATH,
+						ed->edit_kind
+					)
+				),
+				lv.kind
+			),
+			.domain = ml_choose (fresh, ed->edit_domain, lv.domain),
+			.src    = src,
+			.fresh  = fresh,
+			.typing = editing && v == ed->edit_index,
+			.first  = v,
+			.last   = v,
+			.folded = ml_choose (fresh, 0, lv.folded)
+		};
+
+		r = VLineVec_push (vl, l);
+	}
+
+	/* the block of each line, front to back, then back to front */
+	for (uint64_t v = 1; v < vl->len; v++)
+	{
+		if (
+			ml_block_continues (
+				vl->data [v - 1].kind,
+				vl->data [v - 1].domain,
+				vl->data [v].kind,
+				vl->data [v].domain
+			)
+		)
+		{
+			vl->data [v].first = vl->data [v - 1].first;
+		}
+	}
+
+	for (uint64_t v = vl->len; v > 1; v--)
+	{
+		if (vl->data [v - 1].first == vl->data [v - 2].first)
+		{
+			vl->data [v - 2].last = vl->data [v - 1].last;
+		}
+	}
+
+	for (uint64_t v = 0; v < vl->len; v++)
+	{
+		VLine f = vl->data [vl->data [v].first];
+
+		/* the last line of a block is known from the first one */
+		vl->data [v].last = vl->data [vl->data [v].first].last;
+
+		vl->data [v].folded = f.folded && f.last > f.first;
+	}
+
+	for (uint64_t v = 0; v < vl->len; v++)
+	{
+		if (vl->data [v].typing)
+		{
+			uint64_t first = vl->data [v].first;
+
+			/* a block with the line being typed in it is open */
+			for (
+				uint64_t k = first;
+				k < vl->len && vl->data [k].first == first;
+				k++
+			)
+			{
+				vl->data [k].folded = 0;
+			}
+		}
+	}
+
+	return r;
+}
+
+/* The rows a line takes: 0 when hidden in a folded block. */
+static uint64_t line_height (
+	const MlEditor *ed,
+	const VLineVec *vl,
+	uint64_t       v,
+	int32_t        editing
+)
+{
+	VLine    l      = vl->data [v];
+	int32_t  hidden = l.folded && v != l.first;
+	uint64_t extra  = 0;
+
+	if (!hidden && !l.folded && !l.typing)
+	{
+		extra = (
+			  block_rows (ml_results_get (&ed->results, l.src).block)
+			+ block_rows (steps_of (ed, l.src, editing))
+		);
+	}
+
+	return ml_choose (hidden, 0, 1 + extra);
 }
 
 /* The rows of lines from to to (not including to). */
 static uint64_t rows_between (
 	const MlEditor *ed,
+	const VLineVec *vl,
 	uint64_t       from,
 	uint64_t       to,
-	int32_t        editing,
-	int32_t        editing_new
+	int32_t        editing
 )
 {
 	uint64_t rows = 0;
 
 	for (uint64_t i = from; i < to; i++)
 	{
-		rows += line_height (ed, i, editing, editing_new);
+		rows += line_height (ed, vl, i, editing);
 	}
 
 	return rows;
@@ -863,22 +1058,21 @@ static uint64_t rows_between (
  */
 static uint64_t scroll_top (
 	const MlEditor *ed,
+	const VLineVec *vl,
 	uint64_t       top,
 	uint64_t       focus,
-	uint64_t       total,
 	uint64_t       area
 )
 {
-	int32_t  editing     = (
+	int32_t  editing = (
 		   ed->state == ML_STATE_INSERT
 		|| ed->state == ML_STATE_NOTE
 	);
-	int32_t  editing_new = editing && !ed->edit_existing;
-	uint64_t t           = ml_choose (focus < top, focus, top);
+	uint64_t t       = ml_choose (focus < top, focus, top);
 
 	while (
 		   t < focus
-		&& rows_between (ed, t, focus + 1, editing, editing_new) > area
+		&& rows_between (ed, vl, t, focus + 1, editing) > area
 	)
 	{
 		t++;
@@ -886,7 +1080,7 @@ static uint64_t scroll_top (
 
 	while (
 		   t > 0
-		&& rows_between (ed, t - 1, total, editing, editing_new) <= area
+		&& rows_between (ed, vl, t - 1, vl->len, editing) <= area
 	)
 	{
 		t--;
@@ -925,17 +1119,20 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 
 	uint64_t     num_width = number_width (total);
 	MlCompletion comp      = ml_editor_completion (ed);
+	VLineVec     vl;
+	uint64_t     line = 0;
+	uint64_t     sub  = 0; /* the row of the line being drawn, 0 for its own */
 
-	uint64_t line = 0;
-	uint64_t sub  = 0; /* the row of the line being drawn, 0 for its own */
-
+	VLineVec_init (&vl);
 	MlRowVec_init (&layout.rows);
-	s->top = scroll_top (ed, s->top, focus, total, area);
-	line   = s->top;
+	layout.result = vlines_build (&vl, ed, editing, editing_new, total);
+	s->top        = scroll_top (ed, &vl, s->top, focus, area);
+	line          = s->top;
 
 	for (uint64_t r = 0; r < s->rows && layout.result == ML_OK; r++)
 	{
 		MlStr row;
+		VLine l = ml_choose (line < total, vl.data [line], no_line);
 
 		ml_str_init (&row);
 
@@ -958,14 +1155,20 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.result = append_suggestions (&row, &comp, s->cols);
 		}
 
-		else if (line < total && editing && line == ed->edit_index)
+		else if (line < total && l.typing)
 		{
 			EditRow e = append_edit_row (
 				&row,
 				ed,
 				line + 1,
 				num_width,
-				s->cols
+				s->cols,
+				gutter_for (
+					l.kind,
+					l.domain,
+					line == l.first,
+					line == l.last
+				)
 			);
 
 			layout.result     = e.result;
@@ -975,13 +1178,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 
 		else if (line < total && sub > 0)
 		{
-			uint64_t src = ml_choose (
-				editing_new && line > ed->edit_index,
-				line - 1,
-				line
-			);
-
-			MlSlice  result = ml_results_get (&ed->results, src).block;
+			MlSlice  result = ml_results_get (&ed->results, l.src).block;
 			uint64_t shown  = block_rows (result);
 
 			layout.result = ml_choose (
@@ -995,7 +1192,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				),
 				append_block_row (
 					&row,
-					block_row (steps_of (ed, src, editing), sub - 1 - shown),
+					block_row (steps_of (ed, l.src, editing), sub - 1 - shown),
 					num_width + 1 + ML_GUTTER_WIDTH,
 					s->cols,
 					""
@@ -1005,20 +1202,31 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 
 		else if (line < total)
 		{
-			uint64_t idx = line;
-			uint64_t src = ml_choose (
-				editing_new && idx > ed->edit_index,
-				idx - 1,
-				idx
+			uint64_t src    = l.src;
+			int32_t  inside = (
+				   src >= ed->session.cursor
+				&& ed->session.cursor + 0 >= src
 			);
-			int32_t highlight = (
+			int32_t  here   = (
+				   ed->session.cursor >= vl.data [l.first].src
+				&& ed->session.cursor <= vl.data [l.last].src
+			);
+			int32_t  highlight;
+
+			(void)inside;
+			highlight = (
 				   !editing
 				&& ed->state != ML_STATE_VISUAL
-				&& src == ed->session.cursor
+				&& ml_choose (l.folded, here, src == ed->session.cursor)
 			) || (
 				   ed->state == ML_STATE_VISUAL
-				&& src >= selection_first (ed)
-				&& src <= selection_last (ed)
+				&& ml_choose (
+					l.folded,
+					   selection_first (ed) <= vl.data [l.last].src
+					&& selection_last (ed) >= vl.data [l.first].src,
+					   src >= selection_first (ed)
+					&& src <= selection_last (ed)
+				)
 			);
 
 			layout.result = append_line_row (
@@ -1028,15 +1236,23 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				line + 1,
 				num_width,
 				highlight,
-				s->cols
+				s->cols,
+				gutter_for (
+					l.kind,
+					l.domain,
+					line == l.first,
+					line == l.last && !l.folded
+				),
+				ml_choose (l.folded, vl.data [l.last].src - src, 0)
 			);
 
 			if (
-				   src == ed->session.cursor
+				   here
 				&& (
 					   ed->state == ML_STATE_NORMAL
 					|| ed->state == ML_STATE_VISUAL
 				)
+				&& ml_choose (l.folded, 1, src == ed->session.cursor)
 			)
 			{
 				layout.cursor.row = (uint32_t)(r + 1);
@@ -1057,15 +1273,20 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 		/* the next row belongs to the same line, or to the one after it */
 		sub++;
 
-		if (
-			   line < total
-			&& sub >= line_height (ed, line, editing, editing_new)
-		)
+		if (line < total && sub >= line_height (ed, &vl, line, editing))
 		{
 			line++;
 			sub = 0;
+
+			/* the lines hidden in a folded block take no row */
+			while (line < total && line_height (ed, &vl, line, editing) == 0)
+			{
+				line++;
+			}
 		}
 	}
+
+	VLineVec_free (&vl);
 
 	if (layout.result != ML_OK)
 	{

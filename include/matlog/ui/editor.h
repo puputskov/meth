@@ -20,6 +20,9 @@
  *	         v                 select lines (Visual state, see below)
  *	         Alt+Up Alt+Down   move the cursor line up or down
  *	         u  Ctrl+r         undo / redo, one user action at a time
+ *	         za zo zc zM zR   fold: toggle / open / close the block of the
+ *	                           cursor line, close / open all blocks
+ *	         ]] [[             go to the next / previous block
  *	         s                 show or hide the steps of the cursor line
  *	         Enter             edit the cursor line     i  new math line below
  *	         n                 new note line below      :  command line
