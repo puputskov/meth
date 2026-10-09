@@ -36,6 +36,7 @@ void ml_screen_init (MlScreen *s, uint32_t cols, uint32_t rows)
 	s->top   = 0;
 	s->force = 1;
 	s->hint_tick = 0;
+	ml_str_init (&s->base);
 	MlRowVec_init (&s->drawn);
 }
 
@@ -51,6 +52,7 @@ static void free_rows (MlRowVec *rows)
 
 void ml_screen_free (MlScreen *s)
 {
+	ml_str_free (&s->base);
 	free_rows (&s->drawn);
 }
 
@@ -2345,9 +2347,28 @@ MlResult ml_screen_render (MlScreen *s, MlStr *out, const MlEditor *ed)
 		r = append_cstr (out, "\x1b[?25l");
 	}
 
+	/*
+	 * A new theme, or new colours, is drawn like the first frame: the whole
+	 * screen is cleared (with the background of the theme) and drawn again.
+	 */
+	if (
+		   r == ML_OK
+		&& !ml_slice_equal (ml_str_view (base), ml_str_view (s->base))
+	)
+	{
+		s->force = 1;
+		ml_str_clear (&s->base);
+		r = ml_str_append (&s->base, ml_str_view (base));
+	}
+
 	if (r == ML_OK && s->force)
 	{
-		r = append_cstr (out, "\x1b[2J");
+		r = ml_str_append (out, ml_str_view (base));
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (out, "\x1b[2J");
+		}
 	}
 
 	for (uint64_t i = 0; i < layout.rows.len && r == ML_OK; i++)

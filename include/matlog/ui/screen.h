@@ -35,6 +35,8 @@ typedef struct MlScreen
 	int32_t  force; /* redraw every row the next time */
 	/* which hint an empty editor shows, one more every ML_HINT_SECONDS */
 	uint64_t hint_tick;
+	/* the base style of a painting theme as drawn last, a change redraws all */
+	MlStr    base;
 } MlScreen;
 
 /* 1 based terminal position. */

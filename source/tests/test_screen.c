@@ -1292,6 +1292,12 @@ static void test_theme_switch (void)
 			) != NULL
 		);
 		CHECK (strstr (ml_str_cstr (out), "\x1b[7;1H") != NULL);
+
+		/* a new look clears the screen and draws it all, as the first frame */
+		CHECK (strstr (ml_str_cstr (out), "\x1b[2J") != NULL);
+		ml_str_clear (&out);
+		CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
+		CHECK (strstr (ml_str_cstr (out), "\x1b[2J") == NULL);
 		ml_str_free (&out);
 		l = ml_screen_layout (&s, &ed);
 		CHECK (l.rows.data [6].len == 0);
