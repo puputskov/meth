@@ -1,6 +1,7 @@
 #ifndef MATLOG_SESSION_RESULTS_H
 #define MATLOG_SESSION_RESULTS_H
 
+#include <matlog/logic/logic.h>
 #include <matlog/math/env.h>
 #include <matlog/session/session.h>
 
@@ -20,6 +21,10 @@
  *	ML_RESULT_ERROR   the message of an error and the byte range in the line
  *	ML_RESULT_NONE    nothing: notes, blanks, unknown lines, lines of other
  *	                  domains, function definitions
+ *
+ * Lines of the boolean and the lambda domain (logic/bool.h, logic/lambda.h)
+ * run in their own list of definitions, in order, as the algebra lines do in
+ * the environment; their value is shown as text, with an optional block.
  *
  * An include line runs the included file in the same environment, as if its
  * lines stood at that place; the lines of the file get no result of their own
@@ -53,6 +58,7 @@ typedef struct MlLineResult
 	uint64_t     err_start; /* ML_RESULT_ERROR: byte range in the line */
 	uint64_t     err_len;
 	uint64_t     snapshot;  /* the environment before the line */
+	uint64_t     logic;     /* the definitions of other domains before it */
 } MlLineResult;
 
 ML_VEC_DEFINE (MlLineResultVec, MlLineResult)
@@ -72,6 +78,7 @@ typedef struct MlResultView
 typedef struct MlResults
 {
 	MlEnv           env;
+	MlLogicDefVec   defs; /* of the boolean and the lambda domain */
 	MlLineResultVec lines;
 	int32_t         free_symbols; /* see MlEnv; kept when the env restarts */
 } MlResults;

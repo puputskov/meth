@@ -1,6 +1,7 @@
 #include <matlog/session/results.h>
 
 #include <matlog/core/mem.h>
+#include <matlog/logic/bool.h>
 #include <matlog/math/eval.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
@@ -21,6 +22,7 @@ void ml_results_init (MlResults *r)
 {
 	ml_env_init (&r->env);
 	r->free_symbols = 0;
+	MlLogicDefVec_init (&r->defs);
 	MlLineResultVec_init (&r->lines);
 }
 
@@ -43,6 +45,7 @@ void ml_results_free (MlResults *r)
 {
 	drop_from (r, 0);
 	MlLineResultVec_free (&r->lines);
+	ml_logic_defs_free (&r->defs);
 	ml_env_free (&r->env);
 }
 
@@ -99,7 +102,7 @@ static void frame_free (Frame *f)
 	ml_str_free (&f->path);
 }
 
-static MlLineResult result_make (uint64_t snapshot)
+static MlLineResult result_make (uint64_t snapshot, uint64_t logic)
 {
 	MlLineResult lr =
 	{
@@ -120,7 +123,8 @@ static MlLineResult result_make (uint64_t snapshot)
 		.value     = ML_VALUE_NONE,
 		.err_start = 0,
 		.err_len   = 0,
-		.snapshot  = snapshot
+		.snapshot  = snapshot,
+		.logic     = logic
 	};
 
 	return lr;
@@ -259,6 +263,56 @@ static MlResult run_math (
 	return r;
 }
 
+/* Runs a line of the boolean domain; lr gets the result. */
+static MlResult run_logic (MlResults *res, MlLineResult *lr, MlSlice source)
+{
+	MlResult   r = ML_OK;
+	MlLogicOut o;
+
+	ml_logic_out_init (&o);
+	r = ml_bool_run (&res->defs, res->defs.len, source, &o);
+
+	if (r == ML_OK && o.error)
+	{
+		r = result_error (
+			lr,
+			ml_str_view (o.text),
+			o.code,
+			o.err_start,
+			o.err_len
+		);
+	}
+
+	else if (r == ML_OK && o.value)
+	{
+		r = ml_str_append (&lr->text, ml_str_view (o.text));
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (&lr->block, ml_str_view (o.block));
+		}
+
+		if (r == ML_OK)
+		{
+			lr->kind  = ML_RESULT_VALUE;
+			lr->value = ML_VALUE_EXACT;
+		}
+	}
+
+	if (r == ML_OK && !o.error && o.def_name.len > 0)
+	{
+		r = ml_logic_defs_add (
+			&res->defs,
+			ML_DOMAIN_BOOLEAN,
+			ml_str_view (o.def_name),
+			ml_str_view (o.def_text)
+		);
+	}
+
+	ml_logic_out_free (&o);
+	return r;
+}
+
 /* 1 when a frame on the stack is the file at path. */
 static int32_t is_running (const FrameVec *st, MlSlice path)
 {
@@ -354,6 +408,11 @@ static MlResult run_line (
 		r = run_math (res, arena, lr, view.text);
 	}
 
+	else if (view.kind == ML_LINE_MATH && view.domain == ML_DOMAIN_BOOLEAN)
+	{
+		r = run_logic (res, lr, view.text);
+	}
+
 	else if (view.kind == ML_LINE_INCLUDE)
 	{
 		MlErrorKind err;
@@ -421,7 +480,10 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 		else
 		{
 			MlLineView   view = ml_session_get (cur, st.data [fi].next);
-			MlLineResult lr   = result_make (ml_env_snapshot (&res->env));
+			MlLineResult lr   = result_make (
+				ml_env_snapshot (&res->env),
+				res->defs.len
+			);
 
 			st.data [fi].next++;
 			r = run_line (res, &st, &arena, &lr, view);
@@ -480,6 +542,7 @@ MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from)
 	if (keep < r->lines.len)
 	{
 		ml_env_truncate (&r->env, r->lines.data [keep].snapshot);
+		ml_logic_defs_truncate (&r->defs, r->lines.data [keep].logic);
 	}
 
 	if (keep == 0)
@@ -488,6 +551,7 @@ MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from)
 		ml_env_free (&r->env);
 		ml_env_init (&r->env);
 		r->env.free_symbols = r->free_symbols;
+		ml_logic_defs_truncate (&r->defs, 0);
 	}
 
 	drop_from (r, keep);
