@@ -83,4 +83,12 @@ MlResult ml_eval_commit (
 	MlValue     value
 );
 
+/*
+ * The names of the built in functions (sqrt, det, dim ...) followed by the
+ * symbolic ones (simplify, diff ...), for completion. An index past the end
+ * gives an empty slice.
+ */
+uint64_t ml_function_name_count (void);
+MlSlice ml_function_name_at (uint64_t index);
+
 #endif /* MATLOG_MATH_EVAL_H */

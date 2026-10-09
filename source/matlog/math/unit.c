@@ -585,3 +585,26 @@ MlRat ml_unit_factor (MlArena *arena, MlUnitMatch m)
 
 	return r;
 }
+
+uint64_t ml_unit_name_count (void)
+{
+	return 2 * ml_count (k_units);
+}
+
+MlSlice ml_unit_name_at (uint64_t index)
+{
+	MlSlice name = ml_slice_cstr ("");
+
+	if (index < ml_unit_name_count ())
+	{
+		name = ml_slice_cstr (
+			ml_choose (
+				index % 2 == 0,
+				k_units [index / 2].sym,
+				k_units [index / 2].name
+			)
+		);
+	}
+
+	return name;
+}

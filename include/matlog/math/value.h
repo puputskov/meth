@@ -67,6 +67,8 @@ typedef struct MlValue
 	MlValueKind kind;
 	MlRat       exact;  /* ML_VALUE_EXACT, ML_VALUE_QUANTITY (in SI units) */
 	MlDim       dim;    /* ML_VALUE_QUANTITY */
+	MlSlice     show;   /* quantity: the unit to show it in (after "to") */
+	MlRat       scale;  /* quantity: SI value of one show, if show is set */
 	MlMat       matrix; /* ML_VALUE_MATRIX */
 	const MlSym *sym;   /* ML_VALUE_EXPR */
 	double      approx; /* ML_VALUE_APPROX */

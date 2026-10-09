@@ -1,5 +1,7 @@
 #include <matlog/ui/complete.h>
 
+#include <matlog/math/eval.h>
+#include <matlog/math/unit.h>
 #include <matlog/session/session.h>
 
 typedef enum ArgKind
@@ -184,6 +186,142 @@ MlCompletion ml_complete_command (MlSlice line)
 			   c.ghost < ML_MAX_CANDIDATES
 			&& command_needs_arg (c.items [c.ghost])
 		);
+	}
+
+	return c;
+}
+
+/* ---- math lines --------------------------------------------------------- */
+
+/* Adds item (a slice that stays valid) unless it is there or does not fit. */
+static void add_item (MlCompletion *c, MlSlice typed, MlSlice item)
+{
+	int32_t known = 0;
+
+	for (uint64_t i = 0; i < c->count; i++)
+	{
+		known = known || ml_slice_equal (c->items [i], item);
+	}
+
+	if (
+		   !known
+		&& c->count < ML_MAX_CANDIDATES
+		&& item.len > typed.len
+		&& ml_slice_equal (ml_slice_sub (item, 0, typed.len), typed)
+	)
+	{
+		c->items [c->count] = item;
+		c->count++;
+	}
+}
+
+/* Does a byte sequence ending in a continuation byte belong to a name? */
+static int32_t is_name_lead (MlSlice text, uint64_t lead)
+{
+	uint8_t b0 = (uint8_t)text.data [lead];
+
+	return (
+		   b0 == 0xCE
+		|| b0 == 0xCF
+		|| (
+			   b0 == 0xC2
+			&& lead + 1 < text.len
+			&& (uint8_t)text.data [lead + 1] == 0xB5
+		)
+	);
+}
+
+/* Where the name at the end of text starts (text.len when there is none). */
+static uint64_t name_start (MlSlice text)
+{
+	uint64_t start = text.len;
+	int32_t  more  = 1;
+
+	while (start > 0 && more)
+	{
+		uint8_t b = (uint8_t)text.data [start - 1];
+
+		if (
+			   (b >= 'a' && b <= 'z')
+			|| (b >= 'A' && b <= 'Z')
+			|| (b >= '0' && b <= '9')
+			|| b == '_'
+		)
+		{
+			start--;
+		}
+
+		else if (b >= 0x80)
+		{
+			uint64_t lead = start - 1;
+
+			while (lead > 0 && ((uint8_t)text.data [lead] & 0xC0) == 0x80)
+			{
+				lead--;
+			}
+
+			more = is_name_lead (text, lead);
+
+			if (more)
+			{
+				start = lead;
+			}
+		}
+
+		else
+		{
+			more = 0;
+		}
+	}
+
+	while (
+		   start < text.len
+		&& text.data [start] >= '0'
+		&& text.data [start] <= '9'
+	)
+	{
+		start++;
+	}
+
+	return start;
+}
+
+MlCompletion ml_complete_math (
+	const MlEnv *env,
+	uint64_t    snapshot,
+	MlSlice     text
+)
+{
+	uint64_t     start = name_start (text);
+	MlSlice      typed = ml_slice_sub (text, start, text.len - start);
+	MlCompletion c     = completion_new (start);
+	uint64_t     bound = ml_choose (
+		snapshot < env->bindings.len,
+		snapshot,
+		env->bindings.len
+	);
+
+	if (typed.len > 0)
+	{
+		for (uint64_t i = bound; i > 0; i--)
+		{
+			add_item (&c, typed, env->bindings.data [i - 1].name);
+		}
+
+		for (uint64_t i = 0; i < ml_function_name_count (); i++)
+		{
+			add_item (&c, typed, ml_function_name_at (i));
+		}
+
+		add_item (&c, typed, ml_slice_cstr ("pi"));
+		add_item (&c, typed, ml_slice_cstr ("e"));
+
+		for (uint64_t i = 0; i < ml_unit_name_count (); i++)
+		{
+			add_item (&c, typed, ml_unit_name_at (i));
+		}
+
+		choose_ghost (&c, typed);
 	}
 
 	return c;

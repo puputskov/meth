@@ -70,6 +70,15 @@ MlSlice ml_dim_unit_name (MlDim d);
 /* Looks a unit name up, with or without an SI prefix. found is 0 if unknown. */
 MlUnitMatch ml_unit_find (MlSlice name);
 
+/*
+ * The names a unit can be written with, for completion: for each unit its
+ * symbol and its long name, in table order (index 2k is the symbol of unit k,
+ * 2k+1 its long name; an empty slice where a unit has no such name). Prefixed
+ * forms (km, millimeter) are not listed.
+ */
+uint64_t ml_unit_name_count (void);
+MlSlice ml_unit_name_at (uint64_t index);
+
 /* The factor of a match as an exact rational (ML_ERR_INVALID if not found). */
 MlRat ml_unit_factor (MlArena *arena, MlUnitMatch m);
 

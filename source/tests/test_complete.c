@@ -1,6 +1,7 @@
 #include "test.h"
 #include "test_keys.h"
 
+#include <matlog/math/eval.h>
 #include <matlog/ui/complete.h>
 #include <matlog/ui/editor.h>
 #include <matlog/ui/screen.h>
@@ -341,10 +342,107 @@ static void test_screen (void)
 	ml_editor_free (&ed);
 }
 
+static MlCompletion math (const MlEnv *env, const char *text)
+{
+	return ml_complete_math (env, ml_env_snapshot (env), lit (text));
+}
+
+static void test_math (void)
+{
+	MlEnv        env;
+	MlArena      arena;
+	MlCompletion c;
+	MlParseResult p;
+	MlSlice      def = lit ("speed = 3");
+
+	ml_env_init (&env);
+	ml_arena_init (&arena, 0);
+	p = ml_parse (def);
+	ml_eval_commit (
+		&env,
+		def,
+		&p.ast,
+		ml_eval (&arena, &env, ml_env_snapshot (&env), def, &p.ast)
+	);
+	ml_ast_free (&p.ast);
+
+	/* variables, functions, constants, units; the rest of the first one */
+	c = math (&env, "sp");
+	CHECK (c.count == 1 && has_item (&c, "speed") && ghost_is (c, "eed"));
+	c = math (&env, "2 + sq");
+	CHECK (has_item (&c, "sqrt") && ghost_is (c, "rt"));
+	c = math (&env, "ps");
+	CHECK (c.count == 0 && c.ghost >= ML_MAX_CANDIDATES);
+	c = math (&env, "5 ki");
+	CHECK (has_item (&c, "kilogram") == 0 && c.count == 0);
+	c = math (&env, "3 ft to mi");
+	CHECK (
+		   has_item (&c, "mile")
+		&& has_item (&c, "min")
+		&& !has_item (&c, "mi")
+	);
+	c = math (&env, "2 zzz");
+	CHECK (c.count == 0);
+	c = math (&env, "p");
+	CHECK (
+		   has_item (&c, "pi")
+		&& has_item (&c, "pascal")
+		&& has_item (&c, "pound")
+	);
+	c = math (&env, "di");
+	CHECK (has_item (&c, "dim") && has_item (&c, "diff"));
+	c = math (&env, "1/he");
+	CHECK (has_item (&c, "hectare") && has_item (&c, "henry"));
+	c = math (&env, "12 N*mete");
+	CHECK (ghost_is (c, "r"));
+
+	/* the word is the name at the end: digits in front are a number */
+	c = math (&env, "2sp");
+	CHECK (c.token_start == 1 && has_item (&c, "speed"));
+	c = math (&env, "2sp ");
+	CHECK (c.count == 0);
+	c = math (&env, "");
+	CHECK (c.count == 0);
+	c = math (&env, "3 α" "x");
+	CHECK (c.token_start == 2);
+
+	/* the environment as of the snapshot: later names are not offered */
+	c = ml_complete_math (&env, 0, lit ("sp"));
+	CHECK (c.count == 0);
+
+	/* each name once, the newest binding first */
+	{
+		MlSlice again = lit ("speed = 4");
+
+		p = ml_parse (again);
+		ml_eval_commit (
+			&env,
+			again,
+			&p.ast,
+			ml_eval (&arena, &env, ml_env_snapshot (&env), again, &p.ast)
+		);
+		ml_ast_free (&p.ast);
+	}
+
+	c = math (&env, "spe");
+	CHECK (c.count == 1);
+
+	CHECK (ml_unit_name_count () > 50);
+	CHECK (ml_slice_equal (ml_unit_name_at (0), lit ("m")));
+	CHECK (ml_slice_equal (ml_unit_name_at (1), lit ("meter")));
+	CHECK (ml_unit_name_at (ml_unit_name_count ()).len == 0);
+	CHECK (ml_slice_equal (ml_function_name_at (0), lit ("sqrt")));
+	CHECK (ml_function_name_at (ml_function_name_count ()).len == 0);
+
+	ml_arena_free (&arena);
+	ml_env_free (&env);
+}
+
 void run_complete_tests (void)
 {
 	test_commands ();
 	test_arguments ();
 	test_editor_keys ();
 	test_screen ();
+	test_math ();
 }

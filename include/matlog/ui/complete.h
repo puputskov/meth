@@ -2,6 +2,7 @@
 #define MATLOG_UI_COMPLETE_H
 
 #include <matlog/core/slice.h>
+#include <matlog/math/env.h>
 
 /*
  * Completion of the command line. Given the text typed after ':' it finds the
@@ -36,5 +37,20 @@ MlCompletion ml_completion_none (void);
 
 /* line is the text after ':' up to the cursor. */
 MlCompletion ml_complete_command (MlSlice line);
+
+/*
+ * Completion of a math line. text is the line up to the cursor; the word being
+ * typed is the name at its end (digits in front of it, as in 2x, are not part
+ * of it). The candidates are the names that start with the word and are longer
+ * than it: variables and functions of the environment as of the snapshot
+ * (newest first, each name once), then the built in and symbolic functions,
+ * the constants pi and e, and the unit names. The ghost text is the rest of the
+ * first one. Nothing is offered for an empty word.
+ */
+MlCompletion ml_complete_math (
+	const MlEnv *env,
+	uint64_t    snapshot,
+	MlSlice     text
+);
 
 #endif /* MATLOG_UI_COMPLETE_H */

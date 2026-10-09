@@ -178,6 +178,33 @@ static MlBuiltin builtin_find (MlSlice name)
 	return found;
 }
 
+static const char *const symbolic_names [] =
+{
+	"simplify", "expand", "subs", "diff", "integrate"
+};
+
+uint64_t ml_function_name_count (void)
+{
+	return (BUILTIN_COUNT - 1) + ml_count (symbolic_names);
+}
+
+MlSlice ml_function_name_at (uint64_t index)
+{
+	MlSlice name = ml_slice_cstr ("");
+
+	if (index < BUILTIN_COUNT - 1)
+	{
+		name = ml_slice_cstr (builtins [index + 1].name);
+	}
+
+	else if (index < ml_function_name_count ())
+	{
+		name = ml_slice_cstr (symbolic_names [index - (BUILTIN_COUNT - 1)]);
+	}
+
+	return name;
+}
+
 /* The value of pi or e, ML_VALUE_NONE for any other name. */
 static MlValue constant_find (MlSlice name)
 {
