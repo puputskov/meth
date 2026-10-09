@@ -767,5 +767,5 @@ Milestones 1 to 5 are done. What each leaves for later is written in its own sec
 results is), milestone 4 (see its tasks 8 to 11 for what was added after the first version, and what is still missing there), milestone 5 (unit
 names in the completion and the highlighting of math lines, which do not exist yet). Built beyond the milestones: the command line interface (eval,
 run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes, the free form editor
-with selection, mouse, pages and the settings file for folds (section 3). Next: highlighting and themes, export, documentation, the tutorial, proofs
+with selection, mouse, pages and the settings file for folds (section 3). Highlighting and themes (section 4.10) are built except the settings file entry for the theme, the OSC 11 background query and the highlight classes of the other domains; an empty editor shows rotating hints (`ui/hint`). Next: export, documentation, the tutorial, proofs
 (sections 4.9 to 4.14), or milestone 6 (lambda calculus and boolean algebra).

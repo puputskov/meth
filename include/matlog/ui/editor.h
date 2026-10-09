@@ -8,6 +8,7 @@
 #include <matlog/ui/complete.h>
 #include <matlog/ui/lineedit.h>
 #include <matlog/ui/rewrite.h>
+#include <matlog/ui/theme.h>
 
 /*
  * The editor: free form editing on top of a session, and no modes. It takes
@@ -42,6 +43,7 @@
  *	         F3  show or hide the steps of the line
  *	         Ctrl+S  save;  Ctrl+Q  quit;  Ctrl+P  command line
  *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3 :steps
+ *	         :theme [name|reload]  :colors [24bit|256|16|off]
  *	         :undo :redo  :[range]d  :[range]y  :[range]m dest  :[range]t dest
  *	         ranges: 3  3,5  %  .  $  (1 based); m and t put the lines after
  *	         line dest (0 is the top)
@@ -99,6 +101,13 @@ typedef struct MlEditor
 	int32_t    mouse_down;
 	uint64_t   mouse_line;
 	uint64_t   mouse_byte;
+	/*
+	 * The look: 0 draws the plain way (dim, reverse and red only), 1 draws
+	 * with the theme at the colour level. :theme and :colors set them.
+	 */
+	int32_t      highlight;
+	MlTheme      theme;
+	MlColorLevel colors;
 } MlEditor;
 
 /* The selected text in text order; valid is 0 when nothing is selected. */

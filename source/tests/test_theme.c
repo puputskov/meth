@@ -1,0 +1,267 @@
+#include "test.h"
+
+#include <matlog/ui/highlight.h>
+#include <matlog/ui/theme.h>
+
+static MlSlice lit (const char *text)
+{
+	return ml_slice_cstr (text);
+}
+
+/* The escape sequence of a style as a string in out (cleared first). */
+static int32_t sgr_is (MlStyle s, MlColorLevel level, const char *expect)
+{
+	MlStr   out;
+	int32_t same;
+
+	ml_str_init (&out);
+	ml_style_sgr (&out, s, level);
+	same = ml_slice_equal (ml_str_view (out), lit (expect));
+	ml_str_free (&out);
+	return same;
+}
+
+static MlStyle style_of (const char *text)
+{
+	MlStyle s;
+
+	ml_style_parse (&s, lit (text));
+	return s;
+}
+
+static void test_names (void)
+{
+	CHECK (ml_class_from_name (lit ("number")) == ML_CLASS_NUMBER);
+	CHECK (ml_class_from_name (lit ("result-error")) == ML_CLASS_RESULT_ERROR);
+	CHECK (ml_class_from_name (lit ("nothing")) == ML_CLASS_COUNT);
+
+	for (uint32_t c = 0; c < ML_CLASS_COUNT; c++)
+	{
+		MlClass back = ml_class_from_name (lit (ml_class_name ((MlClass)c)));
+
+		CHECK (back == (MlClass)c);
+	}
+
+	CHECK (ml_color_level_from_name (lit ("256")) == ML_COLORS_256);
+	CHECK (ml_color_level_from_name (lit ("off")) == ML_COLORS_OFF);
+	CHECK (ml_color_level_from_name (lit ("8")) == ML_COLORS_COUNT);
+}
+
+static void test_detect (void)
+{
+	MlSlice none = lit ("");
+
+	MlSlice tc   = lit ("truecolor");
+	MlSlice xt   = lit ("xterm");
+	MlSlice xt256 = lit ("xterm-256color");
+
+	CHECK (ml_colors_detect (tc, xt, 0, 0) == ML_COLORS_24BIT);
+	CHECK (ml_colors_detect (none, xt256, 0, 0) == ML_COLORS_256);
+	CHECK (ml_colors_detect (none, xt, 0, 0) == ML_COLORS_16);
+	CHECK (ml_colors_detect (none, none, 0, 1) == ML_COLORS_24BIT);
+	CHECK (ml_colors_detect (none, lit ("dumb"), 0, 0) == ML_COLORS_OFF);
+
+	/* NO_COLOR wins over everything */
+	CHECK (ml_colors_detect (tc, xt, 1, 1) == ML_COLORS_OFF);
+}
+
+static void test_sgr (void)
+{
+	MlStyle red   = style_of ("#ff0000");
+	MlStyle blue  = style_of ("#112233 on #000000 bold");
+	MlStyle attrs = style_of ("bold underline");
+
+	CHECK (sgr_is (red, ML_COLORS_24BIT, "\x1b[38;2;255;0;0m"));
+	CHECK (sgr_is (red, ML_COLORS_256, "\x1b[38;5;196m"));
+	CHECK (sgr_is (red, ML_COLORS_16, "\x1b[91m"));
+	CHECK (sgr_is (red, ML_COLORS_OFF, ""));
+	CHECK (sgr_is (blue, ML_COLORS_24BIT, "\x1b[1;38;2;17;34;51;48;2;0;0;0m"));
+	CHECK (sgr_is (attrs, ML_COLORS_OFF, "\x1b[1;4m"));
+	CHECK (sgr_is (style_of ("none"), ML_COLORS_24BIT, ""));
+
+	/* a grey goes to the grey ramp, white to the cube corner */
+	CHECK (sgr_is (style_of ("#808080"), ML_COLORS_256, "\x1b[38;5;244m"));
+	CHECK (sgr_is (style_of ("#ffffff"), ML_COLORS_256, "\x1b[38;5;231m"));
+	CHECK (sgr_is (style_of ("#0000ee"), ML_COLORS_16, "\x1b[34m"));
+	CHECK (sgr_is (style_of ("on #cd0000"), ML_COLORS_16, "\x1b[41m"));
+
+	CHECK (ml_style_is_plain (style_of ("none")));
+	CHECK (!ml_style_is_plain (attrs));
+	CHECK (ml_style_equal (red, style_of ("#f00")));
+	CHECK (!ml_style_equal (red, style_of ("#ff0001")));
+}
+
+static int32_t parse_ok (MlStyle *s, const char *text)
+{
+	return ml_style_parse (s, lit (text)) == ML_OK;
+}
+
+static void test_style_parse (void)
+{
+	MlStyle s;
+
+	CHECK (parse_ok (&s, "#b5cea8") && s.fg.set && s.fg.g == 0xCE);
+	CHECK (parse_ok (&s, "#f44747 underline") && s.underline);
+	CHECK (parse_ok (&s, "bold dim reverse") && s.bold && s.dim && s.reverse);
+	CHECK (parse_ok (&s, "#fff on #123") && s.bg.set && s.bg.b == 0x33);
+
+	/* a comment ends the style */
+	CHECK (parse_ok (&s, "bold # strong") && s.bold && !s.dim);
+
+	CHECK (ml_style_parse (&s, lit ("italic")) == ML_ERR_PARSE);
+	/* not a colour: a comment */
+	CHECK (ml_style_parse (&s, lit ("#12345")) == ML_OK && !s.fg.set);
+	CHECK (ml_style_parse (&s, lit ("on red")) == ML_ERR_PARSE);
+}
+
+static void test_builtin (void)
+{
+	MlTheme t;
+
+	CHECK (ml_theme_builtin_count () == 4);
+	CHECK (ml_theme_builtin (&t, lit ("light")) == ML_OK);
+	CHECK (ml_slice_equal (lit (t.name), lit ("light")));
+	CHECK (ml_theme_builtin (&t, lit ("neon")) == ML_ERR_INVALID);
+
+	for (uint64_t i = 0; i < ml_theme_builtin_count (); i++)
+	{
+		CHECK (ml_theme_builtin (&t, lit (ml_theme_builtin_name (i))) == ML_OK);
+	}
+
+	/* the high contrast theme keeps 7:1 against its background everywhere */
+	ml_theme_builtin (&t, lit ("contrast"));
+
+	for (uint32_t c = 0; c < ML_CLASS_COUNT; c++)
+	{
+		if (t.styles [c].fg.set)
+		{
+			CHECK (ml_contrast_ratio (t.styles [c].fg, t.background) >= 7.0);
+		}
+	}
+
+	/* the mono theme uses no colour at all */
+	ml_theme_builtin (&t, lit ("mono"));
+
+	for (uint32_t c = 0; c < ML_CLASS_COUNT; c++)
+	{
+		CHECK (!t.styles [c].fg.set && !t.styles [c].bg.set);
+	}
+
+	CHECK (ml_contrast_ratio (t.background, t.background) < 1.01);
+}
+
+static void test_theme_file (void)
+{
+	MlTheme  t   = ml_theme_default ();
+	MlStyle  dim = t.styles [ML_CLASS_UNIT];
+	MlStr    report;
+	uint64_t bad;
+
+	ml_str_init (&report);
+
+	CHECK (ml_theme_apply_line (&t, lit ("number = #010203")) == ML_OK);
+	CHECK (t.styles [ML_CLASS_NUMBER].fg.r == 1);
+	CHECK (t.styles [ML_CLASS_NUMBER].fg.b == 3);
+	CHECK (ml_theme_apply_line (&t, lit (" error = #f44 underline ")) == ML_OK);
+	CHECK (t.styles [ML_CLASS_ERROR].underline);
+	CHECK (ml_theme_apply_line (&t, lit ("background = #ffffff")) == ML_OK);
+	CHECK (t.background.r == 255);
+	CHECK (ml_theme_apply_line (&t, lit ("")) == ML_OK);
+	CHECK (ml_theme_apply_line (&t, lit ("# a comment = bold")) == ML_OK);
+	CHECK (ml_theme_apply_line (&t, lit ("colour = bold")) == ML_ERR_PARSE);
+	CHECK (ml_theme_apply_line (&t, lit ("number bold")) == ML_ERR_PARSE);
+	CHECK (ml_theme_apply_line (&t, lit ("number = shiny")) == ML_ERR_PARSE);
+
+	/* a bad line changes nothing, the others still count */
+	CHECK (ml_style_equal (t.styles [ML_CLASS_UNIT], dim));
+	CHECK (ml_theme_apply_text (
+		&t,
+		lit ("name = bold\nnonsense\nunit = underline\n"),
+		&report,
+		&bad
+	) == ML_OK);
+	CHECK (bad == 1);
+	CHECK (t.styles [ML_CLASS_NAME].bold && t.styles [ML_CLASS_UNIT].underline);
+	CHECK (ml_slice_equal (
+		ml_str_view (report),
+		lit ("line 2: not a class = style entry")
+	));
+
+	ml_str_free (&report);
+}
+
+/* The class of the byte at pos in the highlighted text. */
+static MlClass class_in (const char *text, uint64_t pos)
+{
+	MlRunVec runs;
+	MlClass  c;
+
+	MlRunVec_init (&runs);
+	ml_highlight (&runs, lit (text), NULL, 0, 0, 0);
+	c = ml_runs_class_at (&runs, pos);
+	MlRunVec_free (&runs);
+	return c;
+}
+
+static void test_highlight (void)
+{
+	MlRunVec runs;
+
+	/* 2x + sin(pi) */
+	CHECK (class_in ("2x + sin(pi)", 0) == ML_CLASS_NUMBER);
+	CHECK (class_in ("2x + sin(pi)", 1) == ML_CLASS_NAME);
+	CHECK (class_in ("2x + sin(pi)", 2) == ML_CLASS_TEXT);
+	CHECK (class_in ("2x + sin(pi)", 3) == ML_CLASS_OPERATOR);
+	CHECK (class_in ("2x + sin(pi)", 5) == ML_CLASS_FUNCTION);
+	CHECK (class_in ("2x + sin(pi)", 8) == ML_CLASS_PAREN);
+	CHECK (class_in ("2x + sin(pi)", 9) == ML_CLASS_CONSTANT);
+	CHECK (class_in ("2x + sin(pi)", 11) == ML_CLASS_PAREN);
+
+	/* a name followed by '(' is a function, even an undefined one */
+	CHECK (class_in ("f(x)", 0) == ML_CLASS_FUNCTION);
+	CHECK (class_in ("f (x)", 0) == ML_CLASS_NAME);
+
+	/* units, keywords, unicode spellings */
+	CHECK (class_in ("3 km", 2) == ML_CLASS_UNIT);
+	CHECK (class_in ("include a.mlog", 0) == ML_CLASS_KEYWORD);
+	CHECK (class_in ("\xCF\x80", 0) == ML_CLASS_CONSTANT);
+	CHECK (class_in ("a \xC3\x97 b", 2) == ML_CLASS_OPERATOR);
+	CHECK (class_in ("\xE2\x88\x9A" "4", 0) == ML_CLASS_OPERATOR);
+
+	/* a character that is not syntax is an error, the rest goes on */
+	CHECK (class_in ("1 $ 2", 2) == ML_CLASS_ERROR);
+	CHECK (class_in ("1 $ 2", 4) == ML_CLASS_NUMBER);
+
+	/* the runs cover the text without gaps, neighbours merge */
+	MlRunVec_init (&runs);
+	CHECK (ml_highlight (&runs, lit ("12+3"), NULL, 0, 0, 0) == ML_OK);
+	CHECK (runs.len == 3);
+	CHECK (runs.data [0].start == 0 && runs.data [0].len == 2);
+	CHECK (runs.data [2].start == 3 && runs.data [2].cls == ML_CLASS_NUMBER);
+	MlRunVec_free (&runs);
+
+	/* an error range overrides the classes in it */
+	MlRunVec_init (&runs);
+	CHECK (ml_highlight (&runs, lit ("1 + 22"), NULL, 0, 4, 2) == ML_OK);
+	CHECK (ml_runs_class_at (&runs, 4) == ML_CLASS_ERROR);
+	CHECK (ml_runs_class_at (&runs, 5) == ML_CLASS_ERROR);
+	CHECK (ml_runs_class_at (&runs, 0) == ML_CLASS_NUMBER);
+	MlRunVec_free (&runs);
+
+	/* empty text has no runs */
+	MlRunVec_init (&runs);
+	CHECK (ml_highlight (&runs, lit (""), NULL, 0, 0, 0) == ML_OK);
+	CHECK (runs.len == 0);
+	MlRunVec_free (&runs);
+}
+
+void run_theme_tests (void)
+{
+	test_names ();
+	test_detect ();
+	test_sgr ();
+	test_style_parse ();
+	test_builtin ();
+	test_theme_file ();
+	test_highlight ();
+}

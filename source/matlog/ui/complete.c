@@ -3,6 +3,7 @@
 #include <matlog/math/eval.h>
 #include <matlog/math/unit.h>
 #include <matlog/session/session.h>
+#include <matlog/ui/theme.h>
 
 typedef enum ArgKind
 {
@@ -10,6 +11,8 @@ typedef enum ArgKind
 	ARG_DOMAIN,
 	ARG_PGA_DIM,
 	ARG_ON_OFF,
+	ARG_THEME,
+	ARG_COLORS,
 	ARG_PATH /* files are not completed yet */
 } ArgKind;
 
@@ -38,6 +41,8 @@ static const Command commands [] =
 	{ .name = "pga",   .arg = ARG_PGA_DIM, .needs_arg = 1 },
 	{ .name = "steps", .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "symbols", .arg = ARG_ON_OFF, .needs_arg = 0 },
+	{ .name = "theme", .arg = ARG_THEME,   .needs_arg = 0 },
+	{ .name = "colors", .arg = ARG_COLORS, .needs_arg = 0 },
 	{ .name = "undo",  .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "redo",  .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "delete", .arg = ARG_NONE,   .needs_arg = 0 },
@@ -176,6 +181,28 @@ MlCompletion ml_complete_command (MlSlice line)
 		{
 			add_candidate (&c, typed, "on");
 			add_candidate (&c, typed, "off");
+		}
+
+		else if (kind == ARG_THEME && !more)
+		{
+			for (uint64_t i = 0; i < ml_theme_builtin_count (); i++)
+			{
+				add_candidate (&c, typed, ml_theme_builtin_name (i));
+			}
+
+			add_candidate (&c, typed, "reload");
+		}
+
+		else if (kind == ARG_COLORS && !more)
+		{
+			for (uint32_t i = 0; i < ML_COLORS_COUNT; i++)
+			{
+				add_candidate (
+					&c,
+					typed,
+					ml_color_level_name ((MlColorLevel)i)
+				);
+			}
 		}
 
 		else if (kind == ARG_PGA_DIM && !more)

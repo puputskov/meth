@@ -3,6 +3,8 @@
 #include <matlog/core/utf8.h>
 #include <matlog/ui/brackets.h>
 #include <matlog/ui/ghost.h>
+#include <matlog/ui/highlight.h>
+#include <matlog/ui/hint.h>
 #include <matlog/ui/markup.h>
 
 #define STYLE_REVERSE "\x1b[7m"
@@ -33,6 +35,7 @@ void ml_screen_init (MlScreen *s, uint32_t cols, uint32_t rows)
 	s->rows  = rows;
 	s->top   = 0;
 	s->force = 1;
+	s->hint_tick = 0;
 	MlRowVec_init (&s->drawn);
 }
 
@@ -117,6 +120,143 @@ static MlResult append_cstr (MlStr *out, const char *text)
 	return ml_str_append (out, ml_slice_cstr (text));
 }
 
+/*
+ * Switches to the style of a class of the theme, or to the plain way when the
+ * editor draws without a theme.
+ */
+static MlResult append_class (
+	MlStr          *out,
+	const MlEditor *ed,
+	MlClass        c,
+	const char     *plain
+)
+{
+	MlResult r = ML_OK;
+
+	if (ed->highlight)
+	{
+		r = ml_style_sgr (out, ed->theme.styles [c], ed->colors);
+	}
+
+	else
+	{
+		r = append_cstr (out, plain);
+	}
+
+	return r;
+}
+
+/* base with what over adds: its colours when it has them, its attributes. */
+static MlStyle merge_style (MlStyle base, MlStyle over)
+{
+	MlStyle s = base;
+
+	s.fg        = ml_choose (over.fg.set, over.fg, s.fg);
+	s.bg        = ml_choose (over.bg.set, over.bg, s.bg);
+	s.bold      = s.bold || over.bold;
+	s.dim       = s.dim || over.dim;
+	s.underline = s.underline || over.underline;
+	s.reverse   = s.reverse || over.reverse;
+	return s;
+}
+
+/* What a math line is drawn from by append_themed. */
+typedef struct Themed
+{
+	MlSlice  text;
+	uint64_t snapshot;  /* the environment the line saw */
+	uint64_t err_start; /* the byte range of an error, err_len 0: none */
+	uint64_t err_len;
+	uint64_t a;         /* the brackets to emphasise (past the text: none) */
+	uint64_t b;
+	int32_t  matched;   /* a and b pair up */
+} Themed;
+
+/*
+ * A math line drawn with the theme: every character in the style of its class
+ * (see highlight.h) and the brackets emphasised, from column start_col on,
+ * avail columns wide; a wide character is not cut in half.
+ */
+static MlTextWindow append_themed (
+	MlStr          *out,
+	const MlEditor *ed,
+	Themed         t,
+	uint64_t       start_col,
+	uint64_t       avail
+)
+{
+	MlTextWindow w =
+	{
+		.result    = ML_OK,
+		.first_col = start_col
+	};
+
+	MlRunVec runs;
+	MlStyle  cur = { .bold = 0 };
+	uint64_t pos = 0;
+	uint64_t col = 0;
+
+	MlRunVec_init (&runs);
+	w.result = ml_highlight (
+		&runs,
+		t.text,
+		&ed->results.env,
+		t.snapshot,
+		t.err_start,
+		t.err_len
+	);
+
+	while (pos < t.text.len && w.result == ML_OK && col < start_col + avail)
+	{
+		uint64_t next  = ml_utf8_next (t.text, pos);
+		MlSlice  cp    = ml_slice_sub (t.text, pos, next - pos);
+		uint64_t width = ml_utf8_width (cp);
+		int32_t  shown = col >= start_col && col + width <= start_col + avail;
+		MlStyle  want  = ed->theme.styles [ml_runs_class_at (&runs, pos)];
+
+		if (pos == t.a || pos == t.b)
+		{
+			want = merge_style (
+				want,
+				ed->theme.styles [
+					ml_choose (t.matched, ML_CLASS_MATCH, ML_CLASS_UNMATCHED)
+				]
+			);
+		}
+
+		if (shown && !ml_style_equal (cur, want))
+		{
+			if (!ml_style_is_plain (cur))
+			{
+				w.result = append_cstr (out, STYLE_RESET);
+			}
+
+			if (w.result == ML_OK)
+			{
+				w.result = ml_style_sgr (out, want, ed->colors);
+			}
+
+			cur = want;
+		}
+
+		if (shown && w.result == ML_OK)
+		{
+			w.result = ml_str_append (out, cp);
+		}
+
+		col += width;
+		pos  = next;
+	}
+
+	if (w.result == ML_OK && !ml_style_is_plain (cur))
+	{
+		w.result = append_cstr (out, STYLE_RESET);
+	}
+
+	MlRunVec_free (&runs);
+	return w;
+}
+
 /* Digits needed for the line numbers of total lines (at least two). */
 static uint64_t number_width (uint64_t total)
 {
@@ -142,13 +282,14 @@ typedef struct Head
  * their text too.
  */
 static Head append_head (
-	MlStr    *out,
-	uint64_t number,
-	uint64_t num_width,
-	MlSlice  gutter,
-	int32_t  highlight,
-	int32_t  note,
-	uint32_t cols
+	MlStr          *out,
+	const MlEditor *ed,
+	uint64_t       number,
+	uint64_t       num_width,
+	MlSlice        gutter,
+	int32_t        highlight,
+	int32_t        note,
+	uint32_t       cols
 )
 {
 	Head head =
@@ -183,9 +324,10 @@ static Head append_head (
 
 	if (head.result == ML_OK)
 	{
-		head.result = append_cstr (
-			out,
-			ml_choose (highlight, STYLE_REVERSE, STYLE_DIM)
+		head.result = ml_choose (
+			highlight,
+			append_cstr (out, STYLE_REVERSE),
+			append_class (out, ed, ML_CLASS_GUTTER, STYLE_DIM)
 		);
 	}
 
@@ -224,9 +366,10 @@ static Head append_head (
  * two spaces, then "= value" dim or "! message" in red.
  */
 static MlResult append_result (
-	MlStr        *out,
-	MlResultView result,
-	uint64_t     avail
+	MlStr          *out,
+	const MlEditor *ed,
+	MlResultView   result,
+	uint64_t       avail
 )
 {
 	MlResult r = ML_OK;
@@ -260,8 +403,14 @@ static MlResult append_result (
 
 		if (r == ML_OK)
 		{
-			r = append_cstr (
+			r = append_class (
 				out,
+				ed,
+				ml_choose (
+					result.kind == ML_RESULT_ERROR,
+					ML_CLASS_RESULT_ERROR,
+					ML_CLASS_RESULT
+				),
 				ml_choose (
 					result.kind == ML_RESULT_ERROR,
 					STYLE_RED,
@@ -363,8 +512,9 @@ static int32_t is_rule (MlSlice text)
  * number of the lines hidden behind it.
  */
 static MlResult append_line_row (
-	MlStr        *out,
-	MlLineView   line,
+	MlStr          *out,
+	const MlEditor *ed,
+	MlLineView     line,
 	MlResultView result,
 	uint64_t     number,
 	uint64_t     num_width,
@@ -379,6 +529,7 @@ static MlResult append_line_row (
 	int32_t  bare = line.kind == ML_LINE_BLANK && !highlight;
 	Head     head = append_head (
 		out,
+		ed,
 		number,
 		num_width,
 		ml_choose (bare, ml_slice ("", 0), gutter),
@@ -423,6 +574,26 @@ static MlResult append_line_row (
 		else if (r == ML_OK && note)
 		{
 			r = append_note_text (out, line.text, room);
+		}
+
+		else if (r == ML_OK && ed->highlight && line.kind == ML_LINE_MATH)
+		{
+			Themed t =
+			{
+				.text      = line.text,
+				.snapshot  = result.snapshot,
+				.err_start = result.err_start,
+				.err_len   = ml_choose (
+					result.kind == ML_RESULT_ERROR,
+					result.err_len,
+					0
+				),
+				.a         = line.text.len,
+				.b         = line.text.len,
+				.matched   = 0
+			};
+
+			r = append_themed (out, ed, t, 0, room).result;
 		}
 
 		else if (r == ML_OK)
@@ -473,7 +644,7 @@ static MlResult append_line_row (
 			&& result.block.len == 0
 		)
 		{
-			r = append_result (out, result, room - used);
+			r = append_result (out, ed, result, room - used);
 		}
 	}
 
@@ -723,7 +894,16 @@ static MlResult append_selected_line (
 	uint64_t lo;
 	uint64_t hi;
 	int32_t  eol;
-	Head     head = append_head (out, idx + 1, num_width, gutter, 0, 0, cols);
+	Head     head = append_head (
+		out,
+		ed,
+		idx + 1,
+		num_width,
+		gutter,
+		0,
+		0,
+		cols
+	);
 	uint64_t avail = ml_choose (cols > head.used, cols - head.used, 0);
 	MlTextWindow w =
 	{
@@ -824,6 +1004,7 @@ static EditRow append_edit_row (
 
 	Head    head = append_head (
 		out,
+		ed,
 		number,
 		num_width,
 		gutter,
@@ -881,6 +1062,42 @@ static EditRow append_edit_row (
 		{
 			row.result = append_cstr (out, STYLE_REVERSE " " STYLE_RESET);
 		}
+	}
+
+	else if (
+		   row.result == ML_OK
+		&& ed->highlight
+		&& ed->state == ML_STATE_MATH
+	)
+	{
+		uint64_t end = ed->edit.text.len;
+		Themed   t   =
+		{
+			.text      = ml_str_view (ed->edit.text),
+			.snapshot  = ml_choose (
+				ed->edit_index < ed->results.lines.len,
+				ed->results.lines.data [ed->edit_index].snapshot,
+				ml_env_snapshot (&ed->results.env)
+			),
+			.err_start = 0,
+			.err_len   = 0,
+			.a         = ml_choose (bracket.found, bracket.at, end),
+			.b         = ml_choose (
+				bracket.matched,
+				bracket.partner,
+				ml_choose (bracket.found, bracket.at, end)
+			),
+			.matched   = bracket.matched
+		};
+
+		w = append_themed (
+			out,
+			ed,
+			t,
+			ml_lineedit_start_col (&ed->edit, avail),
+			avail
+		);
+		row.result = w.result;
 	}
 
 	else if (
@@ -953,6 +1170,7 @@ static EditRow append_edit_row (
 
 			row.result = append_result (
 				out,
+				ed,
 				view,
 				cols - head.used - (used - w.first_col)
 			);
@@ -1313,6 +1531,101 @@ static MlSlice steps_of (const MlEditor *ed, uint64_t src)
  * What the layout needs to know of each line it draws, the lines of the
  * session and the one being typed (a new line is not in the session yet).
  */
+int32_t ml_screen_hint_active (const MlEditor *ed)
+{
+	return (
+		   ed->session.lines.len == 0
+		&& ed->edit.text.len == 0
+		&& (ed->state == ML_STATE_NOTE || ed->state == ML_STATE_MATH)
+		&& !ed->selecting
+	);
+}
+
+/*
+ * A hint in the middle of a row of cols columns as ghost text, the parts
+ * between braces in the colour of the hint-key class. Nothing is written
+ * when it does not fit.
+ */
+static MlResult append_hint (
+	MlStr          *out,
+	const MlEditor *ed,
+	MlSlice        hint,
+	uint32_t       cols
+)
+{
+	MlResult r     = ML_OK;
+	uint64_t width = ml_hint_width (hint);
+
+	if (width + 2 <= cols)
+	{
+		r = append_spaces (out, (cols - width) / 2);
+
+		if (r == ML_OK)
+		{
+			r = append_class (out, ed, ML_CLASS_GHOST, STYLE_DIM);
+		}
+
+		for (uint64_t i = 0; i < hint.len && r == ML_OK; i++)
+		{
+			char c = hint.data [i];
+
+			if (c == '{' || c == '}')
+			{
+				r = append_cstr (out, STYLE_RESET);
+
+				if (r == ML_OK)
+				{
+					r = ml_choose (
+						c == '{',
+						append_class (out, ed, ML_CLASS_HINT_KEY, "\x1b[1m"),
+						append_class (out, ed, ML_CLASS_GHOST, STYLE_DIM)
+					);
+				}
+			}
+
+			else
+			{
+				r = ml_str_append (out, ml_slice_sub (hint, i, 1));
+			}
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (out, STYLE_RESET);
+		}
+	}
+
+	return r;
+}
+
+/* Puts the hint in the middle row of the text area. */
+static MlResult layout_hint (
+	MlLayout       *layout,
+	const MlScreen *s,
+	const MlEditor *ed
+)
+{
+	MlResult r   = ML_OK;
+	uint64_t mid = (s->rows - 1) / 2;
+	MlStr    row;
+
+	ml_str_init (&row);
+	r = append_hint (&row, ed, ml_hint_at (s->hint_tick), s->cols);
+
+	if (r == ML_OK)
+	{
+		ml_str_free (&layout->rows.data [mid]);
+		layout->rows.data [mid] = row;
+	}
+
+	else
+	{
+		ml_str_free (&row);
+	}
+
+	return r;
+}
+
 typedef struct VLine
 {
 	MlLineKind kind;
@@ -1705,6 +2018,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 
 			layout.result = append_line_row (
 				&row,
+				ed,
 				ml_session_get (&ed->session, src),
 				ml_results_get (&ed->results, src),
 				line + 1,
@@ -1772,6 +2086,16 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 	}
 
 	VLineVec_free (&vl);
+
+	/* the hint needs room under the line being typed */
+	if (
+		   layout.result == ML_OK
+		&& s->rows >= 6
+		&& ml_screen_hint_active (ed)
+	)
+	{
+		layout.result = layout_hint (&layout, s, ed);
+	}
 
 	if (layout.result != ML_OK)
 	{

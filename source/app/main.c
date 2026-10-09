@@ -3,9 +3,11 @@
 #include <matlog/session/folds.h>
 #include <matlog/session/mlog.h>
 #include <matlog/ui/editor.h>
+#include <matlog/ui/hint.h>
 #include <matlog/ui/screen.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #define DEFAULT_SESSION "scratch.mlog"
 
@@ -144,6 +146,17 @@ static MlResult run (
 		);
 		r = draw (con, screen, &frame, ed);
 
+		/* an empty editor shows a hint that changes after a while */
+		while (
+			   r == ML_OK
+			&& ml_screen_hint_active (ed)
+			&& !ml_console_wait (con, ML_HINT_SECONDS * 1000)
+		)
+		{
+			screen->hint_tick++;
+			r = draw (con, screen, &frame, ed);
+		}
+
 		if (r == ML_OK)
 		{
 			k = ml_console_read_key (con);
@@ -246,6 +259,31 @@ static int32_t run_command_line (int32_t argc, char **argv)
 	return code;
 }
 
+/* The text of an environment variable, empty when it is not set. */
+static MlSlice env_text (const char *name)
+{
+	const char *value = getenv (name);
+
+	return ml_slice_cstr (ml_choose (value != NULL, value, ""));
+}
+
+/* Colours and theme from the terminal; NO_COLOR picks the mono theme. */
+static void setup_look (MlEditor *ed)
+{
+	ed->colors = ml_colors_detect (
+		env_text ("COLORTERM"),
+		env_text ("TERM"),
+		getenv ("NO_COLOR") != NULL,
+		ml_console_truecolor ()
+	);
+	ed->highlight = 1;
+
+	if (ed->colors == ML_COLORS_OFF)
+	{
+		ml_theme_builtin (&ed->theme, ml_slice_cstr ("mono"));
+	}
+}
+
 /* The interactive editor. */
 static int32_t run_interactive (int32_t argc, char **argv)
 {
@@ -256,6 +294,7 @@ static int32_t run_interactive (int32_t argc, char **argv)
 	MlEditor      ed;
 
 	ml_editor_init (&ed);
+	setup_look (&ed);
 	r = ml_console_open (&con);
 
 	if (r == ML_OK)

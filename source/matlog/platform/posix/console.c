@@ -233,6 +233,35 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 	return res;
 }
 
+int32_t ml_console_wait (MlConsole *c, uint32_t timeout_ms)
+{
+	struct pollfd pfd;
+	int32_t       ready = 0;
+
+	(void)c;
+	pfd.fd      = STDIN_FILENO;
+	pfd.events  = POLLIN;
+	pfd.revents = 0;
+
+	if (in_len > 0 || resized)
+	{
+		ready = 1;
+	}
+
+	else
+	{
+		/* a signal (the resize) ends the wait early, that is input too */
+		ready = poll (&pfd, 1, (int)timeout_ms) > 0 || resized;
+	}
+
+	return ready;
+}
+
+int32_t ml_console_truecolor (void)
+{
+	return 0;
+}
+
 MlConsoleSize ml_console_size (const MlConsole *c)
 {
 	MlConsoleSize  size =

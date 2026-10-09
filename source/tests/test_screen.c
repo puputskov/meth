@@ -1,6 +1,7 @@
 #include "test.h"
 #include "test_keys.h"
 
+#include <matlog/ui/hint.h>
 #include <matlog/ui/screen.h>
 
 #include <string.h>
@@ -1020,8 +1021,142 @@ static void test_hit (void)
 	ml_editor_free (&ed);
 }
 
+/* 1 when the row has text in it. */
+static int32_t row_contains (
+	const MlLayout *layout,
+	uint64_t       idx,
+	const char     *text
+)
+{
+	MlSlice row  = ml_str_view (layout->rows.data [idx]);
+	MlSlice want = lit (text);
+	int32_t found = 0;
+
+	for (uint64_t i = 0; i + want.len <= row.len && !found; i++)
+	{
+		found = ml_slice_equal (ml_slice_sub (row, i, want.len), want);
+	}
+
+	return found;
+}
+
+static void test_hint (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlStr    p;
+	MlLayout layout;
+	uint64_t width = ml_hint_width (ml_hint_at (0));
+	uint64_t pad   = (100 - width) / 2;
+
+	ml_editor_init (&ed);
+	ml_editor_begin_note (&ed);
+	ml_screen_init (&s, 100, 10);
+	ml_str_init (&p);
+
+	/* an empty editor shows a hint in the middle, ghost text, keys bold */
+	CHECK (ml_screen_hint_active (&ed));
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (layout.result == ML_OK);
+	plain (&p, ml_str_view (layout.rows.data [4]));
+	CHECK (p.len == pad + width);
+	CHECK (p.data [pad] == 'J');
+	CHECK (row_contains (&layout, 4, "\x1b[2m"));
+	CHECK (row_contains (&layout, 4, "\x1b[1m"));
+	CHECK (layout.rows.data [3].len == 0 && layout.rows.data [5].len == 0);
+	ml_layout_free (&layout);
+
+	/* the next hint comes with the tick */
+	s.hint_tick = 1;
+	layout = ml_screen_layout (&s, &ed);
+	plain (&p, ml_str_view (layout.rows.data [4]));
+	CHECK (p.data [(100 - ml_hint_width (ml_hint_at (1))) / 2] == 'T');
+	ml_layout_free (&layout);
+
+	/* with a theme the keys have their own colour */
+	ed.highlight = 1;
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&layout, 4, "\x1b[1;38;2;79;193;255m"));
+	ml_layout_free (&layout);
+
+	/* typing makes it go at once */
+	type (&ed, "a");
+	CHECK (!ml_screen_hint_active (&ed));
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (layout.rows.data [4].len == 0);
+	ml_layout_free (&layout);
+
+	/* a window too small to have room for it shows none */
+	ml_editor_free (&ed);
+	ml_editor_init (&ed);
+	ml_editor_begin_note (&ed);
+	ml_screen_resize (&s, 100, 5);
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (layout.rows.data [2].len == 0);
+	ml_layout_free (&layout);
+
+	/* a window too narrow shows none either */
+	ml_screen_resize (&s, 20, 10);
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (layout.rows.data [4].len == 0);
+	ml_layout_free (&layout);
+
+	ml_str_free (&p);
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
+static void test_themed_rows (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlStr    p;
+	MlLayout layout;
+
+	ml_editor_init (&ed);
+	ml_editor_begin (&ed);
+	ml_screen_init (&s, 40, 8);
+	ml_str_init (&p);
+	type (&ed, "2+x");
+
+	/* without a theme the line is plain text */
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (!row_contains (&layout, 0, "\x1b[38;"));
+	ml_layout_free (&layout);
+
+	/* with one the number, the operator and the name have their colours */
+	ed.highlight = 1;
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&layout, 0, "\x1b[38;2;181;206;168m" "2"));
+	CHECK (row_contains (&layout, 0, "\x1b[38;2;212;212;212m" "+"));
+	CHECK (row_contains (&layout, 0, "\x1b[38;2;156;220;254m" "x"));
+	plain (&p, ml_str_view (layout.rows.data [0]));
+	CHECK (p.len >= 11 && memcmp (p.data, " 1 alg> 2+x", 11) == 0);
+	ml_layout_free (&layout);
+
+	/* the colour level changes the escape sequences, not the text */
+	ed.colors = ML_COLORS_16;
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (!row_contains (&layout, 0, "\x1b[38;2;"));
+	CHECK (row_contains (&layout, 0, "\x1b[3"));
+	ml_layout_free (&layout);
+
+	/* a committed line is drawn the same way, with its result */
+	ed.colors = ML_COLORS_24BIT;
+	press (&ed, ML_KEY_ESCAPE);
+	layout = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&layout, 0, "\x1b[38;2;181;206;168m" "2"));
+	ml_layout_free (&layout);
+
+	ml_str_free (&p);
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
+	test_hint ();
+	test_themed_rows ();
 	test_basic_layout ();
 	test_hit ();
 	test_typing_row ();

@@ -19,6 +19,11 @@ static uint64_t from_handle (HANDLE h)
 	return (uint64_t)(uintptr_t)h;
 }
 
+int32_t ml_console_truecolor (void)
+{
+	return 1;
+}
+
 MlResult ml_console_open (MlConsole *c)
 {
 	MlResult r        = ML_OK;
@@ -218,6 +223,61 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 	}
 
 	return res;
+}
+
+/* Does the record make ml_console_read_key return something? */
+static int32_t is_input (INPUT_RECORD rec)
+{
+	return (
+		   rec.EventType == WINDOW_BUFFER_SIZE_EVENT
+		|| (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+		|| (
+			   rec.EventType == MOUSE_EVENT
+			&& (
+				   rec.Event.MouseEvent.dwEventFlags == 0
+				|| (rec.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED)
+				|| (rec.Event.MouseEvent.dwButtonState != 0)
+			)
+		)
+	);
+}
+
+int32_t ml_console_wait (MlConsole *c, uint32_t timeout_ms)
+{
+	HANDLE   in    = to_handle (c->in_handle);
+	ULONGLONG end  = GetTickCount64 () + timeout_ms;
+	int32_t  ready = 0;
+	int32_t  more  = 1;
+
+	/* events that read_key would skip are dropped, they are not input */
+	while (more && !ready)
+	{
+		ULONGLONG now  = GetTickCount64 ();
+		DWORD     left = (DWORD)ml_choose (now < end, end - now, 0);
+
+		if (WaitForSingleObject (in, left) == WAIT_OBJECT_0)
+		{
+			INPUT_RECORD rec;
+			DWORD        count = 0;
+
+			if (PeekConsoleInputW (in, &rec, 1, &count) && count == 1)
+			{
+				ready = is_input (rec);
+
+				if (!ready)
+				{
+					ReadConsoleInputW (in, &rec, 1, &count);
+				}
+			}
+		}
+
+		else
+		{
+			more = 0;
+		}
+	}
+
+	return ready;
 }
 
 MlConsoleSize ml_console_size (const MlConsole *c)

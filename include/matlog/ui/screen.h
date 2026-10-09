@@ -33,6 +33,8 @@ typedef struct MlScreen
 	uint64_t top;   /* index of the first visible line */
 	MlRowVec drawn; /* what the terminal shows now, one string per row */
 	int32_t  force; /* redraw every row the next time */
+	/* which hint an empty editor shows, one more every ML_HINT_SECONDS */
+	uint64_t hint_tick;
 } MlScreen;
 
 /* 1 based terminal position. */
@@ -60,6 +62,13 @@ typedef struct MlLayout
 	MlRowInfoVec info; /* one per row */
 	MlCursorPos cursor;
 } MlLayout;
+
+/*
+ * 1 while the editor shows a hint in the middle of the screen: nothing is
+ * written and nothing is being typed (see hint.h). Typing, pasting or opening
+ * a file makes it go at once.
+ */
+int32_t ml_screen_hint_active (const MlEditor *ed);
 
 void ml_screen_init (MlScreen *s, uint32_t cols, uint32_t rows);
 void ml_screen_free (MlScreen *s);

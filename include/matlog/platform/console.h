@@ -46,10 +46,22 @@ void ml_console_close (MlConsole *c);
  */
 MlKeyResult ml_console_read_key (MlConsole *c);
 
+/*
+ * Waits at most timeout_ms for something to read: 1 when ml_console_read_key
+ * will not block (a key, a click, a resize), 0 when the time ran out.
+ */
+int32_t ml_console_wait (MlConsole *c, uint32_t timeout_ms);
+
 /* Visible window size in character cells (0 x 0 when unknown). */
 MlConsoleSize ml_console_size (const MlConsole *c);
 
 /* Writes UTF-8 text and VT escape sequences. */
 MlResult ml_console_write (const MlConsole *c, MlSlice text);
+
+/*
+ * 1 when the console of this OS shows 24 bit colour without being told so
+ * (the Windows console does, a POSIX terminal says so in COLORTERM).
+ */
+int32_t ml_console_truecolor (void);
 
 #endif /* MATLOG_PLATFORM_CONSOLE_H */

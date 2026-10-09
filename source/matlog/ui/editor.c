@@ -1,6 +1,9 @@
 #include <matlog/ui/editor.h>
 
 #include <matlog/core/utf8.h>
+#include <matlog/platform/config.h>
+#include <matlog/platform/fs.h>
+#include <matlog/platform/path.h>
 
 static const char *const state_names [ML_STATE_COUNT] =
 {
@@ -65,6 +68,9 @@ void ml_editor_init (MlEditor *ed)
 	ed->mouse_down    = 0;
 	ed->mouse_line    = 0;
 	ed->mouse_byte    = 0;
+	ed->highlight     = 0;
+	ed->theme         = ml_theme_default ();
+	ed->colors        = ML_COLORS_24BIT;
 }
 
 void ml_editor_set_page (MlEditor *ed, uint64_t rows)
@@ -1484,6 +1490,190 @@ static MlResult set_symbols (MlEditor *ed, MlSlice arg)
 	return r;
 }
 
+/* A theme name that is a plain file name, with no folders in it. */
+static int32_t is_theme_name (MlSlice name)
+{
+	int32_t ok = name.len > 0 && name.len < ML_THEME_NAME_MAX;
+
+	for (uint64_t i = 0; i < name.len; i++)
+	{
+		ok = (
+			   ok
+			&& name.data [i] != '/'
+			&& name.data [i] != '\\'
+			&& name.data [i] != '.'
+			&& name.data [i] != ':'
+		);
+	}
+
+	return ok;
+}
+
+/* Loads name.theme of the settings folder over the dark theme. */
+static MlResult load_user_theme (MlEditor *ed, MlSlice name)
+{
+	MlResult r = ML_ERR_INVALID;
+	MlStr    dir;
+	MlStr    file;
+	MlStr    path;
+	MlStr    text;
+	MlStr    report;
+
+	ml_str_init (&dir);
+	ml_str_init (&file);
+	ml_str_init (&path);
+	ml_str_init (&text);
+	ml_str_init (&report);
+
+	if (is_theme_name (name) && ml_config_dir (&dir) == ML_OK)
+	{
+		r = ml_str_append (&file, name);
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (&file, ml_slice_cstr (".theme"));
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_path_join (&path, ml_str_view (dir), ml_str_view (file));
+		}
+
+		if (r == ML_OK && !ml_fs_exists (ml_str_view (path)))
+		{
+			r = ML_ERR_INVALID;
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_fs_read_file (&text, ml_str_view (path));
+		}
+	}
+
+	if (r == ML_OK)
+	{
+		MlTheme  t   = ml_theme_default ();
+		uint64_t bad = 0;
+
+		r = ml_theme_apply_text (&t, ml_str_view (text), &report, &bad);
+
+		if (r == ML_OK)
+		{
+			ml_theme_set_name (&t, name);
+			ed->theme     = t;
+			ed->highlight = 1;
+			ml_str_clear (&ed->message);
+			r = ml_str_appendf (
+				&ed->message,
+				"theme: %.*s",
+				(int)name.len,
+				name.data
+			);
+		}
+
+		if (r == ML_OK && bad > 0)
+		{
+			r = ml_str_appendf (
+				&ed->message,
+				" (%u ignored, %.*s)",
+				(uint32_t)bad,
+				(int)report.len,
+				report.data
+			);
+		}
+	}
+
+	ml_str_free (&report);
+	ml_str_free (&text);
+	ml_str_free (&path);
+	ml_str_free (&file);
+	ml_str_free (&dir);
+	return r;
+}
+
+/*
+ * :theme name chooses a built in theme or a name.theme file of the settings
+ * folder, :theme reload reads the current one again, :theme alone shows the
+ * current name and the built in ones.
+ */
+static MlResult set_theme (MlEditor *ed, MlSlice arg)
+{
+	MlResult r    = ML_OK;
+	MlTheme  next = ml_theme_default ();
+	MlSlice  name = ml_choose (
+		ml_slice_equal (arg, ml_slice_cstr ("reload")),
+		ml_slice_cstr (ed->theme.name),
+		arg
+	);
+
+	if (arg.len == 0)
+	{
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (
+			&ed->message,
+			"theme: %s (%s)",
+			ed->theme.name,
+			ml_choose (ed->highlight, "on", "off")
+		);
+
+		for (uint64_t i = 0; i < ml_theme_builtin_count () && r == ML_OK; i++)
+		{
+			r = ml_str_appendf (&ed->message, " %s", ml_theme_builtin_name (i));
+		}
+	}
+
+	else if (ml_theme_builtin (&next, name) == ML_OK)
+	{
+		ed->theme     = next;
+		ed->highlight = 1;
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (&ed->message, "theme: %s", next.name);
+	}
+
+	else if (load_user_theme (ed, name) != ML_OK)
+	{
+		r = set_message (ed, "no such theme");
+	}
+
+	return r;
+}
+
+/* :colors 24bit|256|16|off sets how many colours the terminal shows. */
+static MlResult set_colors (MlEditor *ed, MlSlice arg)
+{
+	MlResult     r     = ML_OK;
+	MlColorLevel level = ml_color_level_from_name (arg);
+
+	if (arg.len == 0)
+	{
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (
+			&ed->message,
+			"colors: %s",
+			ml_color_level_name (ed->colors)
+		);
+	}
+
+	else if (level == ML_COLORS_COUNT)
+	{
+		r = set_message (ed, "colors: 24bit, 256, 16 or off");
+	}
+
+	else
+	{
+		ed->colors    = level;
+		ed->highlight = 1;
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (
+			&ed->message,
+			"colors: %s",
+			ml_color_level_name (level)
+		);
+	}
+
+	return r;
+}
+
 static MlResult set_mode (MlEditor *ed, MlSlice name)
 {
 	MlResult       r = ML_OK;
@@ -1862,6 +2052,16 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "symbols"))
 	{
 		r = set_symbols (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "theme"))
+	{
+		r = set_theme (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "colors"))
+	{
+		r = set_colors (ed, arg);
 	}
 
 	else if (is_cmd (cmd, "undo") || is_cmd (cmd, "u"))

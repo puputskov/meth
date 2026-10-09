@@ -803,6 +803,54 @@ static void test_domain_cycle (void)
 	ml_editor_free (&ed);
 }
 
+static int32_t theme_is (const MlEditor *ed, const char *name)
+{
+	return ml_slice_equal (
+		ml_slice_cstr (ed->theme.name),
+		ml_slice_cstr (name)
+	);
+}
+
+static void test_look_commands (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (!ed.highlight);
+
+	/* :theme chooses a built in theme and turns the colours on */
+	test_normal (&ed, ":theme light");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.highlight);
+	CHECK (theme_is (&ed, "light"));
+	CHECK (status_is (&ed, "-- NOTE -- algebra>  theme: light"));
+
+	test_normal (&ed, ":theme reload");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (theme_is (&ed, "light"));
+
+	test_normal (&ed, ":theme no-such-theme");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (theme_is (&ed, "light"));
+
+	/* a name that could leave the settings folder is not looked up */
+	test_normal (&ed, ":theme ../x");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (theme_is (&ed, "light"));
+
+	test_normal (&ed, ":colors 256");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.colors == ML_COLORS_256);
+	test_normal (&ed, ":colors 8");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.colors == ML_COLORS_256);
+	test_normal (&ed, ":colors off");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.colors == ML_COLORS_OFF);
+
+	ml_editor_free (&ed);
+}
+
 static void test_commands (void)
 {
 	MlEditor ed;
@@ -1735,6 +1783,7 @@ void run_editor_tests (void)
 	test_domains ();
 	test_domain_cycle ();
 	test_commands ();
+	test_look_commands ();
 	test_files ();
 	test_counts ();
 	test_visual ();
