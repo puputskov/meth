@@ -66,6 +66,7 @@ static int32_t shows (Session *s, const char *text, const char *expected)
 		   ml_value_is_number (v)
 		|| ml_value_is_matrix (v)
 		|| ml_value_is_expr (v)
+		|| ml_value_is_quantity (v)
 	)
 	{
 		same = (
@@ -962,6 +963,19 @@ static void test_units (void)
 	CHECK (fails (&s, "3 m to 2", ML_EVAL_DIMENSION_MISMATCH));
 	CHECK (fails (&s, "1.5 to m", ML_EVAL_DIMENSION_MISMATCH));
 	CHECK (shows (&s, "3 to 2", "3"));
+
+	/* display: SI by default, the asked unit after "to" */
+	CHECK (shows (&s, "5 km", "5000 m"));
+	CHECK (shows (&s, "12 N * 3 m", "36 J"));
+	CHECK (shows (&s, "5000 m to km", "5 km"));
+	CHECK (shows (&s, "1 h to min", "60 min"));
+	CHECK (shows (&s, "36 N*m to J", "36 J"));
+	CHECK (shows (&s, "2 km to m", "2000 m"));
+	CHECK (shows (&s, "1 m to cm", "100 cm"));
+	CHECK (shows (&s, "3 m to ft", "1250/127 ft"));
+	run (&s, "dist = 5 km to mi");
+	CHECK (shows (&s, "dist", "78125/25146 mi"));
+	CHECK (shows (&s, "dist + 1 m", "5001 m"));
 
 	/* functions */
 	CHECK (is_qty (&s, "sqrt (4 m^2)", 2, "m"));

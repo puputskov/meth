@@ -113,6 +113,8 @@ MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len)
 		.kind        = ML_VALUE_ERROR,
 		.exact       = ml_rat_error (ML_OK),
 		.dim         = { .e = { 0, 0, 0, 0, 0, 0, 0 } },
+		.show        = { .data = NULL, .len = 0 },
+		.scale       = ml_rat_error (ML_OK),
 		.matrix      = ml_mat_error (ML_OK),
 		.sym         = NULL,
 		.approx      = 0.0,
@@ -979,8 +981,6 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 {
 	MlResult r = ML_ERR_INVALID;
 
-	(void)arena;
-
 	if (v.kind == ML_VALUE_EXACT)
 	{
 		r = ml_rat_format (out, v.exact);
@@ -995,6 +995,21 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 			APPROX_DIGITS,
 			v.approx
 		);
+	}
+
+	else if (v.kind == ML_VALUE_QUANTITY && v.show.len > 0)
+	{
+		r = ml_rat_format (out, ml_rat_div (arena, v.exact, v.scale));
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (out, ml_slice_cstr (" "));
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (out, v.show);
+		}
 	}
 
 	else if (v.kind == ML_VALUE_QUANTITY)

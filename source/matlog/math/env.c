@@ -101,6 +101,12 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 	{
 		out.exact.num = copy_big (arena, v.exact.num);
 		out.exact.den = copy_big (arena, v.exact.den);
+
+		if (v.kind == ML_VALUE_QUANTITY && v.show.len > 0)
+		{
+			out.scale = copy_rat (arena, v.scale);
+			out.show  = ml_slice_cstr (ml_arena_strdup (arena, v.show));
+		}
 	}
 
 	else if (v.kind == ML_VALUE_MATRIX)

@@ -1645,6 +1645,31 @@ static int32_t is_transpose (const MlEvalCtx *cx, MlFrame f, MlNode node)
 	return is_t && ml_value_is_matrix (top_value (cx));
 }
 
+/* The result of a conversion remembers the unit it was asked for. */
+static MlValue show_unit (MlEvalCtx *cx, MlFrame f, MlValue r)
+{
+	const MlScope *sc   = &cx->scopes.data [f.scope];
+	MlValue       unit = top_value (cx);
+	MlSlice       text = ml_ast_text (
+		&sc->ast,
+		sc->source,
+		ml_ast_child (&sc->ast, f.node, 1)
+	);
+
+	if (r.kind == ML_VALUE_QUANTITY && unit.kind == ML_VALUE_QUANTITY)
+	{
+		char *copy = ml_arena_strdup (cx->arena, text);
+
+		if (copy != NULL)
+		{
+			r.show  = ml_slice (copy, text.len);
+			r.scale = unit.exact;
+		}
+	}
+
+	return r;
+}
+
 static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
 	const MlScope *sc   = &cx->scopes.data [f.scope];
@@ -1678,7 +1703,14 @@ static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 
 	else if (f.step == want)
 	{
-		finish (cx, want, operator_apply (cx, node.kind, want), node);
+		MlValue r = operator_apply (cx, node.kind, want);
+
+		if (node.kind == ML_NODE_TO)
+		{
+			r = show_unit (cx, f, r);
+		}
+
+		finish (cx, want, r, node);
 	}
 
 	else
@@ -2041,6 +2073,7 @@ MlResult ml_eval_commit (
 			   ml_value_is_number (value)
 			|| ml_value_is_matrix (value)
 			|| ml_value_is_expr (value)
+			|| ml_value_is_quantity (value)
 		)
 	)
 	{
