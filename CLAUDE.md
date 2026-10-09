@@ -11,6 +11,10 @@ Interactive math shell written in C. See `plan.md` for the design.
   OS specific files go in a per-OS subfolder, e.g. `source/matlog/platform/win32/key.c` and `include/matlog/platform/win32/key.h`
   (a Linux port would add `platform/linux/`), never as `key_win32.c`. Portable platform code stays directly in `platform/`.
 
+## Git
+
+- Always commit directly to `master`. Never create or use other branches, and never open pull requests.
+
 ## Code style rules (always)
 
 - Indent with TABS only. Spaces are only for alignment.
