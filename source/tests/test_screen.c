@@ -639,6 +639,55 @@ static void test_results_follow_edits (void)
 	ml_editor_free (&ed);
 }
 
+static void test_matrix_rows (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 40, 12);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "A = [[1,2],[3,4]]");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "1 + 1");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "[1,2,3]");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* the matrix is drawn under its line, the number stays on its row */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1 alg> A = [[1,2],[3,4]]"));
+	CHECK (row_is (&l, 1, "          \xE2\x8E\xA1 1 2 \xE2\x8E\xA4"));
+	CHECK (row_is (&l, 2, "          \xE2\x8E\xA3 3 4 \xE2\x8E\xA6"));
+	CHECK (row_is (&l, 3, " 2 alg> 1 + 1  = 2"));
+	CHECK (row_has (&l, 4, " 3 alg> [1,2,3]"));
+	CHECK (row_is (&l, 5, "          \xE2\x8E\xA1 1 \xE2\x8E\xA4"));
+	ml_layout_free (&l);
+
+	/* the cursor line is still found: line 3 is on row 5 */
+	type (&ed, "gg");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (l.cursor.row == 1);
+	ml_layout_free (&l);
+	type (&ed, "jj");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (l.cursor.row == 5);
+	ml_layout_free (&l);
+
+	/* scrolling counts rows: with 3 rows of area line 3 needs the top moved */
+	ml_screen_resize (&s, 40, 4);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (s.top >= 1);
+	CHECK (l.cursor.row >= 1 && l.cursor.row <= 3);
+	CHECK (row_has (&l, l.cursor.row - 1, " 3 alg> [1,2,3]"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_basic_layout ();
@@ -652,4 +701,5 @@ void run_screen_tests (void)
 	test_results ();
 	test_results_clipping ();
 	test_results_follow_edits ();
+	test_matrix_rows ();
 }
