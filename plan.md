@@ -537,6 +537,24 @@ generated static website.
 - Visualisation (section 4.6): histogram and scatter plots in braille/block characters. Highlight, completion, docs page, examples
   and tests as for every domain; the results are exact where possible, approximate and marked as `≈` otherwise.
 
+### 4.23 Fuzzer
+
+- A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples
+  already found a memory bug (a symbolic value read after the arena of its line was reused), the kind of fault a fuzzer finds without help.
+- Targets, each a function from bytes to a result with nothing else to set up: the lexer and the parser of the algebra domain, the evaluator and the
+  symbolic engine (`simplify`, `diff`, `integrate`, `limit`, `solve`), the boolean and lambda engines, the units, the `.mlog` and `.theme` and
+  `settings.mlcfg` readers, the key and command parsers, the docs page parser, the export writers, and the editor itself fed with random key
+  sequences (the editor must never crash and must keep its invariants: cursor in range, the session valid UTF-8, undo returns to the start).
+- Inputs: a corpus of the test inputs, the examples (section 4.16) and the docs; mutation (flip, insert, delete, splice, repeat) and generation from
+  the grammar for the expression parsers. A seeded random generator in the tool itself so a run is reproducible: `tests/fuzz` takes `--seed N
+  --runs N --target NAME`, runs in the normal test build in a short fixed form (a few thousand cases) and for as long as wanted by hand. A failing
+  input is written to a file, shrunk by removing pieces while it still fails, and kept in `tests/corpus/` as a regression test.
+- Checks beyond "does not crash": an evaluator result printed and parsed again gives the same value, `simplify` is idempotent, a symbolic result agrees
+  with the numeric value at sample points, the exact and approximate paths agree where both exist, memory use and time stay within limits (nothing
+  recurses, so the C stack must not depend on the input), and every allocation failure path is tried by an allocator that fails on the n-th call.
+- Built with the compilers' sanitizers (address, undefined behaviour) where the platform has them; libFuzzer or AFL entry points are a thin wrapper over
+  the same target functions, but the program needs no library: the built in driver is enough.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -605,6 +623,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 19. Watch window (section 4.21), after the editor can show a side panel; it only reads the environment snapshots the results keep.
 20. Export of functions to C, C++ and Python (section 4.19), after the standard library, so the helper functions can be exported with the function.
 21. Images and kernels (section 4.20), with the PNG reader and writer shared with the export module (milestone 10).
+22. Fuzzer (section 4.23). The driver and the first targets (lexer, parser, evaluator, `.mlog` reader) can start any time and are worth doing early,
+   since every later feature adds a target.
 
 ## 8. Milestone 1 tasks
 
