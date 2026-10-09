@@ -314,24 +314,25 @@ MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key)
 	return res;
 }
 
-/*
- * Appends the part of text that fits into avail columns starting at start_col.
- * Returns the column of the first shown character.
- */
-typedef struct Window
+uint64_t ml_lineedit_start_col (const MlLineEdit *e, uint64_t avail)
 {
-	MlResult result;
-	uint64_t first_col;
-} Window;
+	uint64_t cursor_col = ml_lineedit_cursor_col (e);
 
-static Window append_window (
+	return ml_choose (
+		cursor_col >= avail,
+		cursor_col - avail + 1,
+		0
+	);
+}
+
+MlTextWindow ml_text_window (
 	MlStr    *out,
 	MlSlice  text,
 	uint64_t start_col,
 	uint64_t avail
 )
 {
-	Window w =
+	MlTextWindow w =
 	{
 		.result    = ML_OK,
 		.first_col = start_col
@@ -395,13 +396,9 @@ MlResult ml_lineedit_render (
 		cols - prompt_width - 1,
 		1
 	);
-	uint64_t cursor_col = ml_lineedit_cursor_col (e);
-	uint64_t start_col  = ml_choose (
-		cursor_col >= avail,
-		cursor_col - avail + 1,
-		0
-	);
-	Window win =
+	uint64_t     cursor_col = ml_lineedit_cursor_col (e);
+	uint64_t     start_col  = ml_lineedit_start_col (e, avail);
+	MlTextWindow win        =
 	{
 		.result    = ML_OK,
 		.first_col = 0
@@ -416,7 +413,7 @@ MlResult ml_lineedit_render (
 
 	if (r == ML_OK)
 	{
-		win = append_window (out, ml_str_view (e->text), start_col, avail);
+		win = ml_text_window (out, ml_str_view (e->text), start_col, avail);
 		r   = win.result;
 	}
 

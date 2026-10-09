@@ -79,4 +79,25 @@ MlResult ml_lineedit_render (
 	uint32_t         cols
 );
 
+typedef struct MlTextWindow
+{
+	MlResult result;
+	uint64_t first_col; /* column of the first character that was shown */
+} MlTextWindow;
+
+/*
+ * Appends the part of text that fits into avail columns, starting at
+ * column start_col. Wide characters are never cut in half and combining
+ * marks stay with their character.
+ */
+MlTextWindow ml_text_window (
+	MlStr    *out,
+	MlSlice  text,
+	uint64_t start_col,
+	uint64_t avail
+);
+
+/* First column to show so that the cursor stays inside avail columns. */
+uint64_t ml_lineedit_start_col (const MlLineEdit *e, uint64_t avail);
+
 #endif /* MATLOG_UI_LINEEDIT_H */
