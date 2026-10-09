@@ -483,6 +483,85 @@ static MlResult append_line_row (
 	return r;
 }
 
+/*
+ * Draws the whole row reversed, up to cols columns: the style is switched on
+ * again after each reset inside the row and the rest is filled with spaces.
+ */
+static MlResult reverse_row (MlStr *row, uint32_t cols)
+{
+	MlResult r    = ML_OK;
+	MlStr    out;
+	MlSlice  in   = ml_str_view (*row);
+	uint64_t pos  = 0;
+	uint64_t used = 0;
+
+	ml_str_init (&out);
+	r = append_cstr (&out, STYLE_REVERSE);
+
+	while (pos < in.len && r == ML_OK)
+	{
+		uint64_t next = pos + 1;
+
+		if (in.data [pos] == 0x1b)
+		{
+			while (
+				   next < in.len
+				&& !(
+					   next > pos + 1
+					&& in.data [next] >= '@'
+					&& in.data [next] <= '~'
+				)
+			)
+			{
+				next++;
+			}
+
+			next = ml_choose (next < in.len, next + 1, in.len);
+			r    = ml_str_append (&out, ml_slice_sub (in, pos, next - pos));
+
+			if (r == ML_OK && ml_slice_equal (
+				ml_slice_sub (in, pos, next - pos),
+				ml_slice_cstr (STYLE_RESET)
+			))
+			{
+				r = append_cstr (&out, STYLE_REVERSE);
+			}
+		}
+
+		else
+		{
+			next  = ml_utf8_next (in, pos);
+			used += ml_utf8_width (ml_slice_sub (in, pos, next - pos));
+			r     = ml_str_append (&out, ml_slice_sub (in, pos, next - pos));
+		}
+
+		pos = next;
+	}
+
+	for (uint64_t i = used; i < cols && r == ML_OK; i++)
+	{
+		r = append_cstr (&out, " ");
+	}
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (&out, STYLE_RESET);
+	}
+
+	if (r == ML_OK)
+	{
+		ml_str_free (row);
+		*row = out;
+	}
+
+	else
+	{
+		ml_str_free (&out);
+	}
+
+	return r;
+}
+
 /* The byte of text that starts at display column col. */
 static uint64_t byte_at_column (MlSlice text, uint64_t col)
 {
@@ -1512,6 +1591,11 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				),
 				ml_choose (l.folded, vl.data [l.last].src - src, 0)
 			);
+
+			if (layout.result == ML_OK && highlight)
+			{
+				layout.result = reverse_row (&row, s->cols);
+			}
 
 			if (
 				   here

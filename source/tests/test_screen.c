@@ -842,6 +842,38 @@ static void test_brackets (void)
 	ml_editor_free (&ed);
 }
 
+static void test_selected_rows (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 20, 6);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "aa");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "bb");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "cc");
+	test_key (&ed, ML_KEY_UP, 0, ML_MOD_SHIFT);
+
+	/* a selected row is reversed from its number to the right edge */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (
+		strstr (
+			ml_str_cstr (l.rows.data [1]),
+			" 2    \xE2\x94\x82 \x1b[0m\x1b[7mbb"
+		) != NULL
+	);
+	CHECK (strstr (ml_str_cstr (l.rows.data [2]), "\x1b[7mcc") != NULL);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[7m") == NULL);
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_rule (void)
 {
 	MlEditor ed;
@@ -921,7 +953,7 @@ static void test_blocks_layout (void)
 	test_normal (&ed, "2j");
 	test_normal (&ed, "za");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 2, " 3 alg> \xE2\x96\xB8 a = 1  +2 lines"));
+	CHECK (row_has (&l, 2, " 3 alg> \xE2\x96\xB8 a = 1  +2 lines"));
 	CHECK (row_has (&l, 3, " 6 mat> [1,2]"));
 	CHECK (l.cursor.row == 3);
 	ml_layout_free (&l);
@@ -930,7 +962,7 @@ static void test_blocks_layout (void)
 	test_normal (&ed, "gg");
 	test_normal (&ed, "za");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, " 1 \xE2\x96\xB8 A note  +1 line"));
+	CHECK (row_has (&l, 0, " 1 \xE2\x96\xB8 A note  +1 line"));
 	CHECK (row_has (&l, 1, " 3 alg> \xE2\x96\xB8 a = 1"));
 	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[1mnote") != NULL);
 	ml_layout_free (&l);
@@ -970,6 +1002,7 @@ void run_screen_tests (void)
 	test_note_styles ();
 	test_bar ();
 	test_brackets ();
+	test_selected_rows ();
 	test_rule ();
 	test_blocks_layout ();
 }
