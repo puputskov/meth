@@ -33,15 +33,15 @@
  * happens inside the body of a user function is reported at the call, since
  * the body is text of another line.
  *
- * Nesting is limited to ML_EVAL_MAX_DEPTH levels of nodes in total, counting
- * the levels of every running function, so recursion without end gives
- * ML_EVAL_DEPTH instead of a crash. Results of more than 100000 bits are
- * refused (ML_EVAL_TOO_LARGE). A debug build uses up to about 4 MB of stack at
- * the limit, so programs that evaluate need a stack larger than the 1 MB
- * default (premake5.lua asks for 8 MB).
+ * The evaluator does not recurse: it walks the tree with explicit stacks on the
+ * heap, so it needs no more C stack for a deep expression or a deep chain of
+ * calls than for a short one. The stacks are limited to ML_EVAL_MAX_DEPTH
+ * levels of nodes in total, counting the levels of every running function, so
+ * recursion without end gives ML_EVAL_DEPTH instead of eating all memory.
+ * Results of more than 100000 bits are refused (ML_EVAL_TOO_LARGE).
  */
 
-#define ML_EVAL_MAX_DEPTH 1000
+#define ML_EVAL_MAX_DEPTH 20000
 
 MlValue ml_eval (
 	MlArena     *arena,

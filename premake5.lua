@@ -46,8 +46,6 @@ project "matlog"
 	location "build"
 	objdir "build/obj/%{cfg.buildcfg}/matlog"
 	files { "source/app/**.c" }
-	-- the evaluator and parser recurse up to 1000 levels, see eval.h
-	linkoptions { "/STACK:8388608" }
 	links { "matlog_lib" }
 
 -- Unit tests, run with build/bin/<config>/tests.exe
@@ -56,8 +54,6 @@ project "tests"
 	location "build"
 	objdir "build/obj/%{cfg.buildcfg}/tests"
 	files { "source/tests/**.c", "source/tests/**.h" }
-	-- the evaluator and parser recurse up to 1000 levels, see eval.h
-	linkoptions { "/STACK:8388608" }
 	links { "matlog_lib" }
 
 -- Prints decoded key events, for trying out the console layer by hand

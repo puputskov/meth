@@ -558,6 +558,31 @@ static void test_depth (void)
 	CHECK (ml_value_to_i64 (v).value == 851);
 	ml_str_free (&line);
 
+	/* a chain of 2000 functions that call each other: far deeper than the
+	   C stack could take with a recursive evaluator, fine on the heap */
+	CHECK (run (&s, "c0(x) = x + 1").kind == ML_VALUE_NONE);
+
+	for (uint64_t i = 1; i < 2000; i++)
+	{
+		MlStr def;
+
+		ml_str_init (&def);
+		CHECK (
+			ml_str_appendf (
+				&def,
+				"c%llu(x) = c%llu(x) + 1",
+				(unsigned long long)i,
+				(unsigned long long)(i - 1)
+			) == ML_OK
+		);
+		CHECK (run (&s, ml_str_cstr (def)).kind == ML_VALUE_NONE);
+		ml_str_free (&def);
+	}
+
+	v = run (&s, "c1999(5)");
+	CHECK (ml_value_is_exact (v));
+	CHECK (ml_value_to_i64 (v).value == 2005);
+
 	/* a bounded recursion through a function */
 	CHECK (run (&s, "t(n) = n + 1").kind == ML_VALUE_NONE);
 	CHECK (shows (&s, "t(t(t(t(t(t(t(t(1))))))))", "9"));

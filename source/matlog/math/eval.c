@@ -4,24 +4,61 @@
 
 /* ---- context ------------------------------------------------------------ */
 
-typedef struct MlEvalCtx
+/*
+ * The evaluator does not recurse. It walks the tree with explicit stacks that
+ * live on the heap, so the C stack use is the same for every expression:
+ *
+ *	frames   the nodes being evaluated, from the root down to the current one
+ *	vals     the results of finished children, waiting for their parent
+ *	scopes   the text the nodes belong to: the line, then the body of every
+ *	         user function that is running
+ *
+ * A frame visits its children one at a time (step counts the finished ones),
+ * and when the last one is done it combines the results on top of vals into
+ * its own result. An error result ends its parent at once, so the first
+ * error wins and the rest of the parent is not evaluated.
+ */
+
+typedef enum MlCallKind
 {
-	MlArena     *arena;
-	const MlEnv *env;
-	uint64_t    snapshot;
-	uint64_t    depth; /* node levels in use, over all running functions */
-} MlEvalCtx;
+	CALL_NEW = 0, /* not looked at yet */
+	CALL_UNKNOWN,
+	CALL_PRODUCT, /* a(2) with a a number: a times 2 */
+	CALL_USER,
+	CALL_BUILTIN
+} MlCallKind;
+
+typedef struct MlFrame
+{
+	uint64_t   node;  /* index in the tree of the frame's scope */
+	uint64_t   scope; /* index in scopes */
+	uint64_t   step;  /* children (or for a user call, phases) done */
+	MlCallKind kind;  /* calls only */
+} MlFrame;
 
 /* The text a node belongs to: the line, or the body of a running function. */
 typedef struct MlScope
 {
 	MlSlice       source;
-	const MlAst   *ast;
+	MlAst         ast;   /* a view; the line or the binding owns the nodes */
 	MlBinding     func;  /* the running function, ML_BIND_NONE on the line */
 	const MlValue *args; /* its arguments, one per parameter */
 } MlScope;
 
-static MlValue eval_node (MlEvalCtx *cx, const MlScope *sc, uint64_t idx);
+ML_VEC_DEFINE (MlFrameVec, MlFrame)
+ML_VEC_DEFINE (MlValueVec, MlValue)
+ML_VEC_DEFINE (MlScopeVec, MlScope)
+
+typedef struct MlEvalCtx
+{
+	MlArena     *arena;
+	const MlEnv *env;
+	uint64_t    snapshot;
+	MlFrameVec  frames;
+	MlValueVec  vals;
+	MlScopeVec  scopes;
+	int32_t     failed; /* a stack could not grow: out of memory */
+} MlEvalCtx;
 
 static MlValue error_at (MlErrorKind kind)
 {
@@ -621,14 +658,6 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 
 /* ---- calls -------------------------------------------------------------- */
 
-typedef enum MlCallKind
-{
-	CALL_UNKNOWN,
-	CALL_PRODUCT, /* a(2) with a a number: a times 2 */
-	CALL_USER,
-	CALL_BUILTIN
-} MlCallKind;
-
 static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 {
 	MlCallKind kind = CALL_UNKNOWN;
@@ -657,245 +686,16 @@ static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 	return kind;
 }
 
-/* Evaluates the arguments of a call into out; gives the first error, if any. */
-static MlValue eval_args (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	uint64_t      idx,
-	MlValue       *out,
-	uint64_t      count
-)
-{
-	MlValue first = ml_value_none ();
-
-	for (uint64_t i = 0; i < count && first.kind == ML_VALUE_NONE; i++)
-	{
-		MlValue v = eval_node (cx, sc, ml_ast_child (sc->ast, idx, i + 1));
-
-		if (v.kind == ML_VALUE_ERROR)
-		{
-			first = v;
-		}
-
-		else
-		{
-			out [i] = v;
-		}
-	}
-
-	return first;
-}
-
-/* The arguments of a call, in a new array (NULL when there are none). */
-static MlValue call_args (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	uint64_t      idx,
-	MlValue       **out
-)
-{
-	uint64_t count = ml_ast_child_count (sc->ast, idx) - 1;
-	MlValue  r     = ml_value_none ();
-
-	*out = NULL;
-
-	if (count > 0)
-	{
-		*out = ML_ARENA_NEW_ARRAY (cx->arena, MlValue, count);
-
-		r = ml_choose (
-			*out != NULL,
-			eval_args (cx, sc, idx, *out, count),
-			error_at (ML_EVAL_NO_MEMORY)
-		);
-	}
-
-	return r;
-}
-
-static MlValue call_user (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	uint64_t      idx,
-	MlNode        node
-)
-{
-	MlScope  callee;
-	MlValue  *args = NULL;
-	uint64_t argc  = ml_ast_child_count (sc->ast, idx) - 1;
-	MlValue  r;
-
-	callee.func = ml_env_lookup (
-		cx->env,
-		ml_ast_text (sc->ast, sc->source, ml_ast_child (sc->ast, idx, 0)),
-		cx->snapshot
-	);
-
-	if (argc != ml_binding_param_count (callee.func))
-	{
-		r = error_at (ML_EVAL_ARITY);
-	}
-
-	else
-	{
-		r = call_args (cx, sc, idx, &args);
-	}
-
-	if (r.kind == ML_VALUE_NONE)
-	{
-		callee.source = callee.func.source;
-		callee.ast    = &callee.func.ast;
-		callee.args   = args;
-		r             = eval_node (cx, &callee, callee.func.body);
-
-		/* the body is text of another line: point at the call instead */
-		if (r.kind == ML_VALUE_ERROR)
-		{
-			r = ml_value_error (r.error, node.start, node.len);
-		}
-	}
-
-	return r;
-}
-
-static MlValue call_builtin (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	uint64_t      idx,
-	MlBuiltin     id
-)
-{
-	uint64_t argc  = ml_ast_child_count (sc->ast, idx) - 1;
-	MlValue  *args = NULL;
-	MlValue  r;
-
-	if (argc < builtins [id].min || argc > builtins [id].max)
-	{
-		r = error_at (ML_EVAL_ARITY);
-	}
-
-	else
-	{
-		r = call_args (cx, sc, idx, &args);
-	}
-
-	if (r.kind == ML_VALUE_NONE)
-	{
-		r = builtin_apply (cx->arena, id, args, argc);
-	}
-
-	return r;
-}
-
-/* a(2) where a is a number: a times 2. */
-static MlValue call_product (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	uint64_t      idx
-)
-{
-	uint64_t callee = ml_ast_child (sc->ast, idx, 0);
-	MlNode   cnode  = ml_ast_node (sc->ast, callee);
-	MlValue  r;
-
-	if (ml_ast_child_count (sc->ast, idx) != 2)
-	{
-		r = error_at (ML_EVAL_NOT_FUNCTION);
-	}
-
-	else
-	{
-		r = ml_value_locate (
-			name_value (cx, sc, ml_ast_text (sc->ast, sc->source, callee)),
-			cnode.start,
-			cnode.len
-		);
-	}
-
-	if (r.kind != ML_VALUE_ERROR && r.kind != ML_VALUE_NONE)
-	{
-		r = ml_value_mul (
-			cx->arena,
-			r,
-			eval_node (cx, sc, ml_ast_child (sc->ast, idx, 1))
-		);
-	}
-
-	return r;
-}
-
-static MlValue eval_call (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	uint64_t      idx,
-	MlNode        node
-)
-{
-	uint64_t   callee = ml_ast_child (sc->ast, idx, 0);
-	MlNode     cnode  = ml_ast_node (sc->ast, callee);
-	MlSlice    name   = ml_ast_text (sc->ast, sc->source, callee);
-	MlCallKind kind   = call_kind (cx, sc, name);
-	MlValue    r;
-
-	if (cnode.kind != ML_NODE_NAME)
-	{
-		r = error_at (ML_EVAL_NOT_FUNCTION);
-	}
-
-	else if (kind == CALL_USER)
-	{
-		r = call_user (cx, sc, idx, node);
-	}
-
-	else if (kind == CALL_BUILTIN)
-	{
-		r = call_builtin (cx, sc, idx, builtin_find (name));
-	}
-
-	else if (kind == CALL_PRODUCT)
-	{
-		r = call_product (cx, sc, idx);
-	}
-
-	else
-	{
-		r = ml_value_error (
-			ML_EVAL_UNDEFINED_NAME,
-			cnode.start,
-			cnode.len
-		);
-	}
-
-	return r;
-}
-
 /* ---- leaves ------------------------------------------------------------- */
 
-static MlValue eval_number (MlEvalCtx *cx, const MlScope *sc, uint64_t idx)
-{
-	return ml_value_exact (
-		ml_rat_parse_decimal (
-			cx->arena,
-			ml_ast_text (sc->ast, sc->source, idx)
-		)
-	);
-}
-
-static MlValue eval_superscript (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	uint64_t      idx
-)
+static MlValue eval_superscript (MlEvalCtx *cx, MlSlice text)
 {
 	MlStr   digits;
 	MlValue r;
 
 	ml_str_init (&digits);
 
-	if (ml_superscript_to_ascii (
-		&digits,
-		ml_ast_text (sc->ast, sc->source, idx)
-	) == ML_OK)
+	if (ml_superscript_to_ascii (&digits, text) == ML_OK)
 	{
 		r = ml_value_exact (
 			ml_rat_parse_decimal (cx->arena, ml_str_view (digits))
@@ -911,101 +711,29 @@ static MlValue eval_superscript (
 	return r;
 }
 
-/* ---- the tree ----------------------------------------------------------- */
-
-static MlValue eval_unary (
+static MlValue leaf_value (
 	MlEvalCtx     *cx,
 	const MlScope *sc,
-	MlNode        node,
-	uint64_t      idx
+	uint64_t      idx,
+	MlNode        node
 )
 {
-	MlValue r = eval_node (cx, sc, ml_ast_child (sc->ast, idx, 0));
-
-	if (node.kind == ML_NODE_NEG)
-	{
-		r = ml_value_neg (cx->arena, r);
-	}
-
-	else if (node.kind == ML_NODE_FACT)
-	{
-		r = factorial (cx->arena, r);
-	}
-
-	else
-	{
-		r = sqrt_value (cx->arena, r);
-	}
-
-	return r;
-}
-
-static MlValue eval_binary (
-	MlEvalCtx     *cx,
-	const MlScope *sc,
-	MlNode        node,
-	uint64_t      idx
-)
-{
-	MlValue r = eval_node (cx, sc, ml_ast_child (sc->ast, idx, 0));
-
-	if (r.kind != ML_VALUE_ERROR)
-	{
-		r = binary_apply (
-			cx->arena,
-			node.kind,
-			r,
-			eval_node (cx, sc, ml_ast_child (sc->ast, idx, 1))
-		);
-	}
-
-	return r;
-}
-
-static MlValue eval_node (MlEvalCtx *cx, const MlScope *sc, uint64_t idx)
-{
-	MlNode  node = ml_ast_node (sc->ast, idx);
+	MlSlice text = ml_ast_text (&sc->ast, sc->source, idx);
 	MlValue v;
 
-	cx->depth++;
-
-	if (cx->depth > ML_EVAL_MAX_DEPTH)
+	if (node.kind == ML_NODE_NUMBER)
 	{
-		v = error_at (ML_EVAL_DEPTH);
-	}
-
-	else if (node.kind == ML_NODE_NUMBER)
-	{
-		v = eval_number (cx, sc, idx);
+		v = ml_value_exact (ml_rat_parse_decimal (cx->arena, text));
 	}
 
 	else if (node.kind == ML_NODE_SUPERSCRIPT)
 	{
-		v = eval_superscript (cx, sc, idx);
+		v = eval_superscript (cx, text);
 	}
 
 	else if (node.kind == ML_NODE_NAME)
 	{
-		v = name_value (cx, sc, ml_ast_text (sc->ast, sc->source, idx));
-	}
-
-	else if (
-		   node.kind == ML_NODE_NEG
-		|| node.kind == ML_NODE_FACT
-		|| node.kind == ML_NODE_SQRT
-	)
-	{
-		v = eval_unary (cx, sc, node, idx);
-	}
-
-	else if (node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW)
-	{
-		v = eval_binary (cx, sc, node, idx);
-	}
-
-	else if (node.kind == ML_NODE_CALL)
-	{
-		v = eval_call (cx, sc, idx, node);
+		v = name_value (cx, sc, text);
 	}
 
 	else
@@ -1013,8 +741,381 @@ static MlValue eval_node (MlEvalCtx *cx, const MlScope *sc, uint64_t idx)
 		v = error_at (ML_EVAL_SYNTAX);
 	}
 
-	cx->depth--;
-	return ml_value_locate (v, node.start, node.len);
+	return v;
+}
+
+/* ---- the machine -------------------------------------------------------- */
+
+static void push_value (MlEvalCtx *cx, MlValue v)
+{
+	if (MlValueVec_push (&cx->vals, v) != ML_OK)
+	{
+		cx->failed = 1;
+	}
+}
+
+/*
+ * Starts evaluating a node. Past the depth limit no frame is made; the child
+ * "evaluates" to the depth error, which then ends its parent like any error.
+ */
+static void push_frame (MlEvalCtx *cx, uint64_t node, uint64_t scope)
+{
+	MlFrame f =
+	{
+		.node  = node,
+		.scope = scope,
+		.step  = 0,
+		.kind  = CALL_NEW
+	};
+
+	if (cx->frames.len >= ML_EVAL_MAX_DEPTH)
+	{
+		push_value (cx, error_at (ML_EVAL_DEPTH));
+	}
+
+	else if (MlFrameVec_push (&cx->frames, f) != ML_OK)
+	{
+		cx->failed = 1;
+	}
+}
+
+static MlFrame top_frame (const MlEvalCtx *cx)
+{
+	return cx->frames.data [cx->frames.len - 1];
+}
+
+static MlValue top_value (const MlEvalCtx *cx)
+{
+	return MlValueVec_get (&cx->vals, cx->vals.len - 1);
+}
+
+static int32_t top_is_error (const MlEvalCtx *cx)
+{
+	return cx->vals.len > 0 && top_value (cx).kind == ML_VALUE_ERROR;
+}
+
+/* The top frame is done: its operands on vals are replaced by its result. */
+static void finish (MlEvalCtx *cx, uint64_t operands, MlValue v, MlNode node)
+{
+	cx->vals.len -= operands;
+	push_value (cx, ml_value_locate (v, node.start, node.len));
+	cx->frames.len--;
+}
+
+static void set_step (MlEvalCtx *cx, uint64_t step)
+{
+	cx->frames.data [cx->frames.len - 1].step = step;
+}
+
+/* ---- operators ---- */
+
+static int32_t is_operator (MlNodeKind kind)
+{
+	return (
+		   kind == ML_NODE_NEG
+		|| kind == ML_NODE_FACT
+		|| kind == ML_NODE_SQRT
+		|| (kind >= ML_NODE_ADD && kind <= ML_NODE_POW)
+	);
+}
+
+/* The result of an operator whose n operands are on top of vals. */
+static MlValue operator_apply (MlEvalCtx *cx, MlNodeKind kind, uint64_t n)
+{
+	MlValue a = MlValueVec_get (&cx->vals, cx->vals.len - n);
+	MlValue r;
+
+	if (kind == ML_NODE_NEG)
+	{
+		r = ml_value_neg (cx->arena, a);
+	}
+
+	else if (kind == ML_NODE_FACT)
+	{
+		r = factorial (cx->arena, a);
+	}
+
+	else if (kind == ML_NODE_SQRT)
+	{
+		r = sqrt_value (cx->arena, a);
+	}
+
+	else
+	{
+		r = binary_apply (cx->arena, kind, a, top_value (cx));
+	}
+
+	return r;
+}
+
+static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc   = &cx->scopes.data [f.scope];
+	uint64_t      want = ml_choose (
+		node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW,
+		2,
+		1
+	);
+
+	if (f.step > 0 && top_is_error (cx))
+	{
+		finish (cx, f.step, top_value (cx), node);
+	}
+
+	else if (f.step == want)
+	{
+		finish (cx, want, operator_apply (cx, node.kind, want), node);
+	}
+
+	else
+	{
+		set_step (cx, f.step + 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, f.step), f.scope);
+	}
+}
+
+/* ---- calls ---- */
+
+/* Looks at the callee and either ends the call with an error or prepares it. */
+static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc     = &cx->scopes.data [f.scope];
+	uint64_t      callee = ml_ast_child (&sc->ast, f.node, 0);
+	MlNode        cnode  = ml_ast_node (&sc->ast, callee);
+	MlSlice       name   = ml_ast_text (&sc->ast, sc->source, callee);
+	uint64_t      argc   = ml_ast_child_count (&sc->ast, f.node) - 1;
+	MlCallKind    kind   = ml_choose (
+		cnode.kind == ML_NODE_NAME,
+		call_kind (cx, sc, name),
+		CALL_UNKNOWN
+	);
+	MlValue       r      = ml_value_none ();
+
+	if (kind == CALL_UNKNOWN)
+	{
+		r = ml_value_error (
+			ml_choose (
+				cnode.kind == ML_NODE_NAME,
+				ML_EVAL_UNDEFINED_NAME,
+				ML_EVAL_NOT_FUNCTION
+			),
+			cnode.start,
+			cnode.len
+		);
+	}
+
+	else if (kind == CALL_USER)
+	{
+		MlBinding b = ml_env_lookup (cx->env, name, cx->snapshot);
+
+		if (argc != ml_binding_param_count (b))
+		{
+			r = error_at (ML_EVAL_ARITY);
+		}
+	}
+
+	else if (kind == CALL_BUILTIN)
+	{
+		MlBuiltin id = builtin_find (name);
+
+		if (argc < builtins [id].min || argc > builtins [id].max)
+		{
+			r = error_at (ML_EVAL_ARITY);
+		}
+	}
+
+	else if (argc != 1)
+	{
+		r = error_at (ML_EVAL_NOT_FUNCTION);
+	}
+
+	else
+	{
+		/* the number to multiply, as the first operand of the product */
+		r = ml_value_locate (
+			name_value (cx, sc, name),
+			cnode.start,
+			cnode.len
+		);
+	}
+
+	if (r.kind == ML_VALUE_ERROR)
+	{
+		finish (cx, 0, r, node);
+	}
+
+	else
+	{
+		cx->frames.data [cx->frames.len - 1].kind = kind;
+
+		if (r.kind != ML_VALUE_NONE)
+		{
+			push_value (cx, r);
+			set_step (cx, 1);
+		}
+	}
+}
+
+/* All arguments are on vals: run the body of the function in a new scope. */
+static void call_invoke (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc    = &cx->scopes.data [f.scope];
+	uint64_t      argc  = ml_ast_child_count (&sc->ast, f.node) - 1;
+	MlBinding     b     = ml_env_lookup (
+		cx->env,
+		ml_ast_text (&sc->ast, sc->source, ml_ast_child (&sc->ast, f.node, 0)),
+		cx->snapshot
+	);
+	MlValue       *args = NULL;
+	MlScope       rec;
+
+	if (argc > 0)
+	{
+		args = ML_ARENA_NEW_ARRAY (cx->arena, MlValue, argc);
+	}
+
+	if (argc > 0 && args == NULL)
+	{
+		finish (cx, argc, error_at (ML_EVAL_NO_MEMORY), node);
+	}
+
+	else
+	{
+		for (uint64_t i = 0; i < argc; i++)
+		{
+			args [i] = cx->vals.data [cx->vals.len - argc + i];
+		}
+
+		cx->vals.len -= argc;
+		rec.source    = b.source;
+		rec.ast       = b.ast;
+		rec.func      = b;
+		rec.args      = args;
+
+		if (MlScopeVec_push (&cx->scopes, rec) != ML_OK)
+		{
+			cx->failed = 1;
+		}
+
+		else
+		{
+			set_step (cx, argc + 1);
+			push_frame (cx, b.body, cx->scopes.len - 1);
+		}
+	}
+}
+
+/* The body is done: its result is on vals. */
+static void call_return (MlEvalCtx *cx, MlNode node)
+{
+	MlValue r = top_value (cx);
+
+	cx->vals.len--;
+	cx->scopes.len--;
+
+	/* the body is text of another line: point at the call instead */
+	if (r.kind == ML_VALUE_ERROR)
+	{
+		r = ml_value_error (r.error, node.start, node.len);
+	}
+
+	finish (cx, 0, r, node);
+}
+
+static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc   = &cx->scopes.data [f.scope];
+	uint64_t      argc = ml_ast_child_count (&sc->ast, f.node) - 1;
+
+	if (f.kind == CALL_NEW)
+	{
+		call_begin (cx, f, node);
+	}
+
+	else if (f.kind == CALL_USER && f.step == argc + 1)
+	{
+		call_return (cx, node);
+	}
+
+	else if (f.step > 0 && top_is_error (cx))
+	{
+		finish (cx, f.step, top_value (cx), node);
+	}
+
+	else if (f.kind == CALL_USER && f.step == argc)
+	{
+		call_invoke (cx, f, node);
+	}
+
+	else if (f.kind == CALL_BUILTIN && f.step == argc)
+	{
+		MlSlice name = ml_ast_text (
+			&sc->ast,
+			sc->source,
+			ml_ast_child (&sc->ast, f.node, 0)
+		);
+
+		finish (
+			cx,
+			argc,
+			builtin_apply (
+				cx->arena,
+				builtin_find (name),
+				&cx->vals.data [cx->vals.len - argc],
+				argc
+			),
+			node
+		);
+	}
+
+	else if (f.kind == CALL_PRODUCT && f.step == 2)
+	{
+		finish (
+			cx,
+			2,
+			ml_value_mul (
+				cx->arena,
+				MlValueVec_get (&cx->vals, cx->vals.len - 2),
+				top_value (cx)
+			),
+			node
+		);
+	}
+
+	else
+	{
+		/* arguments are the children from 1; a product has one, at step 1 */
+		uint64_t child = ml_choose (
+			f.kind == CALL_PRODUCT,
+			f.step,
+			f.step + 1
+		);
+
+		set_step (cx, f.step + 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, child), f.scope);
+	}
+}
+
+static void eval_step (MlEvalCtx *cx)
+{
+	MlFrame       f    = top_frame (cx);
+	const MlScope *sc  = &cx->scopes.data [f.scope];
+	MlNode        node = ml_ast_node (&sc->ast, f.node);
+
+	if (node.kind == ML_NODE_CALL)
+	{
+		step_call (cx, f, node);
+	}
+
+	else if (is_operator (node.kind))
+	{
+		step_operator (cx, f, node);
+	}
+
+	else
+	{
+		finish (cx, 0, leaf_value (cx, sc, f.node, node), node);
+	}
 }
 
 /* ---- statements --------------------------------------------------------- */
@@ -1027,39 +1128,56 @@ MlValue ml_eval (
 	const MlAst *ast
 )
 {
-	MlEvalCtx cx   =
+	MlEvalCtx cx =
 	{
 		.arena    = arena,
 		.env      = env,
 		.snapshot = snapshot,
-		.depth    = 0
-	};
-	MlScope   sc   =
-	{
-		.source = source,
-		.ast    = ast,
-		.args   = NULL
+		.failed   = 0
 	};
 	MlNode    root = ml_ast_node (ast, ast->root);
-	MlValue   r;
+	MlValue   r    = ml_value_none ();
 
-	memset (&sc.func, 0, sizeof sc.func);
-
-	if (root.kind == ML_NODE_NIL || root.kind == ML_NODE_FUNC_DEF)
+	if (root.kind != ML_NODE_NIL && root.kind != ML_NODE_FUNC_DEF)
 	{
-		r = ml_value_none ();
+		MlScope line =
+		{
+			.source = source,
+			.ast    = *ast,
+			.args   = NULL
+		};
+
+		memset (&line.func, 0, sizeof line.func);
+		cx.failed = MlScopeVec_push (&cx.scopes, line) != ML_OK;
+
+		if (!cx.failed)
+		{
+			push_frame (
+				&cx,
+				ml_choose (
+					root.kind == ML_NODE_ASSIGN,
+					ml_ast_child (ast, ast->root, 1),
+					ast->root
+				),
+				0
+			);
+		}
+
+		while (cx.frames.len > 0 && !cx.failed)
+		{
+			eval_step (&cx);
+		}
+
+		r = ml_choose (
+			cx.failed,
+			error_at (ML_EVAL_NO_MEMORY),
+			MlValueVec_get (&cx.vals, 0)
+		);
 	}
 
-	else if (root.kind == ML_NODE_ASSIGN)
-	{
-		r = eval_node (&cx, &sc, ml_ast_child (ast, ast->root, 1));
-	}
-
-	else
-	{
-		r = eval_node (&cx, &sc, ast->root);
-	}
-
+	MlFrameVec_free (&cx.frames);
+	MlValueVec_free (&cx.vals);
+	MlScopeVec_free (&cx.scopes);
 	return r;
 }
 
