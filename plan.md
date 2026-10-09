@@ -146,6 +146,7 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 - Fixed-width integer types only (`int32_t`, `uint64_t`, ...); sizes and counts are `uint64_t`, not `size_t`.
 - Struct initializers use named entries (`{ .width = 2, .height = 5 }`).
 - Avoid pointers where possible (structs by value, indices, typed containers). See `CLAUDE.md` for the full rules.
+- OS specific code lives in `platform/<os>/` (e.g. `source/matlog/platform/win32/`, `include/matlog/platform/win32/`); only the matching folder is built. Portable code stays in `platform/`.
 - Headers go in `include/matlog/`, sources in `source/matlog/`, include as `<matlog/x.h>`.
 - All build outputs go to `build/`.
 

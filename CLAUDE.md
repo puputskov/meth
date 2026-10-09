@@ -8,6 +8,8 @@ Interactive math shell written in C. See `plan.md` for the design.
 - Build: premake5 for VS2022 (`premake5 vs2022`), generated files and all outputs go to `build/`.
 - Sources in `source/`, headers in `include/`. Library code lives in `source/matlog/` and `include/matlog/`, included as `<matlog/x.h>`.
 - Windows first; all OS specific code goes in the `platform` module so other systems can be added later.
+  OS specific files go in a per-OS subfolder, e.g. `source/matlog/platform/win32/key.c` and `include/matlog/platform/win32/key.h`
+  (a Linux port would add `platform/linux/`), never as `key_win32.c`. Portable platform code stays directly in `platform/`.
 
 ## Code style rules (always)
 

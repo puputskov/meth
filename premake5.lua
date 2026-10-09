@@ -31,6 +31,13 @@ project "matlog_lib"
 	objdir "build/obj/%{cfg.buildcfg}/matlog_lib"
 	files { "source/matlog/**.c", "include/matlog/**.h" }
 
+	-- OS specific code lives in platform/<os>/, only the matching one is built
+	filter "system:windows"
+		removefiles { "source/matlog/platform/linux/**", "include/matlog/platform/linux/**" }
+	filter "system:linux"
+		removefiles { "source/matlog/platform/win32/**", "include/matlog/platform/win32/**" }
+	filter {}
+
 -- The interactive shell
 project "matlog"
 	kind "ConsoleApp"
@@ -45,4 +52,12 @@ project "tests"
 	location "build"
 	objdir "build/obj/%{cfg.buildcfg}/tests"
 	files { "source/tests/**.c", "source/tests/**.h" }
+	links { "matlog_lib" }
+
+-- Prints decoded key events, for trying out the console layer by hand
+project "keydemo"
+	kind "ConsoleApp"
+	location "build"
+	objdir "build/obj/%{cfg.buildcfg}/keydemo"
+	files { "source/demo/**.c" }
 	links { "matlog_lib" }
