@@ -476,7 +476,11 @@ static MlResult line_join (MlEditor *ed, int32_t dir)
 		};
 		kind = joined_kind (a.kind, b.kind, a.text.len + b.text.len);
 
-		if (joinable (a.kind, b.kind))
+		/* an empty line goes back into the line before it, of any kind */
+		if (
+			   joinable (a.kind, b.kind)
+			|| (a.kind != ML_LINE_NONE && b.text.len == 0)
+		)
 		{
 			target = ed->edit_index - 1;
 			at     = a.text.len;

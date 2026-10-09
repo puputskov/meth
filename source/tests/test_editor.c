@@ -404,6 +404,21 @@ static void test_esc_leaves_block (void)
 	CHECK (texts_are (&ed, "a|b|after|c|x"));
 
 	ml_editor_free (&ed);
+
+	/* Backspace on the empty note takes the user back into the block */
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "a");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "b");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.state == ML_STATE_NOTE && ed.edit_index == 2);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.state == ML_STATE_MATH && ed.edit_index == 1);
+	CHECK (ed.edit.cursor == ed.edit.text.len && edit_is (&ed, "b"));
+	CHECK (texts_are (&ed, "a|b"));
+
+	ml_editor_free (&ed);
 }
 
 static void test_pick_block (void)
