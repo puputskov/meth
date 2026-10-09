@@ -2,9 +2,6 @@
 
 #define NIL ML_NODE_NIL_INDEX
 
-/* Longest run of operators of one level (1+1+1...) that is accepted. */
-#define ML_PARSE_MAX_CHAIN 5000
-
 typedef struct Parser
 {
 	MlSlice      source;
@@ -201,6 +198,7 @@ static uint64_t add_node (
 		.first  = NIL,
 		.next   = NIL,
 		.prev   = NIL,
+		.height = 1,
 		.start  = start,
 		.len    = end - start
 	};
@@ -224,7 +222,9 @@ static uint64_t add_leaf (Parser *p, MlNodeKind kind, MlToken t)
 }
 
 /*
- * Appends child to the children of parent (the first child's prev is the last).
+ * Appends child to the children of parent (the first child's prev is the
+ * last child) and keeps the height of parent. A tree that gets higher than
+ * ML_PARSE_MAX_TREE_DEPTH is refused.
  */
 static void adopt (Parser *p, uint64_t parent, uint64_t child)
 {
@@ -236,6 +236,7 @@ static void adopt (Parser *p, uint64_t parent, uint64_t child)
 			node_at (p, first).prev,
 			child
 		);
+		uint64_t height = node_at (p, child).height + 1;
 
 		p->ast.nodes.data [child].parent = parent;
 		p->ast.nodes.data [child].prev   = last;
@@ -250,6 +251,23 @@ static void adopt (Parser *p, uint64_t parent, uint64_t child)
 		else
 		{
 			p->ast.nodes.data [parent].first = child;
+		}
+
+		if (height > node_at (p, parent).height)
+		{
+			p->ast.nodes.data [parent].height = height;
+		}
+
+		if (height > ML_PARSE_MAX_TREE_DEPTH)
+		{
+			MlToken at =
+			{
+				.kind  = ML_TOK_NAME,
+				.start = node_at (p, parent).start,
+				.len   = node_at (p, parent).len
+			};
+
+			fail (p, ML_PARSE_TOO_DEEP, at);
 		}
 	}
 }
@@ -269,7 +287,7 @@ static uint64_t binary (Parser *p, MlNodeKind kind, uint64_t a, uint64_t b)
 	return node;
 }
 
-/* A node of the given kind over one child, starting at the byte start. */
+/* A node of the given kind over one child, covering [start, end). */
 static uint64_t unary (
 	Parser     *p,
 	MlNodeKind kind,
@@ -287,6 +305,17 @@ static uint64_t unary (
 	}
 
 	return node;
+}
+
+/* A prefix operator at byte start over operand (neg or sqrt). */
+static uint64_t prefix (
+	Parser     *p,
+	MlNodeKind kind,
+	uint64_t   start,
+	uint64_t   operand
+)
+{
+	return unary (p, kind, start, node_end (p, operand), operand);
 }
 
 /* Counts nesting; returns 1 when there is room, which leave must give back. */
@@ -312,8 +341,138 @@ static void leave (Parser *p)
 	p->depth--;
 }
 
-static uint64_t parse_expr (Parser *p);
+/* Does an implicit product start between the last token and this one? */
+static int32_t implicit_product (MlTokenKind before, MlTokenKind next)
+{
+	int32_t after_factor = (
+		   before == ML_TOK_NUMBER
+		|| before == ML_TOK_RPAREN
+		|| before == ML_TOK_SUPERSCRIPT
+	);
+
+	return (
+		   after_factor
+		&& (
+			   next == ML_TOK_NAME
+			|| next == ML_TOK_LPAREN
+			|| next == ML_TOK_SQRT
+			|| (before == ML_TOK_RPAREN && next == ML_TOK_NUMBER)
+		)
+	);
+}
+
+/* The node kind of a binary operator token (a product for anything else). */
+static MlNodeKind binary_kind (MlTokenKind kind)
+{
+	return ml_choose (
+		kind == ML_TOK_PLUS,
+		ML_NODE_ADD,
+		ml_choose (
+			kind == ML_TOK_MINUS,
+			ML_NODE_SUB,
+			ml_choose (kind == ML_TOK_SLASH, ML_NODE_DIV, ML_NODE_MUL)
+		)
+	);
+}
+
+/*
+ * The superscript text must be an integer. The buffer for the check lives
+ * here, away from the stack of the recursive functions.
+ */
+static int32_t superscript_is_integer (const Parser *p, MlToken t)
+{
+	MlStr   digits;
+	int32_t ok;
+
+	ml_str_init (&digits);
+	ok = ml_superscript_to_ascii (
+		&digits,
+		ml_token_text (p->source, t)
+	) == ML_OK;
+	ml_str_free (&digits);
+	return ok;
+}
+
+/* '!' or a superscript after node. */
+static uint64_t postfix (Parser *p, uint64_t node, MlToken t)
+{
+	uint64_t result = NIL;
+
+	if (t.kind == ML_TOK_BANG)
+	{
+		result = unary (
+			p,
+			ML_NODE_FACT,
+			node_at (p, node).start,
+			t.start + t.len,
+			node
+		);
+	}
+
+	else if (superscript_is_integer (p, t))
+	{
+		result = binary (
+			p,
+			ML_NODE_POW,
+			node,
+			add_leaf (p, ML_NODE_SUPERSCRIPT, t)
+		);
+	}
+
+	else
+	{
+		fail (p, ML_PARSE_BAD_SUPERSCRIPT, t);
+	}
+
+	return result;
+}
+
+/* The ')' that ends a parenthesized expression. */
+static void close_paren (Parser *p)
+{
+	MlToken close = peek (p);
+
+	if (!p->failed && close.kind == ML_TOK_RPAREN)
+	{
+		advance (p);
+	}
+
+	else if (!p->failed)
+	{
+		fail_unexpected (p, close);
+	}
+}
+
+/* The ')' that ends a call; it becomes part of the text of the call. */
+static void close_call (Parser *p, uint64_t call)
+{
+	MlToken close = peek (p);
+
+	if (!p->failed && close.kind == ML_TOK_RPAREN)
+	{
+		advance (p);
+		p->ast.nodes.data [call].len = close.start + close.len
+			- node_at (p, call).start;
+	}
+
+	else if (!p->failed)
+	{
+		fail_unexpected (p, close);
+	}
+}
+
+/*
+ * The expression grammar is a handful of small mutually recursive functions;
+ * each level of parentheses costs four of them (atom, binary, unary, factor).
+ * They keep no buffers or tree nodes in their frames, only a few integers.
+ */
+static uint64_t parse_binary (Parser *p, uint64_t min_level);
 static uint64_t parse_unary (Parser *p);
+
+static uint64_t parse_expr (Parser *p)
+{
+	return parse_binary (p, 1);
+}
 
 /* name '(' [expression {',' expression}] ')' with the name already read. */
 static uint64_t parse_call (Parser *p, uint64_t name)
@@ -331,7 +490,6 @@ static uint64_t parse_call (Parser *p, uint64_t name)
 	if (enter (p))
 	{
 		int32_t more = peek (p).kind != ML_TOK_RPAREN;
-		MlToken close;
 
 		while (more && !p->failed)
 		{
@@ -344,20 +502,7 @@ static uint64_t parse_call (Parser *p, uint64_t name)
 			}
 		}
 
-		close = peek (p);
-
-		if (!p->failed && close.kind == ML_TOK_RPAREN)
-		{
-			advance (p);
-			p->ast.nodes.data [call].len = close.start + close.len
-				- node_at (p, call).start;
-		}
-
-		else if (!p->failed)
-		{
-			fail_unexpected (p, close);
-		}
-
+		close_call (p, call);
 		leave (p);
 	}
 
@@ -398,21 +543,8 @@ static uint64_t parse_atom (Parser *p)
 
 		if (enter (p))
 		{
-			MlToken close;
-
-			node  = parse_expr (p);
-			close = peek (p);
-
-			if (!p->failed && close.kind == ML_TOK_RPAREN)
-			{
-				advance (p);
-			}
-
-			else if (!p->failed)
-			{
-				fail_unexpected (p, close);
-			}
-
+			node = parse_expr (p);
+			close_paren (p);
 			leave (p);
 		}
 	}
@@ -428,27 +560,24 @@ static uint64_t parse_atom (Parser *p)
 /* The operand of a square root sign: one factor, optionally signed. */
 static uint64_t parse_sqrt_operand (Parser *p)
 {
-	MlToken  t       = peek (p);
-	uint64_t node    = NIL;
-	int32_t  entered = !p->failed && enter (p);
+	MlTokenKind kind    = peek (p).kind;
+	uint64_t    start   = peek (p).start;
+	uint64_t    node    = NIL;
+	int32_t     entered = !p->failed && enter (p);
 
 	if (!entered)
 	{
 		node = NIL;
 	}
 
-	else if (t.kind == ML_TOK_MINUS || t.kind == ML_TOK_SQRT)
+	else if (kind == ML_TOK_MINUS || kind == ML_TOK_SQRT)
 	{
-		uint64_t operand;
-
 		advance (p);
-		operand = parse_sqrt_operand (p);
-		node    = unary (
+		node = prefix (
 			p,
-			ml_choose (t.kind == ML_TOK_MINUS, ML_NODE_NEG, ML_NODE_SQRT),
-			t.start,
-			node_end (p, operand),
-			operand
+			ml_choose (kind == ML_TOK_MINUS, ML_NODE_NEG, ML_NODE_SQRT),
+			start,
+			parse_sqrt_operand (p)
 		);
 	}
 
@@ -465,25 +594,16 @@ static uint64_t parse_sqrt_operand (Parser *p)
 	return ml_choose (p->failed, NIL, node);
 }
 
-/* atom | '√' operand */
+/* The start of a factor: atom | '√' operand. */
 static uint64_t parse_primary (Parser *p)
 {
-	MlToken  t    = peek (p);
-	uint64_t node = NIL;
+	uint64_t start = peek (p).start;
+	uint64_t node  = NIL;
 
-	if (t.kind == ML_TOK_SQRT)
+	if (peek (p).kind == ML_TOK_SQRT)
 	{
-		uint64_t operand;
-
 		advance (p);
-		operand = parse_sqrt_operand (p);
-		node    = unary (
-			p,
-			ML_NODE_SQRT,
-			t.start,
-			node_end (p, operand),
-			operand
-		);
+		node = prefix (p, ML_NODE_SQRT, start, parse_sqrt_operand (p));
 	}
 
 	else
@@ -491,76 +611,24 @@ static uint64_t parse_primary (Parser *p)
 		node = parse_atom (p);
 	}
 
-	return ml_choose (p->failed, NIL, node);
+	return node;
 }
 
-/* primary {'!' | superscript} */
-static uint64_t parse_postfix (Parser *p)
+/* primary {'!' | superscript} ['^' unary]: the exponent may be signed */
+static uint64_t parse_factor (Parser *p)
 {
-	uint64_t node  = parse_primary (p);
-	uint64_t count = 0;
+	uint64_t node = parse_primary (p);
 
 	while (
 		   !p->failed
-		&& count < ML_PARSE_MAX_CHAIN
 		&& (
 			   peek (p).kind == ML_TOK_BANG
 			|| peek (p).kind == ML_TOK_SUPERSCRIPT
 		)
 	)
 	{
-		MlToken t = advance (p);
-
-		count++;
-
-		if (t.kind == ML_TOK_BANG)
-		{
-			node = unary (
-				p,
-				ML_NODE_FACT,
-				node_at (p, node).start,
-				t.start + t.len,
-				node
-			);
-		}
-
-		else
-		{
-			MlStr digits;
-
-			ml_str_init (&digits);
-
-			if (
-				ml_superscript_to_ascii (&digits, ml_token_text (p->source, t))
-				!= ML_OK
-			)
-			{
-				fail (p, ML_PARSE_BAD_SUPERSCRIPT, t);
-			}
-
-			ml_str_free (&digits);
-			node = binary (
-				p,
-				ML_NODE_POW,
-				node,
-				add_leaf (p, ML_NODE_SUPERSCRIPT, t)
-			);
-		}
+		node = postfix (p, node, advance (p));
 	}
-
-	if (!p->failed && count >= ML_PARSE_MAX_CHAIN)
-	{
-		fail (p, ML_PARSE_TOO_DEEP, peek (p));
-	}
-
-	return ml_choose (p->failed, NIL, node);
-}
-
-/* postfix ['^' unary]: right associative, the exponent may be signed */
-static uint64_t parse_power (Parser *p)
-{
-	uint64_t base = parse_postfix (p);
-	uint64_t node = base;
 
 	if (!p->failed && peek (p).kind == ML_TOK_CARET)
 	{
@@ -568,7 +636,7 @@ static uint64_t parse_power (Parser *p)
 
 		if (enter (p))
 		{
-			node = binary (p, ML_NODE_POW, base, parse_unary (p));
+			node = binary (p, ML_NODE_POW, node, parse_unary (p));
 			leave (p);
 		}
 	}
@@ -576,13 +644,14 @@ static uint64_t parse_power (Parser *p)
 	return ml_choose (p->failed, NIL, node);
 }
 
-/* {'-' | '+'} power */
+/* {'-' | '+'} factor */
 static uint64_t parse_unary (Parser *p)
 {
-	MlToken  t    = peek (p);
-	uint64_t node = NIL;
+	MlTokenKind kind  = peek (p).kind;
+	uint64_t    start = peek (p).start;
+	uint64_t    node  = NIL;
 
-	if (!p->failed && (t.kind == ML_TOK_MINUS || t.kind == ML_TOK_PLUS))
+	if (!p->failed && (kind == ML_TOK_MINUS || kind == ML_TOK_PLUS))
 	{
 		advance (p);
 
@@ -591,123 +660,74 @@ static uint64_t parse_unary (Parser *p)
 			uint64_t operand = parse_unary (p);
 
 			leave (p);
-
 			node = ml_choose (
-				t.kind == ML_TOK_PLUS || operand == NIL,
+				kind == ML_TOK_PLUS,
 				operand,
-				unary (p, ML_NODE_NEG, t.start, node_end (p, operand), operand)
+				prefix (p, ML_NODE_NEG, start, operand)
 			);
 		}
 	}
 
 	else
 	{
-		node = parse_power (p);
+		node = parse_factor (p);
 	}
 
 	return ml_choose (p->failed, NIL, node);
 }
 
-/* Does an implicit product start between the last token and this one? */
-static int32_t implicit_product (MlTokenKind before, MlTokenKind next)
+/*
+ * The level of the binary operator at the cursor: 1 for + -, 2 for * / and
+ * an implicit product, 0 when the next token is no operator.
+ */
+static uint64_t operator_level (const Parser *p)
 {
-	int32_t after_factor = (
-		   before == ML_TOK_NUMBER
-		|| before == ML_TOK_RPAREN
-		|| before == ML_TOK_SUPERSCRIPT
-	);
+	MlTokenKind next = peek (p).kind;
 
-	return (
-		   after_factor
-		&& (
-			   next == ML_TOK_NAME
-			|| next == ML_TOK_LPAREN
-			|| next == ML_TOK_SQRT
-			|| (before == ML_TOK_RPAREN && next == ML_TOK_NUMBER)
+	return ml_choose (
+		next == ML_TOK_PLUS || next == ML_TOK_MINUS,
+		1,
+		ml_choose (
+			   next == ML_TOK_STAR
+			|| next == ML_TOK_SLASH
+			|| implicit_product (previous_kind (p), next),
+			2,
+			0
 		)
 	);
 }
 
-/* unary {('*' | '/' | implicit) unary} */
-static uint64_t parse_mul (Parser *p)
+/* unary {operator unary} for the operators of level min_level and above. */
+static uint64_t parse_binary (Parser *p, uint64_t min_level)
 {
 	uint64_t node  = parse_unary (p);
-	uint64_t count = 0;
-	int32_t  more  = 1;
+	uint64_t level = operator_level (p);
 
-	while (more && !p->failed && count < ML_PARSE_MAX_CHAIN)
+	while (!p->failed && level >= min_level && level > 0)
 	{
-		MlToken t           = peek (p);
-		int32_t explicit_op = t.kind == ML_TOK_STAR || t.kind == ML_TOK_SLASH;
-		int32_t implicit    = implicit_product (previous_kind (p), t.kind);
+		MlTokenKind kind = peek (p).kind;
 
-		more = explicit_op || implicit;
-
-		if (more)
+		/* an implicit product has no token of its own */
+		if (
+			   kind == ML_TOK_PLUS
+			|| kind == ML_TOK_MINUS
+			|| kind == ML_TOK_STAR
+			|| kind == ML_TOK_SLASH
+		)
 		{
-			uint64_t right;
-
-			count++;
-
-			if (explicit_op)
-			{
-				advance (p);
-			}
-
-			right = parse_unary (p);
-			node  = binary (
-				p,
-				ml_choose (t.kind == ML_TOK_SLASH, ML_NODE_DIV, ML_NODE_MUL),
-				node,
-				right
-			);
+			advance (p);
 		}
-	}
 
-	if (!p->failed && count >= ML_PARSE_MAX_CHAIN)
-	{
-		fail (p, ML_PARSE_TOO_DEEP, peek (p));
-	}
-
-	return ml_choose (p->failed, NIL, node);
-}
-
-/* mul {('+' | '-') mul} */
-static uint64_t parse_add (Parser *p)
-{
-	uint64_t node  = parse_mul (p);
-	uint64_t count = 0;
-
-	while (
-		   !p->failed
-		&& count < ML_PARSE_MAX_CHAIN
-		&& (peek (p).kind == ML_TOK_PLUS || peek (p).kind == ML_TOK_MINUS)
-	)
-	{
-		MlToken  t = advance (p);
-		uint64_t right;
-
-		count++;
-		right = parse_mul (p);
-		node  = binary (
+		node = binary (
 			p,
-			ml_choose (t.kind == ML_TOK_PLUS, ML_NODE_ADD, ML_NODE_SUB),
+			binary_kind (kind),
 			node,
-			right
+			parse_binary (p, level + 1)
 		);
-	}
-
-	if (!p->failed && count >= ML_PARSE_MAX_CHAIN)
-	{
-		fail (p, ML_PARSE_TOO_DEEP, peek (p));
+		level = operator_level (p);
 	}
 
 	return ml_choose (p->failed, NIL, node);
-}
-
-static uint64_t parse_expr (Parser *p)
-{
-	return parse_add (p);
 }
 
 /* name '(' [name {',' name}] ')' '=' at the current position? */
@@ -876,6 +896,7 @@ MlParseResult ml_parse (MlSlice source)
 		.first  = NIL,
 		.next   = NIL,
 		.prev   = NIL,
+		.height = 0,
 		.start  = 0,
 		.len    = 0
 	};
@@ -943,6 +964,7 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_PARAMS]   = ""
 };
 
+/* Recursive, which is safe: no tree is higher than ML_PARSE_MAX_TREE_DEPTH. */
 static MlResult dump_node (
 	MlStr       *out,
 	MlSlice     source,
@@ -950,21 +972,22 @@ static MlResult dump_node (
 	uint64_t    index
 )
 {
-	MlNode   node  = ml_ast_node (ast, index);
-	MlResult r     = ML_OK;
-	int32_t  group = 0;
+	MlNodeKind kind  = ml_ast_node (ast, index).kind;
+	uint64_t   first = ml_ast_node (ast, index).first;
+	MlResult   r     = ML_OK;
+	int32_t    group = 0;
 
-	if (node.kind == ML_NODE_NIL)
+	if (kind == ML_NODE_NIL)
 	{
 		r = ml_str_append (out, ml_slice_cstr ("nil"));
 	}
 
-	else if (node.kind == ML_NODE_NUMBER || node.kind == ML_NODE_NAME)
+	else if (kind == ML_NODE_NUMBER || kind == ML_NODE_NAME)
 	{
 		r = ml_str_append (out, ml_ast_text (ast, source, index));
 	}
 
-	else if (node.kind == ML_NODE_SUPERSCRIPT)
+	else if (kind == ML_NODE_SUPERSCRIPT)
 	{
 		r = ml_superscript_to_ascii (out, ml_ast_text (ast, source, index));
 	}
@@ -972,8 +995,8 @@ static MlResult dump_node (
 	else
 	{
 		const char *label = ml_choose (
-			(int32_t)node.kind < ML_NODE_KIND_COUNT,
-			node_labels [node.kind],
+			(int32_t)kind < ML_NODE_KIND_COUNT,
+			node_labels [kind],
 			""
 		);
 
@@ -981,7 +1004,7 @@ static MlResult dump_node (
 		r     = ml_str_appendf (out, "(%s", label);
 
 		for (
-			uint64_t c = node.first;
+			uint64_t c = first;
 			c != NIL && r == ML_OK;
 			c = ml_ast_node (ast, c).next
 		)
@@ -990,7 +1013,7 @@ static MlResult dump_node (
 				out,
 				ml_slice_cstr (
 					ml_choose (
-						c == node.first && label [0] == '\0',
+						c == first && label [0] == '\0',
 						"",
 						" "
 					)

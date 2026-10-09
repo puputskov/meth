@@ -81,10 +81,11 @@ typedef struct MlNode
 {
 	MlNodeKind kind;
 	uint64_t   parent;
-	uint64_t   first; /* first child */
-	uint64_t   next;  /* next sibling, 0 for the last child */
-	uint64_t   prev;  /* previous sibling; for the first child the last one */
-	uint64_t   start; /* byte range of the whole node in the source */
+	uint64_t   first;  /* first child */
+	uint64_t   next;   /* next sibling, 0 for the last child */
+	uint64_t   prev;   /* previous sibling; for the first child the last one */
+	uint64_t   height; /* levels of the subtree: 1 for a leaf, 0 for nil */
+	uint64_t   start;  /* byte range of the whole node in the source */
 	uint64_t   len;
 } MlNode;
 
@@ -127,8 +128,16 @@ typedef struct MlParseResult
 	MlAst        ast;   /* empty on failure; free a good one with ml_ast_free */
 } MlParseResult;
 
-/* Nesting of parentheses, calls and prefix operators that is accepted. */
-#define ML_PARSE_MAX_DEPTH 200
+/*
+ * Limits that keep recursion shallow. The parser nests at most
+ * ML_PARSE_MAX_DEPTH parentheses, calls and prefix operators, and every
+ * function that walks the tree recursively (printing, evaluating) is safe
+ * because no tree is higher than ML_PARSE_MAX_TREE_DEPTH levels, which also
+ * bounds long chains such as 1+1+1+... Both limits keep the stack use well
+ * below the default 1 MB.
+ */
+#define ML_PARSE_MAX_DEPTH      200
+#define ML_PARSE_MAX_TREE_DEPTH 1000
 
 MlParseResult ml_parse (MlSlice source);
 

@@ -4,6 +4,11 @@
 
 #include <string.h>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 static MlSlice lit (const char *s)
 {
 	return ml_slice_cstr (s);
@@ -346,7 +351,7 @@ static void test_ranges (void)
 	);
 
 	body = ml_ast_child (ast, ast->root, 2);
-	CHECK (ml_ast_node    (ast, body).kind == ML_NODE_FACT);
+	CHECK (ml_ast_node (ast, body).kind == ML_NODE_FACT);
 	CHECK (
 		ml_slice_equal (ml_ast_text (ast, source, body), lit ("(1 + 2)!")) == 0
 	);
@@ -364,8 +369,8 @@ static void test_ranges (void)
 			lit ("f(x, y) = (1 + 2)!")
 		)
 	);
-	CHECK (ml_ast_node    (ast, ast->root).start == 0);
-	CHECK (ml_ast_node    (ast, ast->root).len == 18);
+	CHECK (ml_ast_node (ast, ast->root).start == 0);
+	CHECK (ml_ast_node (ast, ast->root).len == 18);
 	ml_ast_free (&parsed.ast);
 
 	/* a call covers the name, the arguments and the closing parenthesis */
@@ -376,7 +381,7 @@ static void test_ranges (void)
 		uint64_t mul  = ml_ast_child (&parsed.ast, parsed.ast.root, 1);
 		uint64_t call = ml_ast_child (&parsed.ast, mul, 0);
 
-		CHECK (ml_ast_node        (&parsed.ast, call).kind == ML_NODE_CALL);
+		CHECK (ml_ast_node (&parsed.ast, call).kind == ML_NODE_CALL);
 		CHECK (
 			ml_slice_equal (
 				ml_ast_text (&parsed.ast, source, call),
@@ -489,75 +494,183 @@ static void test_errors (void)
 	);
 }
 
+/* open n times, then body, then close n times. */
+static void wrap (
+	MlStr      *s,
+	const char *open,
+	uint32_t   n,
+	const char *body,
+	const char *close
+)
+{
+	ml_str_clear (s);
+
+	for (uint32_t i = 0; i < n; i++)
+	{
+		ml_str_append (s, lit (open));
+	}
+
+	ml_str_append (s, lit (body));
+
+	for (uint32_t i = 0; i < n; i++)
+	{
+		ml_str_append (s, lit (close));
+	}
+}
+
+/* Parses s and, when that works, prints the tree (a recursive walk). */
+static MlParseCode parse_and_dump (const MlStr *s)
+{
+	MlParseResult parsed = ml_parse (ml_str_view (*s));
+	MlStr         text;
+
+	ml_str_init (&text);
+
+	if (parsed.error.code == ML_PARSE_OK)
+	{
+		CHECK (ml_ast_dump (&text, ml_str_view (*s), &parsed.ast) == ML_OK);
+		CHECK (links_are_consistent (&parsed.ast));
+	}
+
+	ml_str_free (&text);
+	ml_ast_free (&parsed.ast);
+	return parsed.error.code;
+}
+
 static void test_limits (void)
 {
 	MlStr s;
 
 	ml_str_init (&s);
 
-	/* nesting up to the limit is fine, one more is refused */
-	for (uint32_t i = 0; i < ML_PARSE_MAX_DEPTH; i++)
-	{
-		ml_str_append (&s, lit ("("));
-	}
-
-	ml_str_append (&s, lit ("1"));
-
-	for (uint32_t i = 0; i < ML_PARSE_MAX_DEPTH; i++)
-	{
-		ml_str_append (&s, lit (")"));
-	}
-
-	CHECK (ml_parse_complete (ml_str_view (s)));
-
-	ml_str_clear (&s);
-
-	for (uint32_t i = 0; i < ML_PARSE_MAX_DEPTH + 1; i++)
-	{
-		ml_str_append (&s, lit ("("));
-	}
-
-	ml_str_append (&s, lit ("1"));
-
-	for (uint32_t i = 0; i < ML_PARSE_MAX_DEPTH + 1; i++)
-	{
-		ml_str_append (&s, lit (")"));
-	}
-
+	/* parentheses: the limit is fine, one more is refused */
+	wrap (&s, "(", ML_PARSE_MAX_DEPTH, "1", ")");
+	CHECK (parse_and_dump (&s) == ML_PARSE_OK);
+	wrap (&s, "(", ML_PARSE_MAX_DEPTH + 1, "1", ")");
+	CHECK (parse_and_dump     (&s) == ML_PARSE_TOO_DEEP);
 	CHECK (!ml_parse_complete (ml_str_view (s)));
-	CHECK (ml_parse (ml_str_view (s)).error.code == ML_PARSE_TOO_DEEP);
 
-	/* prefix operators nest too */
-	ml_str_clear (&s);
+	/* prefix signs, calls, roots and powers nest the same way */
+	wrap (&s, "-", ML_PARSE_MAX_DEPTH, "x", "");
+	CHECK (parse_and_dump (&s) == ML_PARSE_OK);
+	wrap (&s, "-", ML_PARSE_MAX_DEPTH + 1, "x", "");
+	CHECK (parse_and_dump (&s) == ML_PARSE_TOO_DEEP);
 
-	for (uint32_t i = 0; i < 500; i++)
-	{
-		ml_str_append (&s, lit ("-"));
-	}
+	wrap (&s, "f(", ML_PARSE_MAX_DEPTH, "1", ")");
+	CHECK (parse_and_dump (&s) == ML_PARSE_OK);
+	wrap (&s, "f(", ML_PARSE_MAX_DEPTH + 1, "1", ")");
+	CHECK (parse_and_dump (&s) == ML_PARSE_TOO_DEEP);
 
-	ml_str_append (&s, lit ("x"));
-	CHECK (ml_parse (ml_str_view (s)).error.code == ML_PARSE_TOO_DEEP);
+	wrap (&s, "\xE2\x88\x9A", 150, "x", "");
+	CHECK (parse_and_dump (&s) == ML_PARSE_OK);
+	wrap (&s, "\xE2\x88\x9A", 400, "x", "");
+	CHECK (parse_and_dump (&s) == ML_PARSE_TOO_DEEP);
 
-	/* long sums are fine up to a limit */
-	ml_str_clear (&s);
-	ml_str_append (&s, lit ("1"));
+	wrap (&s, "2^", 150, "2", "");
+	CHECK (parse_and_dump (&s) == ML_PARSE_OK);
+	wrap (&s, "2^", 400, "2", "");
+	CHECK (parse_and_dump (&s) == ML_PARSE_TOO_DEEP);
 
-	for (uint32_t i = 0; i < 4000; i++)
+	wrap (&s, "(f(-", 60, "x", "))");
+	CHECK (parse_and_dump (&s) == ML_PARSE_OK);
+
+	/* long chains of operators make a high tree: the height is limited */
+	wrap (&s, "", 1, "1", "");
+
+	for (uint32_t i = 0; i < ML_PARSE_MAX_TREE_DEPTH - 100; i++)
 	{
 		ml_str_append (&s, lit ("+1"));
 	}
 
-	CHECK (ml_parse_complete (ml_str_view (s)));
+	CHECK (parse_and_dump (&s) == ML_PARSE_OK);
 
-	for (uint32_t i = 0; i < 2000; i++)
+	for (uint32_t i = 0; i < 200; i++)
 	{
 		ml_str_append (&s, lit ("+1"));
 	}
 
-	CHECK (ml_parse (ml_str_view (s)).error.code == ML_PARSE_TOO_DEEP);
+	CHECK (parse_and_dump (&s) == ML_PARSE_TOO_DEEP);
+	CHECK (ml_parse       (ml_str_view (s)).ast.nodes.len == 0);
+
+	/* the same for products and a very long input */
+	wrap (&s, "", 1, "2", "");
+
+	for (uint32_t i = 0; i < 100000; i++)
+	{
+		ml_str_append (&s, lit ("*2"));
+	}
+
+	CHECK (parse_and_dump (&s) == ML_PARSE_TOO_DEEP);
 
 	ml_str_free (&s);
 }
+
+/* The height of a node is the number of levels of its subtree. */
+static void test_heights (void)
+{
+	MlParseResult parsed = ml_parse (lit ("1 + 2 * x"));
+
+	CHECK (parsed.error.code == ML_PARSE_OK);
+	CHECK (ml_ast_node (&parsed.ast, 0).height == 0);
+	CHECK (ml_ast_node (&parsed.ast, 1).height == 1);
+	CHECK (ml_ast_node (&parsed.ast, parsed.ast.root).height == 3);
+	CHECK (
+		ml_ast_node (
+			&parsed.ast,
+			ml_ast_child (&parsed.ast, parsed.ast.root, 1)
+		).height == 2
+	);
+	ml_ast_free (&parsed.ast);
+}
+
+typedef void (*TestFn) (void);
+
+#ifdef _WIN32
+
+static TestFn g_thread_test;
+
+static DWORD WINAPI thread_main (LPVOID unused)
+{
+	(void)unused;
+	g_thread_test ();
+	return 0;
+}
+
+/*
+ * Runs fn on a thread whose stack is 512 KB, half the default: if the parser
+ * (or the tree walks of these tests) used too much stack, this crashes.
+ */
+static void run_on_small_stack (TestFn fn)
+{
+	HANDLE thread;
+
+	g_thread_test = fn;
+	thread        = CreateThread (
+		NULL,
+		512 * 1024,
+		thread_main,
+		NULL,
+		STACK_SIZE_PARAM_IS_A_RESERVATION,
+		NULL
+	);
+
+	CHECK (thread != NULL);
+
+	if (thread != NULL)
+	{
+		WaitForSingleObject (thread, INFINITE);
+		CloseHandle (thread);
+	}
+}
+
+#else
+
+static void run_on_small_stack (TestFn fn)
+{
+	fn ();
+}
+
+#endif
 
 static void test_complete (void)
 {
@@ -602,6 +715,7 @@ void run_parser_tests (void)
 	test_ranges ();
 	test_nil_node ();
 	test_errors ();
-	test_limits ();
+	run_on_small_stack (test_limits);
+	test_heights ();
 	test_complete ();
 }
