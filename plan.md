@@ -223,6 +223,63 @@ options, a preview of the first rows, and the path), and `:export <format> [path
 - Placement: after milestone 3 for latex, mathml and markdown (they need only the AST and the results), after the layout engine for png and pdf. The
   syntax of every new domain brings its exporters (matrix is first); a domain is not done until its lines export in every format.
 
+### 4.12 Proofs and their validation
+A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few
+statement lines, so it lives in the same `.mlog` file as the calculations, with notes between the steps, and it is exported like everything else.
+- Statements: `theorem name: <claim>` (what is to be shown, with its hypotheses: `given x > 0, y > 0`), then the steps, then `qed`. A step is a claim
+  followed by a justification: `x + x = 2x  by simplify`, `... by lemma name`, `... by rule distributive`, `... by hypothesis`, `... by step 3`.
+  A line that starts with `=` or `...` continues the previous right hand side, so a chain of equalities reads like on paper
+  (`= x² + 2x + 1  by expand`). Lemmas are earlier theorems of the session or of included files; a proof can use only what is above it.
+- Checking: each step is checked against its justification by the engine, never taken on trust. The checker gives, per line, one of: valid, not valid
+  (with the reason and what was expected), not checked (a justification the engine cannot decide, shown as a warning and counted), or an error in the
+  syntax. A proof is complete when `qed` closes every goal with no unchecked step; the theorem is then available as a lemma below. `sorry` is allowed
+  as a placeholder step and is reported, so unfinished proofs are visible and never counted as complete.
+- Justifications the engine can decide, in order of work: arithmetic and algebraic equality (the two sides are simplified to a normal form and compared,
+  exact rationals, so no rounding), a named rewrite rule from a table (the rule engine of section 4.1, with its steps shown on request: the user can see
+  which rule connects two lines), a hypothesis, an earlier step or lemma, the definition of a name, and later: induction (base case and step as two
+  goals, the induction hypothesis added to the context), cases (`cases on x >= 0`, one goal per case, covering checked), contradiction, and domain
+  rules (matrix identities such as (AB)^T = B^T A^T by rewriting, boolean laws, lambda terms equal up to reduction). Inequalities are decided for
+  linear and simple polynomial cases first. What the engine cannot decide stays `not checked`; the engine must never say valid when it is not sure.
+- Soundness: the checker is a small core (the rules it trusts are a short, listed table, each rule tested against numeric spot checks and exact
+  identities) and a larger layer of search on top that only proposes justifications; whatever the search finds is rechecked by the core. `:why` on a
+  line shows the justification found, `:hint` suggests one for a step that has none.
+- Counterexamples: a claim that is not valid is tried on small exact values and, when it fails, the failing values are shown (`x = 1: 2 ≠ 3`), which
+  is also a way to test an idea before proving it. `:test <claim>` does only this.
+- Interactive use: in the editor a proof line shows its status mark at the end of the row (a check mark, a cross with the reason, or a question mark),
+  the same way results are shown, recomputed on every edit from the changed line down. Ghost mode shows what the step's right hand side simplifies to.
+  The tutorial gets a lesson for it and the export writes proofs as `proof` environments (latex), lists (markdown) or structured MathML.
+- Tests: a corpus of valid and of broken proofs (a wrong step at each position, a missing hypothesis, a circular lemma, a step that uses a theorem
+  proved below it); every valid one must be accepted and every broken one rejected at the right line with the right reason.
+
+### 4.13 Command line interface for scripts and AI agents
+The tool must be usable without the interactive screen, by scripts and by AI agents, through command line parameters. The interactive shell is one
+front end on the same library; the other one is a batch front end that reads, evaluates and prints, and never needs a terminal.
+- Entry points: `matlog eval "<expr>"...` (evaluate expressions or lines, one result per argument, using the optional `--session file.mlog` as the
+  environment), `matlog run file.mlog` (evaluate a session and print every line with its result), `matlog check file.mlog` (the proofs of a session: exit
+  code 0 when every theorem is complete, 1 when something is not valid, 2 when something is only unchecked), `matlog steps file.mlog:LINE` (the steps of
+  one line), `matlog export file.mlog --format latex|mathml|markdown|png|pdf -o out` (section 4.11), `matlog test "<claim>"` (try a claim on
+  values, print counterexamples), `matlog fmt file.mlog` (normalise ASCII to the pretty form), `matlog lex|parse "<text>"` (tokens and tree, for tooling)
+  and `matlog --version`. Reading `-` takes the text from standard input, so lines can be piped in; a file opened with `matlog file.mlog` and no
+  command is the interactive shell as before, and there is `matlog repl --plain` (a line oriented loop with no screen control, one prompt line per input,
+  for agents that drive a process through pipes).
+- Output formats: `--format text` (the default, human readable, plain unicode, no colour unless asked), `--format json` (one stable, documented JSON
+  object per result: `{"line":3,"domain":"algebra","input":"...","kind":"value|error|none","value":"7/2","exact":true,"approx":null,"block":[...],
+  "error":{"code":"div_zero","message":"...","start":4,"len":3}}`, and for proofs per step status, reason and expected form), and `--format latex` for
+  results. JSON is one object per line (JSON Lines) so it can be streamed. Errors carry a machine readable code, never only prose, and the codes are the
+  enum names of the library (section 4.1) so they stay stable.
+- Behaviour fit for automation: deterministic output (no timestamps, no colour or cursor codes when the output is not a terminal, `NO_COLOR` honoured),
+  exit codes with a fixed meaning (0 success, 1 a calculation or proof result that is an error or invalid, 2 usage error, 3 file or I/O error), errors
+  on standard error as well as in the JSON, no prompts and no questions (an operation that would overwrite needs `--force`), a time limit (`--timeout ms`)
+  and the size limits of the evaluator reported as errors rather than hanging, and `--session` files are only read unless `--write` is given.
+- Discoverability for agents: `matlog help` and `matlog help <command>` print complete usage with examples, `matlog syntax` prints the grammar and the list
+  of built in functions, constants and domains, `matlog schema` prints the JSON shapes, and `matlog commands --format json` lists every command with its
+  parameters, so an agent can learn the whole tool from the tool. The same text feeds the tutorial and the documentation, written once.
+- Placement: a `cli` module with the argument parser and the batch front end (`source/app/` keeps only the wiring), built on the library without the `ui`
+  and `platform` console code, so it also works where there is no console. After milestone 3 the first commands are `eval`, `run`, `lex`, `parse` and the
+  JSON output, since they need only what exists; `check` comes with the proof system, `export` with section 4.11.
+- Tests: the command line is driven in the test executable through the argument parser and the batch front end with captured output (stdout, stderr and
+  exit code), with golden files for the text and JSON forms, so a change of the output format is a visible change in the tests.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -238,7 +295,9 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 9. `app`: `main.c`, wiring.
 10. `ui/theme`, `ui/highlight`: classes, themes, colour levels and the highlighter (section 4.10).
 11. `export`: the document tree, the writers (latex, mathml, markdown, png, pdf) and the box layout (section 4.11).
-12. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
+12. `proof`: the statements, the checker core with its trusted rules, the search that proposes justifications (section 4.12).
+13. `cli`: the argument parser and the batch front end with the text and JSON output (section 4.13).
+14. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
 
 ## 6. Coding rules
 
@@ -273,7 +332,9 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 9. Syntax highlighting and themes (section 4.10). The highlighter only needs the lexer, so it can be built any time after milestone 2; each
    later domain adds its token classes with itself.
 10. Export mode (section 4.11): latex, mathml and markdown first, png and pdf with the layout engine after.
-11. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
+11. Command line interface for scripts and agents (section 4.13): `eval`, `run`, `lex`, `parse` and JSON output as soon as possible, the rest with the features they serve.
+12. Proofs and their validation (section 4.12), after the rule engine of milestone 4 (the checker needs simplification and rewriting).
+13. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
    exist; the milestone 3 to 7 lessons of stage 2 are added together with the domains. The whole tutorial is complete when the last domain is done.
 
 ## 8. Milestone 1 tasks
@@ -453,6 +514,8 @@ steps can be shown on request.
 - Includes are read-only and acyclic.
 - Syntax highlighting is driven by the lexer tokens, with themes as data (built in plus user `.theme` files) and colour levels from 24 bit down to none.
 - Export (latex, MathML, markdown, png, pdf) goes through one document tree built from the parsed AST and the results, with a writer per format; png and pdf are written by the program itself.
+- Proofs are written as lines of a `proof` domain in the same session files and checked by a small trusted core, never taken on trust; what cannot be decided is reported as unchecked.
+- Every feature is available from the command line (batch front end with text and JSON output, stable error codes and exit codes), so scripts and AI agents can use the tool without the screen.
 - A built in interactive tutorial in two stages (usage of the tool, then the syntax); lessons are data, they only observe the real editor, and each is tested by playing the model answer.
 
 ## 12. Open questions
