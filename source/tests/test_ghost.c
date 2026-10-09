@@ -11,21 +11,20 @@ static MlSlice lit (const char *s)
 	return ml_slice_cstr (s);
 }
 
+static void add_in (MlSession *s, MlDomain domain, const char *text)
+{
+	CHECK (ml_session_append (s, ML_LINE_MATH, domain, lit (text)) == ML_OK);
+}
+
 static void add (MlSession *s, const char *text)
 {
-	CHECK (
-		ml_session_append (
-			s,
-			ML_LINE_MATH,
-			ML_DOMAIN_ALGEBRA,
-			lit (text)
-		) == ML_OK
-	);
+	add_in (s, ML_DOMAIN_ALGEBRA, text);
 }
 
 /* 1 when the preview of text as line idx is exactly expected. */
 static int32_t previews (
 	const MlResults *r,
+	MlDomain        domain,
 	uint64_t        idx,
 	const char      *text,
 	const char      *expected
@@ -36,7 +35,7 @@ static int32_t previews (
 	int32_t same;
 
 	ml_str_init (&out);
-	g    = ml_ghost (&out, r, idx, lit (text));
+	g    = ml_ghost (&out, r, domain, idx, lit (text));
 	same = (
 		   g.result == ML_OK
 		&& g.shown
@@ -59,14 +58,19 @@ static int32_t previews (
 }
 
 /* 1 when nothing is shown and out is left alone. */
-static int32_t silent (const MlResults *r, uint64_t idx, const char *text)
+static int32_t silent (
+	const MlResults *r,
+	MlDomain        domain,
+	uint64_t        idx,
+	const char      *text
+)
 {
 	MlStr   out;
 	MlGhost g;
 	int32_t same;
 
 	ml_str_init (&out);
-	g    = ml_ghost (&out, r, idx, lit (text));
+	g    = ml_ghost (&out, r, domain, idx, lit (text));
 	same = g.result == ML_OK && !g.shown && out.len == 0;
 
 	if (!same)
@@ -98,31 +102,108 @@ static void test_preview (void)
 	bindings = ml_env_snapshot (&r.env);
 
 	/* complete input shows the result, at the end of the session */
-	CHECK (previews (&r, 3, "1/3 + 1/6", "1/2"));
-	CHECK (previews (&r, 3, "f(1)", "12"));
-	CHECK (previews (&r, 3, "sqrt(2)", "\xE2\x89\x88 1.41421356"));
+	CHECK (previews (&r, ML_DOMAIN_ALGEBRA, 3, "1/3 + 1/6", "1/2"));
+	CHECK (previews (&r, ML_DOMAIN_ALGEBRA, 3, "f(1)", "12"));
+	CHECK (
+		previews (
+			&r,
+			ML_DOMAIN_ALGEBRA,
+			3,
+			"sqrt(2)",
+			"\xE2\x89\x88 1.41421356"
+		)
+	);
 
 	/* the environment is the one at the line: in line 1 a is still 3 */
-	CHECK (previews (&r, 1, "a", "3"));
-	CHECK (previews (&r, 3, "a", "10"));
-	CHECK (silent (&r, 0, "a"));
-	CHECK (silent (&r, 1, "f(1)"));
+	CHECK (previews (&r, ML_DOMAIN_ALGEBRA, 1, "a", "3"));
+	CHECK (previews (&r, ML_DOMAIN_ALGEBRA, 3, "a", "10"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 0, "a"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 1, "f(1)"));
 
 	/* a definition previews its value and binds nothing */
-	CHECK (previews (&r, 3, "b = 5", "5"));
-	CHECK (silent (&r, 3, "b"));
+	CHECK (previews (&r, ML_DOMAIN_ALGEBRA, 3, "b = 5", "5"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "b"));
 	CHECK (ml_env_snapshot (&r.env) == bindings);
 
 	/* incomplete input, errors, empty lines and function definitions */
-	CHECK (silent (&r, 3, "2+"));
-	CHECK (silent (&r, 3, "(3"));
-	CHECK (silent (&r, 3, "f("));
-	CHECK (silent (&r, 3, "1/0"));
-	CHECK (silent (&r, 3, "nothing + 1"));
-	CHECK (silent (&r, 3, ""));
-	CHECK (silent (&r, 3, "  "));
-	CHECK (silent (&r, 3, "g(x) = x"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "2+"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "(3"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "f("));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "1/0"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "nothing + 1"));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, ""));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "  "));
+	CHECK (silent (&r, ML_DOMAIN_ALGEBRA, 3, "g(x) = x"));
 	CHECK (ml_env_snapshot (&r.env) == bindings);
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
+static void test_logic_preview (void)
+{
+	MlSession s;
+	MlResults r;
+	uint64_t  defs;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add_in (&s, ML_DOMAIN_BOOLEAN, "p = a & b");
+	add_in (&s, ML_DOMAIN_BOOLEAN, "p | a");
+	add_in (&s, ML_DOMAIN_LAMBDA, "id = \xCE\xBBx. x");
+	add_in (&s, ML_DOMAIN_LAMBDA, "id y");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	defs = r.defs.len;
+
+	/* the boolean preview is the minimal form, with the names above */
+	CHECK (previews (&r, ML_DOMAIN_BOOLEAN, 4, "p | a", "a"));
+	CHECK (previews (&r, ML_DOMAIN_BOOLEAN, 4, "a & ~a", "false"));
+	CHECK (previews (&r, ML_DOMAIN_BOOLEAN, 4, "p", "a \xE2\x88\xA7 b"));
+	CHECK (
+		previews (
+			&r,
+			ML_DOMAIN_BOOLEAN,
+			4,
+			"x -> y",
+			"\xC2\xACx \xE2\x88\xA8 y"
+		)
+	);
+
+	/* a line sees only the definitions above it */
+	CHECK (previews (&r, ML_DOMAIN_BOOLEAN, 0, "p", "p"));
+
+	/* the lambda preview is the normal form */
+	CHECK (previews (&r, ML_DOMAIN_LAMBDA, 4, "id y", "y"));
+	CHECK (previews (&r, ML_DOMAIN_LAMBDA, 4, "2", "\xCE\xBB" "f x. f (f x)"));
+	CHECK (previews (&r, ML_DOMAIN_LAMBDA, 2, "id y", "id y"));
+
+	/* incomplete input, errors and empty lines show nothing */
+	CHECK (silent (&r, ML_DOMAIN_BOOLEAN, 4, "a &"));
+	CHECK (silent (&r, ML_DOMAIN_BOOLEAN, 4, "(a"));
+	CHECK (silent (&r, ML_DOMAIN_BOOLEAN, 4, ""));
+	CHECK (silent (&r, ML_DOMAIN_LAMBDA, 4, "\xCE\xBBx."));
+	CHECK (silent (&r, ML_DOMAIN_LAMBDA, 4, "(x"));
+	CHECK (
+		silent (
+			&r,
+			ML_DOMAIN_LAMBDA,
+			4,
+			"(\xCE\xBBx. x x) (\xCE\xBBx. x x)"
+		)
+	);
+	CHECK (silent (&r, ML_DOMAIN_LAMBDA, 4, ""));
+
+	/* nothing is defined by a preview */
+	CHECK (
+		previews (
+			&r,
+			ML_DOMAIN_LAMBDA,
+			4,
+			"k = \xCE\xBBx y. x",
+			"\xCE\xBBx y. x"
+		)
+	);
+	CHECK (r.defs.len == defs);
 
 	ml_results_free (&r);
 	ml_session_free (&s);
@@ -178,5 +259,6 @@ void run_ghost_tests (void);
 void run_ghost_tests (void)
 {
 	test_preview ();
+	test_logic_preview ();
 	test_typing ();
 }

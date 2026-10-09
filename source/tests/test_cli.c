@@ -450,6 +450,91 @@ static void test_steps_command (void)
 	run_free (&r);
 }
 
+static void test_domains (void)
+{
+	Run r = run (
+		"eval",
+		"--domain",
+		"boolean",
+		"p = a & b",
+		"p | a",
+		"a -> a",
+		""
+	);
+
+	/* boolean lines share their definitions */
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (out_is (&r, "a \xE2\x88\xA7 b\na\ntrue\n"));
+	run_free (&r);
+
+	r = run (
+		"eval",
+		"--domain",
+		"lambda",
+		"succ = \\n f x. f (n f x)",
+		"succ 1",
+		NULL,
+		""
+	);
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (out_is (&r, "\xCE\xBBn f x. f (n f x)\n\xCE\xBB" "f x. f (f x)\n"));
+	run_free (&r);
+
+	/* the errors of the engines have their own codes */
+	r = run ("eval", "--domain", "boolean", "a &", NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_ERROR);
+	CHECK (err_has (&r, "(bool_expected_operand)"));
+	run_free (&r);
+
+	/* JSON: the type is the domain, a table is the block */
+	r = run (
+		"eval",
+		"--format=json",
+		"--domain",
+		"boolean",
+		"table a & b",
+		NULL,
+		""
+	);
+	CHECK (strstr (ml_str_cstr (r.out), "\"domain\":\"boolean\"") != NULL);
+	CHECK (strstr (ml_str_cstr (r.out), "\"type\":\"boolean\"") != NULL);
+	CHECK (strstr (ml_str_cstr (r.out), "\"block\":[\"a b") != NULL);
+	run_free (&r);
+
+	r = run (
+		"eval",
+		"--format=json",
+		"--domain",
+		"lambda",
+		"trace (\\x. x) y",
+		NULL,
+		""
+	);
+	CHECK (strstr (ml_str_cstr (r.out), "\"type\":\"lambda\"") != NULL);
+	CHECK (strstr (ml_str_cstr (r.out), "\"block\":[") != NULL);
+	run_free (&r);
+
+	/* steps: the beta steps and the truth table */
+	r = run ("steps", "--domain", "lambda", "(\\x. x x) y", NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (strstr (ml_str_cstr (r.out), "\xE2\x86\x92 y y") != NULL);
+	run_free (&r);
+
+	r = run ("steps", "--domain", "boolean", "a | b", NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (strstr (ml_str_cstr (r.out), "1 1 \xE2\x94\x82 1") != NULL);
+	run_free (&r);
+
+	/* a bad domain is a usage error */
+	r = run ("eval", "--domain", "nonsense", "1", NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_USAGE);
+	run_free (&r);
+
+	r = run ("eval", "--domain", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_USAGE);
+	run_free (&r);
+}
+
 void run_cli_tests (void);
 
 void run_cli_tests (void)
@@ -457,6 +542,7 @@ void run_cli_tests (void)
 	test_steps_command ();
 	test_eval_text ();
 	test_eval_json ();
+	test_domains ();
 	test_session_files ();
 	test_lex_parse ();
 	test_usage ();

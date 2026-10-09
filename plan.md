@@ -767,9 +767,12 @@ errors with a byte range.
 3. **Lambda domain** (`logic/lambda.h`): parser with λ contexts on a stack, Church numerals, de Bruijn resolution with definitions, normal order
    reduction, capture avoiding printing, `trace`. (done)
 4. **Wiring** (`session/results.h`): lines of both domains run in the results; the lambda and boolean pages of the documentation. (done)
-5. Later: ghost mode for both domains, the highlight classes (`and`, `or`, `lambda`, `binder`), steps in the F3 view instead of `trace`, `matlog eval
-   --domain boolean|lambda` in the CLI and the JSON types, export of both domains, syntax completion of the names defined above. Equivalence
-   proofs for the proof checker (section 4.12) build on the boolean engine.
+5. **Ghost, highlighting, steps and the command line**: the ghost preview in both domains (`ml_ghost` takes the domain), the classes `logic` and
+   `binder` (own scanners in `ui/highlight.c`, entries in all built in themes and their `.theme` files), the steps of a line (`F3`: the beta steps of a
+   lambda term, the truth table of a boolean expression) and `matlog eval|steps --domain boolean|lambda` with the domain name as the JSON `type`.
+   (done)
+6. Later: export of both domains, syntax completion of the names defined above. Equivalence proofs for the proof checker (section 4.12) build on the
+   boolean engine.
 
 ## 10. Out of scope (for now)
 

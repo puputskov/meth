@@ -33,7 +33,12 @@ The first line gives `true`, the second `¬a ∨ b`.
 
 # Truth tables
 `table` before an expression shows its truth table under the line, with
-the names in alphabetical order (at most 6 names).
+the names in alphabetical order (at most 6 names). `F3` on a line shows
+its truth table too, and `matlog steps --domain boolean EXPR` prints it.
+
+# While you type
+The result appears dimmed after the expression as soon as it is complete.
+The operators (`and`, `∧`, `&`, ...) have the colour of the class `logic`.
 
 # Definitions
 `p = a & b` defines a name. Later lines replace `p` with its definition.

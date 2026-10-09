@@ -21,6 +21,19 @@ matlog help [CMD]          the usage
 
 `--format json` gives machine readable output, `--session FILE` makes the
 definitions of a session visible to `eval`, `--symbols` turns symbols on.
+`--domain NAME` makes `eval` and `steps` read the text in a domain; the
+algebra, `boolean` and `lambda` domains are evaluated. The lines of one
+call share their definitions, and in JSON the `type` of a result is the
+domain name:
+
+```code
+matlog eval --domain boolean "p = a & b" "p | a"
+matlog eval --domain lambda "succ = λn f x. f (n f x)" "succ 2"
+matlog steps --domain lambda "(λx. x x) (λy. y)"
+```
+
+`steps` gives the beta steps of a lambda term and the truth table of a
+boolean expression.
 An argument `-` reads standard input. The exit code is 0 for success, 1
 when an expression was an error, 2 for a usage error and 3 for a file
 error.

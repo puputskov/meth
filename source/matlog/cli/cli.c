@@ -38,6 +38,9 @@ static const char *const help_overview =
 	"options:\n"
 	"  --format text|json   the output form (default text)\n"
 	"  --session FILE       eval: the session whose definitions are visible\n"
+	"  --domain NAME        eval, steps: the domain of the text (default "
+	"algebra;\n"
+	"                       boolean and lambda are evaluated)\n"
 	"  --write              eval: keep the new lines in the session file\n"
 	"  --symbols            a name that stands for nothing is a symbol\n"
 	"\n"
@@ -46,7 +49,8 @@ static const char *const help_overview =
 	"was an error, 2 usage error, 3 file error.\n";
 
 static const char *const help_eval =
-	"matlog eval [--session FILE] [--write] [--format text|json] EXPR...\n"
+	"matlog eval [--session FILE] [--domain NAME] [--write] "
+	"[--format text|json] EXPR...\n"
 	"\n"
 	"Evaluates each EXPR in order, as lines of a session: a = 3 defines a "
 	"for\n"
@@ -59,7 +63,9 @@ static const char *const help_eval =
 	"examples:\n"
 	"  matlog eval \"1/3 + 1/6\" \"sqrt(2)\"\n"
 	"  matlog eval \"a = 3\" \"a^2 + 1\" --format json\n"
-	"  matlog eval \"det([[1,2],[3,4]])\"\n";
+	"  matlog eval \"det([[1,2],[3,4]])\"\n"
+	"  matlog eval --domain boolean \"a -> b\" \"table a & b\"\n"
+	"  matlog eval --domain lambda \"succ = \\x n f. f (n f)\" \"succ 2\"\n";
 
 static const char *const help_run =
 	"matlog run FILE [--format text|json]\n"
@@ -90,14 +96,16 @@ static const char *const help_parse =
 	"of the problem when TEXT is not a valid statement.\n";
 
 static const char *const help_steps =
-	"matlog steps [--session FILE] [--format text|json] EXPR\n"
+	"matlog steps [--session FILE] [--domain NAME] [--format text|json] "
+	"EXPR\n"
 	"matlog steps [--format text|json] FILE:LINE\n"
 	"\n"
 	"Prints the steps of one line: the row operations of a matrix "
 	"calculation, the\n"
 	"rule used for each part of a derivative or an integral, the changes "
 	"made by simplify.\n"
-	"Exit code 1 when the line has no steps.\n";
+	"With --domain lambda: the beta steps of the reduction; with --domain "
+	"boolean:\nthe truth table. Exit code 1 when the line has no steps.\n";
 
 static const char *const syntax_text =
 	"Numbers      12  3.14  .5   exact fractions: 1/3 + 1/6 is 1/2\n"
@@ -127,23 +135,28 @@ static const char *const syntax_text =
 	"             dim(x) is the dimension of x as one SI unit\n"
 	"Results      exact (1/2) or approximate (\xE2\x89\x88 1.41421356); "
 	"errors have a code\n"
-	"Domains      algebra (evaluated now); equations matrix vector lambda "
-	"pga2 pga3\n"
-	"             boolean are stored but not evaluated yet\n";
+	"Domains      algebra, boolean and lambda are evaluated (eval --domain "
+	"NAME);\n"
+	"             equations matrix vector pga2 pga3 are stored but not "
+	"evaluated yet\n";
 
 static const char *const schema_text =
 	"Every result is one JSON object on one line (JSON Lines).\n"
 	"\n"
 	"eval, run:\n"
 	"  {\"line\":N, \"kind\":\"math|note|include|blank|unknown\", "
-	"\"domain\":\"algebra\",\n"
+	"\"domain\":\"algebra|boolean|lambda|...\",\n"
 	"   \"input\":\"text\", \"status\":\"value|error|none\",\n"
-	"   \"type\":\"exact|approx|matrix|expr|quantity\", \"value\":\"7/2\", "
+	"   \"type\":\"exact|approx|matrix|expr|quantity|boolean|lambda\", "
+	"\"value\":\"7/2\", "
 	"\"block\":[\"row\",...],\n"
 	"   \"error\":{\"code\":\"div_zero\", \"message\":\"...\", "
 	"\"start\":N, \"len\":N}}\n"
-	"  type, value and block only with status value (block only for "
-	"matrices);\n"
+	"  type, value and block only with status value (block: the rows of a "
+	"matrix, a\n"
+	"  truth table or a lambda trace); type is the domain name for the "
+	"boolean\n"
+	"  and the lambda domain;\n"
 	"  error only with status error; domain only for kind math.\n"
 	"lex:    {\"kind\":\"number\", \"start\":N, \"len\":N, "
 	"\"text\":\"12\"}\n"
@@ -160,7 +173,15 @@ static const char *const schema_text =
 	"  not parse parse_unexpected_end parse_unexpected_token "
 	"parse_expected_expr\n"
 	"  parse_bad_character parse_bad_superscript parse_assign_target\n"
-	"  parse_duplicate_param parse_too_deep parse_no_memory\n";
+	"  parse_duplicate_param parse_too_deep parse_no_memory\n"
+	"boolean: bool_unexpected_character bool_expected_operand "
+	"bool_expected_operator\n"
+	"  bool_unbalanced_parenthesis bool_too_many_names bool_table_too_big\n"
+	"  bool_bad_definition\n"
+	"lambda: lambda_unexpected_character lambda_expected_term\n"
+	"  lambda_expected_parameter lambda_unbalanced_parenthesis "
+	"lambda_number_too_big\n"
+	"  lambda_no_normal_form lambda_too_big lambda_bad_definition\n";
 
 typedef struct CommandInfo
 {
@@ -287,6 +308,7 @@ typedef struct Options
 	int32_t    json;
 	int32_t    markdown; /* --format markdown (docs show) */
 	MlSlice    session;
+	MlDomain   domain;   /* --domain: what eval and steps read the text as */
 	int32_t    write;
 	int32_t    symbols; /* --symbols: unknown names are symbols */
 	MlSliceVec rest;    /* the arguments that are not options */
@@ -311,6 +333,7 @@ static MlResult options_read (
 	o->json     = 0;
 	o->markdown = 0;
 	o->session  = ml_slice ("", 0);
+	o->domain   = ML_DOMAIN_ALGEBRA;
 	o->write   = 0;
 	o->symbols = 0;
 	o->problem = NULL;
@@ -354,6 +377,31 @@ static MlResult options_read (
 			else
 			{
 				o->problem = "--session needs a file";
+			}
+		}
+
+		else if (is (a, "--domain"))
+		{
+			MlDomainResult d =
+			{
+				.result = ML_ERR_PARSE,
+				.domain = ML_DOMAIN_ALGEBRA
+			};
+
+			if (i + 1 < args->len)
+			{
+				d = ml_domain_from_name (args->data [i + 1]);
+				i++;
+			}
+
+			if (d.result == ML_OK)
+			{
+				o->domain = d.domain;
+			}
+
+			else
+			{
+				o->problem = "--domain needs a domain name";
 			}
 		}
 
@@ -534,7 +582,12 @@ static MlResult json_line (
 		r = ml_str_appendf (
 			out,
 			",\"status\":\"value\",\"type\":\"%s\",\"value\":",
-			type_name (res.value)
+			ml_choose (
+				   line.domain == ML_DOMAIN_BOOLEAN
+				|| line.domain == ML_DOMAIN_LAMBDA,
+				ml_domain_name (line.domain),
+				type_name (res.value)
+			)
 		);
 
 		if (r == ML_OK)
@@ -807,19 +860,14 @@ static int32_t cmd_eval (
 
 				if (!is_blank (line))
 				{
-					r = ml_session_append (
-						&s,
-						ML_LINE_MATH,
-						ML_DOMAIN_ALGEBRA,
-						line
-					);
+					r = ml_session_append (&s, ML_LINE_MATH, o->domain, line);
 				}
 			}
 		}
 
 		else
 		{
-			r = ml_session_append (&s, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, a);
+			r = ml_session_append (&s, ML_LINE_MATH, o->domain, a);
 		}
 	}
 
@@ -1165,7 +1213,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 			ml_session_append (
 				&s,
 				ML_LINE_MATH,
-				ML_DOMAIN_ALGEBRA,
+				o->domain,
 				o->rest.data [0]
 			),
 			r

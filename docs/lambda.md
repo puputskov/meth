@@ -40,6 +40,13 @@ The last line gives `λf x. f (f (f (f (f x))))`, the Church numeral 5.
 
 # Steps
 `trace` before a term shows every beta step under the line, up to 60.
+You do not need to write it: `F3` on a line of the lambda domain shows the
+steps of its reduction, and `matlog steps --domain lambda TERM` prints
+them.
+
+# While you type
+The normal form appears dimmed after the term as soon as it is complete.
+The `λ` and the names it binds have the colour of the class `binder`.
 
 # When there is no normal form
 After 5000 steps the line is the error `lambda_no_normal_form`, and when

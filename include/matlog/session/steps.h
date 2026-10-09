@@ -18,8 +18,11 @@
  *	solve (A, b)   row reduction of A with b beside it
  *	A * B          the sum of every cell of the product (up to 36 cells)
  *
- * where A and B are any expressions that evaluate to matrices. Everything
- * else has no steps yet.
+ * where A and B are any expressions that evaluate to matrices. A line of the
+ * lambda domain has the terms of its reduction, one beta step per row (the
+ * rows `trace` gives), and a line of the boolean domain has its truth table
+ * (what `table` gives; up to ML_BOOL_MAX_TABLE names). Everything else has no
+ * steps yet.
  */
 
 typedef struct MlLineSteps

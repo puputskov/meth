@@ -1,6 +1,8 @@
 #include <matlog/session/steps.h>
 
 #include <matlog/core/mem.h>
+#include <matlog/logic/bool.h>
+#include <matlog/logic/lambda.h>
 #include <matlog/math/eval.h>
 
 /* What the statement of a line asks for. */
@@ -219,6 +221,105 @@ static void explain (
 	}
 }
 
+/* 1 when text starts with the word, then ends or goes on with a non-name. */
+static int32_t starts_with_word (MlSlice text, const char *word)
+{
+	MlSlice  w     = ml_slice_cstr (word);
+	uint64_t first = 0;
+	int32_t  found = 0;
+
+	while (
+		   first < text.len
+		&& (text.data [first] == ' ' || text.data [first] == '\t')
+	)
+	{
+		first++;
+	}
+
+	if (text.len - first >= w.len)
+	{
+		found = ml_slice_equal (ml_slice_sub (text, first, w.len), w);
+
+		if (found && text.len - first > w.len)
+		{
+			uint8_t c = (uint8_t)text.data [first + w.len];
+
+			found = !(
+				   (c >= 'a' && c <= 'z')
+				|| (c >= 'A' && c <= 'Z')
+				|| (c >= '0' && c <= '9')
+				|| c == '_'
+				|| c == '\''
+				|| c >= 0x80
+			);
+		}
+	}
+
+	return found;
+}
+
+/*
+ * The steps of a line of the boolean or the lambda domain: the rows the
+ * engine gives with `table` (the truth table) or `trace` (one beta step per
+ * row) before the line, or after it when the line already has that word.
+ */
+static MlLineSteps logic_steps (
+	MlStr           *out,
+	const MlResults *results,
+	MlLineView      view,
+	uint64_t        idx
+)
+{
+	MlLineSteps st =
+	{
+		.result = ML_OK,
+		.found  = 0
+	};
+
+	int32_t    is_bool = view.domain == ML_DOMAIN_BOOLEAN;
+	const char *word   = ml_choose (is_bool, "table", "trace");
+	uint64_t   count   = results->lines.data [idx].logic;
+	MlLogicOut o;
+	MlStr      text;
+
+	ml_logic_out_init (&o);
+	ml_str_init (&text);
+
+	if (!starts_with_word (view.text, word))
+	{
+		st.result = ml_str_append (&text, ml_slice_cstr (word));
+
+		if (st.result == ML_OK)
+		{
+			st.result = ml_str_append (&text, ml_slice (" ", 1));
+		}
+	}
+
+	if (st.result == ML_OK)
+	{
+		st.result = ml_str_append (&text, view.text);
+	}
+
+	if (st.result == ML_OK)
+	{
+		st.result = ml_choose (
+			is_bool,
+			ml_bool_run (&results->defs, count, ml_str_view (text), &o),
+			ml_lambda_run (&results->defs, count, ml_str_view (text), &o)
+		);
+	}
+
+	if (st.result == ML_OK && o.error == ML_LOGIC_OK && o.block.len > 0)
+	{
+		st.result = ml_str_append (out, ml_str_view (o.block));
+		st.found  = st.result == ML_OK;
+	}
+
+	ml_str_free (&text);
+	ml_logic_out_free (&o);
+	return st;
+}
+
 MlLineSteps ml_line_steps (
 	MlStr           *out,
 	const MlResults *results,
@@ -277,6 +378,18 @@ MlLineSteps ml_line_steps (
 		}
 
 		ml_ast_free (&p.ast);
+	}
+
+	else if (
+		   view.kind == ML_LINE_MATH
+		&& (
+			   view.domain == ML_DOMAIN_BOOLEAN
+			|| view.domain == ML_DOMAIN_LAMBDA
+		)
+		&& idx < results->lines.len
+	)
+	{
+		result = logic_steps (out, results, view, idx);
 	}
 
 	return result;

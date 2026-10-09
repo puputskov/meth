@@ -218,17 +218,77 @@ static void test_theme_file (void)
 	ml_str_free (&report);
 }
 
-/* The class of the byte at pos in the highlighted text. */
-static MlClass class_in (const char *text, uint64_t pos)
+/* The class of the byte at pos in the text highlighted in a domain. */
+static MlClass class_of (MlDomain domain, const char *text, uint64_t pos)
 {
 	MlRunVec runs;
 	MlClass  c;
 
 	MlRunVec_init (&runs);
-	ml_highlight (&runs, lit (text), NULL, 0, 0, 0);
+	ml_highlight (&runs, domain, lit (text), NULL, 0, 0, 0);
 	c = ml_runs_class_at (&runs, pos);
 	MlRunVec_free (&runs);
 	return c;
+}
+
+static MlClass class_in (const char *text, uint64_t pos)
+{
+	return class_of (ML_DOMAIN_ALGEBRA, text, pos);
+}
+
+static void test_highlight_logic (void)
+{
+	/* boolean: words and symbols of the operators, constants, names */
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a & b", 0) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a & b", 2) == ML_CLASS_LOGIC);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a and b", 2) == ML_CLASS_LOGIC);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a and b", 4) == ML_CLASS_LOGIC);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a and b", 6) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "android", 0) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "~a", 0) == ML_CLASS_LOGIC);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a <-> b", 3) == ML_CLASS_LOGIC);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a <-> b", 4) == ML_CLASS_LOGIC);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a -> b", 2) == ML_CLASS_LOGIC);
+	CHECK (
+		class_of (ML_DOMAIN_BOOLEAN, "a \xE2\x88\xA7 b", 2)
+		== ML_CLASS_LOGIC
+	);
+	CHECK (
+		class_of (ML_DOMAIN_BOOLEAN, "a \xE2\x88\xA7 b", 4)
+		== ML_CLASS_LOGIC
+	);
+	CHECK (
+		class_of (ML_DOMAIN_BOOLEAN, "a \xE2\x88\xA7 b", 6)
+		== ML_CLASS_NAME
+	);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a & true", 4) == ML_CLASS_CONSTANT);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a | 0", 4) == ML_CLASS_CONSTANT);
+	CHECK (
+		class_of (ML_DOMAIN_BOOLEAN, "\xE2\x8A\xA4", 0)
+		== ML_CLASS_CONSTANT
+	);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "(a)", 0) == ML_CLASS_PAREN);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "p = a", 2) == ML_CLASS_OPERATOR);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a $ b", 2) == ML_CLASS_ERROR);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "  table a", 2) == ML_CLASS_KEYWORD);
+	CHECK (class_of (ML_DOMAIN_BOOLEAN, "a & table", 4) == ML_CLASS_NAME);
+
+	/* lambda: the binder, its names and dot, numbers, names */
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\xCE\xBBx. x", 0) == ML_CLASS_BINDER);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\xCE\xBBx. x", 2) == ML_CLASS_BINDER);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\xCE\xBBx. x", 3) == ML_CLASS_BINDER);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\xCE\xBBx. x", 5) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\\x y. x y", 0) == ML_CLASS_BINDER);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\\x y. x y", 3) == ML_CLASS_BINDER);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\\x y. x y", 4) == ML_CLASS_BINDER);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "\\x y. x y", 6) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "plus 2 3", 0) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "plus 2 3", 5) == ML_CLASS_NUMBER);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "(f x)", 0) == ML_CLASS_PAREN);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "id = x", 3) == ML_CLASS_OPERATOR);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "trace f x", 0) == ML_CLASS_KEYWORD);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "tracer x", 0) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_LAMBDA, "x $", 2) == ML_CLASS_ERROR);
 }
 
 static void test_highlight (void)
@@ -262,7 +322,10 @@ static void test_highlight (void)
 
 	/* the runs cover the text without gaps, neighbours merge */
 	MlRunVec_init (&runs);
-	CHECK (ml_highlight (&runs, lit ("12+3"), NULL, 0, 0, 0) == ML_OK);
+	CHECK (
+		ml_highlight (&runs, ML_DOMAIN_ALGEBRA, lit ("12+3"), NULL, 0, 0, 0)
+		== ML_OK
+	);
 	CHECK (runs.len == 3);
 	CHECK (runs.data [0].start == 0 && runs.data [0].len == 2);
 	CHECK (runs.data [2].start == 3 && runs.data [2].cls == ML_CLASS_NUMBER);
@@ -270,7 +333,10 @@ static void test_highlight (void)
 
 	/* an error range overrides the classes in it */
 	MlRunVec_init (&runs);
-	CHECK (ml_highlight (&runs, lit ("1 + 22"), NULL, 0, 4, 2) == ML_OK);
+	CHECK (
+		ml_highlight (&runs, ML_DOMAIN_ALGEBRA, lit ("1 + 22"), NULL, 0, 4, 2)
+		== ML_OK
+	);
 	CHECK (ml_runs_class_at (&runs, 4) == ML_CLASS_ERROR);
 	CHECK (ml_runs_class_at (&runs, 5) == ML_CLASS_ERROR);
 	CHECK (ml_runs_class_at (&runs, 0) == ML_CLASS_NUMBER);
@@ -278,7 +344,10 @@ static void test_highlight (void)
 
 	/* empty text has no runs */
 	MlRunVec_init (&runs);
-	CHECK (ml_highlight (&runs, lit (""), NULL, 0, 0, 0) == ML_OK);
+	CHECK (
+		ml_highlight (&runs, ML_DOMAIN_ALGEBRA, lit (""), NULL, 0, 0, 0)
+		== ML_OK
+	);
 	CHECK (runs.len == 0);
 	MlRunVec_free (&runs);
 }
@@ -408,4 +477,5 @@ void run_theme_tests (void)
 	test_builtin ();
 	test_theme_file ();
 	test_highlight ();
+	test_highlight_logic ();
 }

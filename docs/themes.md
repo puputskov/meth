@@ -36,7 +36,7 @@ built in theme in this form to start from; `:theme reload` reads the file
 again, and it is read again by itself when you save it.
 
 The classes are text, number, name, function, constant, unit, operator,
-paren, keyword, error, match, unmatched, gutter, result, result-error,
+paren, keyword, logic, binder, error, match, unmatched, gutter, result, result-error,
 ghost, hint-key, note and note-code.
 
 # The settings file

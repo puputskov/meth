@@ -162,10 +162,72 @@ static void test_symbolic_steps (void)
 	ml_session_free (&s);
 }
 
+static void test_logic_steps (void)
+{
+	MlSession s;
+	MlResults r;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	CHECK (
+		ml_session_append (
+			&s,
+			ML_LINE_MATH,
+			ML_DOMAIN_LAMBDA,
+			lit ("succ = \xCE\xBBn f x. f (n f x)")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s, ML_LINE_MATH, ML_DOMAIN_LAMBDA, lit ("succ 1")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s, ML_LINE_MATH, ML_DOMAIN_LAMBDA, lit ("trace succ 1")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s, ML_LINE_MATH, ML_DOMAIN_BOOLEAN, lit ("a & b")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s, ML_LINE_MATH, ML_DOMAIN_BOOLEAN, lit ("table a | b")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&s, ML_LINE_MATH, ML_DOMAIN_BOOLEAN, lit ("true")
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+
+	/* a lambda line has the beta steps, with or without `trace` */
+	CHECK (steps_contain (&r, &s, 1, "\xE2\x86\x92 "));
+	CHECK (steps_contain (&r, &s, 1, "(\xCE\xBBn f x. f (n f x))"));
+	CHECK (steps_contain (&r, &s, 2, "\xE2\x86\x92 "));
+
+	/* a definition has nothing to reduce */
+	CHECK (no_steps (&r, &s, 0));
+
+	/* a boolean line has its truth table */
+	CHECK (steps_contain (&r, &s, 3, "0 0 \xE2\x94\x82 0"));
+	CHECK (steps_contain (&r, &s, 3, "1 1 \xE2\x94\x82 1"));
+	CHECK (steps_contain (&r, &s, 4, "0 1 \xE2\x94\x82 1"));
+	/* even a constant has its one row */
+	CHECK (steps_contain (&r, &s, 5, "\xE2\x94\x82 1"));
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
 void run_steps_tests (void);
 
 void run_steps_tests (void)
 {
 	test_symbolic_steps ();
 	test_line_steps ();
+	test_logic_steps ();
 }

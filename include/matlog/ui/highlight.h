@@ -3,6 +3,7 @@
 
 #include <matlog/core/vec.h>
 #include <matlog/math/env.h>
+#include <matlog/session/session.h>
 #include <matlog/ui/theme.h>
 
 /*
@@ -24,6 +25,17 @@
  *	operator  + - * / ^ ! = √ and superscript powers
  *	paren     ( ) [ ] ,
  *	keyword   include  lambda
+ *
+ * The boolean and the lambda domain have their own scanners, with the rules
+ * of their engines (logic/bool.h, logic/lambda.h), and two more classes:
+ *
+ *	logic     and or not xor and their symbols (& | ~ ! ^ -> <-> ∧ ∨ ¬ ⊕ → ↔)
+ *	binder    the λ (or \), the names after it up to the dot, and the dot
+ *	constant  true false 0 1 ⊤ ⊥ (boolean)
+ *	number    a Church numeral (lambda)
+ *	keyword   table (boolean) and trace (lambda), at the start of the line
+ *	name      any other name; paren ( ), operator =
+ *
  *	error     a character that is not part of the syntax, and the byte range
  *	          of an error (err_len 0: none)
  */
@@ -44,6 +56,7 @@ ML_VEC_DEFINE (MlRunVec, MlRun)
  */
 MlResult ml_highlight (
 	MlRunVec    *out,
+	MlDomain    domain,
 	MlSlice     text,
 	const MlEnv *env,
 	uint64_t    snapshot,

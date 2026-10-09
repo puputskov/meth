@@ -166,6 +166,7 @@ static MlStyle merge_style (MlStyle base, MlStyle over)
 typedef struct Themed
 {
 	MlSlice  text;
+	MlDomain domain;    /* the domain the line is written in */
 	uint64_t snapshot;  /* the environment the line saw */
 	uint64_t err_start; /* the byte range of an error, err_len 0: none */
 	uint64_t err_len;
@@ -201,6 +202,7 @@ static MlTextWindow append_themed (
 	MlRunVec_init (&runs);
 	w.result = ml_highlight (
 		&runs,
+		t.domain,
 		t.text,
 		&ed->results.env,
 		t.snapshot,
@@ -641,6 +643,7 @@ static MlResult append_line_row (
 			Themed t =
 			{
 				.text      = line.text,
+				.domain    = line.domain,
 				.snapshot  = result.snapshot,
 				.err_start = result.err_start,
 				.err_len   = ml_choose (
@@ -1136,6 +1139,7 @@ static EditRow append_edit_row (
 		Themed   t   =
 		{
 			.text      = ml_str_view (ed->edit.text),
+			.domain    = ed->edit_domain,
 			.snapshot  = ml_choose (
 				ed->edit_index < ed->results.lines.len,
 				ed->results.lines.data [ed->edit_index].snapshot,
@@ -1207,7 +1211,11 @@ static EditRow append_edit_row (
 	if (
 		   row.result == ML_OK
 		&& ed->state == ML_STATE_MATH
-		&& ed->edit_domain == ML_DOMAIN_ALGEBRA
+		&& (
+			   ed->edit_domain == ML_DOMAIN_ALGEBRA
+			|| ed->edit_domain == ML_DOMAIN_BOOLEAN
+			|| ed->edit_domain == ML_DOMAIN_LAMBDA
+		)
 	)
 	{
 		MlStr    value;
@@ -1218,6 +1226,7 @@ static EditRow append_edit_row (
 		g = ml_ghost (
 			&value,
 			&ed->results,
+			ed->edit_domain,
 			ed->edit_index,
 			ml_str_view (ed->edit.text)
 		);

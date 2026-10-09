@@ -25,11 +25,15 @@ typedef struct MlGhost
 
 /*
  * The preview of text typed as line idx of the session (idx may be the number
- * of lines, for a new line at the end). The value is appended to out.
+ * of lines, for a new line at the end) in a domain. The value is appended to
+ * out. The boolean and the lambda domain run the line with the definitions
+ * made above it, and show the result text when the line has a value without
+ * an error; their definitions are not kept.
  */
 MlGhost ml_ghost (
 	MlStr           *out,
 	const MlResults *results,
+	MlDomain        domain,
 	uint64_t        idx,
 	MlSlice         text
 );

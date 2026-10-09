@@ -42,7 +42,9 @@ typedef enum MlClass
 	ML_CLASS_UNIT,
 	ML_CLASS_OPERATOR,
 	ML_CLASS_PAREN,    /* ( ) [ ] and the comma */
-	ML_CLASS_KEYWORD,  /* include, lambda */
+	ML_CLASS_KEYWORD,  /* include, lambda, table, trace */
+	ML_CLASS_LOGIC,    /* and or not xor -> <-> of the boolean domain */
+	ML_CLASS_BINDER,   /* λ, the names it binds and the dot */
 	ML_CLASS_ERROR,    /* a bad character, the range of an error */
 	ML_CLASS_MATCH,    /* the bracket under the cursor and its partner */
 	ML_CLASS_UNMATCHED,
