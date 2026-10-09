@@ -1,0 +1,76 @@
+# Matches the style rules of CLAUDE.md as far as clang-format can express them.
+# See the notes at the end for the rules it cannot check.
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++11
+
+# Tabs indent, spaces only align (continuation lines, = columns, comments).
+UseTab: AlignWithSpaces
+IndentWidth: 4
+TabWidth: 4
+ContinuationIndentWidth: 4
+ColumnLimit: 80
+
+# Allman braces, also for struct, enum, switch and initializer lists.
+BreakBeforeBraces: Allman
+InsertBraces: true
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+IndentCaseLabels: false
+Cpp11BracedListStyle: false
+AlignArrayOfStructures: Left
+
+# foo (args), e.header [0], uint8_t buf [4]; the star belongs to the name.
+SpaceBeforeParens: Always
+SpaceBeforeSquareBrackets: true
+SpacesInParentheses: false
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# One argument or parameter per line when a call does not fit, the closing
+# parenthesis on a line of its own; booleans with the operator leading.
+AlignAfterOpenBracket: BlockIndent
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: true
+AlignOperands: Align
+PenaltyReturnTypeOnItsOwnLine: 1000
+
+# Aligned = signs and declaration columns of consecutive lines.
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveBitFields: Consecutive
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+SortIncludes: Never
+ReflowComments: true
+IndentPPDirectives: None
+
+# Not expressible in clang-format, to be kept by hand (see CLAUDE.md):
+#  - an empty line after every closing }, also before else
+#  - no ?:, ml_choose arguments one per line
+#  - single return, no break/continue/goto, no recursion
+#  - vertical booleans with the operands aligned after the operator
+#  - struct initializers one entry per line
+#  - fixed-width types, uint64_t for sizes

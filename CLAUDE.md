@@ -88,3 +88,14 @@ Interactive math shell written in C. See `plan.md` for the design.
 - Avoid pointers when possible: pass and return small structs by value (e.g. `MlSlice`, result structs), use indices instead of
   pointers, and use typed containers instead of `void *`. Pointers are fine for arena allocations and for the "self" of a mutable
   container.
+
+## Formatting tool
+
+`.clang-format` holds the layout rules clang-format can express (tabs, Allman, `foo (`, `e [0]`, 80 columns, one argument per line, leading
+operators, aligned `=` and declarations). Run it on the files you write instead of laying them out by hand:
+`"W:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin/clang-format.exe" -i file.c`.
+It cannot do these, so check them by hand afterwards: the empty line after every `}` (also before `else`), initializer lists with the brace on its
+own line and one entry per line (it writes `= {`, so leave existing tables alone or restore them), vertical boolean blocks in `if (` with the
+operands aligned after the operator, the star in the name column of aligned declarations, `ml_choose`, single return, no recursion.
+Do not run it over a whole existing file without looking at the diff: about one line in seven of the current code would change.
+
