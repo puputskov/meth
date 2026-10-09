@@ -873,6 +873,67 @@ static void test_selected_rows (void)
 	ml_editor_free (&ed);
 }
 
+static void test_help (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+	int32_t  found = 0;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 60, 12);
+	ml_editor_set_size (&ed, 60, 12);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	test_key (&ed, ML_KEY_F1, 0, 0);
+	CHECK (ed.state == ML_STATE_HELP);
+
+	/* the index page is drawn: its title, a link underlined, the status */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (l.result == ML_OK && l.rows.len == 12);
+
+	for (uint64_t i = 0; i < l.rows.len; i++)
+	{
+		found = found || strstr (
+			ml_str_cstr (l.rows.data [i]),
+			"matlog documentation"
+		) != NULL;
+	}
+
+	CHECK (found);
+	found = 0;
+
+	for (uint64_t i = 0; i < l.rows.len; i++)
+	{
+		found = found || strstr (
+			ml_str_cstr (l.rows.data [i]),
+			"\x1b[4m"
+		) != NULL;
+	}
+
+	CHECK (found);
+	CHECK (strstr (ml_str_cstr (l.rows.data [11]), "-- HELP --") != NULL);
+	ml_layout_free (&l);
+
+	/* Tab selects the first link, which is then reversed */
+	test_key (&ed, ML_KEY_TAB, 0, 0);
+	l = ml_screen_layout (&s, &ed);
+	found = 0;
+
+	for (uint64_t i = 0; i < l.rows.len; i++)
+	{
+		found = found || strstr (
+			ml_str_cstr (l.rows.data [i]),
+			"\x1b[4m\x1b[7m"
+		) != NULL;
+	}
+
+	CHECK (found);
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_rule (void)
 {
 	MlEditor ed;
@@ -1416,6 +1477,7 @@ void run_screen_tests (void)
 	test_bar ();
 	test_brackets ();
 	test_selected_rows ();
+	test_help ();
 	test_rule ();
 	test_blocks_layout ();
 }

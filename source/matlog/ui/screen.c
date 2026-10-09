@@ -1930,7 +1930,7 @@ static uint64_t scroll_top (
 	return t;
 }
 
-MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
+static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 {
 	MlLayout layout =
 	{
@@ -2200,6 +2200,324 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 	if (layout.result != ML_OK)
 	{
 		ml_layout_free (&layout);
+	}
+
+	return layout;
+}
+
+/* ---- the help viewer ---------------------------------------------------- */
+
+#define STYLE_BOLD      "\x1b[1m"
+#define STYLE_UNDERLINE "\x1b[4m"
+
+/* The style a line of a page is drawn in. */
+static const char *help_style (MlDocStyle style)
+{
+	const char *base = "";
+
+	base = ml_choose (style == ML_DOC_STYLE_TITLE, STYLE_BOLD, base);
+	base = ml_choose (style == ML_DOC_STYLE_HEADING, STYLE_BOLD, base);
+	base = ml_choose (style == ML_DOC_STYLE_RESULT, STYLE_DIM, base);
+	return base;
+}
+
+/* Text of one row: a part of it, clipped to what is left of the width. */
+static MlResult put_clipped (MlStr *out, MlSlice text, uint64_t *avail)
+{
+	MlResult r     = ML_OK;
+	uint64_t width = ml_utf8_width (text);
+
+	if (*avail > 0 && text.len > 0)
+	{
+		r = ml_text_window (out, text, 0, *avail).result;
+	}
+
+	*avail -= ml_choose (width < *avail, width, *avail);
+	return r;
+}
+
+/* A line of a page: its style, and the links underlined. */
+static MlResult append_help_line (
+	MlStr             *out,
+	const MlHelp      *h,
+	const MlDocLineVec *lines,
+	uint64_t          idx,
+	uint64_t          first_link,
+	uint32_t          cols
+)
+{
+	MlResult          r     = append_cstr (out, " ");
+	const MlDocLine   *line = &lines->data [idx];
+	const char        *base = help_style (line->style);
+	MlSlice           text  = ml_str_view (line->text);
+	uint64_t          avail = ml_choose (cols > 1, cols - 1, 0);
+	uint64_t          pos   = 0;
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, base);
+	}
+
+	for (uint64_t k = 0; k < line->links.len && r == ML_OK; k++)
+	{
+		MlDocLink link = line->links.data [k];
+		int32_t   here = h->has_link && h->link == first_link + k;
+
+		r = put_clipped (
+			out,
+			ml_slice_sub (text, pos, link.start - pos),
+			&avail
+		);
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (
+				out,
+				ml_choose (here, STYLE_UNDERLINE STYLE_REVERSE, STYLE_UNDERLINE)
+			);
+		}
+
+		if (r == ML_OK)
+		{
+			r = put_clipped (
+				out,
+				ml_slice_sub (text, link.start, link.len),
+				&avail
+			);
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (out, STYLE_RESET);
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (out, base);
+		}
+
+		pos = link.start + link.len;
+	}
+
+	if (r == ML_OK)
+	{
+		r = put_clipped (out, ml_slice_sub (text, pos, text.len - pos), &avail);
+	}
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, STYLE_RESET);
+	}
+
+	return r;
+}
+
+/* Line breaks in a text become spaces. */
+static MlResult append_flat (MlStr *out, MlSlice text)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t i = 0; i < text.len && r == ML_OK; i++)
+	{
+		r = ml_str_append (
+			out,
+			ml_choose (
+				text.data [i] == '\n' || text.data [i] == '\r',
+				ml_slice_cstr (" "),
+				ml_slice_sub (text, i, 1)
+			)
+		);
+	}
+
+	return r;
+}
+
+/* A row of the list of search results: the title, then where it matched. */
+static MlResult append_hit_row (
+	MlStr        *out,
+	const MlHelp *h,
+	uint64_t     idx,
+	uint32_t     cols
+)
+{
+	MlResult r     = ML_OK;
+	MlStr    plain;
+	MlStr    shown;
+
+	ml_str_init (&plain);
+	ml_str_init (&shown);
+
+	if (idx == 0)
+	{
+		r = ml_str_appendf (&plain, "Search: %s", ml_str_cstr (h->query));
+	}
+
+	else if (idx >= 2 && idx - 2 < h->hits.len)
+	{
+		const MlDocHit *hit = &h->hits.data [idx - 2];
+
+		r = append_flat (
+			&plain,
+			ml_str_view (h->docs.pages.data [hit->page].title)
+		);
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (&plain, ml_slice_cstr ("  "));
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_flat (&plain, ml_str_view (hit->where));
+		}
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_text_window (
+			&shown,
+			ml_str_view (plain),
+			0,
+			ml_choose (cols > 1, cols - 1, 0)
+		).result;
+	}
+
+	if (r == ML_OK)
+	{
+		int32_t selected = idx >= 2 && idx - 2 == h->hit;
+
+		r = append_cstr (
+			out,
+			ml_choose (
+				idx == 0,
+				" " STYLE_BOLD,
+				ml_choose (selected, " " STYLE_REVERSE, " ")
+			)
+		);
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_str_append (out, ml_str_view (shown));
+	}
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, STYLE_RESET);
+	}
+
+	ml_str_free (&plain);
+	ml_str_free (&shown);
+	return r;
+}
+
+/* The screen of the help viewer: the page (or the results) and the status. */
+static MlLayout help_layout (const MlScreen *s, const MlEditor *ed)
+{
+	MlLayout     layout =
+	{
+		.result = ML_OK,
+		.cursor =
+		{
+			.row = 1,
+			.col = 1
+		}
+	};
+
+	const MlHelp *h = &ed->help;
+	MlDocLineVec lines;
+
+	MlDocLineVec_init (&lines);
+	MlRowVec_init (&layout.rows);
+	MlRowInfoVec_init (&layout.info);
+
+	if (!h->results)
+	{
+		layout.result = ml_help_layout (h, &lines);
+	}
+
+	for (uint64_t r = 0; r < s->rows && layout.result == ML_OK; r++)
+	{
+		MlStr     row;
+		MlRowInfo ri =
+		{
+			.kind      = 0,
+			.src       = 0,
+			.text_col  = 0,
+			.first_col = 0
+		};
+
+		uint64_t  idx  = h->top + r;
+
+		ml_str_init (&row);
+
+		if (r + 1 == s->rows)
+		{
+			layout.result = append_status_row (&row, ed, s->cols);
+		}
+
+		else if (h->results)
+		{
+			layout.result = append_hit_row (&row, h, idx, s->cols);
+		}
+
+		else if (idx < lines.len)
+		{
+			uint64_t before = 0;
+
+			for (uint64_t i = 0; i < idx; i++)
+			{
+				before += lines.data [i].links.len;
+			}
+
+			layout.result = append_help_line (
+				&row,
+				h,
+				&lines,
+				idx,
+				before,
+				s->cols
+			);
+		}
+
+		if (layout.result == ML_OK)
+		{
+			layout.result = MlRowVec_push (&layout.rows, row);
+		}
+
+		if (layout.result == ML_OK)
+		{
+			layout.result = MlRowInfoVec_push (&layout.info, ri);
+		}
+
+		if (layout.result != ML_OK)
+		{
+			ml_str_free (&row);
+		}
+	}
+
+	ml_doc_lines_free (&lines);
+
+	if (layout.result != ML_OK)
+	{
+		ml_layout_free (&layout);
+	}
+
+	return layout;
+}
+
+MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
+{
+	MlLayout layout;
+
+	if (ed->state == ML_STATE_HELP)
+	{
+		layout = help_layout (s, ed);
+	}
+
+	else
+	{
+		layout = editor_layout (s, ed);
 	}
 
 	return layout;
