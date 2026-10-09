@@ -192,6 +192,8 @@ static void test_factors (void)
 	CHECK (factor_is ("mbar", "100"));
 	CHECK (factor_is ("atm", "101325"));
 	CHECK (factor_is ("Wh", "3600"));
+	CHECK (factor_is ("Ah", "3600"));
+	CHECK (factor_is ("mAh", "18/5"));
 	CHECK (factor_is ("kWh", "3600000"));
 	CHECK (factor_is ("cal", "523/125"));
 	CHECK (factor_is ("in", "127/5000"));

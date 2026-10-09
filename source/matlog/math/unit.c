@@ -111,6 +111,7 @@ static const UnitDef k_units [] =
 		.num = 101325, .fixed = 1
 	},
 	{ .sym = "Wh",  .name = "watthour", .dk = DK_ENERGY, .num = 3600 },
+	{ .sym = "Ah",  .name = "amperehour", .dk = DK_CHARGE, .num = 3600 },
 	{
 		.sym = "cal", .name = "calorie", .dk = DK_ENERGY,
 		.num = 4184, .den = 1000
