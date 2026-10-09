@@ -147,6 +147,43 @@ static MlKeyCode letter_key (char letter)
 	return code;
 }
 
+/* The key of ESC [ code ; modifiers u. */
+static MlKey csi_u_key (uint32_t code, uint32_t mods)
+{
+	MlKey key =
+	{
+		.code = ML_KEY_CHAR,
+		.cp   = ml_choose (code >= 'A' && code <= 'Z', code + 32, code),
+		.mods = mods
+	};
+
+	if (code == 27)
+	{
+		key.code = ML_KEY_ESCAPE;
+		key.cp   = 0;
+	}
+
+	else if (code == 13)
+	{
+		key.code = ML_KEY_ENTER;
+		key.cp   = 0;
+	}
+
+	else if (code == 9)
+	{
+		key.code = ML_KEY_TAB;
+		key.cp   = 0;
+	}
+
+	else if (code == 127)
+	{
+		key.code = ML_KEY_BACKSPACE;
+		key.cp   = 0;
+	}
+
+	return key;
+}
+
 /* ESC [ parameters final, where bytes starts with ESC [. */
 static MlVtDecode decode_csi (MlSlice bytes, int32_t final)
 {
@@ -193,6 +230,12 @@ static MlVtDecode decode_csi (MlSlice bytes, int32_t final)
 		{
 			d.key.code = tilde_key (param [0]);
 			d.key.mods = modifiers_from (param [1]);
+		}
+
+		else if (letter == 'u')
+		{
+			/* the kitty protocol: ESC [ code ; modifiers u */
+			d.key = csi_u_key (param [0], modifiers_from (param [1]));
 		}
 
 		else if (letter == 'Z')

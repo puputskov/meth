@@ -655,6 +655,9 @@ static MlResult note_split (MlEditor *ed)
 	return r;
 }
 
+static int32_t undo_key (MlKey key);
+static MlResult undo_redo (MlEditor *ed, int32_t redo);
+
 static MlResult text_key (MlEditor *ed, MlKey key)
 {
 	MlResult     r   = ML_OK;
@@ -667,6 +670,17 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 	if (key.code == ML_KEY_ESCAPE)
 	{
 		r = leave_line (ed);
+	}
+
+	else if (undo_key (key) != 0)
+	{
+		/* the line being typed is kept, then the step before it undone */
+		r = leave_line (ed);
+
+		if (r == ML_OK)
+		{
+			r = undo_redo (ed, undo_key (key) == 2);
+		}
 	}
 
 	else if (key.code == ML_KEY_ENTER && ed->state == ML_STATE_NOTE)
@@ -1255,6 +1269,18 @@ static void jump_block (MlEditor *ed, int32_t forward)
 }
 
 /* Takes back (or does again) the last user action. */
+/* Ctrl+Z is undo, Ctrl+Shift+Z and Ctrl+Y redo; 0 for another key. */
+static int32_t undo_key (MlKey key)
+{
+	int32_t ctrl = key.code == ML_KEY_CHAR && (key.mods & ML_MOD_CTRL);
+
+	return ml_choose (
+		ctrl && (key.cp == 'z' || key.cp == 'Z'),
+		ml_choose (key.mods & ML_MOD_SHIFT, 2, 1),
+		ml_choose (ctrl && (key.cp == 'y' || key.cp == 'r'), 2, 0)
+	);
+}
+
 static MlResult undo_redo (MlEditor *ed, int32_t redo)
 {
 	MlResult     r = ML_OK;
@@ -1537,13 +1563,9 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 		r = undo_redo (ed, 0);
 	}
 
-	else if (
-		   key.code == ML_KEY_CHAR
-		&& key.cp == 'r'
-		&& (key.mods & ML_MOD_CTRL)
-	)
+	else if (undo_key (key) != 0)
 	{
-		r = undo_redo (ed, 1);
+		r = undo_redo (ed, undo_key (key) == 2);
 	}
 
 	else if (ch == 's')

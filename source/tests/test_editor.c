@@ -279,6 +279,38 @@ static void test_note_below_code (void)
 	ml_editor_free (&ed);
 }
 
+static void test_ctrl_z (void)
+{
+	MlEditor ed;
+	MlKey    undo = { .code = ML_KEY_CHAR, .cp = 'z', .mods = ML_MOD_CTRL };
+	MlKey    redo =
+	{
+		.code = ML_KEY_CHAR,
+		.cp   = 'z',
+		.mods = ML_MOD_CTRL | ML_MOD_SHIFT
+	};
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "1+1");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.session.lines.len == 1);
+
+	CHECK (ml_editor_handle_key (&ed, undo) == ML_OK);
+	CHECK (ed.session.lines.len == 0);
+	CHECK (ml_editor_handle_key (&ed, redo) == ML_OK);
+	CHECK (ed.session.lines.len == 1);
+
+	/* while typing, the line is kept and then undone */
+	type (&ed, "o");
+	type (&ed, "2");
+	CHECK (ml_editor_handle_key (&ed, undo) == ML_OK);
+	CHECK (ed.state == ML_STATE_NORMAL);
+	CHECK (ed.session.lines.len == 1);
+
+	ml_editor_free (&ed);
+}
+
 static void test_navigation (void)
 {
 	MlEditor ed;
@@ -1339,6 +1371,7 @@ void run_editor_tests (void)
 	test_first_note ();
 	test_note_freeform ();
 	test_note_below_code ();
+	test_ctrl_z ();
 	test_navigation ();
 	test_yank_paste ();
 	test_edit_line ();

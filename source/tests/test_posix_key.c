@@ -171,12 +171,30 @@ static void test_escape (void)
 	}
 }
 
+static void test_csi_u (void)
+{
+	/* Ctrl+z and Ctrl+Shift+z of the kitty protocol */
+	CHECK (is_key ("\x1b[122;5u", 8, ML_KEY_CHAR, 'z', ML_MOD_CTRL));
+	CHECK (
+		is_key (
+			"\x1b[122;6u",
+			8,
+			ML_KEY_CHAR,
+			'z',
+			ML_MOD_CTRL | ML_MOD_SHIFT
+		)
+	);
+	CHECK (is_key ("\x1b[27u", 5, ML_KEY_ESCAPE, 0, 0));
+	CHECK (is_key ("\x1b[97u", 5, ML_KEY_CHAR, 'a', 0));
+}
+
 void run_posix_key_tests (void);
 
 void run_posix_key_tests (void)
 {
 	test_plain ();
 	test_escape ();
+	test_csi_u ();
 }
 
 #else

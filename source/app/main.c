@@ -8,8 +8,13 @@
 
 #define DEFAULT_SESSION "scratch.mlog"
 
-#define ALT_SCREEN_ON  "\x1b[?1049h"
-#define ALT_SCREEN_OFF "\x1b[?1049l"
+/*
+ * The alternate screen, and the "disambiguate" level of the kitty keyboard
+ * protocol, which lets a terminal tell Ctrl+Shift+Z from Ctrl+Z. Terminals
+ * that do not know it ignore the request.
+ */
+#define ALT_SCREEN_ON  "\x1b[?1049h\x1b[>1u"
+#define ALT_SCREEN_OFF "\x1b[<u\x1b[?1049l"
 
 /* Opens the session file, or starts a new session that will be saved there. */
 static MlResult open_session (MlEditor *ed, MlSlice path)
