@@ -151,6 +151,13 @@ MlResult ml_style_parse (MlStyle *out, MlSlice text);
 MlResult ml_theme_apply_line (MlTheme *theme, MlSlice line);
 
 /*
+ * Appends the theme as the text of a theme file: the background, then one
+ * `class = style` line for every class. Applying that text to any theme gives
+ * back this one.
+ */
+MlResult ml_theme_format (MlStr *out, const MlTheme *theme);
+
+/*
  * Applies the lines of a theme file. A line that does not parse is left out
  * and a message "line N: ..." is appended to report (when it is not NULL).
  * The number of lines left out is returned in bad; ML_ERR_NOMEM is the only

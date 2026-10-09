@@ -1,0 +1,17 @@
+# The default settings of matlog. Every entry is optional: a missing file or
+# a missing entry means the value shown here (the commented ones are chosen
+# by matlog itself).
+#
+# Copy this file to the settings folder as settings.mlcfg:
+#   Windows  %APPDATA%\matlog
+#   Linux    $XDG_CONFIG_HOME/matlog or ~/.config/matlog
+#   macOS    ~/Library/Application Support/matlog
+# MATLOG_CONFIG names another folder. Theme files (config/themes) go in the
+# same folder. matlog writes the entries it changes (:theme, :colors) here
+# and keeps everything else in the file as it is.
+
+[display]
+# dark, light, contrast, mono, or the name of a NAME.theme file
+theme = dark
+# 24bit, 256, 16 or off; by default found from COLORTERM, TERM and NO_COLOR
+# colors = 24bit

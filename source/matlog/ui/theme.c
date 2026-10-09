@@ -855,6 +855,123 @@ MlResult ml_theme_apply_line (MlTheme *theme, MlSlice line)
 	return r;
 }
 
+static MlResult append_color (MlStr *out, MlColor c)
+{
+	return ml_str_appendf (
+		out,
+		"#%02x%02x%02x",
+		(uint32_t)c.r,
+		(uint32_t)c.g,
+		(uint32_t)c.b
+	);
+}
+
+/* Appends a word of a style, with a space in front unless it is the first. */
+static MlResult add_word (MlStr *out, int32_t *first, const char *word)
+{
+	MlResult r = ML_OK;
+
+	if (!*first)
+	{
+		r = ml_str_append (out, ml_slice_cstr (" "));
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_str_append (out, ml_slice_cstr (word));
+	}
+
+	*first = 0;
+	return r;
+}
+
+/* The style words of a style, as ml_style_parse reads them. */
+static MlResult format_style (MlStr *out, MlStyle s)
+{
+	MlResult r     = ML_OK;
+	int32_t  first = 1;
+
+	if (s.fg.set)
+	{
+		r     = append_color (out, s.fg);
+		first = 0;
+	}
+
+	if (r == ML_OK && s.bg.set)
+	{
+		r = add_word (out, &first, "on");
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (out, ml_slice_cstr (" "));
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_color (out, s.bg);
+		}
+	}
+
+	if (r == ML_OK && s.bold)
+	{
+		r = add_word (out, &first, "bold");
+	}
+
+	if (r == ML_OK && s.dim)
+	{
+		r = add_word (out, &first, "dim");
+	}
+
+	if (r == ML_OK && s.underline)
+	{
+		r = add_word (out, &first, "underline");
+	}
+
+	if (r == ML_OK && s.reverse)
+	{
+		r = add_word (out, &first, "reverse");
+	}
+
+	if (r == ML_OK && first)
+	{
+		r = add_word (out, &first, "none");
+	}
+
+	return r;
+}
+
+MlResult ml_theme_format (MlStr *out, const MlTheme *theme)
+{
+	MlResult r = ml_str_appendf (out, "background   = ");
+
+	if (r == ML_OK)
+	{
+		r = append_color (out, theme->background);
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_str_append (out, ml_slice_cstr ("\n"));
+	}
+
+	for (uint32_t c = 0; c < ML_CLASS_COUNT && r == ML_OK; c++)
+	{
+		r = ml_str_appendf (out, "%-12s = ", class_names [c]);
+
+		if (r == ML_OK)
+		{
+			r = format_style (out, theme->styles [c]);
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (out, ml_slice_cstr ("\n"));
+		}
+	}
+
+	return r;
+}
+
 MlResult ml_theme_apply_text (
 	MlTheme  *theme,
 	MlSlice  text,

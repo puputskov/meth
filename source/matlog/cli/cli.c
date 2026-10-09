@@ -4,6 +4,7 @@
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
 #include <matlog/session/steps.h>
+#include <matlog/ui/theme.h>
 
 #define VERSION "matlog 0.3.0"
 
@@ -24,6 +25,7 @@ static const char *const help_overview =
 	"  steps EXPR     the steps of an expression, or of FILE:LINE\n"
 	"  help [CMD]     this text, or the help of one command\n"
 	"  syntax         the syntax, functions and domains\n"
+	"  theme [NAME]   the built in themes, or one as a theme file\n"
 	"  schema         the shape of the JSON output\n"
 	"  commands       the list of commands (--format json for tools)\n"
 	"  version        the version\n"
@@ -161,6 +163,7 @@ static const CommandInfo commands [] =
 	{ .name = "steps", .summary = "steps of an expression or a line" },
 	{ .name = "help", .summary = "usage" },
 	{ .name = "syntax", .summary = "the syntax and functions" },
+	{ .name = "theme", .summary = "the built in themes as theme files" },
 	{ .name = "schema", .summary = "shape of the JSON output" },
 	{ .name = "commands", .summary = "list of commands" },
 	{ .name = "version", .summary = "the version" }
@@ -1265,6 +1268,43 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 	return code;
 }
 
+/* matlog theme: the names; matlog theme NAME: the text of a theme file. */
+static int32_t cmd_theme (const Options *o, MlStr *out, MlStr *err)
+{
+	MlResult r    = ML_OK;
+	int32_t  code = ML_EXIT_OK;
+
+	if (o->rest.len > 1)
+	{
+		code = usage_error (err, "theme takes one name", ml_slice ("", 0));
+	}
+
+	else if (o->rest.len == 0)
+	{
+		for (uint64_t i = 0; i < ml_theme_builtin_count () && r == ML_OK; i++)
+		{
+			r = ml_str_appendf (out, "%s\n", ml_theme_builtin_name (i));
+		}
+	}
+
+	else
+	{
+		MlTheme t;
+
+		if (ml_theme_builtin (&t, o->rest.data [0]) == ML_OK)
+		{
+			r = ml_theme_format (out, &t);
+		}
+
+		else
+		{
+			code = usage_error (err, "no such theme", o->rest.data [0]);
+		}
+	}
+
+	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
+}
+
 static int32_t cmd_commands (const Options *o, MlStr *out)
 {
 	MlResult r = ML_OK;
@@ -1354,6 +1394,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "syntax"))
 	{
 		add (out, syntax_text);
+	}
+
+	else if (is (cmd, "theme"))
+	{
+		code = cmd_theme (&o, out, err);
 	}
 
 	else if (is (cmd, "schema"))
