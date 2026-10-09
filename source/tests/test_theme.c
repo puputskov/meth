@@ -148,6 +148,20 @@ static void test_builtin (void)
 	ml_theme_builtin (&t, lit ("dark"));
 	CHECK (!t.paint);
 
+	/*
+	 * the themes that paint a background use no faint text: some terminals
+	 * draw it wrong on a coloured background
+	 */
+	for (uint64_t i = 0; i < ml_theme_builtin_count (); i++)
+	{
+		ml_theme_builtin (&t, lit (ml_theme_builtin_name (i)));
+
+		for (uint32_t c = 0; c < ML_CLASS_COUNT && t.paint; c++)
+		{
+			CHECK (!t.styles [c].dim);
+		}
+	}
+
 	/* the mono theme uses no colour at all */
 	ml_theme_builtin (&t, lit ("mono"));
 

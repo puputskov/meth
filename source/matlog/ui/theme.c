@@ -234,10 +234,10 @@ static const Builtin builtins [] =
 			[ML_CLASS_ERROR]        = { .fg = RGB (0xCD3131), .underline = 1 },
 			[ML_CLASS_MATCH]        = { .bold = 1, .underline = 1 },
 			[ML_CLASS_UNMATCHED]    = { .fg = RGB (0xCD3131), .bold = 1 },
-			[ML_CLASS_GUTTER]       = { .dim = 1 },
-			[ML_CLASS_RESULT]       = { .dim = 1 },
+			[ML_CLASS_GUTTER]       = COLOR (0x6E7781),
+			[ML_CLASS_RESULT]       = COLOR (0x57606A),
 			[ML_CLASS_RESULT_ERROR] = COLOR (0xCD3131),
-			[ML_CLASS_GHOST]        = { .dim = 1 },
+			[ML_CLASS_GHOST]        = COLOR (0x8C959F),
 			[ML_CLASS_HINT_KEY]     = { .fg = RGB (0x0070C1), .bold = 1 },
 			[ML_CLASS_NOTE_CODE]    = COLOR (0x267F99)
 		}
