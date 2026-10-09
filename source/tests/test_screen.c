@@ -798,6 +798,50 @@ static void test_bar (void)
 	ml_editor_free (&ed);
 }
 
+static void test_brackets (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 30, 5);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "(1+2)*3");
+
+	/* away from a bracket nothing is marked */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[1;4m") == NULL);
+	ml_layout_free (&l);
+
+	/* the cursor right after the closing bracket marks both of the pair */
+	for (uint32_t i = 0; i < 2; i++)
+	{
+		press (&ed, ML_KEY_LEFT);
+	}
+
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1 alg> (1+2)*3"));
+	CHECK (
+		strstr (
+			ml_str_cstr (l.rows.data [0]),
+			"\x1b[1;4m(\x1b[0m1+2\x1b[1;4m)\x1b[0m*3"
+		) != NULL
+	);
+	ml_layout_free (&l);
+
+	/* a bracket without a partner is red */
+	press (&ed, ML_KEY_END);
+	type (&ed, "+(4");
+	press (&ed, ML_KEY_LEFT);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[1;31m(") != NULL);
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_rule (void)
 {
 	MlEditor ed;
@@ -925,6 +969,7 @@ void run_screen_tests (void)
 	test_steps_rows ();
 	test_note_styles ();
 	test_bar ();
+	test_brackets ();
 	test_rule ();
 	test_blocks_layout ();
 }

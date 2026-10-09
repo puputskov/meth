@@ -1,6 +1,7 @@
 #include <matlog/ui/screen.h>
 
 #include <matlog/core/utf8.h>
+#include <matlog/ui/brackets.h>
 #include <matlog/ui/ghost.h>
 #include <matlog/ui/markup.h>
 
@@ -8,6 +9,8 @@
 #define STYLE_DIM     "\x1b[2m"
 #define STYLE_RED     "\x1b[31m"
 #define STYLE_RESET   "\x1b[0m"
+#define STYLE_MATCH     "\x1b[1;4m"
+#define STYLE_UNMATCHED "\x1b[1;31m"
 
 /*
  * Gutter of a math line in each domain. All gutters are ML_GUTTER_WIDTH wide.
@@ -599,6 +602,58 @@ static MlTextWindow append_selected (
 	return w;
 }
 
+/*
+ * The text with the bytes a and b drawn in a style (the brackets that pair
+ * up, or a lone one), from column start_col on, avail columns wide.
+ */
+static MlTextWindow append_marked (
+	MlStr       *out,
+	MlSlice     text,
+	uint64_t    start_col,
+	uint64_t    avail,
+	uint64_t    a,
+	uint64_t    b,
+	const char *style
+)
+{
+	MlTextWindow w =
+	{
+		.result    = ML_OK,
+		.first_col = start_col
+	};
+	uint64_t pos = 0;
+	uint64_t col = 0;
+
+	while (pos < text.len && w.result == ML_OK && col < start_col + avail)
+	{
+		uint64_t next  = ml_utf8_next (text, pos);
+		MlSlice  cp    = ml_slice_sub (text, pos, next - pos);
+		uint64_t width = ml_utf8_width (cp);
+		int32_t  shown = col >= start_col && col + width <= start_col + avail;
+		int32_t  mark  = shown && (pos == a || pos == b);
+
+		if (mark)
+		{
+			w.result = append_cstr (out, style);
+		}
+
+		if (shown && w.result == ML_OK)
+		{
+			w.result = ml_str_append (out, cp);
+		}
+
+		if (mark && w.result == ML_OK)
+		{
+			w.result = append_cstr (out, STYLE_RESET);
+		}
+
+		col += width;
+		pos  = next;
+	}
+
+	return w;
+}
+
 /* The row of the line being typed. */
 static EditRow append_edit_row (
 	MlStr          *out,
@@ -645,6 +700,11 @@ static EditRow append_edit_row (
 		ed->edit.cursor
 	);
 
+	MlBracketMatch bracket = ml_bracket_match (
+		ml_str_view (ed->edit.text),
+		ed->edit.cursor
+	);
+
 	row.result = head.result;
 
 	if (row.result == ML_OK && ed->selecting && lo < hi)
@@ -656,6 +716,24 @@ static EditRow append_edit_row (
 			avail,
 			lo,
 			hi
+		);
+		row.result = w.result;
+	}
+
+	else if (
+		   row.result == ML_OK
+		&& ed->state == ML_STATE_MATH
+		&& bracket.found
+	)
+	{
+		w = append_marked (
+			out,
+			ml_str_view (ed->edit.text),
+			ml_lineedit_start_col (&ed->edit, avail),
+			avail,
+			bracket.at,
+			ml_choose (bracket.matched, bracket.partner, bracket.at),
+			ml_choose (bracket.matched, STYLE_MATCH, STYLE_UNMATCHED)
 		);
 		row.result = w.result;
 	}

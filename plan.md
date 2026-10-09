@@ -33,29 +33,40 @@ Each domain is a mode (see section 3).
 - PGA is implemented generically over a signature `(p, q, r)` (basis blades as bitmasks, metric from the signature).
   `R(2,0,1)` and `R(3,0,1)` are presets, selectable in PGA mode (e.g. `:pga 2` / `:pga 3`). Same code serves both.
 
-## 3. Input states and domain modes (vim-like)
+## 3. Editing: no modes, and the domain of a block
 
 Two independent layers.
 
-### 3.0 Direction: free form editing instead of modes
-The tool moves from a modal editor to a free form one, like a normal text editor. The document is a list of lines and there is always a text
-cursor in one of them; typing edits that line in place, no key is needed to start editing.
-- Done: the tool starts on a line that is being edited; Up and Down move to the neighbouring line (math or note) and keep the column; Left at the
-  start and Right at the end cross to the neighbour; Backspace at the start joins the line with the previous one and Delete at the end joins the next
-  one in; Enter splits the line at the cursor; `Ctrl+N` turns the line into a note and back; `Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes.
-- **Notes are the default**: the tool starts on a note and Enter goes on with a note. `Ctrl+Enter` or `Shift+Enter` (or `Ctrl+B` where the terminal
+### 3.0 Free form editing, no modes
+The tool has no modes. It is edited like a normal text editor: the document is a list of lines, there is always a text cursor in one of them, and
+typing edits that line in place. There is no key to start or to leave editing. The keys, all done:
+- **Text:** Left, Right, Home, End move in the line; Up and Down go to the neighbouring line and keep the column; Left at the start and Right at the end
+  cross to the neighbour; Backspace at the start joins the line with the previous one, Delete at the end joins the next one in; Enter splits the line at
+  the cursor; `Shift` with Left, Right, Home, End selects text, Backspace, Delete or typing replace the selection. A line is written into the session when
+  the cursor leaves it, on `Esc` and on every command, so there is nothing to commit by hand.
+- **Lines:** `Shift+Up` and `Shift+Down` select whole lines (`Ctrl+L` the cursor line); then Backspace or Delete remove them, `Ctrl+C` copies, `Ctrl+X`
+  cuts, `Ctrl+V` replaces them with the copied lines, `Alt+Up` and `Alt+Down` move them, and any arrow or `Esc` goes back to editing. Without a
+  selection `Ctrl+C`, `Ctrl+X` and `Ctrl+V` work on the line the cursor is in (paste goes below it) and `Alt+Up/Down` move that line. `Ctrl+Home` and
+  `Ctrl+End` go to the first and the last line, `Ctrl+Up` and `Ctrl+Down` to the previous and the next block.
+- **Notes are the default:** the tool starts on a note and Enter goes on with a note. `Ctrl+Enter` or `Shift+Enter` (or `Ctrl+B` where the terminal
   cannot tell Enter's modifiers) opens the block choice: the status line shows the domains (`-- BLOCK -- algebra  [matrix]  vector ...`), Left/Right/
   Up/Down/Tab move the choice, a letter jumps to the next domain starting with it, Enter starts the block (an empty line becomes its first line, else
   the line is split at the cursor), Esc cancels. Enter in a block goes on with the block; Enter on an empty line of a block ends it (a blank line
-  closes the block and a note follows).
-- Next: the line commands get keys that work while editing, so that Normal can be dropped: `Ctrl+P` opens the command line, `Shift+Up/Down` select
-  lines, `Ctrl+C`, `Ctrl+X`, `Ctrl+V` copy, cut and paste lines or the selected text, `Ctrl+Shift+K` deletes a line, `Alt+Up/Down` move lines,
-  `Ctrl+[` and `Ctrl+]` fold and unfold the block, `Page Up/Down` and `Ctrl+Home/End` move far. Ranges (`:5,8m 2`) stay as command line
-  commands. The domain of a block is changed with `Alt+Left/Right` (already so).
-- The vim keys (section 3.1) stay reachable through `Esc` while the free form keys are built, and become an optional binding set in the key
-  table of section 4.15 afterwards (`:set keys vim`), not the default.
+  closes the block and a note follows). `Ctrl+N` turns a line into a note and back. `Alt+Left` and `Alt+Right` change the domain of a math line, in a
+  note the domain of the next blocks.
+- **Folds:** `Alt+Enter` folds the block of the cursor line (or opens it again). A folded block is one row; it is not edited but selected, so the
+  selection keys work on it as a whole, Enter or a typed character opens it and moves the cursor into it, and Down from the last block gives a new note.
+- **Others:** `Ctrl+Z` undo, `Ctrl+Shift+Z` and `Ctrl+Y` redo, `F3` the steps of the line (shown under it), `Ctrl+S` save, `Ctrl+Q` quit, `Ctrl+P` the
+  command line (`:q :w :open :mode :fold :unfold :foldall :unfoldall :steps :undo :redo` and the ranges `3,5d`, `%y`, `2,4m 10`; a selection starts it
+  with its range filled in). The tool saves a file given on the command line after every change.
+- **Parentheses:** with the cursor on or right after a bracket the bracket and its partner are drawn bold and underlined, a bracket without a partner
+  bold and red; the pairs are counted per kind: `( )`, `[ ]`, `{ }`.
+- Not done yet: mouse selection, Page Up and Page Down, selecting text across lines, copying selected text (only whole lines are copied), word wise
+  movement across lines. The key table of section 4.15 makes all of these keys changeable.
 
-### 3.1 Input state (the vim keys)
+### 3.1 Replaced vim keys (kept for the history of the design)
+The first versions were modal (Normal, Insert, Note and Visual states with `j k dd yy p v u ] [ z g :`). They were removed in favour of 3.0; the line
+operations below are still the specification of what the lines can do, and they are single undo steps.
 - **Normal:** navigate and manage lines. `j`/`k` move between lines, `dd` deletes a line, `yy` copies one, `Enter` re-edits one.
   Domain mode is switched here.
 - **Insert (math):** type an expression in the current domain. Ghost mode and completion are active.
@@ -364,7 +375,7 @@ generated static website.
   never show a result that is wrong or a syntax that no longer works (a test builds all pages and fails on any mismatch). In the tool an example can be
   inserted into the current session with one key, or evaluated in place; on the website the same examples carry their results as written, and the
   website can run them in the browser when the web build below is present.
-- In the tool: `:help` opens the browser, `:help topic` goes to a page, `F1` / `?` in Normal state opens help at the topic of what is under the cursor
+- In the tool: `:help` opens the browser, `:help topic` goes to a page, `F1` opens help at the topic of what is under the cursor
   (the domain, the function name at the cursor, the command being typed). The viewer is a full screen page with the table of contents, scrolling,
   following links (Tab/Enter, Backspace for back, a history), and word wrapped, themed text (section 4.10) with the example and key blocks drawn as such.
   Pages are compiled into the executable (a generated table of the page sources, so the tool needs no files next to it) and also readable from a
@@ -405,7 +416,7 @@ generated static website.
   default, so an empty or missing file is a valid configuration.
 - **Key bindings**: a binding maps a key (`j`, `Ctrl+r`, `Alt+Left`, `F2`, a sequence of keys such as `dd` or `g g`) in one input state to a named
   action (`move-down`, `delete-line`, `undo`, `open-note-below`, ...). The editor looks up keys in the table of the state instead of comparing
-  characters, and the built in keys are the default table, so the vim like keys of section 3.1 are the defaults and a file entry replaces or removes one
+  characters, and the built in keys are the default table, so the free form keys of section 3.0 are the defaults (a vim like set can be added as a binding set) and a file entry replaces or removes one
   (`j = none`). The table is checked when it is loaded: unknown actions, unknown key names, a key that is a prefix of another in the same state, and
   conflicts are reported. Text keys (typing in insert and note states) are not bindable, only the control keys there.
 - In the tool: `:set key value` changes a setting (Tab completes names and values) and writes it to the file, `:set` alone lists them, `:map state key

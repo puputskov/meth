@@ -10,6 +10,7 @@ void run_mlog_tests (void);
 void run_lineedit_tests (void);
 void run_rewrite_tests (void);
 void run_editor_tests (void);
+void run_brackets_tests (void);
 void run_screen_tests (void);
 void run_complete_tests (void);
 void run_bigint_tests (void);
@@ -37,6 +38,7 @@ int main (void)
 	run_lineedit_tests ();
 	run_rewrite_tests ();
 	run_editor_tests ();
+	run_brackets_tests ();
 	run_screen_tests ();
 	run_complete_tests ();
 	run_bigint_tests ();
