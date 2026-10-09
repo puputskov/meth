@@ -108,6 +108,99 @@ static void test_build (void)
 	ml_arena_free (&arena);
 }
 
+static int32_t typeset_is (MlMat m, const char *expected)
+{
+	MlStr   s;
+	int32_t same;
+
+	ml_str_init (&s);
+	same = (
+		   ml_mat_typeset (&s, m) == ML_OK
+		&& ml_slice_equal (ml_str_view (s), lit (expected))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  typeset is \"%s\", expected \"%s\"\n",
+			ml_str_cstr (s),
+			expected
+		);
+	}
+
+	ml_str_free (&s);
+	return same;
+}
+
+static void test_typeset (void)
+{
+	MlArena arena;
+	MlMat   m;
+
+	ml_arena_init (&arena, 0);
+
+	/* one row: square brackets */
+	m = make (&arena, 1, 3, (int64_t [3]){ 1, 2, 3 });
+	CHECK (typeset_is (m, "[ 1 2 3 ]"));
+	m = make (&arena, 1, 1, (int64_t [1]){ -7 });
+	CHECK (typeset_is (m, "[ -7 ]"));
+
+	/* two rows: the corners of a tall bracket */
+	m = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	CHECK (
+		typeset_is (
+			m,
+			"\xE2\x8E\xA1 1 2 \xE2\x8E\xA4\n"
+			"\xE2\x8E\xA3 3 4 \xE2\x8E\xA6"
+		)
+	);
+
+	/* three rows: a middle piece, and columns right aligned */
+	m = make (&arena, 3, 2, (int64_t [6]){ 1, -20, 300, 4, 5, 6 });
+	CHECK (
+		typeset_is (
+			m,
+			"\xE2\x8E\xA1   1 -20 \xE2\x8E\xA4\n"
+			"\xE2\x8E\xA2 300   4 \xE2\x8E\xA5\n"
+			"\xE2\x8E\xA3   5   6 \xE2\x8E\xA6"
+		)
+	);
+
+	/* fractions take their width too */
+	m = ml_mat_zero (&arena, 2, 1);
+	ml_mat_set (
+		&m,
+		0,
+		0,
+		ml_rat_make (
+			&arena,
+			ml_big_from_u64 (&arena, 3),
+			ml_big_from_u64 (&arena, 2)
+		)
+	);
+	ml_mat_set (&m, 1, 0, ml_rat_from_i64 (&arena, 4));
+	CHECK (
+		typeset_is (
+			m,
+			"\xE2\x8E\xA1 3/2 \xE2\x8E\xA4\n"
+			"\xE2\x8E\xA3   4 \xE2\x8E\xA6"
+		)
+	);
+
+	{
+		MlStr unused;
+
+		ml_str_init (&unused);
+		CHECK (
+			ml_mat_typeset (&unused, ml_mat_error (ML_ERR_INVALID))
+			== ML_ERR_INVALID
+		);
+		ml_str_free (&unused);
+	}
+
+	ml_arena_free (&arena);
+}
+
 static void test_arithmetic (void)
 {
 	MlArena arena;
@@ -407,6 +500,7 @@ void run_matrix_tests (void);
 void run_matrix_tests (void)
 {
 	test_build ();
+	test_typeset ();
 	test_arithmetic ();
 	test_det_trace ();
 	test_inverse ();

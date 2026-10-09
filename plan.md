@@ -188,6 +188,41 @@ can no longer be finished (a key was renamed, a syntax changed) fails the build.
 - Highlighting is a pure function (text, domain, environment snapshot, theme) to a list of styled runs, so it is unit tested without a terminal, and ghost
   mode and the tutorial reuse it for their own text.
 
+### 4.11 Export mode
+Export turns the session into a document. It is a mode of its own, in the same sense as the tutorial: `:export` opens an export panel (format, range,
+options, a preview of the first rows, and the path), and `:export <format> [path]` does it in one go. Formats: `latex`, `mathml`, `markdown`, `png`
+(image) and `pdf`. Without a path the file is named after the session (`physics.mlog` gives `physics.tex`, `physics.html`, `physics.md`, `physics.png`,
+`physics.pdf`) and is written next to it, atomically like a session file. An existing file is never overwritten without asking (`:export! ...` forces).
+- What is exported: the lines of the session in order, with their results recomputed (the same results as on the screen). Notes become text, math lines
+  become typeset math with their result, matrices become real matrices, errors are left out unless `errors` is given, includes are expanded or kept as a
+  reference (`includes expand|ref`), and steps are added for the lines that have them when `steps` is given. A range (`:export pdf 3-12`) or the visual
+  selection exports only those lines. Section headings can come from notes that start with `#` after the marker (a note `# # Title` is a heading).
+- One structure for all formats. The exporter first builds a small document tree from the session (paragraphs, math expressions as a tree of math
+  nodes, matrices, tables of steps), and each format is a writer over that tree, so a new format is a new writer and the content is the same everywhere.
+  The math nodes come from the parsed AST (with the results as exact fractions), not from the text of the line, so `x²`, `√x`, `a/b` and `[[1,2],[3,4]]`
+  are typeset as real math, in every format. The same tree can later drive a typeset display on screen.
+- latex: a complete `.tex` file with `amsmath` (fractions with `\frac`, roots with `\sqrt`, matrices with `pmatrix`, aligned lines with `align*`),
+  or just the body with `body` for pasting into another document. Greek letters and symbols map to their commands; text is escaped.
+- mathml: presentation MathML inside an HTML file (`<math>` elements, with the text of the line as the `alttext` for accessibility), also usable as a
+  fragment. No scripts, no external files.
+- markdown: notes as paragraphs and headings, math as `$...$` and `$$...$$` LaTeX blocks (the form most renderers accept), with the plain unicode text
+  of the line in a code span when `plain` is given, so the file is readable without a renderer.
+- png and pdf: written by the program itself, since there are no libraries. Both need glyphs for text and math, so a small built in font (a bitmap font
+  at a few sizes, with the Greek letters and the math symbols the tool uses) is rasterised for png, which is deflate encoded with a small own encoder
+  (stored or fixed Huffman blocks are enough) and CRC and Adler checksums; pdf is written as text objects with the standard base fonts for text and
+  drawn paths for the radical signs, fraction bars and big brackets, with the math layout (boxes, baselines, super and subscripts, fractions) shared
+  with png. Page size (`a4`, `letter`), margins, font size, and light or dark colours (the theme of section 4.10, with a print safe light default) are
+  options.
+- Layout: a small box layout engine in `export/layout` (width, height, depth, baseline per box; horizontal and vertical lists; fractions, roots,
+  scripts, matrices with brackets) that the png and pdf writers use, and that a future on screen typeset display can use too.
+- Options are given as words after the format (`:export pdf a4 dark steps 3-12`) and remembered per session in the settings file. Everything has a
+  default, so `:export pdf` alone gives a good result.
+- Tests: writers are checked on fixed small sessions against expected text (latex, mathml, markdown byte for byte), png by decoding the file with a test
+  decoder and comparing size and a few pixels, pdf by checking the structure (the cross reference table offsets are right, every object parses, page
+  count) and that the text of the notes is present.
+- Placement: after milestone 3 for latex, mathml and markdown (they need only the AST and the results), after the layout engine for png and pdf. The
+  syntax of every new domain brings its exporters (matrix is first); a domain is not done until its lines export in every format.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -202,7 +237,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 8. `ui`: terminal input (line editor, modes, ghost text, completion) and output rendering.
 9. `app`: `main.c`, wiring.
 10. `ui/theme`, `ui/highlight`: classes, themes, colour levels and the highlighter (section 4.10).
-11. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
+11. `export`: the document tree, the writers (latex, mathml, markdown, png, pdf) and the box layout (section 4.11).
+12. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
 
 ## 6. Coding rules
 
@@ -236,7 +272,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 8. Visualization and notes polish, completion.
 9. Syntax highlighting and themes (section 4.10). The highlighter only needs the lexer, so it can be built any time after milestone 2; each
    later domain adds its token classes with itself.
-10. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
+10. Export mode (section 4.11): latex, mathml and markdown first, png and pdf with the layout engine after.
+11. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
    exist; the milestone 3 to 7 lessons of stage 2 are added together with the domains. The whole tutorial is complete when the last domain is done.
 
 ## 8. Milestone 1 tasks
@@ -415,10 +452,11 @@ steps can be shown on request.
 - Integrals start with polynomials/tables; PGA both 2D and 3D via a generic signature.
 - Includes are read-only and acyclic.
 - Syntax highlighting is driven by the lexer tokens, with themes as data (built in plus user `.theme` files) and colour levels from 24 bit down to none.
+- Export (latex, MathML, markdown, png, pdf) goes through one document tree built from the parsed AST and the results, with a writer per format; png and pdf are written by the program itself.
 - A built in interactive tutorial in two stages (usage of the tool, then the syntax); lessons are data, they only observe the real editor, and each is tested by playing the model answer.
 
 ## 12. Open questions
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Next step: milestone 3, task 6 (typeset display of matrix results). Tasks 1 to 5 are done: the matrix and vector domains evaluate; the steps (task 7) come after the display.
+Next step: milestone 3, task 7 (steps for matrix operations). Tasks 1 to 6 are done (matrices, vectors, values, syntax, evaluator, typeset display).

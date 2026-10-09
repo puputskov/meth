@@ -709,3 +709,115 @@ MlResult ml_mat_format (MlStr *out, MlMat m)
 
 	return r;
 }
+
+/* The widest cell text of each column; widths must have m.cols entries. */
+static MlResult column_widths (MlMat m, uint64_t *widths)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t j = 0; j < m.cols; j++)
+	{
+		widths [j] = 0;
+	}
+
+	for (uint64_t i = 0; i < m.rows * m.cols && r == ML_OK; i++)
+	{
+		MlStr text;
+
+		ml_str_init (&text);
+		r = ml_rat_format (&text, m.cells [i]);
+
+		if (r == ML_OK && text.len > widths [i % m.cols])
+		{
+			widths [i % m.cols] = text.len;
+		}
+
+		ml_str_free (&text);
+	}
+
+	return r;
+}
+
+/* The pieces of the bracket on the left and right of row i of rows. */
+static const char *bracket_piece (uint64_t i, uint64_t rows, int32_t left)
+{
+	const char *piece = ml_choose (left, "[", "]");
+
+	if (rows > 1)
+	{
+		piece = ml_choose (
+			i == 0,
+			ml_choose (left, "\xE2\x8E\xA1", "\xE2\x8E\xA4"),
+			ml_choose (
+				i + 1 == rows,
+				ml_choose (left, "\xE2\x8E\xA3", "\xE2\x8E\xA6"),
+				ml_choose (left, "\xE2\x8E\xA2", "\xE2\x8E\xA5")
+			)
+		);
+	}
+
+	return piece;
+}
+
+MlResult ml_mat_typeset (MlStr *out, MlMat m)
+{
+	MlResult r      = m.status;
+	uint64_t widths [ML_MAT_MAX_DIM];
+
+	if (r == ML_OK)
+	{
+		r = column_widths (m, widths);
+	}
+
+	for (uint64_t i = 0; i < m.rows && r == ML_OK; i++)
+	{
+		if (i > 0)
+		{
+			r = ml_str_append (out, ml_slice_cstr ("\n"));
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (
+				out,
+				ml_slice_cstr (bracket_piece (i, m.rows, 1))
+			);
+		}
+
+		for (uint64_t j = 0; j < m.cols && r == ML_OK; j++)
+		{
+			MlStr text;
+
+			ml_str_init (&text);
+			r = ml_rat_format (&text, m.cells [i * m.cols + j]);
+
+			/* a space before every cell, then padding to the column */
+			for (uint64_t pad = text.len; pad <= widths [j] && r == ML_OK; pad++)
+			{
+				r = ml_str_append (out, ml_slice_cstr (" "));
+			}
+
+			if (r == ML_OK)
+			{
+				r = ml_str_append (out, ml_str_view (text));
+			}
+
+			ml_str_free (&text);
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (out, ml_slice_cstr (" "));
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (
+				out,
+				ml_slice_cstr (bracket_piece (i, m.rows, 0))
+			);
+		}
+	}
+
+	return r;
+}

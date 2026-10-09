@@ -384,10 +384,54 @@ static void test_includes (void)
 	CHECK (ml_fs_remove (loop_b) == ML_OK);
 }
 
+static void test_blocks (void)
+{
+	MlSession    s;
+	MlResults    r;
+	MlResultView v;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add (&s, "A = [[1,2],[3,4]]");
+	add (&s, "2 + 2");
+	add (&s, "A^-1");
+	add (&s, "[1,2,3]");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+
+	/* a matrix has its text and the typeset rows, a number only text */
+	CHECK (is_value (&r, 0, "[[1, 2], [3, 4]]"));
+	v = ml_results_get (&r, 0);
+	CHECK (
+		ml_slice_equal (
+			v.block,
+			lit (
+				"\xE2\x8E\xA1 1 2 \xE2\x8E\xA4\n"
+				"\xE2\x8E\xA3 3 4 \xE2\x8E\xA6"
+			)
+		)
+	);
+	CHECK (is_value (&r, 1, "4"));
+	CHECK (ml_results_get (&r, 1).block.len == 0);
+	CHECK (is_value (&r, 2, "[[-2, 1], [3/2, -1/2]]"));
+	CHECK (ml_results_get (&r, 2).block.len > 0);
+	CHECK (is_value (&r, 3, "[[1], [2], [3]]"));
+
+	/* an error has no block, and lines that do not exist none either */
+	add (&s, "[[1,2]] + [[1]]");
+	CHECK (ml_results_update (&r, &s, 4) == ML_OK);
+	CHECK (is_error (&r, 4, "matrix sizes do not fit"));
+	CHECK (ml_results_get (&r, 4).block.len == 0);
+	CHECK (ml_results_get (&r, 99).block.len == 0);
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
 void run_results_tests (void);
 
 void run_results_tests (void)
 {
+	test_blocks ();
 	test_flow ();
 	test_other_lines ();
 	test_errors ();

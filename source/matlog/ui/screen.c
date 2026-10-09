@@ -312,7 +312,12 @@ static MlResult append_line_row (
 
 		r = ml_text_window (out, line.text, 0, room).result;
 
-		if (r == ML_OK && line.kind == ML_LINE_MATH)
+		/* a matrix is drawn under the line instead */
+		if (
+			   r == ML_OK
+			&& line.kind == ML_LINE_MATH
+			&& result.block.len == 0
+		)
 		{
 			r = append_result (out, result, room - used);
 		}
@@ -666,20 +671,152 @@ static MlResult append_suggestions (
 	return r;
 }
 
-/* Scrolls so that focus (an index into total rows) is inside the area. */
-static uint64_t scroll_top (
-	uint64_t top,
-	uint64_t focus,
-	uint64_t total,
-	uint64_t area
+/* A row of the typeset result of a matrix, under the text of its line. */
+static MlResult append_block_row (
+	MlStr    *out,
+	MlSlice  text,
+	uint64_t indent,
+	uint32_t cols
 )
 {
-	uint64_t t = top;
+	uint64_t pad = ml_choose (indent + 2 < cols, indent + 2, cols);
+	MlResult r   = append_spaces (out, pad);
 
-	t = ml_choose (focus < t, focus, t);
-	t = ml_choose (area > 0 && focus >= t + area, focus - area + 1, t);
-	t = ml_choose (total > area && t > total - area, total - area, t);
-	t = ml_choose (total <= area, 0, t);
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, STYLE_DIM);
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_text_window (out, text, 0, cols - pad).result;
+	}
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, STYLE_RESET);
+	}
+
+	return r;
+}
+
+/* The number of rows of the typeset block: its newlines plus one. */
+static uint64_t block_rows (MlSlice block)
+{
+	uint64_t rows = ml_choose (block.len > 0, 1, 0);
+
+	for (uint64_t i = 0; i < block.len; i++)
+	{
+		rows += ml_choose (block.data [i] == '\n', 1, 0);
+	}
+
+	return rows;
+}
+
+/* Row n (from 0) of a block. */
+static MlSlice block_row (MlSlice block, uint64_t n)
+{
+	uint64_t start = 0;
+	uint64_t end   = 0;
+	uint64_t row   = 0;
+
+	while (end < block.len && row <= n)
+	{
+		start = end;
+
+		while (end < block.len && block.data [end] != '\n')
+		{
+			end++;
+		}
+
+		row++;
+		end = ml_choose (end < block.len && row <= n, end + 1, end);
+	}
+
+	return ml_choose (
+		row > n,
+		ml_slice_sub (block, start, end - start),
+		ml_slice ("", 0)
+	);
+}
+
+/* The rows a line takes: its own, then the typeset result of a matrix. */
+static uint64_t line_height (
+	const MlEditor *ed,
+	uint64_t       idx,
+	int32_t        editing,
+	int32_t        editing_new
+)
+{
+	uint64_t src    = ml_choose (
+		editing_new && idx > ed->edit_index,
+		idx - 1,
+		idx
+	);
+	int32_t  typing = editing && idx == ed->edit_index;
+
+	return 1 + ml_choose (
+		typing,
+		0,
+		block_rows (ml_results_get (&ed->results, src).block)
+	);
+}
+
+/* The rows of lines from to to (not including to). */
+static uint64_t rows_between (
+	const MlEditor *ed,
+	uint64_t       from,
+	uint64_t       to,
+	int32_t        editing,
+	int32_t        editing_new
+)
+{
+	uint64_t rows = 0;
+
+	for (uint64_t i = from; i < to; i++)
+	{
+		rows += line_height (ed, i, editing, editing_new);
+	}
+
+	return rows;
+}
+
+/*
+ * Scrolls so that the focused line (an index into total lines) is inside the
+ * area of rows, and no row of the area is empty while lines above could fill
+ * it.
+ */
+static uint64_t scroll_top (
+	const MlEditor *ed,
+	uint64_t       top,
+	uint64_t       focus,
+	uint64_t       total,
+	uint64_t       area
+)
+{
+	int32_t  editing     = (
+		   ed->state == ML_STATE_INSERT
+		|| ed->state == ML_STATE_NOTE
+	);
+	int32_t  editing_new = editing && !ed->edit_existing;
+	uint64_t t           = ml_choose (focus < top, focus, top);
+
+	while (
+		   t < focus
+		&& rows_between (ed, t, focus + 1, editing, editing_new) > area
+	)
+	{
+		t++;
+	}
+
+	while (
+		   t > 0
+		&& rows_between (ed, t - 1, total, editing, editing_new) <= area
+	)
+	{
+		t--;
+	}
+
 	return t;
 }
 
@@ -714,8 +851,12 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 	uint64_t     num_width = number_width (total);
 	MlCompletion comp      = ml_editor_completion (ed);
 
+	uint64_t line = 0;
+	uint64_t sub  = 0; /* the row of the line being drawn, 0 for its own */
+
 	MlRowVec_init (&layout.rows);
-	s->top = scroll_top (s->top, focus, total, area);
+	s->top = scroll_top (ed, s->top, focus, total, area);
+	line   = s->top;
 
 	for (uint64_t r = 0; r < s->rows && layout.result == ML_OK; r++)
 	{
@@ -742,12 +883,12 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.result = append_suggestions (&row, &comp, s->cols);
 		}
 
-		else if (s->top + r < total && editing && s->top + r == ed->edit_index)
+		else if (line < total && editing && line == ed->edit_index)
 		{
 			EditRow e = append_edit_row (
 				&row,
 				ed,
-				s->top + r + 1,
+				line + 1,
 				num_width,
 				s->cols
 			);
@@ -757,9 +898,25 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.cursor.col = e.cursor_col;
 		}
 
-		else if (s->top + r < total)
+		else if (line < total && sub > 0)
 		{
-			uint64_t idx = s->top + r;
+			uint64_t src = ml_choose (
+				editing_new && line > ed->edit_index,
+				line - 1,
+				line
+			);
+
+			layout.result = append_block_row (
+				&row,
+				block_row (ml_results_get (&ed->results, src).block, sub - 1),
+				num_width + 1 + ML_GUTTER_WIDTH,
+				s->cols
+			);
+		}
+
+		else if (line < total)
+		{
+			uint64_t idx = line;
 			uint64_t src = ml_choose (
 				editing_new && idx > ed->edit_index,
 				idx - 1,
@@ -771,7 +928,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				&row,
 				ml_session_get (&ed->session, src),
 				ml_results_get (&ed->results, src),
-				s->top + r + 1,
+				line + 1,
 				num_width,
 				highlight,
 				s->cols
@@ -792,6 +949,18 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 		if (layout.result != ML_OK)
 		{
 			ml_str_free (&row);
+		}
+
+		/* the next row belongs to the same line, or to the one after it */
+		sub++;
+
+		if (
+			   line < total
+			&& sub >= line_height (ed, line, editing, editing_new)
+		)
+		{
+			line++;
+			sub = 0;
 		}
 	}
 

@@ -29,6 +29,7 @@ static void drop_from (MlResults *r, uint64_t idx)
 	for (uint64_t i = idx; i < r->lines.len; i++)
 	{
 		ml_str_free (&r->lines.data [i].text);
+		ml_str_free (&r->lines.data [i].block);
 	}
 
 	if (idx < r->lines.len)
@@ -54,6 +55,11 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 			.data = "",
 			.len  = 0
 		},
+		.block =
+		{
+			.data = "",
+			.len  = 0
+		},
 		.err_start = 0,
 		.err_len   = 0,
 		.snapshot  = 0
@@ -65,6 +71,7 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 
 		view.kind      = lr.kind;
 		view.text      = ml_str_view (lr.text);
+		view.block     = ml_str_view (lr.block);
 		view.err_start = lr.err_start;
 		view.err_len   = lr.err_len;
 		view.snapshot  = lr.snapshot;
@@ -89,6 +96,12 @@ static MlLineResult result_make (uint64_t snapshot)
 	{
 		.kind      = ML_RESULT_NONE,
 		.text =
+		{
+			.data = NULL,
+			.len  = 0,
+			.cap  = 0
+		},
+		.block =
 		{
 			.data = NULL,
 			.len  = 0,
@@ -147,6 +160,11 @@ static MlResult result_from_value (
 	else if (v.kind != ML_VALUE_NONE)
 	{
 		r = ml_value_format (&lr->text, arena, v);
+
+		if (r == ML_OK && v.kind == ML_VALUE_MATRIX)
+		{
+			r = ml_mat_typeset (&lr->block, v.matrix);
+		}
 
 		if (r == ML_OK)
 		{
@@ -418,6 +436,7 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 			if (r != ML_OK || !is_top)
 			{
 				ml_str_free (&lr.text);
+				ml_str_free (&lr.block);
 			}
 		}
 	}

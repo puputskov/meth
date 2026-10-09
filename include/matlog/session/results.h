@@ -12,8 +12,11 @@
  * Math lines of the algebra domain are evaluated in order in one environment,
  * so what a line defines flows down to the lines below it. A line gives
  *
- *	ML_RESULT_VALUE   the text of a number (`7/2`, `≈ 1.41421356`); a
- *	                  definition of a variable gives the value it was given
+ *	ML_RESULT_VALUE   the text of a number (`7/2`, `≈ 1.41421356`) or of a
+ *	                  matrix (`[[1, 2], [3, 4]]`); a definition of a variable
+ *	                  gives the value it was given. A matrix also has a block:
+ *	                  its typeset rows (see ml_mat_typeset), separated by
+ *	                  newlines, for display under the line
  *	ML_RESULT_ERROR   the message of an error and the byte range in the line
  *	ML_RESULT_NONE    nothing: notes, blanks, unknown lines, lines of other
  *	                  domains, function definitions
@@ -44,6 +47,7 @@ typedef struct MlLineResult
 {
 	MlResultKind kind;
 	MlStr        text;      /* the value or the message */
+	MlStr        block;     /* typeset rows of a matrix, else empty */
 	uint64_t     err_start; /* ML_RESULT_ERROR: byte range in the line */
 	uint64_t     err_len;
 	uint64_t     snapshot;  /* the environment before the line */
@@ -55,6 +59,7 @@ typedef struct MlResultView
 {
 	MlResultKind kind; /* ML_RESULT_NONE for a line that does not exist */
 	MlSlice      text;
+	MlSlice      block;
 	uint64_t     err_start;
 	uint64_t     err_len;
 	uint64_t     snapshot;

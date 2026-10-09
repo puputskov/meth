@@ -90,4 +90,15 @@ MlMat ml_mat_solve (MlArena *arena, MlMat a, MlMat b);
 /* "[[1, 2], [3, 4]]", cells as rationals ("1/2"). */
 MlResult ml_mat_format (MlStr *out, MlMat m);
 
+/*
+ * The matrix as it is written on paper, one text row per matrix row, rows
+ * separated by '\n' (none at the end): cells right aligned in columns, between
+ * bracket pieces. A matrix of one row has square brackets, a taller one the
+ * pieces of a tall bracket:
+ *
+ *	⎡   1 -2 ⎤       [ 1 2 3 ]
+ *	⎣ 3/2  4 ⎦
+ */
+MlResult ml_mat_typeset (MlStr *out, MlMat m);
+
 #endif /* MATLOG_MATH_MATRIX_H */
