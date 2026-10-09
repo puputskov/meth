@@ -108,7 +108,8 @@ static StepKind call_kind (MlSlice name, uint64_t argc)
 		   ml_slice_equal (name, ml_slice_cstr ("simplify"))
 		|| ml_slice_equal (name, ml_slice_cstr ("expand"))
 		|| ml_slice_equal (name, ml_slice_cstr ("diff"))
-		|| ml_slice_equal (name, ml_slice_cstr ("integrate")),
+		|| ml_slice_equal (name, ml_slice_cstr ("integrate"))
+		|| ml_slice_equal (name, ml_slice_cstr ("limit")),
 		STEP_SYMBOLIC,
 		kind
 	);

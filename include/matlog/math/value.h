@@ -58,6 +58,8 @@ typedef enum MlErrorKind
 	ML_EVAL_SINGULAR,       /* a singular matrix has no inverse */
 	ML_EVAL_DIMENSION_MISMATCH, /* units of different dimensions combined */
 	ML_EVAL_UNKNOWN_UNIT,   /* a unit name that does not exist */
+	ML_EVAL_NO_LIMIT,       /* no limit found, or the two sides differ */
+	ML_EVAL_CANNOT_SOLVE,   /* the equation cannot be solved in closed form */
 	ML_EVAL_NO_MEMORY,
 	ML_EVAL_KIND_COUNT
 } MlErrorKind;

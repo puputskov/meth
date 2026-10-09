@@ -30,6 +30,8 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_SINGULAR]       = "matrix is singular",
 	[ML_EVAL_DIMENSION_MISMATCH] = "the units have different dimensions",
 	[ML_EVAL_UNKNOWN_UNIT]   = "unknown unit",
+	[ML_EVAL_NO_LIMIT]       = "no limit found, or the two sides differ",
+	[ML_EVAL_CANNOT_SOLVE]   = "the equation cannot be solved in closed form",
 	[ML_EVAL_NO_MEMORY]      = "out of memory"
 };
 
@@ -67,6 +69,8 @@ static const char *const error_codes [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_SINGULAR]              = "singular",
 	[ML_EVAL_DIMENSION_MISMATCH]    = "dimension_mismatch",
 	[ML_EVAL_UNKNOWN_UNIT]          = "unknown_unit",
+	[ML_EVAL_NO_LIMIT]              = "no_limit",
+	[ML_EVAL_CANNOT_SOLVE]          = "cannot_solve",
 	[ML_EVAL_NO_MEMORY]             = "no_memory"
 };
 

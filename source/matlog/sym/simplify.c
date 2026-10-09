@@ -763,12 +763,16 @@ const MlSym *ml_sym_pow (MlSymCtx *ctx, const MlSym *a, const MlSym *b)
 
 		for (uint64_t i = 0; i < base->count; i++)
 		{
-			if (
-				SymPtrVec_push (
-					&parts,
-					pow_core (ctx, base->kids [i], exp)
-				) != ML_OK
-			)
+			/* a factor that is a power takes the exponent along: (x^p)^n */
+			const MlSym *kid   = base->kids [i];
+			const MlSym *kbase = ml_choose (kid->kind == ML_SYM_POW, kid->kids [0], kid);
+			const MlSym *kexp  = ml_choose (
+				kid->kind == ML_SYM_POW,
+				ml_sym_mul (ctx, kid->kids [1], exp),
+				exp
+			);
+
+			if (SymPtrVec_push (&parts, pow_core (ctx, kbase, kexp)) != ML_OK)
 			{
 				ctx->status = ML_ERR_NOMEM;
 			}
@@ -1060,6 +1064,11 @@ const MlSym *ml_sym_rewrite (
 {
 	const MlSym *out    = orig;
 	int32_t     expand  = ctx->mode == ML_SYM_EXPAND;
+	int32_t     hit     = (
+		   ctx->mode == ML_SYM_REPLACE
+		&& ctx->subst_var != NULL
+		&& ml_sym_compare (ctx, orig, ctx->subst_var) == 0
+	);
 
 	if (orig->kind == ML_SYM_VAR)
 	{
@@ -1121,6 +1130,8 @@ const MlSym *ml_sym_rewrite (
 		out = ml_sym_call (ctx, orig->name, kids [0]);
 	}
 
+	out = ml_choose (hit, ctx->subst_val, out);
+
 	/* the step: this node changed given what its kids became */
 	if (
 		   ctx->log != NULL
@@ -1178,6 +1189,25 @@ const MlSym *ml_sym_substitute (
 	ctx->subst_var = x;
 	ctx->subst_val = value;
 	out            = run_map (ctx, s, ML_SYM_SUBSTITUTE);
+	ctx->subst_var = saved_var;
+	ctx->subst_val = saved_val;
+	return out;
+}
+
+const MlSym *ml_sym_replace (
+	MlSymCtx    *ctx,
+	const MlSym *s,
+	const MlSym *from,
+	const MlSym *value
+)
+{
+	const MlSym *saved_var = ctx->subst_var;
+	const MlSym *saved_val = ctx->subst_val;
+	const MlSym *out;
+
+	ctx->subst_var = from;
+	ctx->subst_val = value;
+	out            = run_map (ctx, s, ML_SYM_REPLACE);
 	ctx->subst_var = saved_var;
 	ctx->subst_val = saved_val;
 	return out;

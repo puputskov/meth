@@ -136,7 +136,7 @@ static const char *const schema_text =
 	"not_integer\n"
 	"  undefined_name not_function not_value arity too_large depth no_file\n"
 	"  include_loop size type not_exact cannot_integrate not_symbolic\n"
-	"  singular dimension_mismatch unknown_unit\n"
+	"  singular dimension_mismatch unknown_unit no_limit cannot_solve\n"
 	"  no_memory, and for "
 	"text that does\n"
 	"  not parse parse_unexpected_end parse_unexpected_token "

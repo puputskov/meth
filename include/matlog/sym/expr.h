@@ -60,7 +60,8 @@ typedef enum MlSymMode
 {
 	ML_SYM_REBUILD = 0, /* canonical form of the tree (simplify) */
 	ML_SYM_EXPAND,      /* also multiply out products of sums and powers */
-	ML_SYM_SUBSTITUTE   /* replace a symbol by an expression, then rebuild */
+	ML_SYM_SUBSTITUTE,  /* replace a symbol by an expression, then rebuild */
+	ML_SYM_REPLACE      /* replace every copy of a subtree, then rebuild */
 } MlSymMode;
 
 #define ML_SYM_BUDGET 200000
@@ -151,7 +152,21 @@ const MlSym *ml_sym_substitute (
 	const MlSym *value
 );
 
-/* ---- calculus (diff.c, integrate.c) ---- */
+/* s with every subtree equal to from replaced by value, then simplified. */
+const MlSym *ml_sym_replace (
+	MlSymCtx    *ctx,
+	const MlSym *s,
+	const MlSym *from,
+	const MlSym *value
+);
+
+/*
+ * The value of s as a double, when it has no symbols but pi and e and uses
+ * only functions the tool knows. 0 when it has not.
+ */
+int32_t ml_sym_to_double (MlArena *arena, const MlSym *s, double *out);
+
+/* ---- calculus (diff.c, integrate.c, limit.c) ---- */
 
 /* The derivative of s by the symbol x, in canonical form. */
 const MlSym *ml_sym_diff (MlSymCtx *ctx, const MlSym *s, const MlSym *x);
@@ -163,6 +178,36 @@ typedef struct MlSymIntegral
 } MlSymIntegral;
 
 MlSymIntegral ml_sym_integrate (MlSymCtx *ctx, const MlSym *s, const MlSym *x);
+
+typedef enum MlLimitKind
+{
+	ML_LIMIT_NONE = 0, /* the engine cannot find it */
+	ML_LIMIT_VALUE,    /* a finite value */
+	ML_LIMIT_PINF,     /* grows without bound */
+	ML_LIMIT_NINF,     /* falls without bound */
+	ML_LIMIT_DIFFER    /* the two sides have different limits */
+} MlLimitKind;
+
+typedef struct MlSymLimit
+{
+	MlLimitKind kind;
+	const MlSym *value; /* ML_LIMIT_VALUE */
+} MlSymLimit;
+
+/*
+ * The limit of f when the symbol x goes to at: an expression without x, or
+ * the symbol inf or its negative. side is 1 from above, -1 from below and 0
+ * for both (which must agree). Direct substitution first, then l'Hopital's
+ * rule on quotients and on products of a zero and an infinite factor. A limit
+ * the engine cannot decide is ML_LIMIT_NONE, never a guess.
+ */
+MlSymLimit ml_sym_limit (
+	MlSymCtx    *ctx,
+	const MlSym *f,
+	const MlSym *x,
+	const MlSym *at,
+	int32_t     side
+);
 
 /* ---- text ---- */
 

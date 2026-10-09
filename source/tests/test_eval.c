@@ -1004,6 +1004,59 @@ static void test_units (void)
 	session_free (&s);
 }
 
+static void test_limits (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* direct substitution */
+	CHECK (shows (&s, "limit(x^2, x, 3)", "9"));
+	CHECK (shows (&s, "limit(x + a, x, 1)", "a + 1"));
+
+	/* 0/0 by l'Hopital */
+	CHECK (shows (&s, "limit(sin(x)/x, x, 0)", "1"));
+	CHECK (shows (&s, "limit((x^2 - 1)/(x - 1), x, 1)", "2"));
+	CHECK (shows (&s, "limit((1 - cos(x))/x^2, x, 0)", "1/2"));
+	CHECK (shows (&s, "limit((exp(x) - 1)/x, x, 0)", "1"));
+	CHECK (shows (&s, "limit(tan(x)/x, x, 0)", "1"));
+
+	/* infinite limits and the sides */
+	CHECK (shows (&s, "limit(1/x, x, 0, 1)", "inf"));
+	CHECK (shows (&s, "limit(1/x, x, 0, -1)", "-inf"));
+	CHECK (shows (&s, "limit(1/x^2, x, 0)", "inf"));
+	CHECK (shows (&s, "limit(ln(x), x, 0, 1)", "-inf"));
+	CHECK (fails (&s, "limit(1/x, x, 0)", ML_EVAL_NO_LIMIT));
+	CHECK (fails (&s, "limit(sqrt(x), x, 0, -1)", ML_EVAL_NO_LIMIT));
+	CHECK (shows (&s, "limit(sqrt(x), x, 0, 1)", "0"));
+
+	/* to infinity */
+	CHECK (shows (&s, "limit(x/(x^2 + 1), x, inf)", "0"));
+	CHECK (shows (&s, "limit((2x^2 + 1)/(x^2 - 1), x, inf)", "2"));
+	CHECK (shows (&s, "limit(x^3, x, inf)", "inf"));
+	CHECK (shows (&s, "limit(x^3, x, -inf)", "-inf"));
+	CHECK (shows (&s, "limit(exp(x), x, inf)", "inf"));
+	CHECK (shows (&s, "limit(exp(x), x, -inf)", "0"));
+	CHECK (shows (&s, "limit(atan(x), x, inf)", "\xCF\x80/2"));
+
+	/* a zero times an infinity */
+	CHECK (shows (&s, "limit(x*ln(x), x, 0, 1)", "0"));
+	CHECK (shows (&s, "limit(x*exp(-x), x, inf)", "0"));
+
+	/* improper integrals */
+	CHECK (shows (&s, "integrate(exp(-x), x, 0, inf)", "1"));
+	CHECK (shows (&s, "integrate(1/x^2, x, 1, inf)", "1"));
+	CHECK (shows (&s, "integrate(exp(x), x, -inf, 0)", "1"));
+	CHECK (fails (&s, "integrate(1/x, x, 1, inf)", ML_EVAL_NO_LIMIT));
+
+	/* no limit */
+	CHECK (fails (&s, "limit(sin(1/x), x, 0)", ML_EVAL_NO_LIMIT));
+	CHECK (fails (&s, "limit(sin(x), x, inf)", ML_EVAL_NO_LIMIT));
+	CHECK (fails (&s, "limit(x, x)", ML_EVAL_ARITY));
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -1023,4 +1076,5 @@ void run_eval_tests (void)
 	test_symbolic ();
 	test_symbolic_errors ();
 	test_units ();
+	test_limits ();
 }

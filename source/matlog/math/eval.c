@@ -180,7 +180,7 @@ static MlBuiltin builtin_find (MlSlice name)
 
 static const char *const symbolic_names [] =
 {
-	"simplify", "expand", "subs", "diff", "integrate"
+	"simplify", "expand", "subs", "diff", "integrate", "limit"
 };
 
 uint64_t ml_function_name_count (void)
@@ -1158,6 +1158,43 @@ static MlValue sym_error (const MlSymCall *c)
 	);
 }
 
+/*
+ * The antiderivative at a bound of a definite integral. A bound that is
+ * infinity (inf or -inf) takes the limit of the antiderivative, which must be
+ * a finite value; ok is cleared when it is not.
+ */
+static const MlSym *bound_value (
+	MlSymCall   *c,
+	const MlSym *big,
+	const MlSym *x,
+	const MlSym *bound,
+	int32_t     *ok
+)
+{
+	int32_t     plus  = ml_sym_is_var (bound, ml_slice_cstr ("inf"));
+	int32_t     minus = (
+		   bound->kind == ML_SYM_MUL
+		&& bound->count == 2
+		&& ml_sym_is_var (bound->kids [1], ml_slice_cstr ("inf"))
+	);
+	const MlSym *out  = NULL;
+
+	if (plus || minus)
+	{
+		MlSymLimit lim = ml_sym_limit (&c->ctx, big, x, bound, 0);
+
+		*ok = lim.kind == ML_LIMIT_VALUE;
+		out = ml_choose (*ok, lim.value, big);
+	}
+
+	else
+	{
+		out = ml_sym_substitute (&c->ctx, big, x, bound);
+	}
+
+	return out;
+}
+
 /* diff (f, x, n): the n-th derivative, n a whole number written out. */
 static uint64_t derivative_order (
 	const MlSymCall *c,
@@ -1238,6 +1275,7 @@ static MlValue symbolic_call (
 	int32_t   is_diff      = ml_slice_equal (name, ml_slice_cstr ("diff"));
 	int32_t   is_integrate = ml_slice_equal (name, ml_slice_cstr ("integrate"));
 	int32_t   is_subs      = ml_slice_equal (name, ml_slice_cstr ("subs"));
+	int32_t   is_limit     = ml_slice_equal (name, ml_slice_cstr ("limit"));
 	int32_t   fits         = (
 		   ml_choose (
 			   is_diff,
@@ -1245,7 +1283,11 @@ static MlValue symbolic_call (
 			   ml_choose (
 				   is_integrate,
 				   argc == 2 || argc == 4,
-				   ml_choose (is_subs, argc == 3, argc == 1)
+				   ml_choose (
+					   is_limit,
+					   argc == 3 || argc == 4,
+					   ml_choose (is_subs, argc == 3, argc == 1)
+				   )
 			   )
 		   )
 	);
@@ -1269,6 +1311,11 @@ static MlValue symbolic_call (
 		ml_steplog_line (cx->log, ml_slice_cstr ("Integrate with the table:"));
 	}
 
+	else if (is_limit)
+	{
+		ml_steplog_line (cx->log, ml_slice_cstr ("Limit:"));
+	}
+
 	else if (!is_subs)
 	{
 		ml_steplog_line (
@@ -1286,7 +1333,7 @@ static MlValue symbolic_call (
 		out = error_at (ML_EVAL_ARITY);
 	}
 
-	else if (!is_diff && !is_integrate && !is_subs)
+	else if (!is_diff && !is_integrate && !is_subs && !is_limit)
 	{
 		const MlSym *f;
 
@@ -1333,6 +1380,52 @@ static MlValue symbolic_call (
 				);
 			}
 
+			else if (is_limit)
+			{
+				const MlSym *at   = formula_arg (&c, 3, var);
+				int32_t     side  = 0;
+				int32_t     ok    = 1;
+				MlSymLimit  lim;
+
+				if (argc == 4)
+				{
+					int64_t s64 = 0;
+
+					ok   = ml_sym_to_i64 (formula_arg (&c, 4, none), &s64);
+					side = ml_choose (s64 > 0, 1, ml_choose (s64 < 0, -1, 0));
+				}
+
+				lim = ml_sym_limit (&c.ctx, f, x, at, ml_choose (ok, side, 0));
+
+				if (!ok)
+				{
+					out = error_at (ML_EVAL_NOT_INTEGER);
+				}
+
+				else if (lim.kind == ML_LIMIT_VALUE)
+				{
+					result = lim.value;
+				}
+
+				else if (lim.kind == ML_LIMIT_PINF)
+				{
+					result = ml_sym_var (&c.ctx, ml_slice_cstr ("inf"));
+				}
+
+				else if (lim.kind == ML_LIMIT_NINF)
+				{
+					result = ml_sym_neg (
+						&c.ctx,
+						ml_sym_var (&c.ctx, ml_slice_cstr ("inf"))
+					);
+				}
+
+				else if (c.ctx.status == ML_OK)
+				{
+					out = error_at (ML_EVAL_NO_LIMIT);
+				}
+			}
+
 			else if (is_diff)
 			{
 				int32_t  ok    = 1;
@@ -1365,11 +1458,32 @@ static MlValue symbolic_call (
 
 					log_antiderivative (&c, big.value);
 
-					result = ml_sym_sub (
-						&c.ctx,
-						ml_sym_substitute (&c.ctx, big.value, x, high),
-						ml_sym_substitute (&c.ctx, big.value, x, low)
+					int32_t ok_low  = 1;
+					int32_t ok_high = 1;
+					const MlSym *at_high = bound_value (
+						&c,
+						big.value,
+						x,
+						high,
+						&ok_high
 					);
+					const MlSym *at_low = bound_value (
+						&c,
+						big.value,
+						x,
+						low,
+						&ok_low
+					);
+
+					if (ok_low && ok_high)
+					{
+						result = ml_sym_sub (&c.ctx, at_high, at_low);
+					}
+
+					else if (c.ctx.status == ML_OK)
+					{
+						out = error_at (ML_EVAL_NO_LIMIT);
+					}
 				}
 
 				else
@@ -1403,6 +1517,7 @@ static int32_t is_symbolic_name (MlSlice name)
 		|| ml_slice_equal (name, ml_slice_cstr ("subs"))
 		|| ml_slice_equal (name, ml_slice_cstr ("diff"))
 		|| ml_slice_equal (name, ml_slice_cstr ("integrate"))
+		|| ml_slice_equal (name, ml_slice_cstr ("limit"))
 	);
 }
 
