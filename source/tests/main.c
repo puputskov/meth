@@ -9,6 +9,7 @@ void run_session_tests (void);
 void run_mlog_tests (void);
 void run_lineedit_tests (void);
 void run_rewrite_tests (void);
+void run_editor_tests (void);
 
 int main (void)
 {
@@ -18,6 +19,7 @@ int main (void)
 	run_mlog_tests ();
 	run_lineedit_tests ();
 	run_rewrite_tests ();
+	run_editor_tests ();
 
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);
 	return ml_choose (
