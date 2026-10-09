@@ -83,6 +83,29 @@ const char *ml_parse_error_text (MlParseCode code)
 	);
 }
 
+static const char *const code_names [ML_PARSE_CODE_COUNT] =
+{
+	[ML_PARSE_OK]                = "parse_ok",
+	[ML_PARSE_UNEXPECTED_END]    = "parse_unexpected_end",
+	[ML_PARSE_UNEXPECTED_TOKEN]  = "parse_unexpected_token",
+	[ML_PARSE_EXPECTED_EXPR]     = "parse_expected_expr",
+	[ML_PARSE_BAD_CHARACTER]     = "parse_bad_character",
+	[ML_PARSE_BAD_SUPERSCRIPT]   = "parse_bad_superscript",
+	[ML_PARSE_ASSIGN_TARGET]     = "parse_assign_target",
+	[ML_PARSE_DUPLICATE_PARAM]   = "parse_duplicate_param",
+	[ML_PARSE_TOO_DEEP]          = "parse_too_deep",
+	[ML_PARSE_NO_MEMORY]         = "parse_no_memory"
+};
+
+const char *ml_parse_code_name (MlParseCode code)
+{
+	return ml_choose (
+		(int32_t)code >= 0 && code < ML_PARSE_CODE_COUNT,
+		code_names [code],
+		"parse_unknown"
+	);
+}
+
 MlNode ml_ast_node (const MlAst *ast, uint64_t index)
 {
 	return MlNodeVec_get (&ast->nodes, index);

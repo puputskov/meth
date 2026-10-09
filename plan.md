@@ -280,6 +280,48 @@ front end on the same library; the other one is a batch front end that reads, ev
 - Tests: the command line is driven in the test executable through the argument parser and the batch front end with captured output (stdout, stderr and
   exit code), with golden files for the text and JSON forms, so a change of the output format is a visible change in the tests.
 
+### 4.14 Documentation: browsable and searchable in the tool and as a website
+All user documentation (the syntax of every domain, the commands and keys, the built in functions and constants, the file format, the command line
+interface, export, proofs, the tutorial's topics) is written once, in `docs/`, and read in two places that behave the same: inside the tool, and as a
+generated static website.
+- Source format: plain text pages in `docs/` in a small, strict markup (headings, paragraphs, lists, code blocks, links between pages by name,
+  definition lists, tables, and a few marked blocks: `example` for a piece of matlog input with its expected result, `keys` for a key binding,
+  `command` for a `:command` or a CLI command, `syntax` for a grammar rule). One file per topic with a header (`id`, `title`, `summary`, `keywords`,
+  `see also`), grouped in a table of contents file. Math in the pages is written in matlog's own pretty syntax, so a page is also a valid piece of
+  session. The markup is Markdown-compatible where it can be (so the pages are readable and editable as plain text anywhere) and has a parser in the
+  `docs` module of the library, no external tool needed.
+- Examples are live: every `example` block is evaluated by the tool when the docs are built and checked against its written result, so a page can
+  never show a result that is wrong or a syntax that no longer works (a test builds all pages and fails on any mismatch). In the tool an example can be
+  inserted into the current session with one key, or evaluated in place; on the website the same examples carry their results as written, and the
+  website can run them in the browser when the web build below is present.
+- In the tool: `:help` opens the browser, `:help topic` goes to a page, `F1` / `?` in Normal state opens help at the topic of what is under the cursor
+  (the domain, the function name at the cursor, the command being typed). The viewer is a full screen page with the table of contents, scrolling,
+  following links (Tab/Enter, Backspace for back, a history), and word wrapped, themed text (section 4.10) with the example and key blocks drawn as such.
+  Pages are compiled into the executable (a generated table of the page sources, so the tool needs no files next to it) and also readable from a
+  `docs` folder when present, which overrides them for editing.
+- Search: `/` in the viewer (or `:help search words`) searches titles, keywords, headings and the full text, ranked (title and keyword hits first, then
+  headings, then body, all words must match, case and accent insensitive, prefix matching for the last word), with a result list that shows the page and
+  the line of the match. The index is built from the pages at start (a few hundred pages are instant) by plain code in the library, no dependency.
+  Typing a function name or a command in the command line completes from the same index, and the autocompletion hints (section 4.3) link to the page.
+- On the command line: `matlog help topic`, `matlog docs search words [--format json]`, `matlog docs show id [--format text|json|markdown]` and
+  `matlog docs list`, so scripts and AI agents read the same documentation, with page ids, titles, summaries and examples as data (section 4.13). The
+  generated help texts of the command line (usage, `syntax`, `schema`, `commands`) come from these pages instead of being written twice.
+- The website: `matlog docs build site/` writes a static site from the same pages: one HTML file per page, the table of contents as navigation, the
+  search index as one JSON file, a small search script and a stylesheet (the themes of section 4.10 as light and dark styles), the syntax highlighting of
+  the examples done by the same highlighter and written out as HTML, the maths in MathML (section 4.11). Everything is plain files that any static host
+  can serve; it works without scripts for reading and uses a small script for search, keyboard navigation (the same keys as the tool: `/` search, `g`
+  `h` go home, `n` `p` next and previous page) and the optional running of examples. The interactive features are the same as in the tool, written once
+  as data (the pages and the index) and drawn by two front ends: the terminal viewer and the web page.
+- Running the tool in the browser: a later, optional step builds the library for WebAssembly (it is plain C11 with a thin platform layer, so only
+  the platform and console code are replaced by an in memory file system and a canvas or DOM text surface). It would let the website offer a try-it
+  prompt on every example, running the real evaluator. The page format and the index are designed so this needs no change to the pages.
+- Quality: the build checks every link between pages, every `see also`, every keyword that is searched for in the tutorial, that every built in function,
+  command, key binding, domain and error code has a page or a section (a list of those is generated from the code and compared with the pages), and that
+  no page is unreachable from the table of contents. A feature is not done until its page exists, as for the tutorial lessons and the exporters.
+- Placement: the page format, the parser, the viewer in the tool and the search come after milestone 3 (they need only the editor and the library); the
+  first pages cover what exists (algebra syntax, matrices, keys, commands, the command line, the file format); the website build comes with the
+  export module (it uses its MathML writer). Each later domain adds its pages as part of its "done when".
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -297,7 +339,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 11. `export`: the document tree, the writers (latex, mathml, markdown, png, pdf) and the box layout (section 4.11).
 12. `proof`: the statements, the checker core with its trusted rules, the search that proposes justifications (section 4.12).
 13. `cli`: the argument parser and the batch front end with the text and JSON output (section 4.13).
-14. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
+14. `docs`: the page parser, the index and search, the terminal viewer and the site builder; the pages themselves are in `docs/` (section 4.14).
+15. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
 
 ## 6. Coding rules
 
@@ -334,7 +377,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 10. Export mode (section 4.11): latex, mathml and markdown first, png and pdf with the layout engine after.
 11. Command line interface for scripts and agents (section 4.13): `eval`, `run`, `lex`, `parse` and JSON output as soon as possible, the rest with the features they serve.
 12. Proofs and their validation (section 4.12), after the rule engine of milestone 4 (the checker needs simplification and rewriting).
-13. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
+13. Documentation (section 4.14): the page format and the in-tool viewer and search first, with pages for what exists; the website build with the export module.
+14. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
    exist; the milestone 3 to 7 lessons of stage 2 are added together with the domains. The whole tutorial is complete when the last domain is done.
 
 ## 8. Milestone 1 tasks
@@ -516,10 +560,11 @@ steps can be shown on request.
 - Export (latex, MathML, markdown, png, pdf) goes through one document tree built from the parsed AST and the results, with a writer per format; png and pdf are written by the program itself.
 - Proofs are written as lines of a `proof` domain in the same session files and checked by a small trusted core, never taken on trust; what cannot be decided is reported as unchecked.
 - Every feature is available from the command line (batch front end with text and JSON output, stable error codes and exit codes), so scripts and AI agents can use the tool without the screen.
+- Documentation is written once in `docs/` as plain pages with live, checked examples; it is read in the tool (browsable, searchable, compiled in) and built into a static website with the same interactivity, and it feeds the command line help.
 - A built in interactive tutorial in two stages (usage of the tool, then the syntax); lessons are data, they only observe the real editor, and each is tested by playing the model answer.
 
 ## 12. Open questions
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Milestone 3 is done (matrices and vectors: values, syntax, evaluator, typeset display, steps on `s`/`:steps` for det, inv, rref, rank, solve and products). Not done from section 4.1: the `?` suffix that asks for steps as a line is typed, and steps for the other operators (they come with milestone 4). Next: milestone 4, or the command line interface of section 4.13 (`eval`, `run`, JSON), which needs only what exists.
+The command line interface (section 4.13) has its first commands: eval, run, lex, parse, help, syntax, schema, commands, version, with text and JSON output and fixed exit codes. Milestone 3 is done (matrices and vectors: values, syntax, evaluator, typeset display, steps on `s`/`:steps` for det, inv, rref, rank, solve and products). Not done from section 4.1: the `?` suffix that asks for steps as a line is typed, and steps for the other operators (they come with milestone 4). Next: milestone 4, or the command line interface of section 4.13 (`eval`, `run`, JSON), which needs only what exists.

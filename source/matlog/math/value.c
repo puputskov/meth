@@ -38,6 +38,39 @@ const char *ml_error_text (MlErrorKind kind)
 	);
 }
 
+static const char *const error_codes [ML_EVAL_KIND_COUNT] =
+{
+	[ML_EVAL_NONE]                  = "none",
+	[ML_EVAL_SYNTAX]                = "syntax",
+	[ML_EVAL_DIV_ZERO]              = "div_zero",
+	[ML_EVAL_ZERO_POW_ZERO]         = "zero_pow_zero",
+	[ML_EVAL_NOT_REAL]              = "not_real",
+	[ML_EVAL_DOMAIN]                = "domain",
+	[ML_EVAL_NOT_INTEGER]           = "not_integer",
+	[ML_EVAL_UNDEFINED_NAME]        = "undefined_name",
+	[ML_EVAL_NOT_FUNCTION]          = "not_function",
+	[ML_EVAL_NOT_VALUE]             = "not_value",
+	[ML_EVAL_ARITY]                 = "arity",
+	[ML_EVAL_TOO_LARGE]             = "too_large",
+	[ML_EVAL_DEPTH]                 = "depth",
+	[ML_EVAL_NO_FILE]               = "no_file",
+	[ML_EVAL_INCLUDE_LOOP]          = "include_loop",
+	[ML_EVAL_SIZE]                  = "size",
+	[ML_EVAL_TYPE]                  = "type",
+	[ML_EVAL_NOT_EXACT]             = "not_exact",
+	[ML_EVAL_SINGULAR]              = "singular",
+	[ML_EVAL_NO_MEMORY]             = "no_memory"
+};
+
+const char *ml_error_code (MlErrorKind kind)
+{
+	return ml_choose (
+		(int32_t)kind >= 0 && kind < ML_EVAL_KIND_COUNT,
+		error_codes [kind],
+		"unknown"
+	);
+}
+
 MlErrorKind ml_error_from_result (MlResult status)
 {
 	MlErrorKind kind = ML_EVAL_SYNTAX;

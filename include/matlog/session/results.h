@@ -48,6 +48,8 @@ typedef struct MlLineResult
 	MlResultKind kind;
 	MlStr        text;      /* the value or the message */
 	MlStr        block;     /* typeset rows of a matrix, else empty */
+	const char   *code;     /* ML_RESULT_ERROR: ml_error_code, "parse_..." */
+	MlValueKind  value;     /* ML_RESULT_VALUE: exact, approx or matrix */
 	uint64_t     err_start; /* ML_RESULT_ERROR: byte range in the line */
 	uint64_t     err_len;
 	uint64_t     snapshot;  /* the environment before the line */
@@ -60,6 +62,8 @@ typedef struct MlResultView
 	MlResultKind kind; /* ML_RESULT_NONE for a line that does not exist */
 	MlSlice      text;
 	MlSlice      block;
+	MlSlice      code;      /* the machine readable error name, else empty */
+	MlValueKind  value;     /* the kind of a value: exact, approx or matrix */
 	uint64_t     err_start;
 	uint64_t     err_len;
 	uint64_t     snapshot;

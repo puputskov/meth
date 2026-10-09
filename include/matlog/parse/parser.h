@@ -154,6 +154,9 @@ int32_t ml_parse_complete (MlSlice source);
 
 const char *ml_parse_error_text (MlParseCode code);
 
+/* "parse_unexpected_token" ...: the stable machine readable name. */
+const char *ml_parse_code_name (MlParseCode code);
+
 /* The node at an index; an index that does not exist gives the nil node. */
 MlNode ml_ast_node (const MlAst *ast, uint64_t index);
 

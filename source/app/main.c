@@ -1,3 +1,4 @@
+#include <matlog/cli/cli.h>
 #include <matlog/platform/console.h>
 #include <matlog/session/mlog.h>
 #include <matlog/ui/editor.h>
@@ -118,7 +119,64 @@ static MlResult run (
 	return r;
 }
 
-int main (int argc, char **argv)
+/* All of standard input, appended to out. */
+static MlResult read_stdin (MlStr *out)
+{
+	MlResult r    = ML_OK;
+	char     buf [4096];
+	uint64_t got;
+
+	do
+	{
+		got = fread (buf, 1, sizeof buf, stdin);
+		r   = ml_str_append (out, ml_slice (buf, got));
+	}
+	while (r == ML_OK && got > 0);
+
+	return r;
+}
+
+/* Runs a command line command (cli.h): no screen, results on stdout. */
+static int32_t run_command_line (int argc, char **argv)
+{
+	int32_t    code = ML_EXIT_IO;
+	MlSliceVec args;
+	MlStr      input;
+	MlStr      out;
+	MlStr      err;
+	MlResult   r    = ML_OK;
+
+	MlSliceVec_init (&args);
+	ml_str_init (&input);
+	ml_str_init (&out);
+	ml_str_init (&err);
+
+	for (int i = 1; i < argc && r == ML_OK; i++)
+	{
+		r = MlSliceVec_push (&args, ml_slice_cstr (argv [i]));
+	}
+
+	if (r == ML_OK && ml_cli_needs_stdin (&args))
+	{
+		r = read_stdin (&input);
+	}
+
+	if (r == ML_OK)
+	{
+		code = ml_cli_run (&args, ml_str_view (input), &out, &err);
+		fwrite (out.data, 1, out.len, stdout);
+		fwrite (err.data, 1, err.len, stderr);
+	}
+
+	ml_str_free (&err);
+	ml_str_free (&out);
+	ml_str_free (&input);
+	MlSliceVec_free (&args);
+	return code;
+}
+
+/* The interactive editor. */
+static int run_interactive (int argc, char **argv)
 {
 	MlResult      r = ML_OK;
 	MlConsole     con;
@@ -177,5 +235,14 @@ int main (int argc, char **argv)
 		r == ML_OK,
 		0,
 		1
+	);
+}
+
+int main (int argc, char **argv)
+{
+	return ml_choose (
+		argc > 1 && ml_cli_is_command (ml_slice_cstr (argv [1])),
+		run_command_line (argc, argv),
+		run_interactive (argc, argv)
 	);
 }

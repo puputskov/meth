@@ -60,6 +60,12 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 			.data = "",
 			.len  = 0
 		},
+		.code =
+		{
+			.data = "",
+			.len  = 0
+		},
+		.value     = ML_VALUE_NONE,
 		.err_start = 0,
 		.err_len   = 0,
 		.snapshot  = 0
@@ -72,6 +78,8 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 		view.kind      = lr.kind;
 		view.text      = ml_str_view (lr.text);
 		view.block     = ml_str_view (lr.block);
+		view.code      = ml_slice_cstr (lr.code);
+		view.value     = lr.value;
 		view.err_start = lr.err_start;
 		view.err_len   = lr.err_len;
 		view.snapshot  = lr.snapshot;
@@ -107,6 +115,8 @@ static MlLineResult result_make (uint64_t snapshot)
 			.len  = 0,
 			.cap  = 0
 		},
+		.code      = "",
+		.value     = ML_VALUE_NONE,
 		.err_start = 0,
 		.err_len   = 0,
 		.snapshot  = snapshot
@@ -119,6 +129,7 @@ static MlLineResult result_make (uint64_t snapshot)
 static MlResult result_error (
 	MlLineResult *lr,
 	MlSlice      message,
+	const char   *code,
 	uint64_t     start,
 	uint64_t     len
 )
@@ -128,6 +139,7 @@ static MlResult result_error (
 	if (r == ML_OK)
 	{
 		lr->kind      = ML_RESULT_ERROR;
+		lr->code      = code;
 		lr->err_start = start;
 		lr->err_len   = len;
 	}
@@ -152,6 +164,7 @@ static MlResult result_from_value (
 		if (r == ML_OK)
 		{
 			lr->kind      = ML_RESULT_ERROR;
+			lr->code      = ml_error_code (v.error);
 			lr->err_start = v.error_start;
 			lr->err_len   = v.error_len;
 		}
@@ -168,7 +181,8 @@ static MlResult result_from_value (
 
 		if (r == ML_OK)
 		{
-			lr->kind = ML_RESULT_VALUE;
+			lr->kind  = ML_RESULT_VALUE;
+			lr->value = v.kind;
 		}
 	}
 
@@ -215,6 +229,7 @@ static MlResult run_math (
 		r = result_error (
 			lr,
 			ml_slice_cstr (ml_parse_error_text (p.error.code)),
+			ml_parse_code_name (p.error.code),
 			p.error.start,
 			p.error.len
 		);
@@ -349,6 +364,7 @@ static MlResult run_line (
 			r = result_error (
 				lr,
 				ml_slice_cstr (ml_error_text (err)),
+				ml_error_code (err),
 				0,
 				view.text.len
 			);
@@ -428,6 +444,7 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 				r = result_error (
 					&res->lines.data [res->lines.len - 1],
 					ml_str_view (lr.text),
+					lr.code,
 					0,
 					pending_len
 				);

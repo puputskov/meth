@@ -23,6 +23,7 @@ void run_results_tests (void);
 void run_ghost_tests (void);
 void run_matrix_tests (void);
 void run_steps_tests (void);
+void run_cli_tests (void);
 void run_posix_key_tests (void);
 
 int main (void)
@@ -47,6 +48,7 @@ int main (void)
 	run_ghost_tests ();
 	run_matrix_tests ();
 	run_steps_tests ();
+	run_cli_tests ();
 	run_posix_key_tests ();
 
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);

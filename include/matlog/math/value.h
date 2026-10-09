@@ -133,6 +133,13 @@ MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b);
  */
 MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v);
 
+/*
+ * The stable machine readable name of an error kind: "div_zero",
+ * "undefined_name", "singular" ... (the enum name in lower case without the
+ * ML_EVAL_ prefix). Scripts and the JSON output of the command line use it.
+ */
+const char *ml_error_code (MlErrorKind kind);
+
 /* The message of an error, with the offending name for undefined names. */
 const char *ml_error_text (MlErrorKind kind);
 MlResult ml_error_message (MlStr *out, MlValue v, MlSlice source);
