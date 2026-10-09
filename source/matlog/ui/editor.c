@@ -42,6 +42,7 @@ void ml_editor_init (MlEditor *ed)
 {
 	ml_session_init (&ed->session);
 	ml_results_init (&ed->results);
+	ed->results_rev   = ed->session.revision;
 	ml_lineedit_init (&ed->edit);
 	ml_rewriter_init (&ed->rewriter, ML_DOMAIN_ALGEBRA);
 	ml_str_init (&ed->yank.text);
@@ -111,17 +112,24 @@ static uint64_t line_below_cursor (const MlEditor *ed)
 
 MlResult ml_editor_begin (MlEditor *ed)
 {
+	MlResult r = ml_editor_refresh (ed);
+
 	ml_str_clear (&ed->message);
 
-	return begin_line (
-		ed,
-		ML_STATE_INSERT,
-		ML_LINE_MATH,
-		ed->session.domain,
-		ed->session.lines.len,
-		0,
-		ml_slice ("", 0)
-	);
+	if (r == ML_OK)
+	{
+		r = begin_line (
+			ed,
+			ML_STATE_INSERT,
+			ML_LINE_MATH,
+			ed->session.domain,
+			ed->session.lines.len,
+			0,
+			ml_slice ("", 0)
+		);
+	}
+
+	return r;
 }
 
 /* Writes the typed line into the session and puts the cursor on it. */
@@ -902,6 +910,19 @@ static MlResult command_key (MlEditor *ed, MlKey key)
 	return r;
 }
 
+MlResult ml_editor_refresh (MlEditor *ed)
+{
+	MlResult r = ML_OK;
+
+	if (ed->results_rev != ed->session.revision)
+	{
+		r = ml_results_update (&ed->results, &ed->session, 0);
+		ed->results_rev = ed->session.revision;
+	}
+
+	return r;
+}
+
 MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 {
 	MlResult r = ML_OK;
@@ -921,6 +942,11 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 	else
 	{
 		r = text_key (ed, key);
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_editor_refresh (ed);
 	}
 
 	return r;

@@ -50,6 +50,8 @@ typedef struct MlEditor
 {
 	MlSession    session;
 	MlResults    results; /* of the session lines, see results.h */
+	/* the session revision the results were computed for */
+	uint64_t     results_rev;
 	MlInputState state;
 	MlLineEdit   edit;    /* the line being typed, or the command */
 	MlRewriter   rewriter;
@@ -72,7 +74,17 @@ void ml_editor_free (MlEditor *ed);
 /* Starts typing a new math line at the end of the session. */
 MlResult ml_editor_begin (MlEditor *ed);
 
+/*
+ * Handles a key. When it changed the session (a committed line, dd, p, :open)
+ * the results of all lines are computed again before it returns.
+ */
 MlResult ml_editor_handle_key (MlEditor *ed, MlKey key);
+
+/*
+ * Computes the results again if the session changed since they were computed
+ * (also needed after the session was loaded from outside the editor).
+ */
+MlResult ml_editor_refresh (MlEditor *ed);
 
 /*
  * Appends "-- INSERT -- matrix>" (or ":command" in Command state) and the

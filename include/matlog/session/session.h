@@ -64,6 +64,8 @@ typedef struct MlSession
 	uint64_t  cursor; /* index of the current line */
 	MlDomain  domain; /* domain new math lines are written in */
 	int32_t   dirty;  /* changed since the last save */
+	/* counts every change of the lines, also a load; never goes back */
+	uint64_t  revision;
 } MlSession;
 
 /* "algebra", "matrix", ... ("unknown" for an invalid value). */

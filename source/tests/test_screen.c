@@ -94,6 +94,36 @@ static int32_t row_is (
 	return same;
 }
 
+/* Like row_is, for a row that may go on with a result after the text. */
+static int32_t row_has (
+	const MlLayout *layout,
+	uint64_t       idx,
+	const char     *prefix
+)
+{
+	MlStr   p;
+	int32_t same;
+
+	ml_str_init (&p);
+	same = idx < layout->rows.len
+		&& plain (&p, ml_str_view (layout->rows.data [idx])) == ML_OK
+		&& p.len >= strlen (prefix)
+		&& memcmp (p.data, prefix, strlen (prefix)) == 0;
+
+	if (!same)
+	{
+		printf (
+			"  row %u is \"%s\", expected it to start with \"%s\"\n",
+			(uint32_t)idx,
+			ml_str_cstr (p),
+			prefix
+		);
+	}
+
+	ml_str_free (&p);
+	return same;
+}
+
 static void fill (MlEditor *ed, uint32_t count)
 {
 	CHECK (ml_editor_begin (ed) == ML_OK);
@@ -138,8 +168,8 @@ static void test_basic_layout (void)
 	l = ml_screen_layout (&s, &ed);
 	CHECK (l.result == ML_OK);
 	CHECK (l.rows.len == 6);
-	CHECK (row_is (&l, 0, " 1 alg> 1+2"));
-	CHECK (row_is (&l, 1, " 2 alg> x"));
+	CHECK (row_has (&l, 0, " 1 alg> 1+2"));
+	CHECK (row_has (&l, 1, " 2 alg> x"));
 	CHECK (row_is (&l, 2, " 3 mat> A = 1"));
 	CHECK (row_is (&l, 3, " 4   #  a note"));
 	CHECK (row_is (&l, 4, ""));
@@ -168,7 +198,7 @@ static void test_typing_row (void)
 	type (&ed, "x^2 + y");
 
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, " 1 alg> ab"));
+	CHECK (row_has (&l, 0, " 1 alg> ab"));
 	CHECK (row_is (&l, 1, " 2 alg> x\xC2\xB2 + y"));
 	CHECK (row_is (&l, 4, "-- INSERT -- algebra>   "));
 	/*
@@ -183,9 +213,9 @@ static void test_typing_row (void)
 	type (&ed, "n");
 	type (&ed, "between");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, " 1 alg> ab"));
+	CHECK (row_has (&l, 0, " 1 alg> ab"));
 	CHECK (row_is (&l, 1, " 2   #  between"));
-	CHECK (row_is (&l, 2, " 3 alg> x\xC2\xB2 + y"));
+	CHECK (row_has (&l, 2, " 3 alg> x\xC2\xB2 + y"));
 	CHECK (l.cursor.row == 2 && l.cursor.col == 8 + 7 + 1);
 	ml_layout_free (&l);
 
@@ -216,8 +246,8 @@ static void test_scrolling (void)
 	/* the cursor is on the last line, which is at the bottom of the area */
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 15);
-	CHECK (row_is (&l, 0, "16 alg> line 15"));
-	CHECK (row_is (&l, 4, "20 alg> line 19"));
+	CHECK (row_has (&l, 0, "16 alg> line 15"));
+	CHECK (row_has (&l, 4, "20 alg> line 19"));
 	CHECK (l.cursor.row == 5);
 	ml_layout_free (&l);
 
@@ -232,14 +262,14 @@ static void test_scrolling (void)
 	type (&ed, "kkk");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 14);
-	CHECK (row_is (&l, 0, "15 alg> line 14"));
+	CHECK (row_has (&l, 0, "15 alg> line 14"));
 	CHECK (l.cursor.row == 1);
 	ml_layout_free (&l);
 
 	type (&ed, "gg");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 0);
-	CHECK (row_is (&l, 0, " 1 alg> line 0"));
+	CHECK (row_has (&l, 0, " 1 alg> line 0"));
 	ml_layout_free (&l);
 
 	type (&ed, "G");
@@ -268,7 +298,7 @@ static void test_scrolling (void)
 	l = ml_screen_layout (&s, &ed);
 	CHECK (ed.session.lines.len == 3);
 	CHECK (s.top == 0);
-	CHECK (row_is (&l, 0, " 1 alg> line 18"));
+	CHECK (row_has (&l, 0, " 1 alg> line 18"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -440,8 +470,8 @@ static void test_line_numbers (void)
 
 	/* three digits once the session has 100 lines or more */
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, "117 alg> line 116"));
-	CHECK (row_is (&l, 3, "120 alg> line 119"));
+	CHECK (row_has (&l, 0, "117 alg> line 116"));
+	CHECK (row_has (&l, 3, "120 alg> line 119"));
 	ml_layout_free (&l);
 
 	/* the line being typed has the next number */
@@ -457,8 +487,8 @@ static void test_line_numbers (void)
 	type (&ed, "gg");
 	type (&ed, "dd");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, "  1 alg> line 1"));
-	CHECK (row_is (&l, 1, "  2 alg> line 2"));
+	CHECK (row_has (&l, 0, "  1 alg> line 1"));
+	CHECK (row_has (&l, 1, "  2 alg> line 2"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -510,12 +540,6 @@ static void test_results (void)
 	type (&ed, "1 + 1");
 	press (&ed, ML_KEY_ESCAPE);
 
-	/* nothing is shown before the results are computed */
-	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, " 1 alg> a = 3"));
-	ml_layout_free (&l);
-
-	CHECK (ml_results_update (&ed.results, &ed.session, 0) == ML_OK);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 0, " 1 alg> a = 3  = 3"));
 	CHECK (row_is (&l, 1, " 2 alg> 1/3 + 1/6  = 1/2"));
@@ -549,7 +573,6 @@ static void test_results_clipping (void)
 	type (&ed, "1000000 + 1");
 	press (&ed, ML_KEY_ENTER);
 	press (&ed, ML_KEY_ESCAPE);
-	CHECK (ml_results_update (&ed.results, &ed.session, 0) == ML_OK);
 
 	/* the result is cut to the columns the text leaves */
 	l = ml_screen_layout (&s, &ed);
@@ -573,6 +596,49 @@ static void test_results_clipping (void)
 	ml_editor_free (&ed);
 }
 
+static void test_results_follow_edits (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 40, 6);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "a = 2");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "a * 21");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* a committed line has its result without any extra call */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> a = 2  = 2"));
+	CHECK (row_is (&l, 1, " 2 alg> a * 21  = 42"));
+	ml_layout_free (&l);
+
+	/* editing the first line changes the one below it */
+	type (&ed, "gg");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "0");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> a = 20  = 20"));
+	CHECK (row_is (&l, 1, " 2 alg> a * 21  = 420"));
+	ml_layout_free (&l);
+
+	/* deleting a line */
+	type (&ed, "gg");
+	type (&ed, "dd");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> a * 21  ! undefined name 'a'"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_basic_layout ();
@@ -585,4 +651,5 @@ void run_screen_tests (void)
 	test_lambda_gutter ();
 	test_results ();
 	test_results_clipping ();
+	test_results_follow_edits ();
 }

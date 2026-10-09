@@ -257,8 +257,9 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 			);
 		}
 
-		loaded.dirty  = 0;
-		loaded.cursor = 0;
+		loaded.dirty    = 0;
+		loaded.cursor   = 0;
+		loaded.revision = s->revision + 1;
 		ml_session_free (s);
 		*s = loaded;
 		ml_session_init (&loaded);

@@ -47,9 +47,10 @@ void ml_session_init (MlSession *s)
 {
 	MlLineVec_init (&s->lines);
 	ml_str_init (&s->path);
-	s->cursor = 0;
-	s->domain = ML_DOMAIN_ALGEBRA;
-	s->dirty  = 0;
+	s->cursor   = 0;
+	s->domain   = ML_DOMAIN_ALGEBRA;
+	s->dirty    = 0;
+	s->revision = 0;
 }
 
 void ml_session_free (MlSession *s)
@@ -191,6 +192,7 @@ MlResult ml_session_insert (
 	if (r == ML_OK)
 	{
 		s->dirty = 1;
+		s->revision++;
 	}
 
 	return r;
@@ -241,6 +243,7 @@ MlResult ml_session_replace (
 		ml_str_free (&s->lines.data [idx].text);
 		s->lines.data [idx] = line;
 		s->dirty            = 1;
+		s->revision++;
 	}
 
 	return r;
@@ -263,6 +266,7 @@ MlResult ml_session_delete (MlSession *s, uint64_t idx)
 	if (r == ML_OK)
 	{
 		s->dirty = 1;
+		s->revision++;
 		ml_session_set_cursor (s, s->cursor);
 	}
 
