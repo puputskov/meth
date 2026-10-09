@@ -154,7 +154,7 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 
 ## 7. Milestones (proposal)
 
-1. Skeleton: line editor, input states and domain switching, `.mlog` session file, echo.
+1. Skeleton: line editor, input states and domain switching, `.mlog` session file, echo. (done)
 2. Arithmetic expression parser and evaluator with ghost mode.
 3. Matrices and vectors with step by step output.
 4. Symbolic simplify, derivative, integral with steps.
@@ -193,11 +193,107 @@ Acceptance test (manual): open a new file, write a math line in `matrix`, a note
 
 Out of milestone 1: evaluation, ghost mode, autocompletion, includes (parsed and stored, not executed), steps.
 
-## 9. Out of scope (for now)
+## 9. Milestone 2 tasks
+
+Goal: in the algebra domain every math line is parsed and evaluated exactly,
+the result is shown at the end of the line, and ghost mode previews the result
+of the line being typed. Other domains still only echo their lines.
+
+### 9.1 Decisions this milestone is built on
+
+- Numbers are exact: bignum integers and rationals. A result that is not a
+  rational (`sqrt(2)`, `sin(1)`, `pi`) is an approximation: a double that is
+  flagged as such, shown as `≈ 1.41421356`, and contagious (exact op
+  approximate gives approximate). `sqrt(4)` and `2^-1` stay exact.
+- Syntax: ASCII and unicode spellings parse to the same tree (`*`, `×`, `·`;
+  `/`, `÷`; `-`, `−`; `x^2`, `x²`; `sqrt(x)`, `√x`; `pi`, `π`).
+  `^` is right associative and binds tighter than unary minus (`-2^2 = -4`).
+  Postfix `!` is the factorial. Arguments are separated by `,`, decimals use `.`.
+- Implicit multiplication: a number followed by a name or `(`, and `)` followed
+  by `(`, a name or a number: `2x`, `2(x+1)`, `(a)(b)`, `2pi`. Names are whole
+  words (`xy` is one name), so letters are never juxtaposed.
+- Statements: an expression, `name = expr` (variable) or `f(x, y) = expr`
+  (function). Variables and functions are shared by all domains and live in the
+  session environment.
+- `0^0`, division by zero, `ln(0)` and similar are errors with a message, never
+  a crash. Huge results are refused (more than 100000 bits) so ghost mode stays
+  responsive.
+- Built in: constants `pi`, `e`; functions `sqrt abs sin cos tan asin acos atan
+  ln log exp floor ceil round min max gcd lcm`.
+
+### 9.2 Tasks
+
+1. **Bignum** (`core/bigint.h`): signed arbitrary precision integers on 32 bit
+   limbs: from/to uint64 and decimal text, compare, add, subtract, multiply,
+   divmod, gcd, power, shifts, bit length, size limit.
+   Done when: tests check known products, quotients with all sign combinations,
+   `2^200`, `100!`, gcd, and parsing/printing round trips.
+2. **Rationals** (`math/rational.h`): normalized numerator/denominator, add,
+   subtract, multiply, divide, integer power (also negative), compare, exact
+   square root when both parts are perfect squares, to double, parse a decimal
+   like `0.75` as 3/4, format as `7/2` and as a decimal expansion with a cut-off.
+   Done when: tests cover normalization, negative denominators, powers and the
+   decimal formatting of `1/3`, `7/2` and `-5/8`.
+3. **Values and errors** (`math/value.h`): a number is exact or approximate; the
+   arithmetic of two values (exact stays exact, mixing gives approximate);
+   an error carries a code, a message and the byte range in the line.
+   Done when: tests cover the mixing rules and every error kind.
+4. **Lexer** (`parse/lexer.h`): tokens with byte ranges for numbers, names
+   (letters, digits, `_`, Greek and other letters), operators and punctuation,
+   the unicode operator spellings, superscript digit runs and `√`.
+   Done when: tests tokenize ASCII and unicode versions of the same input to the
+   same token kinds, and bad characters give an error token with a range.
+5. **Parser** (`parse/parser.h`): precedence climbing into an AST stored as a
+   vector of nodes that refer to each other by index (no pointers), with
+   implicit multiplication, calls, factorial, assignment and function
+   definition. Parsing never reads past the end and reports the position of the
+   first problem. `ml_parse_complete` tells ghost mode whether the text is a
+   whole expression.
+   Done when: tests check precedence, associativity, implicit multiplication,
+   unicode/ASCII equivalence, statements and a list of malformed inputs.
+6. **Environment** (`math/env.h`): variables and functions as an append-only
+   list of bindings; a snapshot is just the current length, so any earlier line
+   can be re-evaluated in the environment it saw (needed for steps later) and
+   redefinition simply shadows.
+   Done when: tests check shadowing and snapshots.
+7. **Evaluator** (`math/eval.h`): evaluates a statement tree in an environment
+   snapshot, the built-ins, user functions with parameters, recursion depth
+   limit, the size limit. Evaluation has no side effects; the caller decides
+   whether to keep a new binding.
+   Done when: tests check arithmetic, exactness (`1/3+1/6 = 1/2`), the
+   approximation flag, every built-in, user functions and every error.
+8. **Session evaluation** (`session/results.h`): one result per line, kept next
+   to the session and recomputed (not stored in the file) when the session is
+   opened and from the changed line downward after each edit. Include lines
+   run the included file (cycles are an error). Lines of other domains have no
+   result.
+   Done when: tests check that definitions flow down, an edit changes the lines
+   below it, includes work and a cycle is reported.
+9. **Result display** (`ui/screen.c`): the result is shown dim at the end of its
+   row (`= 7/2 ≈ 3.5`), errors in red, cut to the width; the row stays clipped
+   as before.
+   Done when: layout tests show results, errors and clipping.
+10. **Ghost mode** (`ui/ghost.h`): while typing in Insert, the buffer is parsed
+    and evaluated against the environment as of that line, and the result is
+    shown after the line in a dim style, only when the input is a whole valid
+    expression that evaluates without error. No bindings are created.
+    Done when: tests check that incomplete input (`2+`, `(3`) shows nothing,
+    complete input shows the result, errors show nothing and the environment is
+    unchanged.
+11. **Wiring and acceptance**: results recomputed on edits, ghost text drawn on
+    every keystroke, `scratch.mlog` re-evaluated on open.
+    Acceptance test (manual): type `a = 3`, `b = a^2 + 1`, `f(x) = 2x + b`,
+    `f(a)`, `1/3 + 1/6`, `sqrt(2)`, `10!`; the results are `3`, `10`, `10`, `16`,
+    `1/2`, `≈ 1.41421356`, `3628800`; quit, reopen, and see the same results.
+
+Out of milestone 2: step by step, symbolic results (`x + x`), floating point
+mode switch, matrices, units, autocompletion.
+
+## 10. Out of scope (for now)
 
 - Own GUI window, GUI toolkit, network features, plugins.
 
-## 10. Decisions log
+## 11. Decisions log
 
 - Terminal only (VT/ANSI, unicode, braille plots); Windows first behind a `platform` layer.
 - Exact rationals + bignum; floats only on request.
@@ -208,6 +304,8 @@ Out of milestone 1: evaluation, ghost mode, autocompletion, includes (parsed and
 - Integrals start with polynomials/tables; PGA both 2D and 3D via a generic signature.
 - Includes are read-only and acyclic.
 
-## 11. Open questions
+## 12. Open questions
 
-None at the moment. Next step: implement milestone 1 tasks in order.
+Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
+
+Next step: implement the milestone 2 tasks in order.
