@@ -17,6 +17,8 @@ static const char *const kind_names [ML_TOK_COUNT] =
 	[ML_TOK_BANG]        = "!",
 	[ML_TOK_LPAREN]      = "(",
 	[ML_TOK_RPAREN]      = ")",
+	[ML_TOK_LBRACKET]    = "[",
+	[ML_TOK_RBRACKET]    = "]",
 	[ML_TOK_COMMA]       = ",",
 	[ML_TOK_EQUALS]      = "=",
 	[ML_TOK_SQRT]        = "sqrt",
@@ -63,6 +65,8 @@ static const Symbol symbols [] =
 	{ .cp = '!',    .kind = ML_TOK_BANG },
 	{ .cp = '(',    .kind = ML_TOK_LPAREN },
 	{ .cp = ')',    .kind = ML_TOK_RPAREN },
+	{ .cp = '[',    .kind = ML_TOK_LBRACKET },
+	{ .cp = ']',    .kind = ML_TOK_RBRACKET },
 	{ .cp = ',',    .kind = ML_TOK_COMMA },
 	{ .cp = '=',    .kind = ML_TOK_EQUALS },
 	{ .cp = 0x221A, .kind = ML_TOK_SQRT }   /* square root */

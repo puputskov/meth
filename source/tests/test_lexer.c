@@ -227,7 +227,7 @@ static void test_errors (void)
 {
 	CHECK (kinds_are ("a $ b", "name error name end"));
 	CHECK (token_is  ("a $ b", 1, 2, 1));
-	CHECK (kinds_are ("[1]", "error number error end"));
+	CHECK (kinds_are ("{1}", "error number error end"));
 	CHECK (kinds_are ("1 < 2", "number error number end"));
 	CHECK (kinds_are ("1 % 2", "number error number end"));
 
@@ -287,6 +287,18 @@ static void test_token_text (void)
 	MlTokenVec_free (&lexed.tokens);
 }
 
+static void test_brackets (void)
+{
+	CHECK (kinds_are ("[1, 2]", "[ number , number ] end"));
+	CHECK (
+		kinds_are (
+			"[[1,2],[3,4]]",
+			"[ [ number , number ] , [ number , number ] ] end"
+		)
+	);
+	CHECK (kinds_are ("A^T", "name ^ name end"));
+}
+
 void run_lexer_tests (void)
 {
 	test_basic ();
@@ -296,4 +308,5 @@ void run_lexer_tests (void)
 	test_superscripts ();
 	test_errors ();
 	test_token_text ();
+	test_brackets ();
 }

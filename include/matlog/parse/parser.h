@@ -20,10 +20,11 @@
  *	! and superscript digits      postfix: 3!, x², x⁻¹; they bind like a
  *	                              factor, so 2^3! is 2^(3!)
  *	( ) calls, names, numbers, √  √ takes one factor: √x, √(x+1), √√x;
- *	                              √x² is (√x)² (use parentheses for more)
+ *	[ ] lists                     √x² is (√x)² (use parentheses for more)
  *
  * An implicit product is a number, ')' or a superscript directly followed by
- * a name, '(' or √ (and ')' by a number): 2x, 2(x+1), (a)(b), 2√x, x²y.
+ * a name, '(' , '[' or √ (and ')' by a number): 2x, 2(x+1), (a)(b), 2√x, x²y,
+ * 2[1, 2].
  * Names are whole words, so "x y" is an error, and "x(2)" is a call; the
  * evaluator turns a call of a variable into a product.
  *
@@ -44,6 +45,10 @@
  * code that evaluates the tree reports it as an error instead of crashing.
  * The first real node has index 1.
  *
+ *	list                           the elements, in order: [1, x+1] has two
+ *	                               children; [[1, 2], [3, 4]] is a list of
+ *	                               lists (the evaluator makes vectors and
+ *	                               matrices of them)
  *	number, name, superscript      leaves (the text is the node's range)
  *	neg, !, sqrt                   one child
  *	+ - * / ^                      two children, left then right
@@ -74,6 +79,7 @@ typedef enum MlNodeKind
 	ML_NODE_ASSIGN,      /* name = expression */
 	ML_NODE_FUNC_DEF,    /* name (params) = body */
 	ML_NODE_PARAMS,      /* the parameter names of a definition */
+	ML_NODE_LIST,        /* [a, b, c] */
 	ML_NODE_KIND_COUNT
 } MlNodeKind;
 

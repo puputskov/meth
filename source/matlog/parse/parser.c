@@ -30,7 +30,8 @@ typedef enum FrameKind
 	FRAME_SQRT_PREFIX,    /* waiting for the operand inside a '√' operand */
 	FRAME_SQRT_ATOM,      /* waiting for the atom of a '√' operand */
 	FRAME_PAREN,          /* waiting for the expression inside '(' ')' */
-	FRAME_CALL_ARG        /* waiting for an argument of a call */
+	FRAME_CALL_ARG,       /* waiting for an argument of a call */
+	FRAME_LIST_ELEM       /* waiting for an element of a list */
 } FrameKind;
 
 typedef struct ParseFrame
@@ -401,6 +402,7 @@ static int32_t implicit_product (MlTokenKind before, MlTokenKind next)
 		&& (
 			   next == ML_TOK_NAME
 			|| next == ML_TOK_LPAREN
+			|| next == ML_TOK_LBRACKET
 			|| next == ML_TOK_SQRT
 			|| (before == ML_TOK_RPAREN && next == ML_TOK_NUMBER)
 		)
@@ -498,6 +500,24 @@ static void close_call (Parser *p, uint64_t call)
 		advance (p);
 		p->ast.nodes.data [call].len = close.start + close.len
 			- node_at (p, call).start;
+	}
+
+	else if (!p->failed)
+	{
+		fail_unexpected (p, close);
+	}
+}
+
+/* The ']' that ends a list; it becomes part of the text of the list. */
+static void close_list (Parser *p, uint64_t list)
+{
+	MlToken close = peek (p);
+
+	if (!p->failed && close.kind == ML_TOK_RBRACKET)
+	{
+		advance (p);
+		p->ast.nodes.data [list].len = close.start + close.len
+			- node_at (p, list).start;
 	}
 
 	else if (!p->failed)
@@ -694,6 +714,25 @@ static void start_call (Parser *p, uint64_t name)
 	}
 }
 
+/* '[' at the cursor: the list node, then its first element. */
+static void start_list (Parser *p)
+{
+	MlToken  open = advance (p);
+	uint64_t list = add_node (p, ML_NODE_LIST, open.start, open.start + 1);
+
+	if (!p->failed && enter (p))
+	{
+		/* at least one element: [] is not a list */
+		push (p, FRAME_LIST_ELEM, list, 0, ML_TOK_END, 0);
+		call_expr (p);
+	}
+
+	else
+	{
+		give (p, NIL);
+	}
+}
+
 static void mode_atom (Parser *p)
 {
 	MlToken t = peek (p);
@@ -736,6 +775,11 @@ static void mode_atom (Parser *p)
 		{
 			give (p, NIL);
 		}
+	}
+
+	else if (t.kind == ML_TOK_LBRACKET)
+	{
+		start_list (p);
 	}
 
 	else
@@ -837,6 +881,29 @@ static void call_arg_continue (Parser *p, uint64_t call, uint64_t arg)
 	}
 }
 
+/* An element of a list is known: the next one, or the end of the list. */
+static void list_elem_continue (Parser *p, uint64_t list, uint64_t elem)
+{
+	int32_t more;
+
+	adopt (p, list, elem);
+	more = !p->failed && peek (p).kind == ML_TOK_COMMA;
+
+	if (more)
+	{
+		advance (p);
+		push (p, FRAME_LIST_ELEM, list, 0, ML_TOK_END, 0);
+		call_expr (p);
+	}
+
+	else
+	{
+		close_list (p, list);
+		leave (p);
+		give (p, list);
+	}
+}
+
 static void mode_return (Parser *p)
 {
 	ParseFrame f   = p->stack.data [p->stack.len - 1];
@@ -912,6 +979,11 @@ static void mode_return (Parser *p)
 		close_paren (p);
 		leave (p);
 		give (p, val);
+	}
+
+	else if (f.kind == FRAME_LIST_ELEM)
+	{
+		list_elem_continue (p, f.node, val);
 	}
 
 	else
@@ -1210,7 +1282,8 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_CALL]     = "call",
 	[ML_NODE_ASSIGN]   = "=",
 	[ML_NODE_FUNC_DEF] = "def",
-	[ML_NODE_PARAMS]   = ""
+	[ML_NODE_PARAMS]   = "",
+	[ML_NODE_LIST]     = "list"
 };
 
 static const char *node_label (MlNodeKind kind)

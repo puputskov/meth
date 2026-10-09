@@ -704,6 +704,46 @@ static void test_complete (void)
 	}
 }
 
+static void test_lists (void)
+{
+	CHECK (dumps_as ("[1]", "(list 1)"));
+	CHECK (dumps_as ("[1, 2, 3]", "(list 1 2 3)"));
+	CHECK (dumps_as ("[1+2, x*3]", "(list (+ 1 2) (* x 3))"));
+	CHECK (dumps_as ("[[1,2],[3,4]]", "(list (list 1 2) (list 3 4))"));
+	CHECK (
+		dumps_as ("[ [1 , 2] , [3 , 4] ]", "(list (list 1 2) (list 3 4))")
+	);
+	CHECK (dumps_as ("[f(1), (2)]", "(list (call f 1) 2)"));
+
+	/* lists are operands like any other */
+	CHECK (dumps_as ("[1,2] + [3,4]", "(+ (list 1 2) (list 3 4))"));
+	CHECK (dumps_as ("2[1,2]", "(* 2 (list 1 2))"));
+	CHECK (dumps_as ("2 * [1,2]", "(* 2 (list 1 2))"));
+	CHECK (
+		dumps_as ("A = [[1,2],[3,4]]", "(= A (list (list 1 2) (list 3 4)))")
+	);
+	CHECK (dumps_as ("A^T", "(^ A T)"));
+	CHECK (dumps_as ("A^-1", "(^ A (neg 1))"));
+	CHECK (
+		dumps_as (
+			"[[1,2],[3,4]]^-1",
+			"(^ (list (list 1 2) (list 3 4)) (neg 1))"
+		)
+	);
+	CHECK (dumps_as ("[1,2]!", "(! (list 1 2))"));
+
+	/* errors */
+	CHECK (fails_with ("[]", ML_PARSE_EXPECTED_EXPR, 1, 1, 0));
+	CHECK (fails_with ("[1,", ML_PARSE_UNEXPECTED_END, 3, 0, 1));
+	CHECK (fails_with ("[1, 2", ML_PARSE_UNEXPECTED_END, 5, 0, 1));
+	CHECK (fails_with ("[1 2]", ML_PARSE_UNEXPECTED_TOKEN, 3, 1, 0));
+	CHECK (fails_with ("[1,]", ML_PARSE_EXPECTED_EXPR, 3, 1, 0));
+	CHECK (fails_with ("1]", ML_PARSE_UNEXPECTED_TOKEN, 1, 1, 0));
+	CHECK (fails_with ("(1]", ML_PARSE_UNEXPECTED_TOKEN, 2, 1, 0));
+	CHECK (fails_with ("[1)", ML_PARSE_UNEXPECTED_TOKEN, 2, 1, 0));
+	CHECK (fails_with ("x[1]", ML_PARSE_UNEXPECTED_TOKEN, 1, 1, 0));
+}
+
 void run_parser_tests (void)
 {
 	test_precedence ();
@@ -715,6 +755,7 @@ void run_parser_tests (void)
 	test_ranges ();
 	test_nil_node ();
 	test_errors ();
+	test_lists ();
 	run_on_small_stack (test_limits);
 	test_heights ();
 	test_complete ();

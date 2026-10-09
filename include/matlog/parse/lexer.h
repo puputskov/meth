@@ -14,6 +14,7 @@
  *	*  ×  ·  ⋅        STAR          /  ÷  ∕     SLASH
  *	-  −             MINUS         √           SQRT
  *	x² x⁻¹ x¹⁰      NAME then SUPERSCRIPT (a run of superscript digits)
+ *	[ ]              LBRACKET, RBRACKET (lists, matrices and vectors)
  *
  * Names are words: letters (also Greek and other scripts), digits and '_',
  * not starting with a digit. Numbers are digits with an optional fraction
@@ -35,6 +36,8 @@ typedef enum MlTokenKind
 	ML_TOK_BANG,
 	ML_TOK_LPAREN,
 	ML_TOK_RPAREN,
+	ML_TOK_LBRACKET,
+	ML_TOK_RBRACKET,
 	ML_TOK_COMMA,
 	ML_TOK_EQUALS,
 	ML_TOK_SQRT,
