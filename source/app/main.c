@@ -1,5 +1,6 @@
 #include <matlog/cli/cli.h>
 #include <matlog/platform/console.h>
+#include <matlog/session/folds.h>
 #include <matlog/session/mlog.h>
 #include <matlog/ui/editor.h>
 #include <matlog/ui/screen.h>
@@ -54,6 +55,58 @@ static MlResult draw (
 	return r;
 }
 
+/*
+ * Keeps the folds of the session in the settings file: a session that was just
+ * opened (or switched to with :open) gets its folds back, any later change of
+ * the folds is written. path and folds are what was seen the last time.
+ */
+static MlResult sync_folds (MlEditor *ed, MlStr *path, MlStr *folds)
+{
+	MlResult r       = ML_OK;
+	MlStr    current;
+	int32_t  changed = !ml_slice_equal (
+		ml_str_view (*path),
+		ml_str_view (ed->session.path)
+	);
+
+	ml_str_init (&current);
+
+	if (changed)
+	{
+		ml_str_clear (path);
+		r = ml_str_append (path, ml_str_view (ed->session.path));
+
+		if (r == ML_OK)
+		{
+			r = ml_folds_load (&ed->session);
+		}
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_folds_format (&current, &ed->session);
+	}
+
+	if (
+		   r == ML_OK
+		&& !changed
+		&& !ml_slice_equal (ml_str_view (current), ml_str_view (*folds))
+	)
+	{
+		/* a settings file that cannot be written is not worth an exit */
+		ml_folds_save (&ed->session);
+	}
+
+	if (r == ML_OK)
+	{
+		ml_str_clear (folds);
+		r = ml_str_append (folds, ml_str_view (current));
+	}
+
+	ml_str_free (&current);
+	return r;
+}
+
 /* Reads keys and edits until the editor asks to quit. */
 static MlResult run (
 	MlConsole *con,
@@ -63,8 +116,13 @@ static MlResult run (
 {
 	MlResult r = ML_OK;
 	MlStr    frame;
+	MlStr    path;
+	MlStr    folds;
 
 	ml_str_init (&frame);
+	ml_str_init (&path);
+	ml_str_init (&folds);
+	r = sync_folds (ed, &path, &folds);
 
 	while (r == ML_OK && !ed->quit)
 	{
@@ -113,6 +171,11 @@ static MlResult run (
 			r = ml_editor_handle_key (ed, k.key);
 		}
 
+		if (r == ML_OK)
+		{
+			r = sync_folds (ed, &path, &folds);
+		}
+
 		/* every committed change is written to the file right away */
 		if (r == ML_OK && ed->session.dirty && ed->session.path.len > 0)
 		{
@@ -120,6 +183,8 @@ static MlResult run (
 		}
 	}
 
+	ml_str_free (&folds);
+	ml_str_free (&path);
 	ml_str_free (&frame);
 	return r;
 }

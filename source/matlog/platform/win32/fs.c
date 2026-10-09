@@ -269,3 +269,49 @@ MlResult ml_fs_remove (MlSlice path)
 	WideVec_free (&wide);
 	return r;
 }
+
+MlResult ml_fs_make_dirs (MlSlice path)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t end = 1; end <= path.len && r == ML_OK; end++)
+	{
+		int32_t last = end == path.len;
+		int32_t sep  = (
+			   !last
+			&& (path.data [end] == '/' || path.data [end] == '\\')
+		);
+
+		if (last || sep)
+		{
+			WideVec wide;
+
+			WideVec_init (&wide);
+			r = wide_from_utf8 (&wide, ml_slice (path.data, end));
+
+			/* a drive ("C:") or a directory that exists is fine */
+			if (r == ML_OK)
+			{
+				DWORD attr = GetFileAttributesW ((LPCWSTR)wide.data);
+
+				if (attr == INVALID_FILE_ATTRIBUTES)
+				{
+					r = ml_choose (
+						CreateDirectoryW ((LPCWSTR)wide.data, NULL) != 0,
+						ML_OK,
+						ML_ERR_IO
+					);
+				}
+
+				else if (!(attr & FILE_ATTRIBUTE_DIRECTORY))
+				{
+					r = ML_ERR_IO;
+				}
+			}
+
+			WideVec_free (&wide);
+		}
+	}
+
+	return r;
+}

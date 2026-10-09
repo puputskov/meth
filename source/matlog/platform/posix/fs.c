@@ -4,7 +4,9 @@
 
 #include <matlog/core/utf8.h>
 
+#include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <stdio.h>
@@ -183,6 +185,35 @@ MlResult ml_fs_remove (MlSlice path)
 	if (r == ML_OK && unlink (ml_str_cstr (p)) != 0)
 	{
 		r = ML_ERR_IO;
+	}
+
+	ml_str_free (&p);
+	return r;
+}
+
+MlResult ml_fs_make_dirs (MlSlice path)
+{
+	MlResult r = ML_OK;
+	MlStr    p;
+
+	ml_str_init (&p);
+	r = path_cstr (&p, path);
+
+	for (uint64_t end = 1; end <= path.len && r == ML_OK; end++)
+	{
+		if (end == path.len || p.data [end] == '/')
+		{
+			char saved = p.data [end];
+
+			p.data [end] = '\0';
+
+			if (mkdir (p.data, 0777) != 0 && errno != EEXIST)
+			{
+				r = ML_ERR_IO;
+			}
+
+			p.data [end] = saved;
+		}
 	}
 
 	ml_str_free (&p);

@@ -21,4 +21,10 @@ MlResult ml_fs_write_file_atomic (MlSlice path, MlSlice data);
 
 MlResult ml_fs_remove (MlSlice path);
 
+/*
+ * Creates the directory and the ones above it that are missing. A directory
+ * that is already there is not an error.
+ */
+MlResult ml_fs_make_dirs (MlSlice path);
+
 #endif /* MATLOG_PLATFORM_FS_H */

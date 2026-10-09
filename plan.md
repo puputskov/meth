@@ -116,8 +116,9 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
   changes what is evaluated: the definitions of a closed block stay visible below it, like a cell that was run. The state is part of the view, not of the
   file; it is kept in the settings file per session path and block number so it survives a restart.
 - **Moving around**: `]]` / `[[` jump to the next / previous block, `j` and `k` still go line by line (a closed block is one step). On a closed block
-  `dd`, `yy`, `Alt+Up/Down` and `p` take the whole block as the line. (Not built yet: `dab` / `yab`, a Visual selection that treats a closed block
-  as one line, keeping the folds in the settings file.)
+  `dd`, `yy`, `Alt+Up/Down` and `p` take the whole block as the line. (The vim keys are replaced by section 3.0: a folded block is one selected row there, and the selection keys, copy, cut, paste and the move keys take it
+  as a whole. Built: the folds are kept in `settings.mlcfg`, section `[folds]`, as `path = 0 12 40` (the first lines of the folded blocks), restored when the
+  session is opened and written when they change; the path is the one given on the command line.)
 - **Domain switching** (`gm`, `gl`, `Alt+Left/Right`) sets the domain of the next line that is typed; typing it in another domain than the block above starts a
   new block. On a line in the middle of a block the same keys change the domain of the whole block.
 - **File format**: unchanged. A line still starts with `m:domain ` (math) or `# ` (note), because the blocks follow from the lines, so old files, diffs and the
