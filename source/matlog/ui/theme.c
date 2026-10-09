@@ -115,6 +115,33 @@ MlColorLevel ml_colors_detect (
 	return level;
 }
 
+const char *ml_theme_for_background (MlSlice colorfgbg)
+{
+	uint64_t start = colorfgbg.len;
+	int32_t  value = 0;
+	int32_t  ok    = colorfgbg.len > 0;
+
+	/* the number after the last ';' */
+	while (start > 0 && colorfgbg.data [start - 1] != ';')
+	{
+		start--;
+	}
+
+	ok = ok && start > 0 && start < colorfgbg.len && colorfgbg.len - start <= 2;
+
+	for (uint64_t i = start; i < colorfgbg.len && ok; i++)
+	{
+		ok    = colorfgbg.data [i] >= '0' && colorfgbg.data [i] <= '9';
+		value = value * 10 + (colorfgbg.data [i] - '0');
+	}
+
+	return ml_choose (
+		ok && (value == 7 || (value >= 9 && value <= 15)),
+		"light",
+		"dark"
+	);
+}
+
 /* ---- styles ------------------------------------------------------------- */
 
 static MlColor rgb (uint32_t value)

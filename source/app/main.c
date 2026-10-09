@@ -356,6 +356,15 @@ static void setup_look (MlEditor *ed)
 		ml_theme_builtin (&ed->theme, ml_slice_cstr ("mono"));
 	}
 
+	else
+	{
+		/* a light terminal gets the light theme */
+		ml_theme_builtin (
+			&ed->theme,
+			ml_slice_cstr (ml_theme_for_background (env_text ("COLORFGBG")))
+		);
+	}
+
 	ml_str_init (&value);
 
 	if (

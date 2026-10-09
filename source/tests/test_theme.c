@@ -341,8 +341,34 @@ static void test_shipped_files (void)
 	}
 }
 
+static int32_t background_is (const char *value, const char *theme)
+{
+	return ml_slice_equal (
+		lit (ml_theme_for_background (lit (value))),
+		lit (theme)
+	);
+}
+
+static void test_background (void)
+{
+	CHECK (background_is ("15;0", "dark"));
+	CHECK (background_is ("0;15", "light"));
+	CHECK (background_is ("0;7", "light"));
+	CHECK (background_is ("default;default;15", "light"));
+	CHECK (background_is ("12;8", "dark"));
+	CHECK (background_is ("7;1", "dark"));
+
+	/* anything else means nothing */
+	CHECK (background_is ("", "dark"));
+	CHECK (background_is ("15", "dark"));
+	CHECK (background_is ("0;", "dark"));
+	CHECK (background_is ("0;x", "dark"));
+	CHECK (background_is ("0;150", "dark"));
+}
+
 void run_theme_tests (void)
 {
+	test_background ();
 	test_shipped_files ();
 	test_format ();
 	test_names ();

@@ -111,6 +111,14 @@ MlColorLevel ml_colors_detect (
 	int32_t os_truecolor
 );
 
+/*
+ * The built in theme that suits the terminal's background, from the value of
+ * COLORFGBG ("15;0", "0;15", "default;default;0": the last number is the
+ * colour of the background; 7 and 9 to 15 are light). "dark" when the value
+ * is empty or means nothing.
+ */
+const char *ml_theme_for_background (MlSlice colorfgbg);
+
 /* Built in themes: "dark", "light", "contrast", "mono". */
 uint64_t ml_theme_builtin_count (void);
 const char *ml_theme_builtin_name (uint64_t index);
