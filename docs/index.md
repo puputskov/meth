@@ -23,6 +23,8 @@ are the same in the tool (`:help`) and on the command line (`matlog docs`).
 - [Symbolic math](symbolic): simplify, expand, differentiate, integrate,
   limits, equations.
 - [Units](units): quantities, conversions, prefixes.
+- [Boolean algebra](boolean): expressions, truth tables, simplification.
+- [Lambda calculus](lambda): terms, reduction, Church numerals.
 
 # Files and scripts
 - [The session file](fileformat): the `.mlog` format.

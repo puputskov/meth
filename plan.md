@@ -491,8 +491,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 2. Arithmetic expression parser and evaluator with ghost mode.
 3. Matrices and vectors with step by step output.
 4. Symbolic simplify, derivative, integral with steps.
-5. Units.
-6. Lambda calculus and boolean algebra.
+5. Units. (done)
+6. Lambda calculus and boolean algebra. (done: section 9e)
 7. PGA.
 8. Visualization and notes polish, completion.
 9. Syntax highlighting and themes (section 4.10). The highlighter only needs the lexer, so it can be built any time after milestone 2; each
@@ -743,6 +743,33 @@ and a result can be shown in any unit of the same dimension (`to`), also reduced
 5. **Display**: `= 5000 m` and `= 5 km` after `to`; derived names (`J`); `ml_dim_format` for the rest; JSON type `quantity` with `value` and `unit`. (done: a converted value keeps the unit text and its SI scale, `value` in JSON is the text with the unit; quantities can be assigned to variables)
 6. **Completion, highlighting hooks and steps**: unit names in completion, the conversion shown as steps (`3 ft = 3 × 0.3048 m`). (done: the steps; `ml_complete_math` offers variables, functions, constants and unit names for the word at the cursor; wiring it into the editor and the highlight class `unit` come with milestone 9 and the completion work of section 4.3)
 7. **Dimensional analysis**: `dim(x)` shows the dimension of a result. (done: `dim (5 km)` is `1 m`, the dimension as one coherent SI unit)
+
+## 9e. Milestone 6 tasks
+
+Goal: the boolean and the lambda domain evaluate their lines, as the algebra domain does: results next to the line, definitions that flow down,
+errors with a byte range.
+
+### Decisions this milestone is built on
+
+- Each domain has its own engine behind one small interface (`logic/logic.h`): a line goes in with the definitions made above it, and comes out as a text, an
+  optional block, an error (an enum with a machine readable name) and at most one definition. The results list keeps the definitions in order and a
+  line sees the ones before it, so editing a line runs the lines below it again.
+- A definition is stored fully expanded, so looking up a name never recurses. Free names of a definition stay free (no late binding).
+- Boolean: at most 10 names per line, the value is computed as a bit vector over all assignments (every node of the expression is a vector, one pass), the
+  result is the minimal sum of products (Quine-McCluskey, essential primes, then a greedy cover) unless the written form is shorter.
+- Lambda: terms are de Bruijn terms in an append-only node list; reduction is normal order, one leftmost outermost step at a time, with explicit stacks for
+  the search, the substitution, the shifting, the printing and the resolving of names. Nothing recurses.
+
+### Tasks
+
+1. **Shared parts** (`logic/logic.h`): the error enum with code and text, the definition list, the line result. (done)
+2. **Boolean domain** (`logic/bool.h`): lexer for all spellings, a shunting yard parser, truth bits, minimal form, `table`, definitions. (done)
+3. **Lambda domain** (`logic/lambda.h`): parser with λ contexts on a stack, Church numerals, de Bruijn resolution with definitions, normal order
+   reduction, capture avoiding printing, `trace`. (done)
+4. **Wiring** (`session/results.h`): lines of both domains run in the results; the lambda and boolean pages of the documentation. (done)
+5. Later: ghost mode for both domains, the highlight classes (`and`, `or`, `lambda`, `binder`), steps in the F3 view instead of `trace`, `matlog eval
+   --domain boolean|lambda` in the CLI and the JSON types, export of both domains, syntax completion of the names defined above. Equivalence
+   proofs for the proof checker (section 4.12) build on the boolean engine.
 
 ## 10. Out of scope (for now)
 

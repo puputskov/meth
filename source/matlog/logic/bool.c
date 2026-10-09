@@ -151,6 +151,7 @@ static Token lex (MlSlice s, uint64_t pos)
 		.len   = 0,
 		.value = 0
 	};
+
 	uint64_t      at = pos;
 	const Symbol  *sym;
 
@@ -244,10 +245,9 @@ ML_VEC_DEFINE (OpVec, Op)
 
 typedef struct Parsed
 {
-	int32_t     bad;
-	const char  *code;
-	const char  *message;
-	uint64_t    err_start;
+	int32_t      bad;
+	MlLogicError error;
+	uint64_t     err_start;
 	uint64_t    err_len;
 	NodeVec     nodes; /* children before parents; the root is the last */
 } Parsed;
@@ -255,20 +255,18 @@ typedef struct Parsed
 static void parsed_init (Parsed *p)
 {
 	p->bad       = 0;
-	p->code      = "";
-	p->message   = "";
+	p->error     = ML_LOGIC_OK;
 	p->err_start = 0;
 	p->err_len   = 0;
 	NodeVec_init (&p->nodes);
 }
 
-static void fail (Parsed *p, const char *code, const char *msg, Token t)
+static void fail (Parsed *p, MlLogicError error, Token t)
 {
 	if (!p->bad)
 	{
 		p->bad       = 1;
-		p->code      = code;
-		p->message   = msg;
+		p->error     = error;
 		p->err_start = t.start;
 		p->err_len   = ml_choose (t.len > 0, t.len, 1);
 	}
@@ -371,7 +369,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 
 		if (t.kind == TK_BAD)
 		{
-			fail (p, "bool_unexpected_character", "unexpected character", t);
+			fail (p, ML_LOGIC_BOOL_UNEXPECTED_CHARACTER, t);
 		}
 
 		else if (operand && (t.kind == TK_NAME || t.kind == TK_CONST))
@@ -410,7 +408,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 
 		else if (operand)
 		{
-			fail (p, "bool_expected_operand", "an operand is missing", t);
+			fail (p, ML_LOGIC_BOOL_EXPECTED_OPERAND, t);
 		}
 
 		else if (is_binary (t.kind))
@@ -428,7 +426,8 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 				&& ops.len > 0
 				&& ops.data [ops.len - 1].kind != TK_LPAREN
 				&& (
-					   precedence (ops.data [ops.len - 1].kind) > precedence (t.kind)
+					   precedence (ops.data [ops.len - 1].kind)
+					>  precedence (t.kind)
 					|| (
 						   precedence (ops.data [ops.len - 1].kind)
 						== precedence (t.kind)
@@ -461,7 +460,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 
 			if (r == ML_OK && ops.len == 0)
 			{
-				fail (p, "bool_unbalanced_parenthesis", "no ( for this )", t);
+				fail (p, ML_LOGIC_BOOL_UNBALANCED_PARENTHESIS, t);
 			}
 
 			else if (r == ML_OK)
@@ -484,12 +483,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 						.value = 0
 					};
 
-					fail (
-						p,
-						"bool_unbalanced_parenthesis",
-						"no ) for this (",
-						lp
-					);
+					fail (p, ML_LOGIC_BOOL_UNBALANCED_PARENTHESIS, lp);
 				}
 
 				else
@@ -503,13 +497,13 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 
 		else
 		{
-			fail (p, "bool_expected_operator", "an operator is missing", t);
+			fail (p, ML_LOGIC_BOOL_EXPECTED_OPERATOR, t);
 		}
 
 		/* the text ends where an operand is still expected */
 		if (!p->bad && t.kind == TK_END && operand)
 		{
-			fail (p, "bool_expected_operand", "an operand is missing", t);
+			fail (p, ML_LOGIC_BOOL_EXPECTED_OPERAND, t);
 		}
 	}
 
@@ -531,7 +525,7 @@ typedef struct Truth
 static int32_t slice_before (MlSlice a, MlSlice b)
 {
 	uint64_t n   = ml_choose (a.len < b.len, a.len, b.len);
-	int      cmp = memcmp (a.data, b.data, n);
+	int32_t  cmp = memcmp (a.data, b.data, n);
 
 	return cmp < 0 || (cmp == 0 && a.len < b.len);
 }
@@ -1293,8 +1287,7 @@ MlResult ml_bool_run (
 	{
 		r = ml_logic_out_error (
 			out,
-			"bool_bad_definition",
-			"only a name can be defined",
+			ML_LOGIC_BOOL_BAD_DEFINITION,
 			first.start,
 			first.len
 		);
@@ -1326,13 +1319,7 @@ MlResult ml_bool_run (
 
 		if (r == ML_OK && p.bad)
 		{
-			r = ml_logic_out_error (
-				out,
-				p.code,
-				p.message,
-				p.err_start,
-				p.err_len
-			);
+			r = ml_logic_out_error (out, p.error, p.err_start, p.err_len);
 		}
 
 		if (r == ML_OK && !p.bad)
@@ -1357,8 +1344,7 @@ MlResult ml_bool_run (
 			{
 				r = ml_logic_out_error (
 					out,
-					"bool_bad_definition",
-					"the definition does not read",
+					ML_LOGIC_BOOL_BAD_DEFINITION,
 					0,
 					source.len
 				);
@@ -1368,8 +1354,7 @@ MlResult ml_bool_run (
 			{
 				r = ml_logic_out_error (
 					out,
-					"bool_too_many_names",
-					"too many names (at most 10)",
+					ML_LOGIC_BOOL_TOO_MANY_NAMES,
 					0,
 					source.len
 				);
@@ -1379,8 +1364,7 @@ MlResult ml_bool_run (
 			{
 				r = ml_logic_out_error (
 					out,
-					"bool_too_many_names",
-					"a table needs at most 6 names",
+					ML_LOGIC_BOOL_TABLE_TOO_BIG,
 					0,
 					source.len
 				);
@@ -1397,7 +1381,7 @@ MlResult ml_bool_run (
 			}
 		}
 
-		if (r == ML_OK && define && out->value && !out->error)
+		if (r == ML_OK && define && out->value && out->error == ML_LOGIC_OK)
 		{
 			r = ml_str_append (
 				&out->def_name,

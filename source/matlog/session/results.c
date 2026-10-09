@@ -2,6 +2,7 @@
 
 #include <matlog/core/mem.h>
 #include <matlog/logic/bool.h>
+#include <matlog/logic/lambda.h>
 #include <matlog/math/eval.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
@@ -263,21 +264,30 @@ static MlResult run_math (
 	return r;
 }
 
-/* Runs a line of the boolean domain; lr gets the result. */
-static MlResult run_logic (MlResults *res, MlLineResult *lr, MlSlice source)
+/* Runs a line of the boolean or the lambda domain; lr gets the result. */
+static MlResult run_logic (
+	MlResults    *res,
+	MlLineResult *lr,
+	MlSlice      source,
+	MlDomain     domain
+)
 {
 	MlResult   r = ML_OK;
 	MlLogicOut o;
 
 	ml_logic_out_init (&o);
-	r = ml_bool_run (&res->defs, res->defs.len, source, &o);
+	r = ml_choose (
+		domain == ML_DOMAIN_BOOLEAN,
+		ml_bool_run (&res->defs, res->defs.len, source, &o),
+		ml_lambda_run (&res->defs, res->defs.len, source, &o)
+	);
 
-	if (r == ML_OK && o.error)
+	if (r == ML_OK && o.error != ML_LOGIC_OK)
 	{
 		r = result_error (
 			lr,
 			ml_str_view (o.text),
-			o.code,
+			ml_logic_error_code (o.error),
 			o.err_start,
 			o.err_len
 		);
@@ -299,11 +309,11 @@ static MlResult run_logic (MlResults *res, MlLineResult *lr, MlSlice source)
 		}
 	}
 
-	if (r == ML_OK && !o.error && o.def_name.len > 0)
+	if (r == ML_OK && o.def_name.len > 0)
 	{
 		r = ml_logic_defs_add (
 			&res->defs,
-			ML_DOMAIN_BOOLEAN,
+			(int32_t)domain,
 			ml_str_view (o.def_name),
 			ml_str_view (o.def_text)
 		);
@@ -408,9 +418,15 @@ static MlResult run_line (
 		r = run_math (res, arena, lr, view.text);
 	}
 
-	else if (view.kind == ML_LINE_MATH && view.domain == ML_DOMAIN_BOOLEAN)
+	else if (
+		   view.kind == ML_LINE_MATH
+		&& (
+			   view.domain == ML_DOMAIN_BOOLEAN
+			|| view.domain == ML_DOMAIN_LAMBDA
+		)
+	)
 	{
-		r = run_logic (res, lr, view.text);
+		r = run_logic (res, lr, view.text, view.domain);
 	}
 
 	else if (view.kind == ML_LINE_INCLUDE)

@@ -505,7 +505,7 @@ static void test_lambda_gutter (void)
 
 	/* the lambda domain is marked with the lambda sign, then the > */
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, " 1 \xCE\xBB  > x"));
+	CHECK (row_is (&l, 0, " 1 \xCE\xBB  > x  = x"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);

@@ -49,11 +49,36 @@ MlLogicFound ml_logic_find (
 	MlSlice             name
 );
 
+/* What can be wrong with a line of the boolean or the lambda domain. */
+typedef enum MlLogicError
+{
+	ML_LOGIC_OK = 0,
+	ML_LOGIC_BOOL_UNEXPECTED_CHARACTER,
+	ML_LOGIC_BOOL_EXPECTED_OPERAND,
+	ML_LOGIC_BOOL_EXPECTED_OPERATOR,
+	ML_LOGIC_BOOL_UNBALANCED_PARENTHESIS,
+	ML_LOGIC_BOOL_TOO_MANY_NAMES,
+	ML_LOGIC_BOOL_TABLE_TOO_BIG,
+	ML_LOGIC_BOOL_BAD_DEFINITION,
+	ML_LOGIC_LAMBDA_UNEXPECTED_CHARACTER,
+	ML_LOGIC_LAMBDA_EXPECTED_TERM,
+	ML_LOGIC_LAMBDA_EXPECTED_PARAMETER,
+	ML_LOGIC_LAMBDA_UNBALANCED_PARENTHESIS,
+	ML_LOGIC_LAMBDA_NUMBER_TOO_BIG,
+	ML_LOGIC_LAMBDA_NO_NORMAL_FORM,
+	ML_LOGIC_LAMBDA_TOO_BIG,
+	ML_LOGIC_LAMBDA_BAD_DEFINITION,
+	ML_LOGIC_COUNT
+} MlLogicError;
+
+/* The machine readable name (`bool_expected_operand`) and the message. */
+const char *ml_logic_error_code (MlLogicError e);
+const char *ml_logic_error_text (MlLogicError e);
+
 typedef struct MlLogicOut
 {
-	int32_t     value;     /* 1 when the line has a result (else empty line) */
-	int32_t     error;     /* 1 when text is an error message */
-	const char  *code;     /* the machine readable name of the error */
+	int32_t      value;     /* 1 when the line has a result (else empty line) */
+	MlLogicError error;     /* not ML_LOGIC_OK: text is the message of it */
 	uint64_t    err_start; /* the byte range of the error in the line */
 	uint64_t    err_len;
 	MlStr       text;      /* the result, or the message */
@@ -65,13 +90,12 @@ typedef struct MlLogicOut
 void ml_logic_out_init (MlLogicOut *o);
 void ml_logic_out_free (MlLogicOut *o);
 
-/* Makes out an error. */
+/* Makes out an error, with its message; start and len are in the line. */
 MlResult ml_logic_out_error (
-	MlLogicOut *o,
-	const char *code,
-	const char *message,
-	uint64_t   start,
-	uint64_t   len
+	MlLogicOut   *o,
+	MlLogicError error,
+	uint64_t     start,
+	uint64_t     len
 );
 
 #endif /* MATLOG_LOGIC_LOGIC_H */

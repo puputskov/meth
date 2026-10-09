@@ -19,7 +19,7 @@ static int32_t gives (MlLogicDefVec *defs, const char *line, const char *want)
 	ml_logic_out_init (&o);
 	same = (
 		   ml_bool_run (defs, defs->len, lit (line), &o) == ML_OK
-		&& !o.error
+		&& o.error == ML_LOGIC_OK
 		&& ml_slice_equal (ml_str_view (o.text), lit (want))
 	);
 
@@ -29,7 +29,7 @@ static int32_t gives (MlLogicDefVec *defs, const char *line, const char *want)
 			"  \"%s\" gives \"%s\"%s, expected \"%s\"\n",
 			line,
 			ml_str_cstr (o.text),
-			ml_choose (o.error, " (error)", ""),
+			ml_choose (o.error != ML_LOGIC_OK, " (error)", ""),
 			want
 		);
 	}
@@ -46,17 +46,16 @@ static int32_t fails (MlLogicDefVec *defs, const char *line, const char *code)
 	ml_logic_out_init (&o);
 	same = (
 		   ml_bool_run (defs, defs->len, lit (line), &o) == ML_OK
-		&& o.error
-		&& strcmp (o.code, code) == 0
+		&& o.error != ML_LOGIC_OK
+		&& strcmp (ml_logic_error_code (o.error), code) == 0
 	);
 
 	if (!same)
 	{
 		printf (
-			"  \"%s\" gives error \"%s\" (%d), expected \"%s\"\n",
+			"  \"%s\" gives error \"%s\", expected \"%s\"\n",
 			line,
-			o.code,
-			o.error,
+			ml_logic_error_code (o.error),
 			code
 		);
 	}
@@ -245,7 +244,7 @@ static void test_errors (void)
 		fails (
 			&d,
 			"table a & b & c & d & e & f & g",
-			"bool_too_many_names"
+			"bool_table_too_big"
 		)
 	);
 	MlLogicDefVec_free (&d);
