@@ -97,7 +97,7 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 {
 	MlValue out = v;
 
-	if (v.kind == ML_VALUE_EXACT)
+	if (v.kind == ML_VALUE_EXACT || v.kind == ML_VALUE_QUANTITY)
 	{
 		out.exact.num = copy_big (arena, v.exact.num);
 		out.exact.den = copy_big (arena, v.exact.den);
@@ -138,6 +138,7 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		&& value.kind != ML_VALUE_APPROX
 		&& value.kind != ML_VALUE_MATRIX
 		&& value.kind != ML_VALUE_EXPR
+		&& value.kind != ML_VALUE_QUANTITY
 	)
 	{
 		r = ML_ERR_INVALID;

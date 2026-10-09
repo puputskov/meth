@@ -28,6 +28,8 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_CANNOT_INTEGRATE] = "no closed form found",
 	[ML_EVAL_NOT_SYMBOLIC]   = "not a formula that can be worked on",
 	[ML_EVAL_SINGULAR]       = "matrix is singular",
+	[ML_EVAL_DIMENSION_MISMATCH] = "the units have different dimensions",
+	[ML_EVAL_UNKNOWN_UNIT]   = "unknown unit",
 	[ML_EVAL_NO_MEMORY]      = "out of memory"
 };
 
@@ -63,6 +65,8 @@ static const char *const error_codes [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_CANNOT_INTEGRATE]      = "cannot_integrate",
 	[ML_EVAL_NOT_SYMBOLIC]          = "not_symbolic",
 	[ML_EVAL_SINGULAR]              = "singular",
+	[ML_EVAL_DIMENSION_MISMATCH]    = "dimension_mismatch",
+	[ML_EVAL_UNKNOWN_UNIT]          = "unknown_unit",
 	[ML_EVAL_NO_MEMORY]             = "no_memory"
 };
 
@@ -108,6 +112,7 @@ MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len)
 	{
 		.kind        = ML_VALUE_ERROR,
 		.exact       = ml_rat_error (ML_OK),
+		.dim         = { .e = { 0, 0, 0, 0, 0, 0, 0 } },
 		.matrix      = ml_mat_error (ML_OK),
 		.sym         = NULL,
 		.approx      = 0.0,
@@ -228,6 +233,19 @@ MlValue ml_value_expr (const MlSym *sym, MlResult status)
 	return v;
 }
 
+MlValue ml_value_quantity (MlRat si, MlDim dim)
+{
+	MlValue v = ml_value_exact (si);
+
+	if (v.kind == ML_VALUE_EXACT && !ml_dim_is_none (dim))
+	{
+		v.kind = ML_VALUE_QUANTITY;
+		v.dim  = dim;
+	}
+
+	return v;
+}
+
 MlValue ml_value_from_i64 (MlArena *arena, int64_t n)
 {
 	return ml_value_exact (ml_rat_from_i64 (arena, n));
@@ -264,6 +282,11 @@ int32_t ml_value_is_exact (MlValue v)
 int32_t ml_value_is_matrix (MlValue v)
 {
 	return v.kind == ML_VALUE_MATRIX;
+}
+
+int32_t ml_value_is_quantity (MlValue v)
+{
+	return v.kind == ML_VALUE_QUANTITY;
 }
 
 int32_t ml_value_is_expr (MlValue v)
@@ -324,7 +347,10 @@ int32_t ml_value_cmp (MlArena *arena, MlValue a, MlValue b)
 	double  y = ml_value_to_double (arena, b);
 	int32_t order;
 
-	if (a.kind == ML_VALUE_EXACT && b.kind == ML_VALUE_EXACT)
+	if (
+		   (a.kind == ML_VALUE_EXACT || a.kind == ML_VALUE_QUANTITY)
+		&& (b.kind == ML_VALUE_EXACT || b.kind == ML_VALUE_QUANTITY)
+	)
 	{
 		order = ml_rat_cmp (arena, a.exact, b.exact);
 	}
@@ -441,6 +467,152 @@ static int32_t involves_expr (MlValue a, MlValue b)
 	return a.kind == ML_VALUE_EXPR || b.kind == ML_VALUE_EXPR;
 }
 
+typedef enum QuantityOp
+{
+	Q_ADD,
+	Q_MUL,
+	Q_DIV,
+	Q_POW
+} QuantityOp;
+
+/* Quantities and exact numbers are the operands of the unit arithmetic. */
+static int32_t involves_quantity (MlValue a, MlValue b)
+{
+	return a.kind == ML_VALUE_QUANTITY || b.kind == ML_VALUE_QUANTITY;
+}
+
+/*
+ * What is wrong with the operands of a quantity operation, none when they are
+ * exact numbers or quantities. Errors come first.
+ */
+static MlValue quantity_operands (MlValue a, MlValue b)
+{
+	MlValue found = ml_value_none ();
+
+	if (a.kind == ML_VALUE_ERROR)
+	{
+		found = a;
+	}
+
+	else if (b.kind == ML_VALUE_ERROR)
+	{
+		found = b;
+	}
+
+	else if (a.kind == ML_VALUE_APPROX || b.kind == ML_VALUE_APPROX)
+	{
+		found = ml_value_error (ML_EVAL_NOT_EXACT, 0, 0);
+	}
+
+	else if (
+		   (a.kind != ML_VALUE_EXACT && a.kind != ML_VALUE_QUANTITY)
+		|| (b.kind != ML_VALUE_EXACT && b.kind != ML_VALUE_QUANTITY)
+	)
+	{
+		found = ml_value_error (ML_EVAL_TYPE, 0, 0);
+	}
+
+	return found;
+}
+
+/* a + b: the same dimension, where a zero takes the dimension of the other. */
+static MlValue quantity_add (MlArena *arena, MlValue a, MlValue b)
+{
+	MlDim da = a.dim;
+	MlDim db = b.dim;
+
+	if (a.kind == ML_VALUE_EXACT && ml_rat_is_zero (a.exact))
+	{
+		da = db;
+	}
+
+	if (b.kind == ML_VALUE_EXACT && ml_rat_is_zero (b.exact))
+	{
+		db = da;
+	}
+
+	return ml_choose (
+		ml_dim_equal (da, db),
+		ml_value_quantity (ml_rat_add (arena, a.exact, b.exact), da),
+		ml_value_error (ML_EVAL_DIMENSION_MISMATCH, 0, 0)
+	);
+}
+
+/* a ^ n for a quantity a and an exact integer n of moderate size. */
+static MlValue quantity_pow (MlArena *arena, MlValue a, MlValue b)
+{
+	MlI64Result n      = ml_value_to_i64 (b);
+	MlValue     result = ml_value_none ();
+
+	if (b.kind != ML_VALUE_EXACT || a.kind != ML_VALUE_QUANTITY)
+	{
+		result = ml_value_error (ML_EVAL_DIMENSION_MISMATCH, 0, 0);
+	}
+
+	else if (!n.ok)
+	{
+		result = ml_value_error (ML_EVAL_NOT_INTEGER, 0, 0);
+	}
+
+	else if (n.value > 64 || n.value < -64)
+	{
+		result = ml_value_error (ML_EVAL_TOO_LARGE, 0, 0);
+	}
+
+	else
+	{
+		result = ml_value_quantity (
+			ml_rat_pow (arena, a.exact, n.value),
+			ml_dim_pow (a.dim, (int32_t)n.value)
+		);
+	}
+
+	return result;
+}
+
+/* A binary operation where at least one operand is a quantity. */
+static MlValue quantity_op (
+	MlArena    *arena,
+	QuantityOp op,
+	MlValue    a,
+	MlValue    b
+)
+{
+	MlValue result = quantity_operands (a, b);
+
+	if (result.kind == ML_VALUE_NONE && op == Q_ADD)
+	{
+		result = quantity_add (arena, a, b);
+	}
+
+	else if (result.kind == ML_VALUE_NONE && op == Q_MUL)
+	{
+		result = ml_value_quantity (
+			ml_rat_mul (arena, a.exact, b.exact),
+			ml_dim_mul (a.dim, b.dim)
+		);
+	}
+
+	else if (result.kind == ML_VALUE_NONE && op == Q_DIV)
+	{
+		result = ml_choose (
+			ml_rat_is_zero (b.exact),
+			ml_value_error (ML_EVAL_DIV_ZERO, 0, 0),
+			ml_value_quantity (
+				ml_rat_div (arena, a.exact, b.exact),
+				ml_dim_div (a.dim, b.dim)
+			)
+		);
+	}
+
+	else if (result.kind == ML_VALUE_NONE)
+	{
+		result = quantity_pow (arena, a, b);
+	}
+
+	return result;
+}
+
 MlValue ml_value_neg (MlArena *arena, MlValue a)
 {
 	MlValue result = a;
@@ -448,6 +620,11 @@ MlValue ml_value_neg (MlArena *arena, MlValue a)
 	if (a.kind == ML_VALUE_EXACT)
 	{
 		result = ml_value_exact (ml_rat_neg (arena, a.exact));
+	}
+
+	else if (a.kind == ML_VALUE_QUANTITY)
+	{
+		result = ml_value_quantity (ml_rat_neg (arena, a.exact), a.dim);
 	}
 
 	else if (a.kind == ML_VALUE_APPROX)
@@ -508,7 +685,12 @@ MlValue ml_value_add (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_expr (a, b))
+	if (involves_quantity (a, b))
+	{
+		result = quantity_op (arena, Q_ADD, a, b);
+	}
+
+	else if (involves_expr (a, b))
 	{
 		result = expr_op (arena, SYM_OP_ADD, a, b);
 	}
@@ -551,7 +733,12 @@ MlValue ml_value_mul (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_expr (a, b))
+	if (involves_quantity (a, b))
+	{
+		result = quantity_op (arena, Q_MUL, a, b);
+	}
+
+	else if (involves_expr (a, b))
 	{
 		result = expr_op (arena, SYM_OP_MUL, a, b);
 	}
@@ -599,7 +786,12 @@ MlValue ml_value_div (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_expr (a, b))
+	if (involves_quantity (a, b))
+	{
+		result = quantity_op (arena, Q_DIV, a, b);
+	}
+
+	else if (involves_expr (a, b))
 	{
 		result = expr_op (arena, SYM_OP_DIV, a, b);
 	}
@@ -740,7 +932,12 @@ MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_expr (a, b))
+	if (involves_quantity (a, b))
+	{
+		result = quantity_op (arena, Q_POW, a, b);
+	}
+
+	else if (involves_expr (a, b))
 	{
 		result = expr_op (arena, SYM_OP_POW, a, b);
 	}
@@ -798,6 +995,28 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 			APPROX_DIGITS,
 			v.approx
 		);
+	}
+
+	else if (v.kind == ML_VALUE_QUANTITY)
+	{
+		MlSlice unit = ml_dim_unit_name (v.dim);
+
+		r = ml_rat_format (out, v.exact);
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (out, ml_slice_cstr (" "));
+		}
+
+		if (r == ML_OK && unit.len > 0)
+		{
+			r = ml_str_append (out, unit);
+		}
+
+		else if (r == ML_OK)
+		{
+			r = ml_dim_format (out, v.dim);
+		}
 	}
 
 	else if (v.kind == ML_VALUE_MATRIX)

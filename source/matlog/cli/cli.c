@@ -118,7 +118,7 @@ static const char *const schema_text =
 	"  {\"line\":N, \"kind\":\"math|note|include|blank|unknown\", "
 	"\"domain\":\"algebra\",\n"
 	"   \"input\":\"text\", \"status\":\"value|error|none\",\n"
-	"   \"type\":\"exact|approx|matrix\", \"value\":\"7/2\", "
+	"   \"type\":\"exact|approx|matrix|expr|quantity\", \"value\":\"7/2\", "
 	"\"block\":[\"row\",...],\n"
 	"   \"error\":{\"code\":\"div_zero\", \"message\":\"...\", "
 	"\"start\":N, \"len\":N}}\n"
@@ -134,7 +134,7 @@ static const char *const schema_text =
 	"not_integer\n"
 	"  undefined_name not_function not_value arity too_large depth no_file\n"
 	"  include_loop size type not_exact cannot_integrate not_symbolic\n"
-	"  singular\n"
+	"  singular dimension_mismatch unknown_unit\n"
 	"  no_memory, and for "
 	"text that does\n"
 	"  not parse parse_unexpected_end parse_unexpected_token "
@@ -420,7 +420,11 @@ static const char *type_name (MlValueKind kind)
 		ml_choose (
 			kind == ML_VALUE_EXPR,
 			"expr",
-			ml_choose (kind == ML_VALUE_APPROX, "approx", "exact")
+			ml_choose (
+				kind == ML_VALUE_QUANTITY,
+				"quantity",
+				ml_choose (kind == ML_VALUE_APPROX, "approx", "exact")
+			)
 		)
 	);
 }

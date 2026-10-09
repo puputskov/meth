@@ -41,6 +41,7 @@ MlGhost ml_ghost (
 			|| v.kind == ML_VALUE_APPROX
 			|| v.kind == ML_VALUE_MATRIX
 			|| v.kind == ML_VALUE_EXPR
+			|| v.kind == ML_VALUE_QUANTITY
 		)
 		{
 			g.result = ml_value_format (out, &arena, v);

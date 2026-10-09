@@ -1,6 +1,9 @@
 #include "test.h"
 
 #include <matlog/math/unit.h>
+#include <matlog/math/value.h>
+
+#include <string.h>
 
 static MlSlice lit (const char *s)
 {
@@ -240,6 +243,170 @@ static void test_unit_names (void)
 	);
 }
 
+/* n of a unit, for example 5 of "km". */
+static MlValue q (MlArena *a, int64_t n, const char *unit)
+{
+	MlUnitMatch m = ml_unit_find (lit (unit));
+
+	return ml_value_quantity (
+		ml_rat_mul (
+			a,
+			ml_rat_from_i64 (a, n),
+			ml_unit_factor (a, m)
+		),
+		m.dim
+	);
+}
+
+static int32_t is (MlArena *a, MlValue v, const char *expected)
+{
+	MlStr   s;
+	int32_t same;
+
+	ml_str_init (&s);
+	same = (
+		   ml_value_format (&s, a, v) == ML_OK
+		&& ml_slice_equal (ml_str_view (s), lit (expected))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  value is \"%s\" (kind %d, error %d), expected \"%s\"\n",
+			ml_str_cstr (s),
+			(int32_t)v.kind,
+			(int32_t)v.error,
+			expected
+		);
+	}
+
+	ml_str_free (&s);
+	return same;
+}
+
+static int32_t fails (MlValue v, MlErrorKind kind)
+{
+	return v.kind == ML_VALUE_ERROR && v.error == kind;
+}
+
+static MlValue frac_half (MlArena *a)
+{
+	return ml_value_div (a, ml_value_from_i64 (a, 1), ml_value_from_i64 (a, 2));
+}
+
+static void test_quantities (void)
+{
+	MlArena a;
+	MlValue two;
+	MlValue zero;
+
+	ml_arena_init (&a, 0);
+	two  = ml_value_from_i64 (&a, 2);
+	zero = ml_value_from_i64 (&a, 0);
+
+	CHECK (ml_value_is_quantity (q (&a, 5, "km")));
+	CHECK (is (&a, q (&a, 5, "km"), "5000 m"));
+	CHECK (is (&a, q (&a, 3, "ft"), "1143/1250 m"));
+	CHECK (is (&a, q (&a, 12, "N"), "12 N"));
+	CHECK (is (&a, q (&a, 2, "lb"), "45359237/50000000 kg"));
+
+	/* no dimension left: a plain number */
+	CHECK (ml_value_is_exact (
+		ml_value_quantity (ml_rat_from_i64 (&a, 3), ml_dim_none ())
+	));
+	CHECK (is (&a, ml_value_div (&a, q (&a, 1, "km"), q (&a, 1, "m")), "1000"));
+
+	CHECK (is (
+		&a,
+		ml_value_add (&a, q (&a, 5, "km"), q (&a, 300, "m")),
+		"5300 m"
+	));
+	CHECK (is (
+		&a,
+		ml_value_sub (&a, q (&a, 5, "km"), q (&a, 300, "m")),
+		"4700 m"
+	));
+	CHECK (is (
+		&a,
+		ml_value_add (&a, q (&a, 1, "h"), q (&a, 30, "min")),
+		"5400 s"
+	));
+	CHECK (fails (
+		ml_value_add (&a, q (&a, 1, "m"), q (&a, 1, "s")),
+		ML_EVAL_DIMENSION_MISMATCH
+	));
+	CHECK (fails (
+		ml_value_add (&a, q (&a, 1, "m"), two),
+		ML_EVAL_DIMENSION_MISMATCH
+	));
+	CHECK (is (&a, ml_value_add (&a, q (&a, 1, "m"), zero), "1 m"));
+	CHECK (is (&a, ml_value_add (&a, zero, q (&a, 1, "m")), "1 m"));
+
+	CHECK (is (&a, ml_value_neg (&a, q (&a, 4, "s")), "-4 s"));
+	CHECK (is (&a, ml_value_mul (&a, q (&a, 12, "N"), q (&a, 3, "m")), "36 J"));
+	CHECK (is (&a, ml_value_mul (&a, two, q (&a, 3, "m")), "6 m"));
+	CHECK (is (&a, ml_value_mul (&a, q (&a, 3, "m"), q (&a, 2, "m")), "6 m²"));
+	CHECK (is (
+		&a,
+		ml_value_div (&a, q (&a, 60, "km"), q (&a, 1, "h")),
+		"50/3 m/s"
+	));
+	CHECK (is (&a, ml_value_div (&a, two, q (&a, 4, "s")), "1/2 Hz"));
+	CHECK (fails (
+		ml_value_div (&a, q (&a, 1, "m"), zero),
+		ML_EVAL_DIV_ZERO
+	));
+	CHECK (is (&a, ml_value_pow (&a, q (&a, 3, "m"), two), "9 m²"));
+	CHECK (is (
+		&a,
+		ml_value_pow (&a, q (&a, 2, "s"), ml_value_from_i64 (&a, -1)),
+		"1/2 Hz"
+	));
+	CHECK (fails (
+		ml_value_pow (&a, q (&a, 3, "m"), frac_half (&a)),
+		ML_EVAL_NOT_INTEGER
+	));
+	CHECK (fails (
+		ml_value_pow (&a, q (&a, 3, "m"), q (&a, 1, "m")),
+		ML_EVAL_DIMENSION_MISMATCH
+	));
+	CHECK (fails (
+		ml_value_pow (&a, q (&a, 3, "m"), ml_value_from_i64 (&a, 1000)),
+		ML_EVAL_TOO_LARGE
+	));
+
+	CHECK (fails (
+		ml_value_add (&a, q (&a, 1, "m"), ml_value_approx (1.5)),
+		ML_EVAL_NOT_EXACT
+	));
+	CHECK (fails (
+		ml_value_mul (&a, q (&a, 1, "m"), ml_value_approx (1.5)),
+		ML_EVAL_NOT_EXACT
+	));
+	CHECK (fails (
+		ml_value_mul (
+			&a,
+			q (&a, 1, "m"),
+			ml_value_error (ML_EVAL_SYNTAX, 1, 2)
+		),
+		ML_EVAL_SYNTAX
+	));
+
+	CHECK (ml_value_cmp (&a, q (&a, 1, "km"), q (&a, 999, "m")) == 1);
+	CHECK (ml_value_cmp (&a, q (&a, 1, "km"), q (&a, 1000, "m")) == 0);
+	CHECK (ml_value_cmp (&a, q (&a, 1, "m"), q (&a, 1, "ft")) == 1);
+
+	CHECK (
+		strcmp (
+			ml_error_code (ML_EVAL_DIMENSION_MISMATCH),
+			"dimension_mismatch"
+		) == 0
+	);
+	CHECK (strcmp (ml_error_code (ML_EVAL_UNKNOWN_UNIT), "unknown_unit") == 0);
+
+	ml_arena_free (&a);
+}
+
 void run_unit_tests (void)
 {
 	test_dimensions ();
@@ -249,4 +416,5 @@ void run_unit_tests (void)
 	test_factors ();
 	test_unknown ();
 	test_unit_names ();
+	test_quantities ();
 }

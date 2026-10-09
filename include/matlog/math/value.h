@@ -2,6 +2,7 @@
 #define MATLOG_MATH_VALUE_H
 
 #include <matlog/math/matrix.h>
+#include <matlog/math/unit.h>
 #include <matlog/sym/expr.h>
 
 /*
@@ -11,7 +12,9 @@
  *	approx   a double; it comes from a result that is not a rational (sqrt (2),
  *	         sin (1), pi) and it spreads: exact with approx gives approx
  *
- * or an exact matrix (a vector is a matrix of one column, see matrix.h), or an
+ * or an exact quantity (a number of coherent SI units with a dimension, see
+ * unit.h), or an exact matrix (a vector is a matrix of one column, see
+ * matrix.h), or an
  * error, which carries what went wrong and the byte range of the source
  * text it belongs to. Like the numbers underneath, a value is a small struct
  * passed by value (arena memory for the digits), and an error given to any
@@ -25,6 +28,7 @@ typedef enum MlValueKind
 	ML_VALUE_APPROX,
 	ML_VALUE_MATRIX, /* exact cells, see matrix.h */
 	ML_VALUE_EXPR,   /* a symbolic expression, see sym/expr.h */
+	ML_VALUE_QUANTITY, /* exact value in SI units and a dimension */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -52,6 +56,8 @@ typedef enum MlErrorKind
 	ML_EVAL_CANNOT_INTEGRATE, /* no closed form found */
 	ML_EVAL_NOT_SYMBOLIC,   /* not a formula the symbolic engine can use */
 	ML_EVAL_SINGULAR,       /* a singular matrix has no inverse */
+	ML_EVAL_DIMENSION_MISMATCH, /* units of different dimensions combined */
+	ML_EVAL_UNKNOWN_UNIT,   /* a unit name that does not exist */
 	ML_EVAL_NO_MEMORY,
 	ML_EVAL_KIND_COUNT
 } MlErrorKind;
@@ -59,7 +65,8 @@ typedef enum MlErrorKind
 typedef struct MlValue
 {
 	MlValueKind kind;
-	MlRat       exact;  /* ML_VALUE_EXACT */
+	MlRat       exact;  /* ML_VALUE_EXACT, ML_VALUE_QUANTITY (in SI units) */
+	MlDim       dim;    /* ML_VALUE_QUANTITY */
 	MlMat       matrix; /* ML_VALUE_MATRIX */
 	const MlSym *sym;   /* ML_VALUE_EXPR */
 	double      approx; /* ML_VALUE_APPROX */
@@ -79,6 +86,13 @@ typedef struct MlI64Result
 MlValue ml_value_none (void);
 MlValue ml_value_exact (MlRat x);
 MlValue ml_value_approx (double x);
+
+/*
+ * A quantity: si is the number of coherent SI units (5 km is 5000 with the
+ * dimension of a length). A quantity without a dimension is an exact number.
+ */
+MlValue ml_value_quantity (MlRat si, MlDim dim);
+int32_t ml_value_is_quantity (MlValue v);
 
 /*
  * A matrix value. A matrix that carries a failure becomes the matching error:
@@ -112,7 +126,10 @@ MlI64Result ml_value_to_i64 (MlValue v);
 /* The value as a double (0 for values that are not numbers). */
 double ml_value_to_double (MlArena *arena, MlValue v);
 
-/* -1, 0 or 1 for two numbers. Exact numbers are compared exactly. */
+/*
+ * -1, 0 or 1 for two numbers. Exact numbers are compared exactly. Quantities
+ * compare their SI values; the caller checks that the dimensions are equal.
+ */
 int32_t ml_value_cmp (MlArena *arena, MlValue a, MlValue b);
 
 /*
@@ -122,6 +139,12 @@ int32_t ml_value_cmp (MlArena *arena, MlValue a, MlValue b);
  *	matrix * matrix            the product; number * matrix scales it
  *	matrix / number            scales by the inverse of an exact number
  *	matrix ^ integer           repeated product, ^-1 is the inverse
+ *
+ * Quantities add and subtract only with the same dimension (zero counts as a
+ * quantity of any dimension; anything else is ML_EVAL_DIMENSION_MISMATCH),
+ * multiply and divide by adding and subtracting dimensions, and take an
+ * integer power. They are exact: an approximate number meeting one is
+ * ML_EVAL_NOT_EXACT, a matrix or expression ML_EVAL_TYPE.
  *
  * Any other mix (a number plus a matrix, a number divided by a matrix, a power
  * that is not an integer) is ML_EVAL_TYPE, and an approximate number meeting a
