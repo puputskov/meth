@@ -105,6 +105,11 @@ static const UnitDef k_units [] =
 		.sym = "wk", .name = "week", .dk = DK_TIME,
 		.num = 604800, .fixed = 1
 	},
+	/* the mean month: a twelfth of the Julian year, 30.4375 days */
+	{
+		.sym = "mo", .name = "month", .dk = DK_TIME,
+		.num = 2629800, .fixed = 1
+	},
 	/* the Julian year of 365.25 days */
 	{
 		.sym = "yr", .name = "year", .dk = DK_TIME,
