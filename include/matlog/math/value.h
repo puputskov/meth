@@ -2,6 +2,7 @@
 #define MATLOG_MATH_VALUE_H
 
 #include <matlog/math/matrix.h>
+#include <matlog/sym/expr.h>
 
 /*
  * The result of evaluating something. That is a number:
@@ -23,6 +24,7 @@ typedef enum MlValueKind
 	ML_VALUE_EXACT,
 	ML_VALUE_APPROX,
 	ML_VALUE_MATRIX, /* exact cells, see matrix.h */
+	ML_VALUE_EXPR,   /* a symbolic expression, see sym/expr.h */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -56,6 +58,7 @@ typedef struct MlValue
 	MlValueKind kind;
 	MlRat       exact;  /* ML_VALUE_EXACT */
 	MlMat       matrix; /* ML_VALUE_MATRIX */
+	const MlSym *sym;   /* ML_VALUE_EXPR */
 	double      approx; /* ML_VALUE_APPROX */
 	MlErrorKind error;  /* ML_VALUE_ERROR */
 	/* byte range in the source, error_len 0 if unknown */

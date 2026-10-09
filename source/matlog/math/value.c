@@ -105,6 +105,7 @@ MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len)
 		.kind        = ML_VALUE_ERROR,
 		.exact       = ml_rat_error (ML_OK),
 		.matrix      = ml_mat_error (ML_OK),
+		.sym         = NULL,
 		.approx      = 0.0,
 		.error       = kind,
 		.error_start = start,

@@ -590,6 +590,35 @@ steps can be shown on request.
 7. **Steps**: the rule recording of section 4.1 for the matrix operations
    (row reduction steps, determinant expansion), shown with `s`.
 
+## 9c. Milestone 4 tasks
+
+Goal: symbolic calculation in the algebra domain: expressions with free symbols can be simplified, expanded, substituted, differentiated and integrated,
+with exact results and steps on request.
+
+### Decisions this milestone is built on
+
+- Symbols are free only inside the symbolic functions. A bare `x + y` is still an error when x or y is undefined (so a typo is not silently a result);
+  `simplify(x + x)` is `2x`. Names bound to numbers are replaced by their values (`a = 3` then `simplify(a*x + x)` is `4x`), except the symbol being worked on.
+  A later switch can make symbols free everywhere.
+- Functions: `simplify(f)`, `expand(f)`, `subs(f, x, v)`, `diff(f, x)`, `diff(f, x, n)`, `integrate(f, x)`, `integrate(f, x, a, b)`. User defined functions
+  are inlined (`f(x) = x^2` then `diff(f(x), x)`). `pi` and `e` are exact constants; `sin cos tan asin acos atan ln exp abs sqrt` are the known functions.
+- A symbolic result is a new kind of value (an expression tree), shown in the pretty syntax (`x²`, `√x`, `1/x`), storable in variables and usable in
+  later symbolic calls. A result that has no symbols is an exact number again.
+- Integration scope as in 2.1: polynomials, the table integrals, linearity and constant factors, linear substitution (`sin(2x+1)`); parts and rational
+  functions are later. What is not found is an error (`cannot_integrate`), never a wrong answer.
+- Trees are immutable and live in an arena; nothing recurses (explicit stacks), sizes are limited (200000 nodes per calculation).
+
+### Tasks
+
+1. **Expression trees** (`sym/expr.h`): nodes, comparison, printing. Done when: tests print trees in the pretty syntax and parse them back.
+2. **Canonical form** (`sym/simplify.c`): smart constructors for sums, products, powers and functions; `simplify`, `expand`, `subs`. Done when: tests check
+   like terms, numeric folding, powers, expansion of (x+1)^n, ordering, and identities such as x - x = 0.
+3. **From the syntax tree** (`sym/build.c`): the parsed expression to a tree, with bound names replaced and user functions inlined (explicit scope stack).
+4. **Derivative** (`sym/diff.c`): sum, product, power, chain rule, the elementary functions; steps.
+5. **Integral** (`sym/integrate.c`): polynomials, table, linear arguments, definite integrals; steps.
+6. **Values and evaluator**: the expression value kind, the symbolic functions in the evaluator, environment copies, results, JSON type `expr`.
+7. **Steps** for the symbolic functions (`s` on a line).
+
 ## 10. Out of scope (for now)
 
 - Own GUI window, GUI toolkit, network features, plugins.
