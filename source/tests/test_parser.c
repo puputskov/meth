@@ -146,6 +146,31 @@ static int32_t fails_with (
 	return same;
 }
 
+static void test_conversion (void)
+{
+	CHECK (dumps_as ("3 ft to m", "(to (* 3 ft) m)"));
+	CHECK (dumps_as ("3ft to m", "(to (* 3 ft) m)"));
+	CHECK (dumps_as ("x to m", "(to x m)"));
+	CHECK (dumps_as ("5 to m", "(to 5 m)"));
+	CHECK (dumps_as ("(2+3) to m", "(to (+ 2 3) m)"));
+	CHECK (dumps_as ("5 N*m to J", "(to (* (* 5 N) m) J)"));
+	CHECK (dumps_as ("60 km/h to m/s", "(to (/ (* 60 km) h) (/ m s))"));
+	CHECK (dumps_as ("1 km + 5 m to m", "(to (+ (* 1 km) (* 5 m)) m)"));
+	CHECK (dumps_as ("a to b to c", "(to (to a b) c)"));
+	CHECK (dumps_as ("d = 3 ft to m", "(= d (to (* 3 ft) m))"));
+	CHECK (dumps_as ("f(x) = x to m", "(def f (x) (to x m))"));
+
+	/* "to" is only the operator after an operand */
+	CHECK (dumps_as ("to", "to"));
+	CHECK (dumps_as ("to + 1", "(+ to 1)"));
+	CHECK (dumps_as ("1 + to", "(+ 1 to)"));
+	CHECK (dumps_as ("tom", "tom"));
+	CHECK (dumps_as ("3 tom", "(* 3 tom)"));
+
+	CHECK (dumps_as ("3 to", "error"));
+	CHECK (dumps_as ("to m", "error"));
+}
+
 static void test_precedence (void)
 {
 	CHECK (dumps_as ("1", "1"));
@@ -747,6 +772,7 @@ static void test_lists (void)
 void run_parser_tests (void)
 {
 	test_precedence ();
+	test_conversion ();
 	test_implicit_product ();
 	test_unicode_forms ();
 	test_calls ();

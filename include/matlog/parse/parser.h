@@ -12,6 +12,9 @@
  *
  * Precedence, from loose to tight:
  *
+ *	to                            the conversion: 3 ft to m, 5 N*m to J; it
+ *	                              is the word "to", so "to" is not a name
+ *	                              after an operand; left associative
  *	+ -                           left associative
  *	* / and implicit product      left associative
  *	unary - +                     -2^2 is -(2^2)
@@ -51,7 +54,7 @@
  *	                               matrices of them)
  *	number, name, superscript      leaves (the text is the node's range)
  *	neg, !, sqrt                   one child
- *	+ - * / ^                      two children, left then right
+ *	+ - * / ^ to                   two children, left then right
  *	call                           the callee (a name), then the arguments
  *	=                              the target (a name), then the expression
  *	def                            the name, a params node holding the
@@ -80,6 +83,7 @@ typedef enum MlNodeKind
 	ML_NODE_FUNC_DEF,    /* name (params) = body */
 	ML_NODE_PARAMS,      /* the parameter names of a definition */
 	ML_NODE_LIST,        /* [a, b, c] */
+	ML_NODE_TO,          /* a to b: a converted to the unit expression b */
 	ML_NODE_KIND_COUNT
 } MlNodeKind;
 

@@ -708,7 +708,9 @@ and a result can be shown in any unit of the same dimension (`to`), also reduced
 2. **Quantity values** (`math/value.h`): a value kind with an exact number and a dimension; add, subtract, multiply, divide, power, compare with the
    dimension rules; the error kinds `dimension_mismatch` and `unknown_unit`. Done when: tests check the
    rules, mismatches and exactness. (done: exact quantities only; approximate ones are `not_exact`)
-3. **Syntax**: a unit name after a number or `)` is a unit (`5 km`, `(2+3) m/s`); `to` converts (`3 ft to m`), `in` as a synonym where it is not a unit.
+3. **Syntax**: `5 km` needs nothing new (a number followed by a name is already a product, the evaluator reads the name as a unit); `to` converts
+   (`3 ft to m`, `60 km/h to m/s`) as the loosest binary operator, the node `to` with the value and the unit expression. The word is only an operator
+   after an operand, elsewhere `to` is a name. No synonym `in`: it is the unit inch. (done)
 4. **Evaluator**: units resolve after variables and functions; `to` finds the factor; `sqrt`, `abs`, `min`, `max` on quantities.
 5. **Display**: `= 5000 m` and `= 5 km` after `to`; derived names (`J`); `ml_dim_format` for the rest; JSON type `quantity` with `value` and `unit`.
 6. **Completion, highlighting hooks and steps**: unit names in completion, the conversion shown as steps (`3 ft = 3 × 0.3048 m`).
@@ -739,4 +741,4 @@ and a result can be shown in any unit of the same dimension (`to`), also reduced
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Milestones 1 to 4 are done (milestone 5, units, is started: tasks 1 and 2 of section 9d are built: the dimensions, the unit table and the quantity values) (milestone 4: symbolic simplify, expand, subs, diff and integrate with steps; integration by parts and substitution, limits and solving equations are not built yet). Built beyond the milestones: the command line interface (eval, run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes. Next: the highlighting and themes, export, documentation, the tutorial, proofs (sections 4.9 to 4.14), or milestone 5 (units).
+Milestones 1 to 4 are done (milestone 5, units, is started: tasks 1 to 3 of section 9d are built: the dimensions, the unit table, the quantity values and the `to` syntax) (milestone 4: symbolic simplify, expand, subs, diff and integrate with steps; integration by parts and substitution, limits and solving equations are not built yet). Built beyond the milestones: the command line interface (eval, run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes. Next: the highlighting and themes, export, documentation, the tutorial, proofs (sections 4.9 to 4.14), or milestone 5 (units).

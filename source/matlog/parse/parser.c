@@ -441,7 +441,11 @@ static MlNodeKind binary_kind (MlTokenKind kind)
 		ml_choose (
 			kind == ML_TOK_MINUS,
 			ML_NODE_SUB,
-			ml_choose (kind == ML_TOK_SLASH, ML_NODE_DIV, ML_NODE_MUL)
+			ml_choose (
+				kind == ML_TOK_SLASH,
+				ML_NODE_DIV,
+				ml_choose (kind == ML_TOK_END, ML_NODE_TO, ML_NODE_MUL)
+			)
 		)
 	);
 }
@@ -601,22 +605,42 @@ static void call_expr (Parser *p)
 }
 
 /*
- * The level of the binary operator at the cursor: 1 for + -, 2 for * / and
- * an implicit product, 0 when the next token is no operator.
+ * 1 when the cursor is on the word "to" where an operator can follow. It is
+ * the conversion operator there (3 ft to m), never a factor of an implicit
+ * product, so a number directly followed by a name "to" is a conversion too.
+ */
+static int32_t at_to (const Parser *p)
+{
+	MlToken t = peek (p);
+
+	return (
+		   t.kind == ML_TOK_NAME
+		&& ml_slice_equal (ml_token_text (p->source, t), ml_slice_cstr ("to"))
+	);
+}
+
+/*
+ * The level of the binary operator at the cursor: 1 for the conversion "to",
+ * 2 for + -, 3 for * / and an implicit product, 0 when the next token is no
+ * operator.
  */
 static uint64_t operator_level (const Parser *p)
 {
 	MlTokenKind next = peek (p).kind;
 
 	return ml_choose (
-		next == ML_TOK_PLUS || next == ML_TOK_MINUS,
+		at_to (p),
 		1,
 		ml_choose (
-			   next == ML_TOK_STAR
-			|| next == ML_TOK_SLASH
-			|| implicit_product (previous_kind (p), next),
+			next == ML_TOK_PLUS || next == ML_TOK_MINUS,
 			2,
-			0
+			ml_choose (
+				   next == ML_TOK_STAR
+				|| next == ML_TOK_SLASH
+				|| implicit_product (previous_kind (p), next),
+				3,
+				0
+			)
 		)
 	);
 }
@@ -821,11 +845,17 @@ static void binary_continue (Parser *p, uint64_t min_level, uint64_t node)
 
 	if (!p->failed && level >= min_level && level > 0)
 	{
-		MlTokenKind kind = peek (p).kind;
+		/* ML_TOK_END stands for "to", which is a name token */
+		MlTokenKind kind = ml_choose (
+			at_to (p),
+			ML_TOK_END,
+			peek (p).kind
+		);
 
 		/* an implicit product has no token of its own */
 		if (
-			   kind == ML_TOK_PLUS
+			   kind == ML_TOK_END
+			|| kind == ML_TOK_PLUS
 			|| kind == ML_TOK_MINUS
 			|| kind == ML_TOK_STAR
 			|| kind == ML_TOK_SLASH
@@ -1306,7 +1336,8 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_ASSIGN]   = "=",
 	[ML_NODE_FUNC_DEF] = "def",
 	[ML_NODE_PARAMS]   = "",
-	[ML_NODE_LIST]     = "list"
+	[ML_NODE_LIST]     = "list",
+	[ML_NODE_TO]       = "to"
 };
 
 static const char *node_label (MlNodeKind kind)
