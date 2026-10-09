@@ -5,6 +5,9 @@ build/
 .vs/
 *.user
 *.suo
+*.exe
+*.obj
+*.pdb
 
 # Scratch session created by running matlog without a file
 scratch.mlog
