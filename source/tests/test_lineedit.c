@@ -259,7 +259,7 @@ static void test_keys (void)
 	);
 
 	/* Alt+arrows belong to the editor (domain cycling): not handled here */
-	CHECK (ml_lineedit_set         (&e, lit ("ab cd")) == ML_OK);
+	CHECK (ml_lineedit_set (&e, lit ("ab cd")) == ML_OK);
 	CHECK (
 		!ml_lineedit_handle_key (&e, key (ML_KEY_LEFT, 0, ML_MOD_ALT)).handled
 	);

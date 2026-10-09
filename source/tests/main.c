@@ -12,6 +12,7 @@ void run_rewrite_tests (void);
 void run_editor_tests (void);
 void run_screen_tests (void);
 void run_complete_tests (void);
+void run_bigint_tests (void);
 
 int main (void)
 {
@@ -24,6 +25,7 @@ int main (void)
 	run_editor_tests ();
 	run_screen_tests ();
 	run_complete_tests ();
+	run_bigint_tests ();
 
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);
 	return ml_choose (

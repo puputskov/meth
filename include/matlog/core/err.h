@@ -11,7 +11,9 @@ typedef enum MlResult
 	ML_ERR_RANGE,   /* index or value out of range */
 	ML_ERR_UTF8,    /* malformed UTF-8 */
 	ML_ERR_IO,      /* file or console failure */
-	ML_ERR_PARSE    /* syntax error */
+	ML_ERR_PARSE,   /* syntax error */
+	ML_ERR_LIMIT,   /* a value or a computation became too large */
+	ML_ERR_DIVZERO  /* division by zero */
 } MlResult;
 
 const char *ml_result_str (MlResult r);

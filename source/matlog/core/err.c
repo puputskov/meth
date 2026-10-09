@@ -8,7 +8,9 @@ static const char *const names [] =
 	[ML_ERR_RANGE]   = "out of range",
 	[ML_ERR_UTF8]    = "malformed UTF-8",
 	[ML_ERR_IO]      = "I/O error",
-	[ML_ERR_PARSE]   = "syntax error"
+	[ML_ERR_PARSE]   = "syntax error",
+	[ML_ERR_LIMIT]   = "value too large",
+	[ML_ERR_DIVZERO] = "division by zero"
 };
 
 const char *ml_result_str (MlResult r)
