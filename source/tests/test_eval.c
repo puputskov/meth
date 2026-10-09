@@ -977,6 +977,14 @@ static void test_units (void)
 	CHECK (shows (&s, "dist", "78125/25146 mi"));
 	CHECK (shows (&s, "dist + 1 m", "5001 m"));
 
+	/* dimensional analysis */
+	CHECK (shows (&s, "dim (5 km)", "1 m"));
+	CHECK (shows (&s, "dim (3 N)", "1 N"));
+	CHECK (shows (&s, "dim (12 N * 3 m)", "1 J"));
+	CHECK (shows (&s, "dim (2 m / (4 s))", "1 m/s"));
+	CHECK (shows (&s, "dim (7)", "1"));
+	CHECK (shows (&s, "dim (3 km) / (1 m)", "1"));
+
 	/* functions */
 	CHECK (is_qty (&s, "sqrt (4 m^2)", 2, "m"));
 	CHECK (fails (&s, "sqrt (4 m)", ML_EVAL_DIMENSION_MISMATCH));

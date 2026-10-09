@@ -105,6 +105,8 @@ static const char *const syntax_text =
 	"integrate(f, x [, a, b])\n"
 	"             names are symbols inside these: diff(x^3, x) is 3x\xC2\xB2; "
 	"results can be stored\n"
+	"Units        5 km + 300 m, 12 N * 3 m; a to b converts: 3 ft to m;\n"
+	"             dim(x) is the dimension of x as one SI unit\n"
 	"Results      exact (1/2) or approximate (\xE2\x89\x88 1.41421356); "
 	"errors have a code\n"
 	"Domains      algebra (evaluated now); equations matrix vector lambda "

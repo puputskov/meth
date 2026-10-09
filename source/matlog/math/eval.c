@@ -94,6 +94,7 @@ typedef enum MlBuiltin
 	BUILTIN_MAX,
 	BUILTIN_GCD,
 	BUILTIN_LCM,
+	BUILTIN_DIM,
 	/* matrices and vectors from here on */
 	BUILTIN_DET,
 	BUILTIN_INV,
@@ -148,6 +149,7 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_MAX]   = { .name = "max",   .min = 2, .max = ANY_ARGS },
 	[BUILTIN_GCD]   = { .name = "gcd",   .min = 2, .max = 2 },
 	[BUILTIN_LCM]   = { .name = "lcm",   .min = 2, .max = 2 },
+	[BUILTIN_DIM]   = { .name = "dim",   .min = 1, .max = 1 },
 	[BUILTIN_DET]       = { .name = "det",       .min = 1, .max = 1 },
 	[BUILTIN_INV]       = { .name = "inv",       .min = 1, .max = 1 },
 	[BUILTIN_TRANSPOSE] = { .name = "transpose", .min = 1, .max = 1 },
@@ -842,6 +844,25 @@ static MlValue formula_function (MlArena *arena, MlBuiltin id, MlValue a)
 	return out;
 }
 
+/*
+ * The dimension of a value as one coherent SI unit of it: dim (5 km) is 1 m,
+ * dim (3 N) is 1 N, and a plain number has the dimension 1.
+ */
+static MlValue dim_value (MlArena *arena, MlValue a)
+{
+	return ml_choose (
+		a.kind == ML_VALUE_QUANTITY,
+		ml_value_quantity (ml_rat_from_i64 (arena, 1), a.dim),
+		ml_choose (
+			   a.kind == ML_VALUE_EXACT
+			|| a.kind == ML_VALUE_APPROX
+			|| a.kind == ML_VALUE_MATRIX,
+			ml_value_from_i64 (arena, 1),
+			error_at (ML_EVAL_TYPE)
+		)
+	);
+}
+
 static MlValue builtin_apply (
 	MlArena       *arena,
 	MlBuiltin     id,
@@ -861,7 +882,12 @@ static MlValue builtin_apply (
 		has_qty    = has_qty || ml_value_is_quantity (args [i]);
 	}
 
-	if (has_expr)
+	if (id == BUILTIN_DIM)
+	{
+		r = dim_value (arena, args [0]);
+	}
+
+	else if (has_expr)
 	{
 		r = formula_function (arena, id, args [0]);
 	}
@@ -1645,6 +1671,128 @@ static int32_t is_transpose (const MlEvalCtx *cx, MlFrame f, MlNode node)
 	return is_t && ml_value_is_matrix (top_value (cx));
 }
 
+/* "x" and the coherent SI unit of the dimension: "1143/1250 m". */
+static MlResult append_si (MlStr *line, MlRat x, MlDim dim)
+{
+	MlSlice  name = ml_dim_unit_name (dim);
+	MlResult st   = ml_rat_format (line, x);
+
+	if (st == ML_OK)
+	{
+		st = ml_str_append (line, ml_slice_cstr (" "));
+	}
+
+	if (st == ML_OK && name.len > 0)
+	{
+		st = ml_str_append (line, name);
+	}
+
+	else if (st == ML_OK)
+	{
+		st = ml_dim_format (line, dim);
+	}
+
+	return st;
+}
+
+/* Writes the line to the log when it was built without a failure. */
+static void log_line (MlEvalCtx *cx, MlStr *line, MlResult st)
+{
+	if (st == ML_OK)
+	{
+		ml_steplog_line (cx->log, ml_str_view (*line));
+	}
+
+	ml_str_free (line);
+}
+
+/*
+ * The steps of a conversion: the value in SI units, what one of the unit is
+ * worth in SI units, and the division.
+ */
+static void log_conversion (MlEvalCtx *cx, MlFrame f, MlValue r)
+{
+	const MlScope *sc   = &cx->scopes.data [f.scope];
+	MlSlice       from = ml_ast_text (
+		&sc->ast,
+		sc->source,
+		ml_ast_child (&sc->ast, f.node, 0)
+	);
+	MlStr         line;
+	MlResult      st;
+
+	if (cx->log != NULL)
+	{
+		ml_str_init (&line);
+		st = ml_str_appendf (
+			&line,
+			"%.*s in SI units: ",
+			(int)from.len,
+			from.data
+		);
+
+		if (st == ML_OK)
+		{
+			st = append_si (&line, r.exact, r.dim);
+		}
+
+		log_line (cx, &line, st);
+
+		ml_str_init (&line);
+		st = ml_str_appendf (
+			&line,
+			"1 %.*s = ",
+			(int)r.show.len,
+			r.show.data
+		);
+
+		if (st == ML_OK)
+		{
+			st = append_si (&line, r.scale, r.dim);
+		}
+
+		log_line (cx, &line, st);
+
+		ml_str_init (&line);
+		st = ml_rat_format (&line, r.exact);
+
+		if (st == ML_OK)
+		{
+			st = ml_str_append (&line, ml_slice_cstr (" / "));
+		}
+
+		if (st == ML_OK)
+		{
+			st = ml_rat_format (&line, r.scale);
+		}
+
+		if (st == ML_OK)
+		{
+			st = ml_str_append (&line, ml_slice_cstr (" = "));
+		}
+
+		if (st == ML_OK)
+		{
+			st = ml_rat_format (
+				&line,
+				ml_rat_div (cx->arena, r.exact, r.scale)
+			);
+		}
+
+		if (st == ML_OK)
+		{
+			st = ml_str_append (&line, ml_slice_cstr (" "));
+		}
+
+		if (st == ML_OK)
+		{
+			st = ml_str_append (&line, r.show);
+		}
+
+		log_line (cx, &line, st);
+	}
+}
+
 /* The result of a conversion remembers the unit it was asked for. */
 static MlValue show_unit (MlEvalCtx *cx, MlFrame f, MlValue r)
 {
@@ -1664,6 +1812,7 @@ static MlValue show_unit (MlEvalCtx *cx, MlFrame f, MlValue r)
 		{
 			r.show  = ml_slice (copy, text.len);
 			r.scale = unit.exact;
+			log_conversion (cx, f, r);
 		}
 	}
 

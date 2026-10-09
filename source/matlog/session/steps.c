@@ -155,9 +155,14 @@ static void explain (
 		kind = STEP_MUL;
 	}
 
+	else if (node.kind == ML_NODE_TO)
+	{
+		kind = STEP_SYMBOLIC;
+	}
+
 	if (kind == STEP_SYMBOLIC)
 	{
-		/* the evaluator explains symbolic calls itself */
+		/* the evaluator explains symbolic calls and conversions itself */
 		MlAst view = *ast;
 
 		view.root = core;

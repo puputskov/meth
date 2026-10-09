@@ -88,6 +88,7 @@ static void test_line_steps (void)
 	add (&s, "A + A");
 	add (&s, "det(1)");
 	add (&s, "2 +");
+	add (&s, "3 ft to m");
 	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 
 	CHECK (steps_contain (&r, &s, 1, "R2 \xE2\x86\x90 R2 \xE2\x88\x92 3"));
@@ -100,6 +101,9 @@ static void test_line_steps (void)
 	);
 	CHECK (steps_contain (&r, &s, 6, "right side beside it"));
 	CHECK (steps_contain (&r, &s, 7, "Row reduce (Gauss-Jordan)"));
+	CHECK (steps_contain (&r, &s, 12, "3 ft in SI units: 1143/1250 m"));
+	CHECK (steps_contain (&r, &s, 12, "1 m = 1 m"));
+	CHECK (steps_contain (&r, &s, 12, "1143/1250 / 1 = 1143/1250 m"));
 
 	/* lines without steps, errors, lines that do not exist, other kinds */
 	CHECK (no_steps (&r, &s, 0));
@@ -113,7 +117,7 @@ static void test_line_steps (void)
 	add (&s, "A = [[2,0],[0,2]]");
 	add (&s, "det(A)");
 	CHECK (ml_results_update (&r, &s, 12) == ML_OK);
-	CHECK (steps_contain (&r, &s, 13, "determinant = 2\xC2\xB7" "2 = 4"));
+	CHECK (steps_contain (&r, &s, 14, "determinant = 2\xC2\xB7" "2 = 4"));
 	CHECK (steps_contain (&r, &s, 1, "determinant = 1\xC2\xB7" "-2 = -2"));
 
 	ml_results_free (&r);
