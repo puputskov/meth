@@ -45,12 +45,12 @@ typedef enum MlErrorKind
 typedef struct MlValue
 {
 	MlValueKind kind;
-	MlRat       exact;       /* ML_VALUE_EXACT */
-	double      approx;      /* ML_VALUE_APPROX */
-	MlErrorKind error;       /* ML_VALUE_ERROR */
+	MlRat       exact;  /* ML_VALUE_EXACT */
+	double      approx; /* ML_VALUE_APPROX */
+	MlErrorKind error;  /* ML_VALUE_ERROR */
 	/* byte range in the source, error_len 0 if unknown */
-	uint64_t    error_start;
-	uint64_t    error_len;
+	uint64_t error_start;
+	uint64_t error_len;
 } MlValue;
 
 typedef struct MlI64Result
