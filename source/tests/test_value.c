@@ -513,6 +513,57 @@ static void test_messages (void)
 	ml_arena_free (&a);
 }
 
+static void test_matrix_value (void)
+{
+	MlArena a;
+	MlMat   m;
+	MlValue v;
+	MlStr   s;
+
+	ml_arena_init (&a, 0);
+	ml_str_init (&s);
+	m = ml_mat_identity (&a, 2);
+	v = ml_value_matrix (m);
+
+	CHECK (v.kind == ML_VALUE_MATRIX && ml_value_is_matrix (v));
+	CHECK (!ml_value_is_number (v) && !ml_value_is_error (v));
+	CHECK (ml_value_format (&s, &a, v) == ML_OK);
+	CHECK (strcmp (ml_str_cstr (s), "[[1, 0], [0, 1]]") == 0);
+	CHECK (!ml_value_is_matrix (ml_value_from_i64 (&a, 1)));
+
+	/* a failed matrix becomes the matching error */
+	CHECK (
+		is_error (ml_value_matrix (ml_mat_error (ML_ERR_INVALID)), ML_EVAL_SIZE)
+	);
+	CHECK (
+		is_error (
+			ml_value_matrix (ml_mat_error (ML_ERR_DIVZERO)),
+			ML_EVAL_SINGULAR
+		)
+	);
+	CHECK (
+		is_error (
+			ml_value_matrix (ml_mat_error (ML_ERR_LIMIT)),
+			ML_EVAL_TOO_LARGE
+		)
+	);
+	CHECK (
+		is_error (
+			ml_value_matrix (ml_mat_error (ML_ERR_NOMEM)),
+			ML_EVAL_NO_MEMORY
+		)
+	);
+	CHECK (
+		strcmp (ml_error_text (ML_EVAL_SIZE), "matrix sizes do not fit") == 0
+	);
+	CHECK (
+		strcmp (ml_error_text (ML_EVAL_SINGULAR), "matrix is singular") == 0
+	);
+
+	ml_str_free (&s);
+	ml_arena_free (&a);
+}
+
 void run_value_tests (void)
 {
 	test_construct ();
@@ -523,4 +574,5 @@ void run_value_tests (void)
 	test_compare_and_convert ();
 	test_errors_spread ();
 	test_messages ();
+	test_matrix_value ();
 }

@@ -64,6 +64,35 @@ static MlBig copy_big (MlArena *arena, MlBig x)
 	return out;
 }
 
+static MlRat copy_rat (MlArena *arena, MlRat x)
+{
+	MlRat out =
+	{
+		.num = copy_big (arena, x.num),
+		.den = copy_big (arena, x.den)
+	};
+
+	return out;
+}
+
+/* A copy of m whose cells and digits live in the arena. */
+static MlMat copy_mat (MlArena *arena, MlMat m)
+{
+	MlMat out = ml_mat_zero (arena, m.rows, m.cols);
+
+	for (uint64_t i = 0; i < m.rows * m.cols && out.status == ML_OK; i++)
+	{
+		out.cells [i] = copy_rat (arena, m.cells [i]);
+
+		if (!ml_rat_ok (out.cells [i]))
+		{
+			out = ml_mat_error (ML_ERR_NOMEM);
+		}
+	}
+
+	return out;
+}
+
 static MlValue copy_value (MlArena *arena, MlValue v)
 {
 	MlValue out = v;
@@ -72,6 +101,11 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 	{
 		out.exact.num = copy_big (arena, v.exact.num);
 		out.exact.den = copy_big (arena, v.exact.den);
+	}
+
+	else if (v.kind == ML_VALUE_MATRIX)
+	{
+		out.matrix = copy_mat (arena, v.matrix);
 	}
 
 	return out;
@@ -85,7 +119,11 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 
 	memset (&b, 0, sizeof b);
 
-	if (value.kind != ML_VALUE_EXACT && value.kind != ML_VALUE_APPROX)
+	if (
+		   value.kind != ML_VALUE_EXACT
+		&& value.kind != ML_VALUE_APPROX
+		&& value.kind != ML_VALUE_MATRIX
+	)
 	{
 		r = ML_ERR_INVALID;
 	}
@@ -101,6 +139,11 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		}
 
 		if (b.value.kind == ML_VALUE_EXACT && !ml_rat_ok (b.value.exact))
+		{
+			r = ML_ERR_NOMEM;
+		}
+
+		if (b.value.kind == ML_VALUE_MATRIX && !ml_mat_ok (b.value.matrix))
 		{
 			r = ML_ERR_NOMEM;
 		}

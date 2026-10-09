@@ -1,16 +1,17 @@
 #ifndef MATLOG_MATH_VALUE_H
 #define MATLOG_MATH_VALUE_H
 
-#include <matlog/math/rational.h>
+#include <matlog/math/matrix.h>
 
 /*
- * The result of evaluating something. In this milestone that is a number:
+ * The result of evaluating something. That is a number:
  *
  *	exact    a rational of bignums, no information is lost
  *	approx   a double; it comes from a result that is not a rational (sqrt (2),
  *	         sin (1), pi) and it spreads: exact with approx gives approx
  *
- * or an error, which carries what went wrong and the byte range of the source
+ * or an exact matrix (a vector is a matrix of one column, see matrix.h), or an
+ * error, which carries what went wrong and the byte range of the source
  * text it belongs to. Like the numbers underneath, a value is a small struct
  * passed by value (arena memory for the digits), and an error given to any
  * operation comes back out of it, so an expression is checked once at the end.
@@ -21,6 +22,7 @@ typedef enum MlValueKind
 	ML_VALUE_NONE = 0, /* nothing to show (a definition, a blank line) */
 	ML_VALUE_EXACT,
 	ML_VALUE_APPROX,
+	ML_VALUE_MATRIX, /* exact cells, see matrix.h */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -41,6 +43,8 @@ typedef enum MlErrorKind
 	ML_EVAL_DEPTH,          /* recursion went too deep */
 	ML_EVAL_NO_FILE,        /* an included file cannot be read */
 	ML_EVAL_INCLUDE_LOOP,   /* a file includes itself, directly or not */
+	ML_EVAL_SIZE,           /* matrix sizes that do not fit the operation */
+	ML_EVAL_SINGULAR,       /* a singular matrix has no inverse */
 	ML_EVAL_NO_MEMORY,
 	ML_EVAL_KIND_COUNT
 } MlErrorKind;
@@ -49,6 +53,7 @@ typedef struct MlValue
 {
 	MlValueKind kind;
 	MlRat       exact;  /* ML_VALUE_EXACT */
+	MlMat       matrix; /* ML_VALUE_MATRIX */
 	double      approx; /* ML_VALUE_APPROX */
 	MlErrorKind error;  /* ML_VALUE_ERROR */
 	/* byte range in the source, error_len 0 if unknown */
@@ -66,6 +71,12 @@ typedef struct MlI64Result
 MlValue ml_value_none (void);
 MlValue ml_value_exact (MlRat x);
 MlValue ml_value_approx (double x);
+
+/*
+ * A matrix value. A matrix that carries a failure becomes the matching error:
+ * sizes that do not fit are ML_EVAL_SIZE, a singular matrix ML_EVAL_SINGULAR.
+ */
+MlValue ml_value_matrix (MlMat m);
 MlValue ml_value_from_i64 (MlArena *arena, int64_t n);
 MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len);
 
@@ -79,6 +90,7 @@ MlErrorKind ml_error_from_result (MlResult status);
 int32_t ml_value_is_error (MlValue v);
 int32_t ml_value_is_number (MlValue v);
 int32_t ml_value_is_exact (MlValue v);
+int32_t ml_value_is_matrix (MlValue v);
 MlI64Result ml_value_to_i64 (MlValue v);
 
 /* The value as a double (0 for values that are not numbers). */
@@ -102,7 +114,7 @@ MlValue ml_value_div (MlArena *arena, MlValue a, MlValue b);
 MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b);
 
 /*
- * "7/2" or "-3" for exact numbers, "≈ 1.41421356" (nine significant digits)
+ * "7/2" or "-3" for exact numbers, "[[1, 2], [3, 4]]" for matrices, "≈ 1.41421356" (nine significant digits)
  * for approximations. Values that are not numbers cannot be formatted.
  */
 MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v);

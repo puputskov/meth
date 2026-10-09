@@ -61,8 +61,8 @@ uint64_t ml_env_snapshot (const MlEnv *env);
 void ml_env_truncate (MlEnv *env, uint64_t snapshot);
 
 /*
- * Adds a variable. The value must be a number (not an error, not none); its
- * digits are copied. ML_ERR_INVALID otherwise.
+ * Adds a variable. The value must be a number or a matrix (not an error, not
+ * none); its digits are copied. ML_ERR_INVALID otherwise.
  */
 MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value);
 

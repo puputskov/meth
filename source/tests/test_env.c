@@ -2,6 +2,8 @@
 
 #include <matlog/math/env.h>
 
+#include <string.h>
+
 static MlSlice lit (const char *s)
 {
 	return ml_slice_cstr (s);
@@ -137,6 +139,51 @@ static void test_values_are_copied (void)
 		CHECK (ml_value_cmp (&tmp, b.value, two) == 0);
 	}
 
+	ml_arena_free (&tmp);
+	ml_env_free (&env);
+}
+
+static void test_matrix_values (void)
+{
+	MlEnv   env;
+	MlArena tmp;
+	MlMat   m;
+	MlStr   text;
+
+	ml_env_init (&env);
+	ml_arena_init (&tmp, 0);
+	ml_str_init (&text);
+
+	m = ml_mat_zero (&tmp, 2, 2);
+	ml_mat_set (&m, 0, 0, ml_rat_from_i64 (&tmp, 1));
+	ml_mat_set (&m, 0, 1, ml_rat_from_i64 (&tmp, 2));
+	ml_mat_set (&m, 1, 0, ml_rat_from_i64 (&tmp, 3));
+	ml_mat_set (&m, 1, 1, ml_rat_from_i64 (&tmp, 4));
+	CHECK (ml_env_define_var (&env, lit ("A"), ml_value_matrix (m)) == ML_OK);
+
+	/* the caller's memory goes away, the binding stays good */
+	ml_arena_free (&tmp);
+	ml_arena_init (&tmp, 0);
+
+	{
+		MlBinding b = ml_env_lookup (&env, lit ("A"), 1);
+
+		CHECK (b.kind == ML_BIND_VAR && ml_value_is_matrix (b.value));
+		CHECK (ml_value_format (&text, &tmp, b.value) == ML_OK);
+		CHECK (strcmp (ml_str_cstr (text), "[[1, 2], [3, 4]]") == 0);
+	}
+
+	/* a failed matrix is an error value and cannot be bound */
+	CHECK (
+		ml_env_define_var (
+			&env,
+			lit ("B"),
+			ml_value_matrix (ml_mat_error (ML_ERR_INVALID))
+		) == ML_ERR_INVALID
+	);
+	CHECK (ml_env_snapshot (&env) == 1);
+
+	ml_str_free (&text);
 	ml_arena_free (&tmp);
 	ml_env_free (&env);
 }
@@ -287,6 +334,7 @@ void run_env_tests (void)
 	test_variables ();
 	test_shadowing_and_snapshots ();
 	test_values_are_copied ();
+	test_matrix_values ();
 	test_functions ();
 	test_function_without_parameters ();
 	test_define_func_rejects_other_statements ();

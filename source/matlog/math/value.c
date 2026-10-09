@@ -22,6 +22,8 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_DEPTH]          = "recursion too deep",
 	[ML_EVAL_NO_FILE]        = "included file not found",
 	[ML_EVAL_INCLUDE_LOOP]   = "include cycle",
+	[ML_EVAL_SIZE]           = "matrix sizes do not fit",
+	[ML_EVAL_SINGULAR]       = "matrix is singular",
 	[ML_EVAL_NO_MEMORY]      = "out of memory"
 };
 
@@ -67,6 +69,7 @@ MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len)
 	{
 		.kind        = ML_VALUE_ERROR,
 		.exact       = ml_rat_error (ML_OK),
+		.matrix      = ml_mat_error (ML_OK),
 		.approx      = 0.0,
 		.error       = kind,
 		.error_start = start,
@@ -124,6 +127,36 @@ MlValue ml_value_approx (double x)
 	return v;
 }
 
+MlValue ml_value_matrix (MlMat m)
+{
+	MlValue v = ml_value_error (ML_EVAL_NONE, 0, 0);
+
+	if (m.status == ML_OK)
+	{
+		v.kind   = ML_VALUE_MATRIX;
+		v.matrix = m;
+	}
+
+	else
+	{
+		v = ml_value_error (
+			ml_choose (
+				m.status == ML_ERR_INVALID,
+				ML_EVAL_SIZE,
+				ml_choose (
+					m.status == ML_ERR_DIVZERO,
+					ML_EVAL_SINGULAR,
+					ml_error_from_result (m.status)
+				)
+			),
+			0,
+			0
+		);
+	}
+
+	return v;
+}
+
 MlValue ml_value_from_i64 (MlArena *arena, int64_t n)
 {
 	return ml_value_exact (ml_rat_from_i64 (arena, n));
@@ -155,6 +188,11 @@ int32_t ml_value_is_number (MlValue v)
 int32_t ml_value_is_exact (MlValue v)
 {
 	return v.kind == ML_VALUE_EXACT;
+}
+
+int32_t ml_value_is_matrix (MlValue v)
+{
+	return v.kind == ML_VALUE_MATRIX;
 }
 
 MlI64Result ml_value_to_i64 (MlValue v)
@@ -480,6 +518,11 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 			APPROX_DIGITS,
 			v.approx
 		);
+	}
+
+	else if (v.kind == ML_VALUE_MATRIX)
+	{
+		r = ml_mat_format (out, v.matrix);
 	}
 
 	return r;

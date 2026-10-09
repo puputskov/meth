@@ -345,4 +345,4 @@ steps can be shown on request.
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Next step: milestone 3, task 3 (matrix values in MlValue). Tasks 1 and 2 (math/matrix, math/vector) are done.
+Next step: milestone 3, task 4 (`[ ]` literals, `^T` and `^-1` in the lexer and parser). Tasks 1 to 3 are done; matrices are exact only (no approximate cells).
