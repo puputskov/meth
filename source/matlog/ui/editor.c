@@ -41,6 +41,7 @@ const char *ml_input_state_name (MlInputState state)
 void ml_editor_init (MlEditor *ed)
 {
 	ml_session_init (&ed->session);
+	ml_results_init (&ed->results);
 	ml_lineedit_init (&ed->edit);
 	ml_rewriter_init (&ed->rewriter, ML_DOMAIN_ALGEBRA);
 	ml_str_init (&ed->yank.text);
@@ -58,6 +59,7 @@ void ml_editor_init (MlEditor *ed)
 
 void ml_editor_free (MlEditor *ed)
 {
+	ml_results_free (&ed->results);
 	ml_session_free (&ed->session);
 	ml_lineedit_free (&ed->edit);
 	ml_rewriter_free (&ed->rewriter);

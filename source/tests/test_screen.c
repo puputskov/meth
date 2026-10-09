@@ -487,6 +487,92 @@ static void test_lambda_gutter (void)
 	ml_editor_free (&ed);
 }
 
+static void test_results (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+	MlStr    raw;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 40, 8);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "a = 3");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "1/3 + 1/6");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "1/0");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "f(x) = x");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "n");
+	type (&ed, "1 + 1");
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* nothing is shown before the results are computed */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> a = 3"));
+	ml_layout_free (&l);
+
+	CHECK (ml_results_update (&ed.results, &ed.session, 0) == ML_OK);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> a = 3  = 3"));
+	CHECK (row_is (&l, 1, " 2 alg> 1/3 + 1/6  = 1/2"));
+	CHECK (row_is (&l, 2, " 3 alg> 1/0  ! division by zero"));
+	CHECK (row_is (&l, 3, " 4 alg> f(x) = x"));
+	CHECK (row_is (&l, 4, " 5   #  1 + 1"));
+
+	/* results are dim, errors are red */
+	ml_str_init (&raw);
+	CHECK (ml_str_append (&raw, ml_str_view (l.rows.data [0])) == ML_OK);
+	CHECK (strstr (ml_str_cstr (raw), "\x1b[2m= 3\x1b[0m") != NULL);
+	ml_str_free (&raw);
+	CHECK (strstr (ml_str_cstr (l.rows.data [2]), "\x1b[31m! ") != NULL);
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
+static void test_results_clipping (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 20, 4);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "10!");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "1000000 + 1");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ml_results_update (&ed.results, &ed.session, 0) == ML_OK);
+
+	/* the result is cut to the columns the text leaves */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> 10!  = 36288"));
+	CHECK (row_is (&l, 1, " 2 alg> 1000000 + 1"));
+	ml_layout_free (&l);
+
+	/* a width where the text fills the row leaves no result */
+	ml_screen_resize (&s, 16, 4);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> 10!  = 3"));
+	CHECK (row_is (&l, 1, " 2 alg> 1000000 "));
+	ml_layout_free (&l);
+
+	ml_screen_resize (&s, 10, 4);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 alg> 10"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_basic_layout ();
@@ -497,4 +583,6 @@ void run_screen_tests (void)
 	test_render ();
 	test_line_numbers ();
 	test_lambda_gutter ();
+	test_results ();
+	test_results_clipping ();
 }

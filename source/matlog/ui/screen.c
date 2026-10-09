@@ -4,6 +4,7 @@
 
 #define STYLE_REVERSE "\x1b[7m"
 #define STYLE_DIM     "\x1b[2m"
+#define STYLE_RED     "\x1b[31m"
 #define STYLE_RESET   "\x1b[0m"
 
 /*
@@ -192,14 +193,92 @@ static Head append_head (
 	return head;
 }
 
-/* One row of the line area: number and gutter, then the text clipped. */
+/* Columns that the result needs at least to be worth drawing: "= 1". */
+#define MIN_RESULT_WIDTH 3
+
+/*
+ * The result after the text of a line, in the avail columns that are left:
+ * two spaces, then "= value" dim or "! message" in red.
+ */
+static MlResult append_result (
+	MlStr        *out,
+	MlResultView result,
+	uint64_t     avail
+)
+{
+	MlResult r = ML_OK;
+	MlStr    shown;
+
+	ml_str_init (&shown);
+
+	if (
+		   result.kind != ML_RESULT_NONE
+		&& avail >= 2 + MIN_RESULT_WIDTH
+	)
+	{
+		r = append_cstr (
+			&shown,
+			ml_choose (
+				result.kind == ML_RESULT_ERROR,
+				"! ",
+				"= "
+			)
+		);
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (&shown, result.text);
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (out, "  ");
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (
+				out,
+				ml_choose (
+					result.kind == ML_RESULT_ERROR,
+					STYLE_RED,
+					STYLE_DIM
+				)
+			);
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_text_window (
+				out,
+				ml_str_view (shown),
+				0,
+				avail - 2
+			).result;
+		}
+
+		if (r == ML_OK)
+		{
+			r = append_cstr (out, STYLE_RESET);
+		}
+	}
+
+	ml_str_free (&shown);
+	return r;
+}
+
+/*
+ * One row of the line area: number and gutter, then the text clipped, then
+ * the result if there is room.
+ */
 static MlResult append_line_row (
-	MlStr      *out,
-	MlLineView line,
-	uint64_t   number,
-	uint64_t   num_width,
-	int32_t    highlight,
-	uint32_t   cols
+	MlStr        *out,
+	MlLineView   line,
+	MlResultView result,
+	uint64_t     number,
+	uint64_t     num_width,
+	int32_t      highlight,
+	uint32_t     cols
 )
 {
 	MlResult r    = ML_OK;
@@ -223,7 +302,19 @@ static MlResult append_line_row (
 
 	if (r == ML_OK && !bare)
 	{
-		r = ml_text_window (out, line.text, 0, cols - head.used).result;
+		uint64_t room = cols - head.used;
+		uint64_t used = ml_choose (
+			ml_utf8_width (line.text) < room,
+			ml_utf8_width (line.text),
+			room
+		);
+
+		r = ml_text_window (out, line.text, 0, room).result;
+
+		if (r == ML_OK && line.kind == ML_LINE_MATH)
+		{
+			r = append_result (out, result, room - used);
+		}
 	}
 
 	if (r == ML_OK && (note || bare))
@@ -640,6 +731,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.result = append_line_row (
 				&row,
 				ml_session_get (&ed->session, src),
+				ml_results_get (&ed->results, src),
 				s->top + r + 1,
 				num_width,
 				highlight,

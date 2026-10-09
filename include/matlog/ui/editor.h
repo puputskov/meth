@@ -2,6 +2,7 @@
 #define MATLOG_UI_EDITOR_H
 
 #include <matlog/session/mlog.h>
+#include <matlog/session/results.h>
 #include <matlog/ui/complete.h>
 #include <matlog/ui/lineedit.h>
 #include <matlog/ui/rewrite.h>
@@ -48,6 +49,7 @@ typedef struct MlYank
 typedef struct MlEditor
 {
 	MlSession    session;
+	MlResults    results; /* of the session lines, see results.h */
 	MlInputState state;
 	MlLineEdit   edit;    /* the line being typed, or the command */
 	MlRewriter   rewriter;

@@ -12,6 +12,11 @@
  * cursor line of the Normal state is highlighted. Text that does not fit is
  * clipped, the line being typed scrolls horizontally with its cursor.
  *
+ * The result of a line (ed->results) is shown dim after its text, "= 7/2", or
+ * in red for an error, "! division by zero". The text of the line has
+ * priority: the result gets the columns that are left, two spaces after the
+ * text, and is cut to them (nothing is drawn when fewer than 4 are left).
+ *
  * ml_screen_layout builds the rows as strings. ml_screen_render turns the
  * rows that differ from the last drawn frame into VT output, so a keystroke
  * redraws a row or two instead of the whole screen.
