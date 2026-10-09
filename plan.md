@@ -291,6 +291,41 @@ of the line being typed. Other domains still only echo their lines.
 Out of milestone 2: step by step, symbolic results (`x + x`), floating point
 mode switch, matrices, units, autocompletion.
 
+## 9b. Milestone 3 tasks
+
+Goal: in the matrix and vector domains, exact matrices and vectors can be
+written, combined and inverted, shown typeset over several rows, and their
+steps can be shown on request.
+
+### Decisions this milestone is built on
+
+- Matrices are exact: every cell is a rational (or an approximation, as in
+  milestone 2), so `[[1,2],[3,4]]^-1` has exact fractions.
+- Literal: `[[1,2],[3,4]]` is a matrix of rows, `[1,2,3]` is a vector (a column
+  of a 3 x 1 matrix for the arithmetic). Names are shared with algebra.
+- `*` is the matrix product for matrices and the scalar product for a number
+  and a matrix; `+ -` need equal sizes; `^-1` is the inverse, `^T` the
+  transpose. Mismatched sizes and singular matrices are errors with a message.
+- Built in: `det inv transpose trace rank rref solve identity` for matrices and
+  `dot cross norm` for vectors.
+- Size limit 64 x 64 so ghost mode stays responsive.
+
+### Tasks
+
+1. **Exact matrices** (`math/matrix.h`): a matrix of rationals in an arena;
+   add, subtract, product, scale, transpose, trace, determinant, inverse, rref
+   and rank, solving `A x = b`. Done when: tests check known products,
+   determinants, inverses (A times inverse of A is identity), singular and
+   size errors.
+2. **Vectors** (`math/vector.h`): dot, cross (3D), norm, on top of task 1.
+3. **Values**: matrix values in `MlValue`, formatting as text.
+4. **Syntax**: `[ ]` literals in the lexer and parser, `^T`, `^-1`.
+5. **Evaluator**: operators and built-ins on matrix values, errors.
+6. **Typeset display**: results of several rows drawn with box characters under
+   the line (`ui/screen.c`).
+7. **Steps**: the rule recording of section 4.1 for the matrix operations
+   (row reduction steps, determinant expansion), shown with `s`.
+
 ## 10. Out of scope (for now)
 
 - Own GUI window, GUI toolkit, network features, plugins.
@@ -310,4 +345,4 @@ mode switch, matrices, units, autocompletion.
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Next step: implement the milestone 2 tasks in order (tasks 1 to 11 are done; what is left is the manual acceptance test).
+Next step: milestone 3, task 3 (matrix values in MlValue). Tasks 1 and 2 (math/matrix, math/vector) are done.

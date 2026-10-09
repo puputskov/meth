@@ -1,0 +1,416 @@
+#include "test.h"
+
+#include <matlog/math/matrix.h>
+#include <matlog/math/vector.h>
+
+#include <string.h>
+
+static MlSlice lit (const char *s)
+{
+	return ml_slice_cstr (s);
+}
+
+/* A matrix from integers, row by row. */
+static MlMat make (MlArena *a, uint64_t rows, uint64_t cols, const int64_t *v)
+{
+	MlMat m = ml_mat_zero (a, rows, cols);
+
+	for (uint64_t i = 0; i < rows * cols; i++)
+	{
+		ml_mat_set (&m, i / cols, i % cols, ml_rat_from_i64 (a, v [i]));
+	}
+
+	return m;
+}
+
+static int32_t is_text (MlMat m, const char *expected)
+{
+	MlStr   s;
+	int32_t same;
+
+	ml_str_init (&s);
+	same = (
+		   ml_mat_format (&s, m) == ML_OK
+		&& ml_slice_equal (ml_str_view (s), lit (expected))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  matrix is \"%s\" (status %d), expected \"%s\"\n",
+			ml_str_cstr (s),
+			(int32_t)m.status,
+			expected
+		);
+	}
+
+	ml_str_free (&s);
+	return same;
+}
+
+static int32_t rat_is (MlRatResult r, const char *expected)
+{
+	MlStr   s;
+	int32_t same;
+
+	ml_str_init (&s);
+	same = (
+		   r.status == ML_OK
+		&& ml_rat_format (&s, r.value) == ML_OK
+		&& ml_slice_equal (ml_str_view (s), lit (expected))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  number is \"%s\" (status %d), expected \"%s\"\n",
+			ml_str_cstr (s),
+			(int32_t)r.status,
+			expected
+		);
+	}
+
+	ml_str_free (&s);
+	return same;
+}
+
+/* 1 when x times y is the identity of size n. */
+static int32_t product_is_identity (MlArena *a, MlMat x, MlMat y, uint64_t n)
+{
+	return ml_mat_equal (a, ml_mat_mul (a, x, y), ml_mat_identity (a, n));
+}
+
+static void test_build (void)
+{
+	MlArena arena;
+	MlMat   m;
+	MlMat   id;
+
+	ml_arena_init (&arena, 0);
+	m = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	CHECK (is_text (m, "[[1, 2], [3, 4]]"));
+	CHECK (ml_mat_ok (m) && ml_mat_is_square (m));
+
+	id = ml_mat_identity (&arena, 3);
+	CHECK (is_text (id, "[[1, 0, 0], [0, 1, 0], [0, 0, 1]]"));
+
+	/* bad sizes */
+	CHECK (ml_mat_zero (&arena, 0, 2).status == ML_ERR_INVALID);
+	CHECK (ml_mat_zero (&arena, 2, 0).status == ML_ERR_INVALID);
+	CHECK (ml_mat_zero (&arena, 65, 1).status == ML_ERR_LIMIT);
+	CHECK (ml_mat_ok (ml_mat_zero (&arena, 64, 64)));
+
+	/* cells out of range */
+	CHECK (!ml_rat_ok (ml_mat_get (m, 2, 0)));
+	ml_mat_set (&m, 5, 5, ml_rat_from_i64 (&arena, 9));
+	CHECK (is_text (m, "[[1, 2], [3, 4]]"));
+
+	ml_arena_free (&arena);
+}
+
+static void test_arithmetic (void)
+{
+	MlArena arena;
+	MlMat   a;
+	MlMat   b;
+	MlMat   c;
+
+	ml_arena_init (&arena, 0);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	b = make (&arena, 2, 2, (int64_t [4]){ 5, 6, 7, 8 });
+
+	CHECK (is_text (ml_mat_add (&arena, a, b), "[[6, 8], [10, 12]]"));
+	CHECK (is_text (ml_mat_sub (&arena, a, b), "[[-4, -4], [-4, -4]]"));
+	CHECK (is_text (ml_mat_mul (&arena, a, b), "[[19, 22], [43, 50]]"));
+	CHECK (is_text (ml_mat_mul (&arena, b, a), "[[23, 34], [31, 46]]"));
+	CHECK (is_text (ml_mat_neg (&arena, a), "[[-1, -2], [-3, -4]]"));
+	CHECK (
+		is_text (
+			ml_mat_scale (&arena, a, ml_rat_make (
+				&arena,
+				ml_big_from_u64 (&arena, 1),
+				ml_big_from_u64 (&arena, 2)
+			)),
+			"[[1/2, 1], [3/2, 2]]"
+		)
+	);
+	CHECK (is_text (ml_mat_transpose (&arena, a), "[[1, 3], [2, 4]]"));
+
+	/* non square: 2 x 3 times 3 x 2 */
+	c = make (&arena, 2, 3, (int64_t [6]){ 1, 2, 3, 4, 5, 6 });
+	CHECK (is_text (ml_mat_transpose (&arena, c), "[[1, 4], [2, 5], [3, 6]]"));
+	CHECK (
+		is_text (
+			ml_mat_mul (&arena, c, ml_mat_transpose (&arena, c)),
+			"[[14, 32], [32, 77]]"
+		)
+	);
+
+	/* size errors, and an error passes through a chain */
+	CHECK (ml_mat_add (&arena, a, c).status == ML_ERR_INVALID);
+	CHECK (ml_mat_sub (&arena, a, c).status == ML_ERR_INVALID);
+	CHECK (ml_mat_mul (&arena, c, c).status == ML_ERR_INVALID);
+	CHECK (
+		ml_mat_mul (
+			&arena,
+			ml_mat_add (&arena, a, c),
+			b
+		).status == ML_ERR_INVALID
+	);
+	CHECK (ml_mat_transpose (&arena, ml_mat_error (ML_ERR_NOMEM)).status
+		== ML_ERR_NOMEM);
+
+	/* equality */
+	CHECK (ml_mat_equal (&arena, a, a));
+	CHECK (!ml_mat_equal (&arena, a, b));
+	CHECK (!ml_mat_equal (&arena, a, c));
+
+	ml_arena_free (&arena);
+}
+
+static void test_det_trace (void)
+{
+	MlArena arena;
+	MlMat   a;
+
+	ml_arena_init (&arena, 0);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	CHECK (rat_is (ml_mat_det (&arena, a), "-2"));
+	CHECK (rat_is (ml_mat_trace (&arena, a), "5"));
+
+	/* a row swap changes the sign */
+	a = make (&arena, 3, 3, (int64_t [9]){ 0, 2, 1, 1, 0, 3, 4, 1, 0 });
+	CHECK (rat_is (ml_mat_det (&arena, a), "25"));
+
+	a = make (&arena, 3, 3, (int64_t [9]){ 2, 0, 0, 0, 3, 0, 0, 0, 4 });
+	CHECK (rat_is (ml_mat_det (&arena, a), "24"));
+
+	/* singular */
+	a = make (&arena, 3, 3, (int64_t [9]){ 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+	CHECK (rat_is (ml_mat_det (&arena, a), "0"));
+
+	CHECK (rat_is (ml_mat_det (&arena, ml_mat_identity (&arena, 5)), "1"));
+
+	/* not square */
+	a = make (&arena, 2, 3, (int64_t [6]){ 1, 2, 3, 4, 5, 6 });
+	CHECK (ml_mat_det (&arena, a).status == ML_ERR_INVALID);
+	CHECK (ml_mat_trace (&arena, a).status == ML_ERR_INVALID);
+	CHECK (
+		ml_mat_det (&arena, ml_mat_error (ML_ERR_LIMIT)).status
+		== ML_ERR_LIMIT
+	);
+
+	ml_arena_free (&arena);
+}
+
+static void test_inverse (void)
+{
+	MlArena arena;
+	MlMat   a;
+	MlMat   inv;
+
+	ml_arena_init (&arena, 0);
+	a   = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	inv = ml_mat_inverse (&arena, a);
+	CHECK (is_text (inv, "[[-2, 1], [3/2, -1/2]]"));
+	CHECK (product_is_identity (&arena, a, inv, 2));
+
+	/* a 3 x 3 whose inverse needs a row swap */
+	a   = make (&arena, 3, 3, (int64_t [9]){ 0, 2, 1, 1, 0, 3, 4, 1, 0 });
+	inv = ml_mat_inverse (&arena, a);
+	CHECK (ml_mat_ok (inv));
+	CHECK (product_is_identity (&arena, a, inv, 3));
+	CHECK (product_is_identity (&arena, inv, a, 3));
+
+	/* singular and non square */
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 2, 4 });
+	CHECK (ml_mat_inverse (&arena, a).status == ML_ERR_DIVZERO);
+	a = make (&arena, 2, 3, (int64_t [6]){ 1, 2, 3, 4, 5, 6 });
+	CHECK (ml_mat_inverse (&arena, a).status == ML_ERR_INVALID);
+
+	ml_arena_free (&arena);
+}
+
+static void test_power (void)
+{
+	MlArena arena;
+	MlMat   a;
+
+	ml_arena_init (&arena, 0);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 1, 1, 0 });
+
+	CHECK (is_text (ml_mat_pow (&arena, a, 0), "[[1, 0], [0, 1]]"));
+	CHECK (is_text (ml_mat_pow (&arena, a, 1), "[[1, 1], [1, 0]]"));
+	CHECK (is_text (ml_mat_pow (&arena, a, 10), "[[89, 55], [55, 34]]"));
+	CHECK (is_text (ml_mat_pow (&arena, a, -1), "[[0, 1], [1, -1]]"));
+	CHECK (
+		product_is_identity (
+			&arena,
+			ml_mat_pow (&arena, a, -3),
+			ml_mat_pow (&arena, a, 3),
+			2
+		)
+	);
+
+	/* the identity to any power is the identity, a singular one has no
+	   negative power */
+	CHECK (
+		is_text (
+			ml_mat_pow (&arena, ml_mat_identity (&arena, 2), 1000000),
+			"[[1, 0], [0, 1]]"
+		)
+	);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 2, 4 });
+	CHECK (ml_mat_pow (&arena, a, -1).status == ML_ERR_DIVZERO);
+	CHECK (ml_mat_ok (ml_mat_pow (&arena, a, 3)));
+	a = make (&arena, 2, 3, (int64_t [6]){ 1, 2, 3, 4, 5, 6 });
+	CHECK (ml_mat_pow (&arena, a, 2).status == ML_ERR_INVALID);
+
+	ml_arena_free (&arena);
+}
+
+static void test_rref_solve (void)
+{
+	MlArena arena;
+	MlMat   a;
+	MlMat   b;
+	MlRref  r;
+
+	ml_arena_init (&arena, 0);
+
+	a = make (&arena, 3, 3, (int64_t [9]){ 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+	r = ml_mat_rref (&arena, a);
+	CHECK (r.rank == 2);
+	CHECK (is_text (r.matrix, "[[1, 0, -1], [0, 1, 2], [0, 0, 0]]"));
+
+	r = ml_mat_rref (&arena, ml_mat_identity (&arena, 3));
+	CHECK (r.rank == 3);
+
+	a = make (&arena, 2, 4, (int64_t [8]){ 0, 0, 1, 2, 0, 0, 2, 4 });
+	r = ml_mat_rref (&arena, a);
+	CHECK (r.rank == 1);
+	CHECK (is_text (r.matrix, "[[0, 0, 1, 2], [0, 0, 0, 0]]"));
+
+	/* x + 2y = 5, 3x + 4y = 6 */
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	b = make (&arena, 2, 1, (int64_t [2]){ 5, 6 });
+	CHECK (is_text (ml_mat_solve (&arena, a, b), "[[-4], [9/2]]"));
+
+	/* several right hand sides at once */
+	b = make (&arena, 2, 2, (int64_t [4]){ 1, 0, 0, 1 });
+	CHECK (is_text (ml_mat_solve (&arena, a, b), "[[-2, 1], [3/2, -1/2]]"));
+
+	/* singular, wrong sizes */
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 2, 4 });
+	b = make (&arena, 2, 1, (int64_t [2]){ 1, 2 });
+	CHECK (ml_mat_solve (&arena, a, b).status == ML_ERR_DIVZERO);
+	b = make (&arena, 3, 1, (int64_t [3]){ 1, 2, 3 });
+	CHECK (ml_mat_solve (&arena, a, b).status == ML_ERR_INVALID);
+
+	ml_arena_free (&arena);
+}
+
+static MlMat vec3 (MlArena *a, int64_t x, int64_t y, int64_t z)
+{
+	int64_t v [3] = { x, y, z };
+
+	return ml_vec_from_i64 (a, 3, v);
+}
+
+static MlMat vec2 (MlArena *a, int64_t x, int64_t y)
+{
+	int64_t v [2] = { x, y };
+
+	return ml_vec_from_i64 (a, 2, v);
+}
+
+static void test_vectors (void)
+{
+	MlArena   arena;
+	MlMat     a;
+	MlMat     b;
+	MlMat     short_v;
+	MlMat     id3;
+	MlVecNorm n;
+	MlStr     s;
+
+	ml_arena_init (&arena, 0);
+	ml_str_init (&s);
+	a = vec3 (&arena, 1, 2, 3);
+	b = vec3 (&arena, 4, 5, 6);
+
+	CHECK (is_text (a, "[[1], [2], [3]]"));
+	CHECK (ml_vec_is_vector (a));
+	CHECK (!ml_vec_is_vector (ml_mat_identity (&arena, 2)));
+	CHECK (rat_is (ml_vec_dot (&arena, a, b), "32"));
+	CHECK (is_text (ml_vec_cross (&arena, a, b), "[[-3], [6], [-3]]"));
+	CHECK (rat_is (ml_vec_norm_squared (&arena, a), "14"));
+
+	/* the cross product is perpendicular to both, and anticommutative */
+	CHECK (
+		rat_is (
+			ml_vec_dot (&arena, ml_vec_cross (&arena, a, b), a),
+			"0"
+		)
+	);
+	CHECK (
+		ml_mat_equal (
+			&arena,
+			ml_vec_cross (&arena, b, a),
+			ml_mat_neg (&arena, ml_vec_cross (&arena, a, b))
+		)
+	);
+
+	/* a rational length is exact, any other comes as the square */
+	n = ml_vec_norm (&arena, vec2 (&arena, 3, 4));
+	CHECK (n.status == ML_OK && n.exact);
+	CHECK (ml_rat_format (&s, n.value) == ML_OK);
+	CHECK (strcmp (ml_str_cstr (s), "5") == 0);
+	n = ml_vec_norm (&arena, a);
+	CHECK (n.status == ML_OK && !n.exact);
+	ml_str_clear (&s);
+	CHECK (ml_rat_format (&s, n.value) == ML_OK);
+	CHECK (strcmp (ml_str_cstr (s), "14") == 0);
+
+	/* a matrix times a vector is a vector */
+	CHECK (
+		is_text (
+			ml_mat_mul (
+				&arena,
+				make (&arena, 2, 3, (int64_t [6]){ 1, 0, 2, 0, 1, 3 }),
+				a
+			),
+			"[[7], [11]]"
+		)
+	);
+
+	/* wrong shapes */
+	short_v = vec2 (&arena, 1, 2);
+	id3     = ml_mat_identity (&arena, 3);
+	CHECK (ml_vec_dot (&arena, a, short_v).status == ML_ERR_INVALID);
+	CHECK (ml_vec_dot (&arena, a, id3).status == ML_ERR_INVALID);
+	CHECK (
+		ml_vec_cross (&arena, short_v, short_v).status == ML_ERR_INVALID
+	);
+	CHECK (ml_vec_norm (&arena, id3).status == ML_ERR_INVALID);
+	CHECK (
+		ml_vec_norm (&arena, ml_mat_error (ML_ERR_NOMEM)).status
+		== ML_ERR_NOMEM
+	);
+
+	ml_str_free (&s);
+	ml_arena_free (&arena);
+}
+
+void run_matrix_tests (void);
+
+void run_matrix_tests (void)
+{
+	test_build ();
+	test_arithmetic ();
+	test_det_trace ();
+	test_inverse ();
+	test_power ();
+	test_rref_solve ();
+	test_vectors ();
+}
