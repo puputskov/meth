@@ -71,7 +71,7 @@ static void test_edit (void)
 	v = ml_session_get (&s, 0);
 	CHECK (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_MATRIX);
 	CHECK (ml_slice_equal (v.text, lit ("A = [[1,2],[3,4]]")));
-	v                                      = ml_session_get (&s, 2);
+	v = ml_session_get (&s, 2);
 	CHECK (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_LAMBDA);
 	CHECK (ml_slice_equal (v.text, lit ("\xCE\xBB" "x.x")));
 

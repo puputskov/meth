@@ -91,7 +91,7 @@ static void test_basic (void)
 	);
 	CHECK (kinds_are ("2^3!", "number ^ number ! end"));
 	CHECK (kinds_are ("f(a, b)", "name ( name , name ) end"));
-	CHECK (kinds_are ("x    = 3", "name = number end"));
+	CHECK (kinds_are ("x = 3", "name = number end"));
 	CHECK (kinds_are ("f(x) = 2x", "name ( name ) = number name end"));
 	CHECK (kinds_are ("sqrt(x)", "name ( name ) end"));
 }
@@ -193,12 +193,12 @@ static void test_superscripts (void)
 			lit ("\xE2\x81\xBB\xC2\xB9\xE2\x81\xB0")
 		) == ML_OK
 	);
-	CHECK (strcmp                  (ml_str_cstr (s), "-10") == 0);
+	CHECK (strcmp (ml_str_cstr (s), "-10") == 0);
 	ml_str_clear (&s);
 	CHECK (
 		ml_superscript_to_ascii (&s, lit ("\xC2\xB9\xC2\xB2\xC2\xB3")) == ML_OK
 	);
-	CHECK (strcmp                  (ml_str_cstr (s), "123") == 0);
+	CHECK (strcmp (ml_str_cstr (s), "123") == 0);
 	ml_str_clear (&s);
 	CHECK (ml_superscript_to_ascii (
 		&s,
@@ -283,7 +283,7 @@ static void test_token_text (void)
 			lit ("foo")
 		)
 	);
-	CHECK (ml_token_text  (source, lexed.tokens.data [3]).len == 0);
+	CHECK (ml_token_text (source, lexed.tokens.data [3]).len == 0);
 	MlTokenVec_free (&lexed.tokens);
 }
 

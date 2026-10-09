@@ -24,6 +24,12 @@ workspace "matlog"
 	includedirs { "include" }
 	targetdir "build/bin/%{cfg.buildcfg}"
 
+-- The parser and the evaluator recurse; Debug builds use large frames, so the
+-- executables get a larger stack than the 1 MB default.
+filter { "system:windows", "kind:ConsoleApp" }
+	linkoptions { "/STACK:16777216" }
+filter {}
+
 -- All library code: everything under source/matlog
 project "matlog_lib"
 	kind "StaticLib"
