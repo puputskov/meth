@@ -324,6 +324,38 @@ static MlResult append_note_text (MlStr *out, MlSlice text, uint64_t room)
 	return r;
 }
 
+/* A note of three or more '-', '*' or '_' only is a horizontal rule. */
+static int32_t is_rule (MlSlice text)
+{
+	uint64_t first = 0;
+	uint64_t end   = text.len;
+	uint8_t  mark;
+	int32_t  rule;
+
+	while (first < end && text.data [first] == ' ')
+	{
+		first++;
+	}
+
+	while (end > first && text.data [end - 1] == ' ')
+	{
+		end--;
+	}
+
+	mark = ml_choose (end > first, text.data [first], 0);
+	rule = (
+		   end - first >= 3
+		&& (mark == '-' || mark == '*' || mark == '_')
+	);
+
+	for (uint64_t i = first; i < end && rule; i++)
+	{
+		rule = text.data [i] == mark;
+	}
+
+	return rule;
+}
+
 /*
  * One row of the line area: number and gutter, then the text clipped, then
  * the result if there is room. A folded block is this one row, with the
@@ -375,7 +407,19 @@ static MlResult append_line_row (
 			room
 		);
 
-		if (r == ML_OK && note)
+		if (r == ML_OK && note && hidden == 0 && is_rule (line.text))
+		{
+			r = append_cstr (out, STYLE_DIM);
+
+			for (uint64_t i = 0; i < room && r == ML_OK; i++)
+			{
+				r = append_cstr (out, "\xE2\x94\x80");
+			}
+
+			used = room;
+		}
+
+		else if (r == ML_OK && note)
 		{
 			r = append_note_text (out, line.text, room);
 		}

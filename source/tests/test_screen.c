@@ -778,6 +778,42 @@ static void test_note_styles (void)
 	ml_editor_free (&ed);
 }
 
+static void test_rule (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 12, 5);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "N");
+	type (&ed, "---");
+
+	/* typed as it is */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1 ---"));
+	ml_layout_free (&l);
+
+	/* a rule across the rest of the row once the note is done */
+	press (&ed, ML_KEY_ESCAPE);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (
+		strstr (
+			ml_str_cstr (l.rows.data [0]),
+			"\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+			"\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+			"\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+		) != NULL
+	);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "---") == NULL);
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_blocks_layout (void)
 {
 	MlEditor ed;
@@ -869,5 +905,6 @@ void run_screen_tests (void)
 	test_matrix_rows ();
 	test_steps_rows ();
 	test_note_styles ();
+	test_rule ();
 	test_blocks_layout ();
 }
