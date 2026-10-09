@@ -258,6 +258,25 @@ static void test_keys (void)
 		).handled && is_text (&e, "")
 	);
 
+	/* Alt+arrows belong to the editor (domain cycling): not handled here */
+	CHECK (ml_lineedit_set         (&e, lit ("ab cd")) == ML_OK);
+	CHECK (
+		!ml_lineedit_handle_key (&e, key (ML_KEY_LEFT, 0, ML_MOD_ALT)).handled
+	);
+	CHECK (
+		!ml_lineedit_handle_key (&e, key (ML_KEY_RIGHT, 0, ML_MOD_ALT)).handled
+	);
+	CHECK (e.cursor == 5);
+	CHECK (
+		ml_lineedit_handle_key (&e, key (ML_KEY_LEFT, 0, ML_MOD_CTRL)).handled
+	);
+	CHECK (e.cursor == 3);
+	CHECK (
+		ml_lineedit_handle_key (&e, key (ML_KEY_RIGHT, 0, ML_MOD_CTRL)).handled
+	);
+	CHECK (e.cursor == 5);
+	CHECK (ml_lineedit_set (&e, lit ("")) == ML_OK);
+
 	/* keys that are not editing keys */
 	CHECK (!ml_lineedit_handle_key (&e, key (ML_KEY_ENTER, 0, 0)).handled);
 	CHECK (!ml_lineedit_handle_key (&e, key (ML_KEY_ESCAPE, 0, 0)).handled);

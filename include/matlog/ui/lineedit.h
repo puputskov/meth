@@ -59,8 +59,9 @@ uint64_t ml_lineedit_cursor_col (const MlLineEdit *e);
 
 /*
  * Applies an editing key: printable characters, Left/Right/Home/End,
- * Backspace/Delete (with Ctrl for words), Ctrl+A/E/K/U/W. Other keys
- * (Enter, Esc, Up, Down, ...) are reported as not handled.
+ * Ctrl+Left/Right (by word), Backspace/Delete (with Ctrl for words),
+ * Ctrl+A/E/K/U/W. Other keys (Enter, Esc, Up, Down, Alt+Left/Right, ...)
+ * are reported as not handled.
  */
 MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key);
 

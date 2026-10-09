@@ -1,0 +1,348 @@
+#include "test.h"
+
+#include <matlog/ui/complete.h>
+#include <matlog/ui/editor.h>
+#include <matlog/ui/screen.h>
+
+#include <string.h>
+
+static MlSlice lit (const char *s)
+{
+	return ml_slice_cstr (s);
+}
+
+static int32_t has_item (const MlCompletion *c, const char *name)
+{
+	int32_t found = 0;
+
+	for (uint64_t i = 0; i < c->count; i++)
+	{
+		found = found || ml_slice_equal (c->items [i], lit (name));
+	}
+
+	return found;
+}
+
+static int32_t ghost_is (MlCompletion c, const char *text)
+{
+	return (
+		   c.ghost < ML_MAX_CANDIDATES
+		&& ml_slice_equal (c.ghost_text, lit (text))
+	);
+}
+
+static void test_commands (void)
+{
+	MlCompletion c = ml_complete_command (lit (""));
+
+	/* nothing typed: every command is listed, none is suggested */
+	CHECK (c.count == 13 && c.ghost == ML_MAX_CANDIDATES);
+	CHECK (has_item (&c, "mode") && has_item (&c, "open!"));
+	CHECK (c.ghost_text.len == 0);
+
+	/* one candidate left: its rest is the ghost text */
+	c = ml_complete_command (lit ("mo"));
+	CHECK (c.count == 1 && has_item (&c, "mode"));
+	CHECK (ghost_is (c, "de"));
+	CHECK (c.append_space && c.token_start == 0);
+
+	c = ml_complete_command (lit ("m"));
+	CHECK (c.count == 1 && ghost_is (c, "ode"));
+
+	/* several candidates: the first longer one is suggested */
+	c = ml_complete_command (lit ("w"));
+	CHECK (c.count == 3 && has_item (&c, "w") && has_item (&c, "write"));
+	CHECK (has_item (&c, "wq"));
+	CHECK (ghost_is (c, "rite") && !c.append_space);
+
+	c = ml_complete_command (lit ("q"));
+	CHECK (c.count == 3 && ghost_is (c, "uit"));
+
+	c = ml_complete_command (lit ("open"));
+	CHECK (c.count == 2 && ghost_is (c, "!"));
+
+	/* a complete command that nothing extends has no ghost text */
+	c = ml_complete_command (lit ("quit"));
+	CHECK (c.count == 1 && c.ghost == ML_MAX_CANDIDATES);
+	c = ml_complete_command (lit ("x"));
+	CHECK (c.count == 1 && c.ghost == ML_MAX_CANDIDATES);
+
+	/* nothing matches */
+	c = ml_complete_command (lit ("zzz"));
+	CHECK (c.count == 0 && c.ghost == ML_MAX_CANDIDATES);
+	c = ml_complete_command (lit ("MO"));
+	CHECK (c.count == 0);
+}
+
+static void test_arguments (void)
+{
+	MlCompletion c = ml_complete_command (lit ("mode "));
+
+	/* the values of the argument are listed, and they start after the space */
+	CHECK (c.count == 8 && c.token_start == 5);
+	CHECK (has_item (&c, "algebra") && has_item (&c, "pga3"));
+	CHECK (has_item (&c, "boolean") && c.ghost == ML_MAX_CANDIDATES);
+
+	/* typing narrows the list down */
+	c = ml_complete_command (lit ("mode p"));
+	CHECK (c.count == 2 && has_item (&c, "pga2") && has_item (&c, "pga3"));
+	CHECK (ghost_is (c, "ga2"));
+
+	c = ml_complete_command (lit ("mode pga3"));
+	CHECK (c.count == 1 && c.ghost == ML_MAX_CANDIDATES);
+
+	c = ml_complete_command (lit ("mode l"));
+	CHECK (c.count == 1 && has_item (&c, "lambda"));
+	CHECK (ghost_is (c, "ambda") && !c.append_space);
+
+	c = ml_complete_command (lit ("mode lambda"));
+	CHECK (c.count == 1 && c.ghost == ML_MAX_CANDIDATES);
+
+	/* until none is left */
+	c = ml_complete_command (lit ("mode lx"));
+	CHECK (c.count == 0 && c.ghost == ML_MAX_CANDIDATES);
+
+	/* pga takes 2 or 3 */
+	c = ml_complete_command (lit ("pga "));
+	CHECK (c.count == 2 && has_item (&c, "2") && has_item (&c, "3"));
+	c = ml_complete_command (lit ("pga 3"));
+	CHECK (c.count == 1 && c.ghost == ML_MAX_CANDIDATES);
+
+	/* only the first argument is completed, other commands have no values */
+	CHECK (ml_complete_command (lit ("mode a b")).count == 0);
+	CHECK (ml_complete_command (lit ("q ")).count == 0);
+	CHECK (ml_complete_command (lit ("frob ")).count == 0);
+	CHECK (ml_complete_command (lit ("open ")).count == 0);
+}
+
+static void type (MlEditor *ed, const char *text)
+{
+	for (uint64_t i = 0; text [i] != '\0'; i++)
+	{
+		MlKey k =
+		{
+			.code = ML_KEY_CHAR,
+			.cp   = (uint8_t)text [i],
+			.mods = 0
+		};
+
+		CHECK (ml_editor_handle_key (ed, k) == ML_OK);
+	}
+}
+
+static void press (MlEditor *ed, MlKeyCode code)
+{
+	MlKey k = { .code = code, .cp = 0, .mods = 0 };
+
+	CHECK (ml_editor_handle_key (ed, k) == ML_OK);
+}
+
+static int32_t command_is (const MlEditor *ed, const char *expected)
+{
+	int32_t same = ml_slice_equal (ml_str_view (ed->edit.text), lit (expected));
+
+	if (!same)
+	{
+		printf (
+			"  command \"%s\", expected \"%s\"\n",
+			ml_str_cstr (ed->edit.text),
+			expected
+		);
+	}
+
+	return same;
+}
+
+static void test_editor_keys (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+
+	/* no completion outside the command line */
+	CHECK (ml_editor_completion (&ed).count == 0);
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ml_editor_completion (&ed).count == 0);
+
+	/* :mo then Tab gives ":mode ", the values are listed, typing narrows */
+	type (&ed, ":mo");
+	CHECK (ml_editor_completion (&ed).count == 1);
+	press (&ed, ML_KEY_TAB);
+	CHECK (command_is           (&ed, "mode "));
+	CHECK (ml_editor_completion (&ed).count == 8);
+	type (&ed, "l");
+	CHECK (ml_editor_completion (&ed).count == 1);
+	press (&ed, ML_KEY_TAB);
+	CHECK (command_is (&ed, "mode lambda"));
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
+
+	/* Right at the end of the line accepts the ghost text as well */
+	type (&ed, ":mode b");
+	press (&ed, ML_KEY_RIGHT);
+	CHECK (command_is (&ed, "mode boolean"));
+	press (&ed, ML_KEY_RIGHT);
+	CHECK (command_is (&ed, "mode boolean"));
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
+
+	/* Tab without a suggestion does nothing */
+	type (&ed, ":zzz");
+	press (&ed, ML_KEY_TAB);
+	CHECK (command_is (&ed, "zzz"));
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, ":mode ");
+	press (&ed, ML_KEY_TAB);
+	CHECK (command_is (&ed, "mode "));
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* a command that needs no argument gets no space */
+	type (&ed, ":qu");
+	press (&ed, ML_KEY_TAB);
+	CHECK (command_is (&ed, "quit"));
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* the ghost text only exists with the cursor at the end of the line */
+	type (&ed, ":mo");
+	press (&ed, ML_KEY_LEFT);
+	CHECK (ml_editor_completion (&ed).count == 0);
+	press (&ed, ML_KEY_TAB);
+	CHECK (command_is (&ed, "mo"));
+
+	ml_editor_free (&ed);
+}
+
+static MlResult row_text (MlStr *out, MlSlice row)
+{
+	MlResult r   = ML_OK;
+	uint64_t pos = 0;
+
+	ml_str_clear (out);
+
+	while (r == ML_OK && pos < row.len)
+	{
+		if (row.data [pos] == 0x1b)
+		{
+			pos += 2;
+
+			while (
+				   pos < row.len
+				&& !(row.data [pos] >= '@' && row.data [pos] <= '~')
+			)
+			{
+				pos++;
+			}
+
+			pos++;
+		}
+
+		else
+		{
+			r = ml_str_append (out, ml_slice_sub (row, pos, 1));
+			pos++;
+		}
+	}
+
+	return r;
+}
+
+static int32_t plain_row_is (const MlLayout *l, uint64_t idx, const char *text)
+{
+	MlStr   p;
+	int32_t same;
+
+	ml_str_init (&p);
+	same = (
+		   idx < l->rows.len
+		&& row_text (&p, ml_str_view (l->rows.data [idx])) == ML_OK
+		&& ml_slice_equal (ml_str_view (p), lit (text))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  row %u is \"%s\", expected \"%s\"\n",
+			(uint32_t)idx,
+			ml_str_cstr (p),
+			text
+		);
+	}
+
+	ml_str_free (&p);
+	return same;
+}
+
+static void test_screen (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 40, 5);
+
+	/*
+	 * the ghost text follows the typed text in a dim style; the cursor stays
+	 * after the typed text
+	 */
+	type (&ed, ":mo");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (plain_row_is (&l, 4, ":mode"));
+	CHECK (
+		strstr (ml_str_cstr (l.rows.data [4]), "mo\x1b[2mde\x1b[0m") != NULL
+	);
+	CHECK (l.cursor.row == 5 && l.cursor.col == 4);
+	CHECK (plain_row_is (&l, 3, ""));
+	ml_layout_free (&l);
+
+	/* with two or more candidates they are listed above the command line */
+	press (&ed, ML_KEY_TAB);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (
+		plain_row_is (&l, 3, "  algebra  equations  matrix  vector  la")
+	);
+	CHECK (plain_row_is (&l, 4, ":mode "));
+	ml_layout_free (&l);
+
+	/* narrowing the list: the first candidate is marked as the suggestion */
+	type (&ed, "p");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (plain_row_is (&l, 3, "  pga2  pga3"));
+	CHECK (
+		strstr (ml_str_cstr (l.rows.data [3]), "\x1b[7m  pga2\x1b[0m") != NULL
+	);
+	CHECK (plain_row_is (&l, 4, ":mode pga2"));
+	ml_layout_free (&l);
+
+	/* one candidate left: no list any more */
+	type (&ed, "ga3");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (plain_row_is (&l, 3, ""));
+	ml_layout_free (&l);
+
+	/* none left */
+	type (&ed, "x");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (plain_row_is (&l, 3, ""));
+	CHECK (plain_row_is (&l, 4, ":mode pga3x"));
+	ml_layout_free (&l);
+
+	/* a narrow terminal clips the list and the ghost text */
+	ml_screen_resize (&s, 12, 5);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, ":mode ");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (plain_row_is (&l, 3, "  algebra  e"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
+void run_complete_tests (void)
+{
+	test_commands ();
+	test_arguments ();
+	test_editor_keys ();
+	test_screen ();
+}

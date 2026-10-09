@@ -2,6 +2,7 @@
 #define MATLOG_UI_EDITOR_H
 
 #include <matlog/session/mlog.h>
+#include <matlog/ui/complete.h>
 #include <matlog/ui/lineedit.h>
 #include <matlog/ui/rewrite.h>
 
@@ -14,12 +15,15 @@
  *	         dd yy p P         delete / yank / paste after / paste before
  *	         Enter             edit the cursor line     i  new math line below
  *	         n                 new note line below      :  command line
+ *	         Alt+Left / Alt+Right  previous / next domain (also in Insert,
+ *	                          where it changes the domain of the typed line)
  *	         g + m l a e v b 2 3   set the domain (matrix, lambda, algebra,
  *	                           equations, vector, boolean, pga2, pga3)
  *	Insert   typing, with the rewrites of rewrite.h; Enter commits the line
  *	         and starts the next one, Esc commits and returns to Normal
  *	Note     like Insert for free text: no rewrites
  *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3
+ *	         :12 goes to line 12; Tab accepts the ghost text, see complete.h
  *
  * A new editor starts in Insert, in the domain of its session.
  */
@@ -73,6 +77,13 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key);
  * message.
  */
 MlResult ml_editor_status (MlStr *out, const MlEditor *ed);
+
+/*
+ * Completion of the command line: candidates, and the ghost text that Tab (or
+ * Right at the end of the line) types. Empty unless the Command state is
+ * active with the cursor at the end of the command.
+ */
+MlCompletion ml_editor_completion (const MlEditor *ed);
 
 const char *ml_input_state_name (MlInputState state);
 

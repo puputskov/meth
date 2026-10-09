@@ -138,10 +138,10 @@ static void test_basic_layout (void)
 	l = ml_screen_layout (&s, &ed);
 	CHECK (l.result == ML_OK);
 	CHECK (l.rows.len == 6);
-	CHECK (row_is (&l, 0, "alg> 1+2"));
-	CHECK (row_is (&l, 1, "alg> x"));
-	CHECK (row_is (&l, 2, "mat> A = 1"));
-	CHECK (row_is (&l, 3, "  #  a note"));
+	CHECK (row_is (&l, 0, " 1 alg> 1+2"));
+	CHECK (row_is (&l, 1, " 2 alg> x"));
+	CHECK (row_is (&l, 2, " 3 mat> A = 1"));
+	CHECK (row_is (&l, 3, " 4   #  a note"));
 	CHECK (row_is (&l, 4, ""));
 	CHECK (row_is (&l, 5, "-- NORMAL -- matrix>       [no name] [+]"));
 
@@ -168,11 +168,13 @@ static void test_typing_row (void)
 	type (&ed, "x^2 + y");
 
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, "alg> ab"));
-	CHECK (row_is (&l, 1, "alg> x\xC2\xB2 + y"));
+	CHECK (row_is (&l, 0, " 1 alg> ab"));
+	CHECK (row_is (&l, 1, " 2 alg> x\xC2\xB2 + y"));
 	CHECK (row_is (&l, 4, "-- INSERT -- algebra>   "));
-	/* gutter 5, "xÂ² + y" is 6 columns: the cursor is in column 12 */
-	CHECK (l.cursor.row == 2 && l.cursor.col == 12);
+	/*
+	 * number 3 + gutter 5, "xÂ² + y" is 6 columns: the cursor is in column 15
+	 */
+	CHECK (l.cursor.row == 2 && l.cursor.col == 15);
 	ml_layout_free (&l);
 
 	/* a new line typed in the middle of the session pushes the rest down */
@@ -181,17 +183,18 @@ static void test_typing_row (void)
 	type (&ed, "n");
 	type (&ed, "between");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, "alg> ab"));
-	CHECK (row_is (&l, 1, "  #  between"));
-	CHECK (row_is (&l, 2, "alg> x\xC2\xB2 + y"));
-	CHECK (l.cursor.row == 2 && l.cursor.col == 5 + 7 + 1);
+	CHECK (row_is (&l, 0, " 1 alg> ab"));
+	CHECK (row_is (&l, 1, " 2   #  between"));
+	CHECK (row_is (&l, 2, " 3 alg> x\xC2\xB2 + y"));
+	CHECK (l.cursor.row == 2 && l.cursor.col == 8 + 7 + 1);
 	ml_layout_free (&l);
 
 	/* the command line takes the last row */
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, ":mode vec");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 4, ":mode vec"));
+	/* the ghost text "tor" completes "vec" to "vector" */
+	CHECK (row_is (&l, 4, ":mode vector"));
 	CHECK (l.cursor.row == 5 && l.cursor.col == 2 + 8);
 	ml_layout_free (&l);
 
@@ -213,8 +216,8 @@ static void test_scrolling (void)
 	/* the cursor is on the last line, which is at the bottom of the area */
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 15);
-	CHECK (row_is (&l, 0, "alg> line 15"));
-	CHECK (row_is (&l, 4, "alg> line 19"));
+	CHECK (row_is (&l, 0, "16 alg> line 15"));
+	CHECK (row_is (&l, 4, "20 alg> line 19"));
 	CHECK (l.cursor.row == 5);
 	ml_layout_free (&l);
 
@@ -229,14 +232,14 @@ static void test_scrolling (void)
 	type (&ed, "kkk");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 14);
-	CHECK (row_is (&l, 0, "alg> line 14"));
+	CHECK (row_is (&l, 0, "15 alg> line 14"));
 	CHECK (l.cursor.row == 1);
 	ml_layout_free (&l);
 
 	type (&ed, "gg");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 0);
-	CHECK (row_is (&l, 0, "alg> line 0"));
+	CHECK (row_is (&l, 0, " 1 alg> line 0"));
 	ml_layout_free (&l);
 
 	type (&ed, "G");
@@ -249,7 +252,7 @@ static void test_scrolling (void)
 	type (&ed, "new");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 16);
-	CHECK (row_is (&l, 4, "alg> new"));
+	CHECK (row_is (&l, 4, "21 alg> new"));
 	CHECK (l.cursor.row == 5);
 	ml_layout_free (&l);
 
@@ -265,7 +268,7 @@ static void test_scrolling (void)
 	l = ml_screen_layout (&s, &ed);
 	CHECK (ed.session.lines.len == 3);
 	CHECK (s.top == 0);
-	CHECK (row_is (&l, 0, "alg> line 18"));
+	CHECK (row_is (&l, 0, " 1 alg> line 18"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -288,14 +291,14 @@ static void test_clipping (void)
 
 	/* a long line is clipped to the width */
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, "alg> 012345678"));
+	CHECK (row_is (&l, 0, " 1 alg> 012345"));
 	ml_layout_free (&l);
 
 	/* the line being typed scrolls with its cursor */
 	type (&ed, "kk");
 	press (&ed, ML_KEY_ENTER);
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, "alg> 9abcdef"));
+	CHECK (row_is (&l, 0, " 1 alg> cdef"));
 	CHECK (l.cursor.row == 1 && l.cursor.col == 13);
 	ml_layout_free (&l);
 
@@ -304,7 +307,7 @@ static void test_clipping (void)
 	ml_screen_free (&s);
 	ml_editor_free (&ed);
 	ml_editor_init (&ed);
-	ml_screen_init (&s, 10, 3);
+	ml_screen_init (&s, 12, 3);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "ab");
 
@@ -317,7 +320,7 @@ static void test_clipping (void)
 
 	press (&ed, ML_KEY_ESCAPE);
 	l = ml_screen_layout (&s, &ed);
-	CHECK (row_is (&l, 0, "alg> ab\xE4\xB8\xAD"));
+	CHECK (row_is (&l, 0, " 1 alg> ab\xE4\xB8\xAD"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);
@@ -425,6 +428,65 @@ static void test_render (void)
 	ml_editor_free (&ed);
 }
 
+static void test_line_numbers (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 30, 5);
+	fill (&ed, 120);
+
+	/* three digits once the session has 100 lines or more */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, "117 alg> line 116"));
+	CHECK (row_is (&l, 3, "120 alg> line 119"));
+	ml_layout_free (&l);
+
+	/* the line being typed has the next number */
+	type (&ed, "i");
+	type (&ed, "x");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 3, "121 alg> x"));
+	CHECK (l.cursor.row == 4 && l.cursor.col == 4 + 5 + 1 + 1);
+	ml_layout_free (&l);
+
+	/* the numbers follow the lines: after deleting one the rest move up */
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "gg");
+	type (&ed, "dd");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, "  1 alg> line 1"));
+	CHECK (row_is (&l, 1, "  2 alg> line 2"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
+static void test_lambda_gutter (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 20, 4);
+	type (&ed, "gl");
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "x");
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* the lambda domain is marked with the lambda sign, then the > */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_is (&l, 0, " 1 \xCE\xBB  > x"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_basic_layout ();
@@ -433,4 +495,6 @@ void run_screen_tests (void)
 	test_clipping ();
 	test_small_sizes ();
 	test_render ();
+	test_line_numbers ();
+	test_lambda_gutter ();
 }

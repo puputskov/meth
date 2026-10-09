@@ -235,6 +235,57 @@ static MlResult leave_line (MlEditor *ed)
 	return r;
 }
 
+static void set_domain (MlEditor *ed, MlDomain domain);
+
+/* Alt+Left and Alt+Right scroll through the domains. */
+static int32_t is_domain_cycle (MlKey key)
+{
+	return (
+		   (key.code == ML_KEY_LEFT || key.code == ML_KEY_RIGHT)
+		&& (key.mods & ML_MOD_ALT)
+	);
+}
+
+static MlDomain next_domain (MlDomain domain, MlKey key)
+{
+	uint32_t count = ML_DOMAIN_COUNT;
+	uint32_t step  = ml_choose (key.code == ML_KEY_RIGHT, 1, count - 1);
+
+	return (MlDomain)(((uint32_t)domain + step) % count);
+}
+
+/* In Normal: the domain for new lines. */
+static MlResult cycle_domain (MlEditor *ed, MlKey key)
+{
+	MlDomain next = next_domain (ed->session.domain, key);
+
+	set_domain (ed, next);
+	return set_message (ed, ml_domain_name (next));
+}
+
+/* While typing a math line: the domain of that line (and of the next ones). */
+static MlResult cycle_line_domain (MlEditor *ed, MlKey key)
+{
+	MlResult r = ML_OK;
+
+	if (ed->edit_kind == ML_LINE_MATH || ed->edit_kind == ML_LINE_BLANK)
+	{
+		MlDomain next = next_domain (ed->edit_domain, key);
+
+		ed->edit_domain = next;
+		ml_rewriter_set_domain (&ed->rewriter, next);
+
+		if (!ed->edit_existing)
+		{
+			ed->session.domain = next;
+		}
+
+		r = set_message (ed, ml_domain_name (next));
+	}
+
+	return r;
+}
+
 static MlResult text_key (MlEditor *ed, MlKey key)
 {
 	MlResult     r   = ML_OK;
@@ -252,6 +303,11 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 	else if (key.code == ML_KEY_ENTER)
 	{
 		r = finish_line (ed);
+	}
+
+	else if (is_domain_cycle (key))
+	{
+		r = cycle_line_domain (ed, key);
 	}
 
 	else if (ed->state == ML_STATE_INSERT)
@@ -446,6 +502,11 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 
 		ed->pending = 0;
 		r           = pending_key (ed, first, ch);
+	}
+
+	else if (is_domain_cycle (key))
+	{
+		r = cycle_domain (ed, key);
 	}
 
 	else if (ch == 'j' || key.code == ML_KEY_DOWN)
@@ -648,6 +709,30 @@ static int32_t is_cmd (MlSlice cmd, const char *name)
 	return ml_slice_equal (cmd, ml_slice_cstr (name));
 }
 
+typedef struct LineNumber
+{
+	int32_t  valid;
+	uint64_t value;
+} LineNumber;
+
+/* A command made only of digits is a line number. */
+static LineNumber parse_line_number (MlSlice s)
+{
+	LineNumber number =
+	{
+		.valid = s.len > 0 && s.len <= 18,
+		.value = 0
+	};
+
+	for (uint64_t i = 0; i < s.len && number.valid; i++)
+	{
+		number.valid = s.data [i] >= '0' && s.data [i] <= '9';
+		number.value = number.value * 10 + (uint64_t)(s.data [i] - '0');
+	}
+
+	return number;
+}
+
 /* Runs the command typed after ':'. */
 static MlResult run_command (MlEditor *ed)
 {
@@ -718,9 +803,54 @@ static MlResult run_command (MlEditor *ed)
 		));
 	}
 
+	else if (parse_line_number (cmd).valid)
+	{
+		/* :12 goes to line 12 */
+		uint64_t number = parse_line_number (cmd).value;
+
+		ml_session_set_cursor (
+			&ed->session,
+			ml_choose (number > 0, number - 1, 0)
+		);
+	}
+
 	else if (cmd.len > 0)
 	{
 		r = set_message (ed, "unknown command");
+	}
+
+	return r;
+}
+
+MlCompletion ml_editor_completion (const MlEditor *ed)
+{
+	MlCompletion c = ml_completion_none ();
+
+	if (
+		   ed->state == ML_STATE_COMMAND
+		&& ed->edit.cursor == ed->edit.text.len
+	)
+	{
+		c = ml_complete_command (ml_str_view (ed->edit.text));
+	}
+
+	return c;
+}
+
+/* Types the ghost text of the completion, if there is one. */
+static MlResult accept_completion (MlEditor *ed)
+{
+	MlResult     r = ML_OK;
+	MlCompletion c = ml_editor_completion (ed);
+
+	if (c.ghost < ML_MAX_CANDIDATES)
+	{
+		r = ml_lineedit_insert (&ed->edit, c.ghost_text);
+
+		if (r == ML_OK && c.append_space)
+		{
+			r = ml_lineedit_insert_cp (&ed->edit, ' ');
+		}
 	}
 
 	return r;
@@ -748,6 +878,18 @@ static MlResult command_key (MlEditor *ed, MlKey key)
 		r         = run_command (ed);
 		ed->state = ML_STATE_NORMAL;
 		ml_lineedit_clear (&ed->edit);
+	}
+
+	else if (
+		   key.code == ML_KEY_TAB
+		|| (
+			   key.code == ML_KEY_RIGHT
+			&& key.mods == 0
+			&& ml_editor_completion (ed).ghost < ML_MAX_CANDIDATES
+		)
+	)
+	{
+		r = accept_completion (ed);
 	}
 
 	else
@@ -802,7 +944,11 @@ MlResult ml_editor_status (MlStr *out, const MlEditor *ed)
 			out,
 			"-- %s -- %s>",
 			ml_input_state_name (ed->state),
-			ml_domain_name (ed->session.domain)
+			ml_domain_name (ml_choose (
+				ed->state == ML_STATE_INSERT,
+				ed->edit_domain,
+				ed->session.domain
+			))
 		);
 
 		if (r == ML_OK && ed->message.len > 0)

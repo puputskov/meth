@@ -12,13 +12,13 @@
 static const char *const math_gutters [ML_DOMAIN_COUNT] =
 {
 	[ML_DOMAIN_ALGEBRA]   = "alg> ",
-	[ML_DOMAIN_EQUATIONS] = "eqn> ",
+	[ML_DOMAIN_EQUATIONS] = "=  > ",
 	[ML_DOMAIN_MATRIX]    = "mat> ",
-	[ML_DOMAIN_VECTOR]    = "vec> ",
-	[ML_DOMAIN_LAMBDA]    = "lam> ",
-	[ML_DOMAIN_PGA2]      = "pg2> ",
-	[ML_DOMAIN_PGA3]      = "pg3> ",
-	[ML_DOMAIN_BOOLEAN]   = "bol> "
+	[ML_DOMAIN_VECTOR]    = "\xE2\x86\x92  > ", /* right arrow */
+	[ML_DOMAIN_LAMBDA]    = "\xCE\xBB  > ", /* lambda sign */
+	[ML_DOMAIN_PGA2] = "pg2> ",
+	[ML_DOMAIN_PGA3] = "pg3> ",
+	[ML_DOMAIN_BOOLEAN]   = "\xE2\x88\xA7  > " /* logical and */
 };
 
 void ml_screen_init (MlScreen *s, uint32_t cols, uint32_t rows)
@@ -90,59 +90,143 @@ static MlResult append_cstr (MlStr *out, const char *text)
 	return ml_str_append (out, ml_slice_cstr (text));
 }
 
-/* One row of the line area: gutter, then the text clipped to the width. */
+/* Digits needed for the line numbers of total lines (at least two). */
+static uint64_t number_width (uint64_t total)
+{
+	uint64_t digits = 2;
+
+	for (uint64_t limit = 100; total >= limit && limit != 0; limit *= 10)
+	{
+		digits++;
+	}
+
+	return digits;
+}
+
+typedef struct Head
+{
+	MlResult result;
+	uint64_t used; /* columns taken by the line number and the gutter */
+} Head;
+
+/*
+ * The start of a row: the line number, then the gutter. The Normal state
+ * cursor line is shown reversed, notes are dimmed, other line numbers are dim.
+ */
+static Head append_head (
+	MlStr    *out,
+	uint64_t number,
+	uint64_t num_width,
+	MlSlice  gutter,
+	int32_t  highlight,
+	int32_t  note,
+	uint32_t cols
+)
+{
+	Head head =
+	{
+		.result = ML_OK,
+		.used   = 0
+	};
+	MlStr num;
+	MlStr shown;
+
+	ml_str_init (&num);
+	ml_str_init (&shown);
+	head.result = ml_str_appendf (
+		&num,
+		"%*u ",
+		(int32_t)num_width,
+		(uint32_t)number
+	);
+
+	if (head.result == ML_OK)
+	{
+		head.result = ml_text_window (
+			&shown,
+			ml_str_view (num),
+			0,
+			cols
+		).result;
+	}
+
+	head.used = ml_utf8_width (ml_str_view (shown));
+
+	if (head.result == ML_OK)
+	{
+		head.result = append_cstr (
+			out,
+			ml_choose (highlight, STYLE_REVERSE, STYLE_DIM)
+		);
+	}
+
+	if (head.result == ML_OK)
+	{
+		head.result = ml_str_append (out, ml_str_view (shown));
+	}
+
+	if (head.result == ML_OK && !highlight && !note)
+	{
+		head.result = append_cstr (out, STYLE_RESET);
+	}
+
+	if (head.result == ML_OK)
+	{
+		head.result = ml_text_window (out, gutter, 0, cols - head.used).result;
+		head.used  += ml_utf8_width (gutter);
+		head.used = ml_choose (head.used > cols, cols, head.used);
+	}
+
+	if (head.result == ML_OK && highlight)
+	{
+		head.result = append_cstr (out, STYLE_RESET);
+	}
+
+	if (head.result == ML_OK && highlight && note)
+	{
+		head.result = append_cstr (out, STYLE_DIM);
+	}
+
+	ml_str_free (&shown);
+	ml_str_free (&num);
+	return head;
+}
+
+/* One row of the line area: number and gutter, then the text clipped. */
 static MlResult append_line_row (
 	MlStr      *out,
 	MlLineView line,
+	uint64_t   number,
+	uint64_t   num_width,
 	int32_t    highlight,
 	uint32_t   cols
 )
 {
-	MlResult r     = ML_OK;
-	int32_t  dim   = line.kind == ML_LINE_NOTE;
-	int32_t  empty = line.kind == ML_LINE_BLANK && !highlight;
-	uint64_t avail = ml_choose (
-		cols > ML_GUTTER_WIDTH,
-		cols - ML_GUTTER_WIDTH,
-		0
-	);
-	MlSlice gutter = ml_slice_sub (
-		gutter_for (line.kind, line.domain),
-		0,
+	MlResult r    = ML_OK;
+	int32_t  note = line.kind == ML_LINE_NOTE;
+	int32_t  bare = line.kind == ML_LINE_BLANK && !highlight;
+	Head     head = append_head (
+		out,
+		number,
+		num_width,
+		ml_choose (
+			bare,
+			ml_slice ("", 0),
+			gutter_for (line.kind, line.domain)
+		),
+		highlight,
+		note,
 		cols
 	);
 
-	if (!empty && highlight)
+	r = head.result;
+
+	if (r == ML_OK && !bare)
 	{
-		r = append_cstr (out, STYLE_REVERSE);
+		r = ml_text_window (out, line.text, 0, cols - head.used).result;
 	}
 
-	else if (!empty && dim)
-	{
-		r = append_cstr (out, STYLE_DIM);
-	}
-
-	if (r == ML_OK && !empty)
-	{
-		r = ml_str_append (out, gutter);
-	}
-
-	if (r == ML_OK && !empty && highlight)
-	{
-		r = append_cstr (out, STYLE_RESET);
-	}
-
-	if (r == ML_OK && !empty && highlight && dim)
-	{
-		r = append_cstr (out, STYLE_DIM);
-	}
-
-	if (r == ML_OK && !empty)
-	{
-		r = ml_text_window (out, line.text, 0, avail).result;
-	}
-
-	if (r == ML_OK && !empty && (dim || highlight))
+	if (r == ML_OK && (note || bare))
 	{
 		r = append_cstr (out, STYLE_RESET);
 	}
@@ -160,6 +244,8 @@ typedef struct EditRow
 static EditRow append_edit_row (
 	MlStr          *out,
 	const MlEditor *ed,
+	uint64_t       number,
+	uint64_t       num_width,
 	uint32_t       cols
 )
 {
@@ -168,17 +254,22 @@ static EditRow append_edit_row (
 		.result     = ML_OK,
 		.cursor_col = 1
 	};
-	MlSlice gutter = gutter_for (
-		ml_choose (
-			ed->state == ML_STATE_NOTE,
-			ML_LINE_NOTE,
-			ML_LINE_MATH
+	int32_t note = ed->state == ML_STATE_NOTE;
+	Head    head = append_head (
+		out,
+		number,
+		num_width,
+		gutter_for (
+			ml_choose (note, ML_LINE_NOTE, ML_LINE_MATH),
+			ed->edit_domain
 		),
-		ed->edit_domain
+		0,
+		0,
+		cols
 	);
 	uint64_t avail = ml_choose (
-		cols > ML_GUTTER_WIDTH + 1,
-		cols - ML_GUTTER_WIDTH - 1,
+		cols > head.used + 1,
+		cols - head.used - 1,
 		1
 	);
 	MlTextWindow w =
@@ -187,7 +278,7 @@ static EditRow append_edit_row (
 		.first_col = 0
 	};
 
-	row.result = ml_str_append (out, ml_slice_sub (gutter, 0, cols));
+	row.result = head.result;
 
 	if (row.result == ML_OK)
 	{
@@ -205,7 +296,7 @@ static EditRow append_edit_row (
 		uint64_t cursor_col = ml_lineedit_cursor_col (&ed->edit);
 
 		row.cursor_col = (uint32_t)(
-			ML_GUTTER_WIDTH + 1
+			head.used + 1
 			+ ml_choose (
 				cursor_col > w.first_col,
 				cursor_col - w.first_col,
@@ -336,6 +427,8 @@ static EditRow append_command_row (
 		.first_col = 0
 	};
 
+	MlCompletion comp = ml_editor_completion (ed);
+
 	row.result = append_cstr (out, ":");
 
 	if (row.result == ML_OK)
@@ -347,6 +440,29 @@ static EditRow append_command_row (
 			avail
 		);
 		row.result = w.result;
+	}
+
+	/* the rest of the suggested word, dim, after the typed text */
+	if (row.result == ML_OK && comp.ghost < ML_MAX_CANDIDATES)
+	{
+		uint64_t shown = ml_lineedit_cursor_col (&ed->edit) - w.first_col;
+
+		row.result = append_cstr (out, STYLE_DIM);
+
+		if (row.result == ML_OK)
+		{
+			row.result = ml_text_window (
+				out,
+				comp.ghost_text,
+				0,
+				ml_choose (avail > shown, avail - shown, 0)
+			).result;
+		}
+
+		if (row.result == ML_OK)
+		{
+			row.result = append_cstr (out, STYLE_RESET);
+		}
 	}
 
 	if (row.result == ML_OK)
@@ -364,6 +480,60 @@ static EditRow append_command_row (
 	}
 
 	return row;
+}
+
+/* The row above the command line that lists the candidates. */
+static MlResult append_suggestions (
+	MlStr              *out,
+	const MlCompletion *comp,
+	uint32_t           cols
+)
+{
+	MlResult r    = append_cstr (out, STYLE_DIM);
+	uint64_t used = 0;
+
+	for (uint64_t i = 0; i < comp->count && r == ML_OK && used < cols; i++)
+	{
+		MlStr item;
+
+		ml_str_init (&item);
+		r = append_cstr (&item, "  ");
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (&item, comp->items [i]);
+		}
+
+		if (r == ML_OK && i == comp->ghost)
+		{
+			r = append_cstr (out, STYLE_REVERSE);
+		}
+
+		if (r == ML_OK)
+		{
+			r = ml_text_window (out, ml_str_view (item), 0, cols - used).result;
+		}
+
+		if (r == ML_OK && i == comp->ghost)
+		{
+			r = append_cstr (out, STYLE_RESET);
+
+			if (r == ML_OK)
+			{
+				r = append_cstr (out, STYLE_DIM);
+			}
+		}
+
+		used += ml_utf8_width (ml_str_view (item));
+		ml_str_free (&item);
+	}
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, STYLE_RESET);
+	}
+
+	return r;
 }
 
 /* Scrolls so that focus (an index into total rows) is inside the area. */
@@ -411,6 +581,9 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 	);
 	uint64_t area = ml_choose (s->rows >= 2, s->rows - 1, 0);
 
+	uint64_t     num_width = number_width (total);
+	MlCompletion comp      = ml_editor_completion (ed);
+
 	MlRowVec_init (&layout.rows);
 	s->top = scroll_top (s->top, focus, total, area);
 
@@ -434,9 +607,20 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.result = append_status_row (&row, ed, s->cols);
 		}
 
+		else if (r + 2 == s->rows && comp.count >= 2)
+		{
+			layout.result = append_suggestions (&row, &comp, s->cols);
+		}
+
 		else if (s->top + r < total && editing && s->top + r == ed->edit_index)
 		{
-			EditRow e = append_edit_row (&row, ed, s->cols);
+			EditRow e = append_edit_row (
+				&row,
+				ed,
+				s->top + r + 1,
+				num_width,
+				s->cols
+			);
 
 			layout.result     = e.result;
 			layout.cursor.row = (uint32_t)(r + 1);
@@ -456,6 +640,8 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.result = append_line_row (
 				&row,
 				ml_session_get (&ed->session, src),
+				s->top + r + 1,
+				num_width,
 				highlight,
 				s->cols
 			);

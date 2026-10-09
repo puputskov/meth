@@ -261,7 +261,7 @@ MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key)
 		ml_lineedit_word_left (e);
 	}
 
-	else if (key.code == ML_KEY_LEFT)
+	else if (key.code == ML_KEY_LEFT && !alt)
 	{
 		ml_lineedit_left (e);
 	}
@@ -271,7 +271,7 @@ MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key)
 		ml_lineedit_word_right (e);
 	}
 
-	else if (key.code == ML_KEY_RIGHT)
+	else if (key.code == ML_KEY_RIGHT && !alt)
 	{
 		ml_lineedit_right (e);
 	}
