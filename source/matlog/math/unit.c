@@ -101,6 +101,15 @@ static const UnitDef k_units [] =
 	{ .sym = "min", .name = "minute", .dk = DK_TIME, .num = 60, .fixed = 1 },
 	{ .sym = "h",   .name = "hour",   .dk = DK_TIME, .num = 3600, .fixed = 1 },
 	{ .sym = "d",   .name = "day",    .dk = DK_TIME, .num = 86400, .fixed = 1 },
+	{
+		.sym = "wk", .name = "week", .dk = DK_TIME,
+		.num = 604800, .fixed = 1
+	},
+	/* the Julian year of 365.25 days */
+	{
+		.sym = "yr", .name = "year", .dk = DK_TIME,
+		.num = 31557600, .fixed = 1
+	},
 	{ .sym = "L",   .name = "liter",  .dk = DK_VOLUME, .den = 1000 },
 	{ .sym = "l",   .name = "litre",  .dk = DK_VOLUME, .den = 1000 },
 	{ .sym = "ha", .name = "hectare", .dk = DK_AREA, .num = 10000, .fixed = 1 },
@@ -547,7 +556,8 @@ static MlUnitMatch find_prefixed (MlSlice name)
 	return m;
 }
 
-MlUnitMatch ml_unit_find (MlSlice name)
+/* A unit name found with or without an SI prefix, no plural handled. */
+static MlUnitMatch find_singular (MlSlice name)
 {
 	RowHit      hit = find_row (name);
 	MlUnitMatch m   = no_match ();
@@ -560,6 +570,39 @@ MlUnitMatch ml_unit_find (MlSlice name)
 	else
 	{
 		m = find_prefixed (name);
+	}
+
+	return m;
+}
+
+/* Does the text end with the suffix? */
+static int32_t ends_with (MlSlice name, const char *suffix)
+{
+	MlSlice s = ml_slice_cstr (suffix);
+
+	return (
+		   name.len > s.len
+		&& ml_slice_equal (ml_slice_sub (name, name.len - s.len, s.len), s)
+	);
+}
+
+/*
+ * Plural names are the unit name with an 's' or 'es' (hours, inches). The
+ * name left must have three letters at least, so symbols like ms or kg are
+ * never taken for a plural.
+ */
+MlUnitMatch ml_unit_find (MlSlice name)
+{
+	MlUnitMatch m = find_singular (name);
+
+	if (!m.found && name.len >= 4 && ends_with (name, "s"))
+	{
+		m = find_singular (ml_slice_sub (name, 0, name.len - 1));
+	}
+
+	if (!m.found && name.len >= 5 && ends_with (name, "es"))
+	{
+		m = find_singular (ml_slice_sub (name, 0, name.len - 2));
 	}
 
 	return m;
