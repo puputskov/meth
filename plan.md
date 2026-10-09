@@ -162,6 +162,32 @@ Stage 2, the syntax (what to type, domain by domain):
 Tests: every lesson is driven in the test executable by feeding it the model answer (keys or text) and checking that it completes, so a lesson that
 can no longer be finished (a key was renamed, a syntax changed) fails the build.
 
+### 4.10 Syntax highlighting and themes
+- Math lines are drawn with syntax highlighting: the text of a line is split into classes and each class has a colour from the active theme.
+  Classes: number, name (variable), function name (built in and user defined, told apart from variables by looking in the environment), constant
+  (`π`, `e`), operator, parenthesis and bracket (the matching pair of the one at the cursor is emphasised, an unmatched one is marked), unit,
+  keyword (`include`, `lambda`), and error (the byte range of a parse or evaluation error is underlined or drawn in the error colour).
+  Notes, the line number and the gutter have their own classes, as do the result, the ghost preview, the status line and the lesson panel of the
+  tutorial.
+- The classes come from the lexer (token kinds with byte ranges), so highlighting follows the same rules as the parser, also for the unicode spellings,
+  and never needs a second grammar. Text that does not lex or parse is still highlighted token by token, with the bad range marked. Each domain can add
+  its own classes later (matrix brackets, boolean operators, lambda binders, PGA blades) through a per domain table of token kind to class.
+- A theme is a table of class to style: foreground and background colour, bold, dim, underline, reverse. Colours are given as 24 bit RGB with a
+  fallback chain for terminals that cannot show them: 256 colours, then the 16 ANSI colours, then no colour at all (only bold, dim, underline and
+  reverse). The level is detected from the terminal (`COLORTERM`, `TERM`; on Windows the console version) and can be forced with `:colors 16|256|24bit|off`.
+  `NO_COLOR` turns colour off.
+- Built in themes: a dark one, a light one, and a high contrast one (for readability; every pair of foreground and background in it keeps a contrast
+  ratio of at least 7:1, checked by a test), plus a monochrome one that only uses bold, dim and underline. The default follows the terminal's background
+  when it can be queried (OSC 11), otherwise dark.
+- Themes are chosen with `:theme name` (Tab completes the names) and the choice is remembered in a small settings file next to the progress file of the
+  tutorial. A user theme is a plain text file `name.theme` in the settings folder, one `class = style` entry per line, for example
+  `number = #b5cea8` or `error = #f44747 underline`; a line that does not parse is reported and ignored, and classes that are missing fall back to the
+  built in dark theme, so a theme file can be short. `:theme reload` reads the files again.
+- The screen draws styled text through the same row strings it already compares to the last frame, so changing the theme redraws every row once and a
+  keystroke still redraws only the rows that changed. Column widths never include escape sequences.
+- Highlighting is a pure function (text, domain, environment snapshot, theme) to a list of styled runs, so it is unit tested without a terminal, and ghost
+  mode and the tutorial reuse it for their own text.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -175,7 +201,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 7. `session`: lines, modes, notes, persistence.
 8. `ui`: terminal input (line editor, modes, ghost text, completion) and output rendering.
 9. `app`: `main.c`, wiring.
-10. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
+10. `ui/theme`, `ui/highlight`: classes, themes, colour levels and the highlighter (section 4.10).
+11. `tutorial`: lesson data, the step checks that watch the editor, the lesson panel (section 4.9).
 
 ## 6. Coding rules
 
@@ -207,7 +234,9 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 6. Lambda calculus and boolean algebra.
 7. PGA.
 8. Visualization and notes polish, completion.
-9. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
+9. Syntax highlighting and themes (section 4.10). The highlighter only needs the lexer, so it can be built any time after milestone 2; each
+   later domain adds its token classes with itself.
+10. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
    exist; the milestone 3 to 7 lessons of stage 2 are added together with the domains. The whole tutorial is complete when the last domain is done.
 
 ## 8. Milestone 1 tasks
@@ -385,6 +414,7 @@ steps can be shown on request.
 - ASCII and unicode input equivalent, ASCII auto-rewritten to pretty unicode inline.
 - Integrals start with polynomials/tables; PGA both 2D and 3D via a generic signature.
 - Includes are read-only and acyclic.
+- Syntax highlighting is driven by the lexer tokens, with themes as data (built in plus user `.theme` files) and colour levels from 24 bit down to none.
 - A built in interactive tutorial in two stages (usage of the tool, then the syntax); lessons are data, they only observe the real editor, and each is tested by playing the model answer.
 
 ## 12. Open questions
