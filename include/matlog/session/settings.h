@@ -39,6 +39,14 @@ MlResult ml_settings_text_set (
 	MlSlice value
 );
 
+/* Appends to out the text without the entry of key in section. */
+MlResult ml_settings_text_remove (
+	MlStr   *out,
+	MlSlice text,
+	MlSlice section,
+	MlSlice key
+);
+
 /* Appends the value of an entry of the file to out; found is 0 if none. */
 MlResult ml_settings_get (
 	MlStr    *out,
@@ -49,5 +57,8 @@ MlResult ml_settings_get (
 
 /* Writes an entry into the file (only when it changes the file). */
 MlResult ml_settings_set (MlSlice section, MlSlice key, MlSlice value);
+
+/* Removes an entry from the file (only when there is one to remove). */
+MlResult ml_settings_remove (MlSlice section, MlSlice key);
 
 #endif /* MATLOG_SESSION_SETTINGS_H */

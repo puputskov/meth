@@ -77,8 +77,19 @@ static Parsed parse_line (MlSlice raw)
 	};
 
 	uint64_t eq = 0;
+	uint64_t gap = 0; /* the length of what separates key and value */
 
-	while (eq < line.len && line.data [eq] != '=')
+	/* " = " first, so that a key (a path) may have a '=' in it */
+	for (uint64_t i = 0; i + 3 <= line.len && gap == 0; i++)
+	{
+		if (ml_slice_equal (ml_slice_sub (line, i, 3), ml_slice_cstr (" = ")))
+		{
+			eq  = i + 1;
+			gap = 1;
+		}
+	}
+
+	while (gap == 0 && eq < line.len && line.data [eq] != '=')
 	{
 		eq++;
 	}
@@ -134,6 +145,19 @@ MlSetting ml_settings_text_get (MlSlice text, MlSlice section, MlSlice key)
 	return s;
 }
 
+/*
+ * Writes the text without the entry of key in section, or with it set to
+ * value when set is 1. The one routine behind text_set and text_remove.
+ */
+static MlResult rewrite (
+	MlStr   *out,
+	MlSlice text,
+	MlSlice section,
+	MlSlice key,
+	MlSlice value,
+	int32_t set
+);
+
 static MlResult append_line (MlStr *out, MlSlice line)
 {
 	MlResult r = ml_str_append (out, line);
@@ -158,18 +182,19 @@ static MlResult append_entry (MlStr *out, MlSlice key, MlSlice value)
 	);
 }
 
-MlResult ml_settings_text_set (
+static MlResult rewrite (
 	MlStr   *out,
 	MlSlice text,
 	MlSlice section,
 	MlSlice key,
-	MlSlice value
+	MlSlice value,
+	int32_t set
 )
 {
 	MlResult r      = ML_OK;
 	LineIter it     = { .text = text, .pos = 0 };
 	int32_t  in     = 0;
-	int32_t  placed = 0;
+	int32_t  placed = !set;
 	MlSlice  raw;
 
 	while (r == ML_OK && iter_next (&it, &raw))
@@ -190,7 +215,12 @@ MlResult ml_settings_text_set (
 
 		if (r == ML_OK && in && p.entry && ml_slice_equal (p.name, key))
 		{
-			r      = ml_choose (placed, ML_OK, append_entry (out, key, value));
+			/* the entry is replaced, or left out when it is removed */
+			r      = ml_choose (
+				placed,
+				ML_OK,
+				append_entry (out, key, value)
+			);
 			placed = 1;
 		}
 
@@ -220,6 +250,27 @@ MlResult ml_settings_text_set (
 	}
 
 	return r;
+}
+
+MlResult ml_settings_text_set (
+	MlStr   *out,
+	MlSlice text,
+	MlSlice section,
+	MlSlice key,
+	MlSlice value
+)
+{
+	return rewrite (out, text, section, key, value, 1);
+}
+
+MlResult ml_settings_text_remove (
+	MlStr   *out,
+	MlSlice text,
+	MlSlice section,
+	MlSlice key
+)
+{
+	return rewrite (out, text, section, key, ml_slice ("", 0), 0);
 }
 
 /* The path of the settings file and the folder it is in. */
@@ -282,7 +333,13 @@ MlResult ml_settings_get (
 	return r;
 }
 
-MlResult ml_settings_set (MlSlice section, MlSlice key, MlSlice value)
+/* Sets or removes an entry of the file; the file is only written to change. */
+static MlResult update_file (
+	MlSlice section,
+	MlSlice key,
+	MlSlice value,
+	int32_t set
+)
 {
 	MlResult r = ML_OK;
 	MlStr    dir;
@@ -303,13 +360,7 @@ MlResult ml_settings_set (MlSlice section, MlSlice key, MlSlice value)
 
 	if (r == ML_OK)
 	{
-		r = ml_settings_text_set (
-			&next,
-			ml_str_view (old),
-			section,
-			key,
-			value
-		);
+		r = rewrite (&next, ml_str_view (old), section, key, value, set);
 	}
 
 	if (r == ML_OK && !ml_slice_equal (ml_str_view (old), ml_str_view (next)))
@@ -330,4 +381,14 @@ MlResult ml_settings_set (MlSlice section, MlSlice key, MlSlice value)
 	ml_str_free (&path);
 	ml_str_free (&dir);
 	return r;
+}
+
+MlResult ml_settings_set (MlSlice section, MlSlice key, MlSlice value)
+{
+	return update_file (section, key, value, 1);
+}
+
+MlResult ml_settings_remove (MlSlice section, MlSlice key)
+{
+	return update_file (section, key, ml_slice ("", 0), 0);
 }

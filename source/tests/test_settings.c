@@ -147,8 +147,47 @@ static void test_set (void)
 	));
 }
 
+/* The text with the entry removed, compared to expect. */
+static int32_t remove_gives (
+	const char *old,
+	const char *section,
+	const char *key,
+	const char *expect
+)
+{
+	MlStr   out;
+	int32_t same;
+
+	ml_str_init (&out);
+	same = (
+		   ml_settings_text_remove (&out, lit (old), lit (section), lit (key))
+		   == ML_OK
+		&& ml_slice_equal (ml_str_view (out), lit (expect))
+	);
+	ml_str_free (&out);
+	return same;
+}
+
+static void test_remove (void)
+{
+	CHECK (remove_gives (
+		"[a]\nx = 1\ny = 2\n[b]\nx = 3\n",
+		"a",
+		"x",
+		"[a]\ny = 2\n[b]\nx = 3\n"
+	));
+
+	/* nothing to remove: the text stays */
+	CHECK (remove_gives ("[a]\nx = 1\n", "a", "z", "[a]\nx = 1\n"));
+	CHECK (remove_gives ("", "a", "z", ""));
+
+	/* a key may have a '=' in it when the separator is " = " */
+	CHECK (get_is ("[f]\nC:/a=b/x.mlog = 3 4\n", "f", "C:/a=b/x.mlog", "3 4"));
+}
+
 void run_settings_tests (void)
 {
+	test_remove ();
 	test_get ();
 	test_set ();
 }
