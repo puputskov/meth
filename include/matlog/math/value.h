@@ -114,8 +114,9 @@ MlValue ml_value_div (MlArena *arena, MlValue a, MlValue b);
 MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b);
 
 /*
- * "7/2" or "-3" for exact numbers, "[[1, 2], [3, 4]]" for matrices, "≈ 1.41421356" (nine significant digits)
- * for approximations. Values that are not numbers cannot be formatted.
+ * "7/2" or "-3" for exact numbers, "≈ 1.41421356" (nine significant digits)
+ * for approximations, "[[1, 2], [3, 4]]" for matrices. Values that are
+ * neither cannot be formatted.
  */
 MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v);
 
