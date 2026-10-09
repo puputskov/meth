@@ -1060,6 +1060,39 @@ static void log_rewrite (
 	}
 }
 
+/* The node as a new one over the copied kids (ML_SYM_COPY). */
+static const MlSym *copy_node (
+	MlSymCtx           *ctx,
+	const MlSym        *orig,
+	const MlSym *const *kids,
+	uint64_t           count
+)
+{
+	const MlSym *out = NULL;
+
+	if (orig->kind == ML_SYM_NUM)
+	{
+		out = ml_sym_num (ctx, orig->num);
+	}
+
+	else if (orig->kind == ML_SYM_VAR)
+	{
+		out = ml_sym_var (ctx, orig->name);
+	}
+
+	else if (orig->kind == ML_SYM_FUNC)
+	{
+		out = ml_sym_func_n (ctx, orig->name, kids, count);
+	}
+
+	else
+	{
+		out = ml_sym_raw (ctx, orig->kind, kids, count);
+	}
+
+	return out;
+}
+
 const MlSym *ml_sym_rewrite (
 	MlSymCtx           *ctx,
 	const MlSym        *orig,
@@ -1075,7 +1108,12 @@ const MlSym *ml_sym_rewrite (
 		&& ml_sym_compare (ctx, orig, ctx->subst_var) == 0
 	);
 
-	if (orig->kind == ML_SYM_VAR)
+	if (ctx->mode == ML_SYM_COPY)
+	{
+		out = copy_node (ctx, orig, kids, count);
+	}
+
+	else if (orig->kind == ML_SYM_VAR)
 	{
 		out = ml_choose (
 			   ctx->mode == ML_SYM_SUBSTITUTE
@@ -1178,6 +1216,11 @@ static const MlSym *run_map (MlSymCtx *ctx, const MlSym *s, MlSymMode mode)
 const MlSym *ml_sym_simplify (MlSymCtx *ctx, const MlSym *s)
 {
 	return run_map (ctx, s, ML_SYM_REBUILD);
+}
+
+const MlSym *ml_sym_copy (MlSymCtx *ctx, const MlSym *s)
+{
+	return run_map (ctx, s, ML_SYM_COPY);
 }
 
 const MlSym *ml_sym_expand (MlSymCtx *ctx, const MlSym *s)

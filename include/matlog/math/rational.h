@@ -35,6 +35,9 @@ MlRat ml_rat_zero (MlArena *arena);
 MlRat ml_rat_from_big (MlArena *arena, MlBig n);
 MlRat ml_rat_from_i64 (MlArena *arena, int64_t n);
 
+/* A copy of x whose limbs live in the arena (so x may be freed or reset). */
+MlRat ml_rat_copy (MlArena *arena, MlRat x);
+
 /* num / den reduced to lowest terms. A zero denominator is ML_ERR_DIVZERO. */
 MlRat ml_rat_make (MlArena *arena, MlBig num, MlBig den);
 

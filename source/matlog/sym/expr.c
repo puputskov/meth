@@ -87,7 +87,8 @@ const MlSym *ml_sym_num (MlSymCtx *ctx, MlRat value)
 
 	if (s != NULL)
 	{
-		s->num = value;
+		/* the digits belong to the context, not to whoever made the number */
+		s->num = ml_rat_copy (ctx->arena, value);
 	}
 
 	return ml_choose (s != NULL, s, &failed_node);

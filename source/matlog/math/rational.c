@@ -478,3 +478,14 @@ MlRatDecimal ml_rat_format_decimal (
 
 	return result;
 }
+
+MlRat ml_rat_copy (MlArena *arena, MlRat x)
+{
+	MlRat out =
+	{
+		.num = ml_big_copy (arena, x.num),
+		.den = ml_big_copy (arena, x.den)
+	};
+
+	return out;
+}

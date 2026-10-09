@@ -108,7 +108,8 @@ typedef enum MlSymMode
 	ML_SYM_REBUILD = 0, /* canonical form of the tree (simplify) */
 	ML_SYM_EXPAND,      /* also multiply out products of sums and powers */
 	ML_SYM_SUBSTITUTE,  /* replace a symbol by an expression, then rebuild */
-	ML_SYM_REPLACE      /* replace every copy of a subtree, then rebuild */
+	ML_SYM_REPLACE,     /* replace every copy of a subtree, then rebuild */
+	ML_SYM_COPY         /* a new tree with every node and number of its own */
 } MlSymMode;
 
 #define ML_SYM_BUDGET 200000
@@ -203,6 +204,13 @@ const MlSym *ml_sym_product (
 
 /* The canonical form of s. */
 const MlSym *ml_sym_simplify (MlSymCtx *ctx, const MlSym *s);
+
+/*
+ * The same tree built again in the arena of ctx, leaves and numbers included.
+ * simplify may hand back nodes it was given (a symbol, a number), so only a
+ * copy can be kept after the arena of the original is reset.
+ */
+const MlSym *ml_sym_copy (MlSymCtx *ctx, const MlSym *s);
 
 /* Multiplies out products of sums and integer powers of sums. */
 const MlSym *ml_sym_expand (MlSymCtx *ctx, const MlSym *s);

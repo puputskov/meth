@@ -980,3 +980,31 @@ MlResult ml_big_format (MlStr *out, MlBig x)
 	MlU32Vec_free (&work);
 	return r;
 }
+
+MlBig ml_big_copy (MlArena *arena, MlBig x)
+{
+	MlBig    out = x;
+	uint32_t *p  = NULL;
+
+	if (ml_big_ok (x) && x.len > 0)
+	{
+		p = (uint32_t *)ml_arena_alloc (
+			arena,
+			x.len * sizeof (uint32_t),
+			_Alignof (uint32_t)
+		);
+
+		if (p)
+		{
+			memcpy (p, x.limbs, x.len * sizeof (uint32_t));
+			out.limbs = p;
+		}
+
+		else
+		{
+			out = ml_big_error (ML_ERR_NOMEM);
+		}
+	}
+
+	return out;
+}

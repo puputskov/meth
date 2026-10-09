@@ -489,10 +489,42 @@ static void test_boolean (void)
 	ml_session_free (&s);
 }
 
+/*
+ * A symbolic value kept in a variable must not point into the memory of the
+ * line that made it: that is reused by the lines below.
+ */
+static void test_symbolic_kept (void)
+{
+	MlSession s;
+	MlResults r;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add (&s, "fp = diff(x^3, x)");
+	add (&s, "f(x) = x");
+	add (&s, "f(1)");
+	add (&s, "fp");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (is_value (&r, 2, "1"));
+	CHECK (is_value (&r, 3, "3x\xC2\xB2"));
+
+	/* a longer number in a variable, and lines that use much memory */
+	add (&s, "g = diff(x^7, x) * 123456789012345678901234567890");
+	add (&s, "7^300 + 100!");
+	add (&s, "g");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+	CHECK (is_value (&r, 3, "3x\xC2\xB2"));
+	CHECK (is_value (&r, 6, "864197523086419752308641975230x\xE2\x81\xB6"));
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
 void run_results_tests (void);
 
 void run_results_tests (void)
 {
+	test_symbolic_kept ();
 	test_boolean ();
 	test_blocks ();
 	test_flow ();

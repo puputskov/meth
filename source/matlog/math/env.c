@@ -36,46 +36,6 @@ void ml_env_truncate (MlEnv *env, uint64_t snapshot)
 	}
 }
 
-/* A copy of x whose limbs live in the arena. */
-static MlBig copy_big (MlArena *arena, MlBig x)
-{
-	MlBig     out = x;
-	uint32_t  *p  = NULL;
-
-	if (ml_big_ok (x) && x.len > 0)
-	{
-		p = (uint32_t *)ml_arena_alloc (
-			arena,
-			x.len * sizeof (uint32_t),
-			_Alignof (uint32_t)
-		);
-
-		if (p)
-		{
-			memcpy (p, x.limbs, x.len * sizeof (uint32_t));
-			out.limbs = p;
-		}
-
-		else
-		{
-			out = ml_big_error (ML_ERR_NOMEM);
-		}
-	}
-
-	return out;
-}
-
-static MlRat copy_rat (MlArena *arena, MlRat x)
-{
-	MlRat out =
-	{
-		.num = copy_big (arena, x.num),
-		.den = copy_big (arena, x.den)
-	};
-
-	return out;
-}
-
 /* A copy of m whose cells and digits live in the arena. */
 static MlMat copy_mat (MlArena *arena, MlMat m)
 {
@@ -83,7 +43,7 @@ static MlMat copy_mat (MlArena *arena, MlMat m)
 
 	for (uint64_t i = 0; i < m.rows * m.cols && out.status == ML_OK; i++)
 	{
-		out.cells [i] = copy_rat (arena, m.cells [i]);
+		out.cells [i] = ml_rat_copy (arena, m.cells [i]);
 
 		if (!ml_rat_ok (out.cells [i]))
 		{
@@ -100,12 +60,12 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 
 	if (v.kind == ML_VALUE_EXACT || v.kind == ML_VALUE_QUANTITY)
 	{
-		out.exact.num = copy_big (arena, v.exact.num);
-		out.exact.den = copy_big (arena, v.exact.den);
+		out.exact.num = ml_big_copy (arena, v.exact.num);
+		out.exact.den = ml_big_copy (arena, v.exact.den);
 
 		if (v.kind == ML_VALUE_QUANTITY && v.show.len > 0)
 		{
-			out.scale = copy_rat (arena, v.scale);
+			out.scale = ml_rat_copy (arena, v.scale);
 			out.show  = ml_slice_cstr (ml_arena_strdup (arena, v.show));
 		}
 	}
@@ -117,11 +77,15 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 
 	else if (v.kind == ML_VALUE_EXPR)
 	{
-		/* rebuilt into the arena of the environment; already canonical */
+		/*
+		 * built again in the arena of the environment, every node and
+		 * number of it: the value is already canonical, and the arena of
+		 * the line it came from is reused for the next line
+		 */
 		MlSymCtx ctx;
 
 		ml_symctx_init (&ctx, arena);
-		out.sym = ml_sym_simplify (&ctx, v.sym);
+		out.sym = ml_sym_copy (&ctx, v.sym);
 
 		if (ctx.status != ML_OK)
 		{

@@ -49,6 +49,9 @@ MlBig ml_big_zero (void);
 MlBig ml_big_from_u64 (MlArena *arena, uint64_t value);
 MlBig ml_big_from_i64 (MlArena *arena, int64_t value);
 
+/* A copy of x whose limbs live in the arena (so x may be freed or reset). */
+MlBig ml_big_copy (MlArena *arena, MlBig x);
+
 /* Optional sign, then decimal digits. ML_ERR_PARSE for anything else. */
 MlBig ml_big_parse (MlArena *arena, MlSlice text);
 
