@@ -32,6 +32,7 @@ void run_unit_tests (void);
 void run_folds_tests (void);
 void run_integrate_tests (void);
 void run_theme_tests (void);
+void run_settings_tests (void);
 
 int main (void)
 {
@@ -64,6 +65,7 @@ int main (void)
 	run_folds_tests ();
 	run_integrate_tests ();
 	run_theme_tests ();
+	run_settings_tests ();
 
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);
 	return ml_choose (

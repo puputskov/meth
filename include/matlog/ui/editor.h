@@ -124,6 +124,13 @@ MlTextRange ml_editor_selection (const MlEditor *ed);
 
 void ml_editor_init (MlEditor *ed);
 
+/*
+ * Chooses a built in theme or a name.theme file of the settings folder, as
+ * :theme does (the message says what happened, the theme stays when there is
+ * no such one).
+ */
+MlResult ml_editor_apply_theme (MlEditor *ed, MlSlice name);
+
 /* The lines a Page Up or Page Down moves: the height of the text area. */
 void ml_editor_set_page (MlEditor *ed, uint64_t rows);
 void ml_editor_free (MlEditor *ed);

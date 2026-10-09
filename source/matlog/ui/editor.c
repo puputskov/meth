@@ -1638,6 +1638,11 @@ static MlResult set_theme (MlEditor *ed, MlSlice arg)
 	return r;
 }
 
+MlResult ml_editor_apply_theme (MlEditor *ed, MlSlice name)
+{
+	return set_theme (ed, name);
+}
+
 /* :colors 24bit|256|16|off sets how many colours the terminal shows. */
 static MlResult set_colors (MlEditor *ed, MlSlice arg)
 {

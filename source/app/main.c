@@ -2,6 +2,7 @@
 #include <matlog/platform/console.h>
 #include <matlog/session/folds.h>
 #include <matlog/session/mlog.h>
+#include <matlog/session/settings.h>
 #include <matlog/ui/editor.h>
 #include <matlog/ui/hint.h>
 #include <matlog/ui/screen.h>
@@ -109,6 +110,57 @@ static MlResult sync_folds (MlEditor *ed, MlStr *path, MlStr *folds)
 	return r;
 }
 
+/* The section and keys of the look in the settings file. */
+#define SETTINGS_DISPLAY "display"
+#define SETTINGS_THEME   "theme"
+#define SETTINGS_COLORS  "colors"
+
+/*
+ * Keeps the look in the settings file: when the theme or the colour level
+ * is not what was seen the last time (look holds "theme colors"), both are
+ * written. A file that cannot be written is not worth an exit.
+ */
+static MlResult sync_look (const MlEditor *ed, MlStr *look)
+{
+	MlResult r = ML_OK;
+	MlStr    now;
+
+	ml_str_init (&now);
+	r = ml_str_appendf (
+		&now,
+		"%s %s",
+		ed->theme.name,
+		ml_color_level_name (ed->colors)
+	);
+
+	if (
+		   r == ML_OK
+		&& look->len > 0
+		&& !ml_slice_equal (ml_str_view (now), ml_str_view (*look))
+	)
+	{
+		ml_settings_set (
+			ml_slice_cstr (SETTINGS_DISPLAY),
+			ml_slice_cstr (SETTINGS_THEME),
+			ml_slice_cstr (ed->theme.name)
+		);
+		ml_settings_set (
+			ml_slice_cstr (SETTINGS_DISPLAY),
+			ml_slice_cstr (SETTINGS_COLORS),
+			ml_slice_cstr (ml_color_level_name (ed->colors))
+		);
+	}
+
+	if (r == ML_OK)
+	{
+		ml_str_clear (look);
+		r = ml_str_append (look, ml_str_view (now));
+	}
+
+	ml_str_free (&now);
+	return r;
+}
+
 /* Reads keys and edits until the editor asks to quit. */
 static MlResult run (
 	MlConsole *con,
@@ -120,11 +172,18 @@ static MlResult run (
 	MlStr    frame;
 	MlStr    path;
 	MlStr    folds;
+	MlStr    look;
 
 	ml_str_init (&frame);
 	ml_str_init (&path);
 	ml_str_init (&folds);
+	ml_str_init (&look);
 	r = sync_folds (ed, &path, &folds);
+
+	if (r == ML_OK)
+	{
+		r = sync_look (ed, &look);
+	}
 
 	while (r == ML_OK && !ed->quit)
 	{
@@ -189,6 +248,11 @@ static MlResult run (
 			r = sync_folds (ed, &path, &folds);
 		}
 
+		if (r == ML_OK)
+		{
+			r = sync_look (ed, &look);
+		}
+
 		/* every committed change is written to the file right away */
 		if (r == ML_OK && ed->session.dirty && ed->session.path.len > 0)
 		{
@@ -196,6 +260,7 @@ static MlResult run (
 		}
 	}
 
+	ml_str_free (&look);
 	ml_str_free (&folds);
 	ml_str_free (&path);
 	ml_str_free (&frame);
@@ -267,9 +332,17 @@ static MlSlice env_text (const char *name)
 	return ml_slice_cstr (ml_choose (value != NULL, value, ""));
 }
 
-/* Colours and theme from the terminal; NO_COLOR picks the mono theme. */
+
+/*
+ * Colours and theme: the terminal says what it can show (NO_COLOR picks the
+ * mono theme), then what the user chose before, kept in the settings file,
+ * replaces that.
+ */
 static void setup_look (MlEditor *ed)
 {
+	MlStr   value;
+	int32_t found = 0;
+
 	ed->colors = ml_colors_detect (
 		env_text ("COLORTERM"),
 		env_text ("TERM"),
@@ -282,7 +355,42 @@ static void setup_look (MlEditor *ed)
 	{
 		ml_theme_builtin (&ed->theme, ml_slice_cstr ("mono"));
 	}
+
+	ml_str_init (&value);
+
+	if (
+		   ml_settings_get (
+			   &value,
+			   ml_slice_cstr (SETTINGS_DISPLAY),
+			   ml_slice_cstr (SETTINGS_COLORS),
+			   &found
+		   ) == ML_OK
+		&& found
+		&& ml_color_level_from_name (ml_str_view (value)) != ML_COLORS_COUNT
+	)
+	{
+		ed->colors = ml_color_level_from_name (ml_str_view (value));
+	}
+
+	ml_str_clear (&value);
+
+	if (
+		   ml_settings_get (
+			   &value,
+			   ml_slice_cstr (SETTINGS_DISPLAY),
+			   ml_slice_cstr (SETTINGS_THEME),
+			   &found
+		   ) == ML_OK
+		&& found
+	)
+	{
+		ml_editor_apply_theme (ed, ml_str_view (value));
+		ml_str_clear (&ed->message);
+	}
+
+	ml_str_free (&value);
 }
+
 
 /* The interactive editor. */
 static int32_t run_interactive (int32_t argc, char **argv)
