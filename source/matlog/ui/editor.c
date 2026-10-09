@@ -1,6 +1,7 @@
 #include <matlog/ui/editor.h>
 
 #include <matlog/core/utf8.h>
+#include <matlog/export/export.h>
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
@@ -1755,6 +1756,163 @@ static MlResult set_colors (MlEditor *ed, MlSlice arg)
 	return r;
 }
 
+/* The name of the session file without its folder and its extension. */
+static MlSlice session_stem (const MlSession *s)
+{
+	MlSlice name = ml_path_name (ml_str_view (s->path));
+	uint64_t dot = name.len;
+
+	while (dot > 0 && name.data [dot - 1] != '.')
+	{
+		dot--;
+	}
+
+	return ml_choose (dot > 1, ml_slice_sub (name, 0, dot - 1), name);
+}
+
+/* The default file of an export: the session file with the new extension. */
+static MlResult export_path (MlStr *out, const MlSession *s, const char *ext)
+{
+	MlSlice  path = ml_str_view (s->path);
+	uint64_t dot  = path.len;
+	uint64_t sep  = path.len;
+
+	while (dot > 0 && path.data [dot - 1] != '.')
+	{
+		dot--;
+	}
+
+	while (sep > 0 && path.data [sep - 1] != '/' && path.data [sep - 1] != '\\')
+	{
+		sep--;
+	}
+
+	return ml_str_appendf (
+		out,
+		"%.*s.%s",
+		(int)ml_choose (dot > sep + 1, dot - 1, path.len),
+		path.data,
+		ext
+	);
+}
+
+/*
+ * :export FORMAT [body] [errors] [3-12] [path] writes the session (or the
+ * lines of the range) as a document, next to the session file unless a path
+ * is given. :export! replaces a file that is there.
+ */
+static MlResult export_command (
+	MlEditor *ed,
+	MlSlice  arg,
+	int32_t  force,
+	int32_t  ranged,
+	uint64_t first,
+	uint64_t last
+)
+{
+	MlResult        r     = ML_OK;
+	uint64_t        space = 0;
+	MlExportFormat  fmt;
+	MlExportOptions opt;
+	MlSlice         path  = ml_slice ("", 0);
+	MlStr           file;
+	MlStr           doc;
+
+	ml_str_init (&file);
+	ml_str_init (&doc);
+
+	while (space < arg.len && arg.data [space] != ' ')
+	{
+		space++;
+	}
+
+	fmt = ml_export_format_from_name (ml_slice_sub (arg, 0, space));
+	opt = ml_export_options (fmt);
+
+	if (fmt == ML_EXPORT_COUNT)
+	{
+		r = set_message (ed, "export: latex, mathml or markdown");
+	}
+
+	else if (
+		ml_export_read_words (
+			&opt,
+			ml_slice_sub (arg, space, arg.len - space),
+			&path
+		) != ML_OK
+	)
+	{
+		r = set_message (ed, "export: body, errors, a range like 3-12, a path");
+	}
+
+	else if (path.len == 0 && ed->session.path.len == 0)
+	{
+		r = set_message (ed, "export: give a path (the session has no file)");
+	}
+
+	else
+	{
+		if (path.len > 0)
+		{
+			r = ml_str_append (&file, path);
+		}
+
+		else
+		{
+			r = export_path (&file, &ed->session, ml_export_extension (fmt));
+		}
+
+		/* a range before the command, or the words, picks the lines */
+		if (ranged && !opt.ranged)
+		{
+			opt.ranged = 1;
+			opt.first  = first;
+			opt.last   = last;
+		}
+
+		opt.title = session_stem (&ed->session);
+
+		if (r == ML_OK)
+		{
+			r = ml_editor_refresh (ed);
+		}
+
+		if (r == ML_OK && ml_fs_exists (ml_str_view (file)) && !force)
+		{
+			r = set_message (ed, "file exists (:export! replaces it)");
+		}
+
+		else if (r == ML_OK)
+		{
+			r = ml_export (&doc, &ed->session, &ed->results, opt);
+		}
+
+		if (r == ML_OK && doc.len > 0)
+		{
+			if (ml_fs_write_file_atomic (ml_str_view (file), ml_str_view (doc))
+				== ML_OK)
+			{
+				ml_str_clear (&ed->message);
+				r = ml_str_appendf (
+					&ed->message,
+					"exported to %.*s",
+					(int)file.len,
+					file.data
+				);
+			}
+
+			else
+			{
+				r = set_message (ed, "cannot write the export file");
+			}
+		}
+	}
+
+	ml_str_free (&doc);
+	ml_str_free (&file);
+	return r;
+}
+
 static MlResult set_mode (MlEditor *ed, MlSlice name)
 {
 	MlResult       r = ML_OK;
@@ -2133,6 +2291,18 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "symbols"))
 	{
 		r = set_symbols (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "export") || is_cmd (cmd, "export!"))
+	{
+		r = export_command (
+			ed,
+			arg,
+			is_cmd (cmd, "export!"),
+			rg.given,
+			rg.first,
+			rg.last
+		);
 	}
 
 	else if (is_cmd (cmd, "theme"))

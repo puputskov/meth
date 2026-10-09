@@ -13,6 +13,7 @@ typedef enum ArgKind
 	ARG_ON_OFF,
 	ARG_THEME,
 	ARG_COLORS,
+	ARG_EXPORT,
 	ARG_PATH /* files are not completed yet */
 } ArgKind;
 
@@ -41,6 +42,8 @@ static const Command commands [] =
 	{ .name = "pga",   .arg = ARG_PGA_DIM, .needs_arg = 1 },
 	{ .name = "steps", .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "symbols", .arg = ARG_ON_OFF, .needs_arg = 0 },
+	{ .name = "export", .arg = ARG_EXPORT, .needs_arg = 1 },
+	{ .name = "export!", .arg = ARG_EXPORT, .needs_arg = 1 },
 	{ .name = "theme", .arg = ARG_THEME,   .needs_arg = 0 },
 	{ .name = "colors", .arg = ARG_COLORS, .needs_arg = 0 },
 	{ .name = "undo",  .arg = ARG_NONE,    .needs_arg = 0 },
@@ -244,6 +247,13 @@ MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files)
 
 			add_candidate (&c, typed, "reload");
 			add_theme_files (&c, typed, theme_files);
+		}
+
+		else if (kind == ARG_EXPORT && !more)
+		{
+			add_candidate (&c, typed, "latex");
+			add_candidate (&c, typed, "mathml");
+			add_candidate (&c, typed, "markdown");
 		}
 
 		else if (kind == ARG_COLORS && !more)

@@ -46,6 +46,7 @@
  *	         Ctrl+S  save;  Ctrl+Q  quit;  Ctrl+P  command line
  *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3 :steps
  *	         :theme [name|reload]  :colors [24bit|256|16|off]
+ *	         :export[!] latex|mathml|markdown [body] [errors] [3-12] [path]
  *	         :undo :redo  :[range]d  :[range]y  :[range]m dest  :[range]t dest
  *	         ranges: 3  3,5  %  .  $  (1 based); m and t put the lines after
  *	         line dest (0 is the top)

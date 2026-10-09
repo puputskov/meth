@@ -1,4 +1,6 @@
 #include <matlog/cli/cli.h>
+#include <matlog/export/export.h>
+#include <matlog/platform/fs.h>
 
 #include <matlog/parse/parser.h>
 #include <matlog/session/mlog.h>
@@ -25,6 +27,7 @@ static const char *const help_overview =
 	"  steps EXPR     the steps of an expression, or of FILE:LINE\n"
 	"  help [CMD]     this text, or the help of one command\n"
 	"  syntax         the syntax, functions and domains\n"
+	"  export FILE FMT   a session as latex, mathml or markdown\n"
 	"  theme [NAME]   the built in themes, or one as a theme file\n"
 	"  schema         the shape of the JSON output\n"
 	"  commands       the list of commands (--format json for tools)\n"
@@ -62,6 +65,15 @@ static const char *const help_run =
 	"Evaluates a session file and prints every line with its result. "
 	"Includes\n"
 	"are followed. Exit code 1 when any line is an error.\n";
+
+static const char *const help_export =
+	"matlog export FILE FORMAT [WORDS...]\n"
+	"\n"
+	"Writes the session FILE as a document on standard output. FORMAT is\n"
+	"latex, mathml (an HTML page) or markdown. The words after it are\n"
+	"body (no preamble or page), errors (the errors of lines too), a line\n"
+	"range (3 or 3-12, from 1) and a path: with a path the document is\n"
+	"written there instead (an existing file is replaced).\n";
 
 static const char *const help_lex =
 	"matlog lex TEXT [--format text|json]\n"
@@ -163,6 +175,7 @@ static const CommandInfo commands [] =
 	{ .name = "steps", .summary = "steps of an expression or a line" },
 	{ .name = "help", .summary = "usage" },
 	{ .name = "syntax", .summary = "the syntax and functions" },
+	{ .name = "export", .summary = "a session as latex, mathml or markdown" },
 	{ .name = "theme", .summary = "the built in themes as theme files" },
 	{ .name = "schema", .summary = "shape of the JSON output" },
 	{ .name = "commands", .summary = "list of commands" },
@@ -1243,7 +1256,11 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 					ml_choose (
 						is (name, "parse"),
 						help_parse,
-						ml_choose (is (name, "steps"), help_steps, NULL)
+						ml_choose (
+							is (name, "steps"),
+							help_steps,
+							ml_choose (is (name, "export"), help_export, NULL)
+						)
 					)
 				)
 			)
@@ -1265,6 +1282,97 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 		add (out, topic);
 	}
 
+	return code;
+}
+
+/* matlog export FILE FORMAT [WORDS...]: the session as a document. */
+static int32_t cmd_export (const Options *o, MlStr *out, MlStr *err)
+{
+	int32_t         code = ML_EXIT_OK;
+	MlSession       s;
+	MlResults       res;
+	MlExportFormat  fmt  = ML_EXPORT_COUNT;
+	MlExportOptions opt;
+	MlStr           words;
+	MlStr           doc;
+	MlSlice         path = ml_slice ("", 0);
+
+	ml_session_init (&s);
+	ml_results_init (&res);
+	ml_str_init (&words);
+	ml_str_init (&doc);
+	res.free_symbols     = o->symbols;
+	res.env.free_symbols = o->symbols;
+
+	if (o->rest.len >= 2)
+	{
+		fmt = ml_export_format_from_name (o->rest.data [1]);
+	}
+
+	opt = ml_export_options (fmt);
+
+	for (uint64_t i = 2; i < o->rest.len; i++)
+	{
+		ml_str_append (&words, o->rest.data [i]);
+		ml_str_append (&words, ml_slice_cstr (" "));
+	}
+
+	if (o->rest.len < 2)
+	{
+		code = usage_error (
+			err,
+			"export needs a file and a format",
+			ml_slice ("", 0)
+		);
+	}
+
+	else if (fmt == ML_EXPORT_COUNT)
+	{
+		code = usage_error (err, "no such format", o->rest.data [1]);
+	}
+
+	else if (ml_export_read_words (&opt, ml_str_view (words), &path) != ML_OK)
+	{
+		code = usage_error (err, "bad export option", ml_str_view (words));
+	}
+
+	else if (ml_mlog_load (&s, o->rest.data [0]) != ML_OK)
+	{
+		code = ML_EXIT_IO;
+		add (err, "matlog: cannot read ");
+		ml_str_append (err, o->rest.data [0]);
+		add (err, "\n");
+	}
+
+	else if (
+		   ml_results_update (&res, &s, 0) != ML_OK
+		|| ml_export (&doc, &s, &res, opt) != ML_OK
+	)
+	{
+		code = ML_EXIT_IO;
+		add (err, "matlog: out of memory\n");
+	}
+
+	else if (path.len > 0)
+	{
+		if (ml_fs_write_file_atomic (path, ml_str_view (doc)) != ML_OK)
+		{
+			code = ML_EXIT_IO;
+			add (err, "matlog: cannot write ");
+			ml_str_append (err, path);
+			add (err, "\n");
+		}
+	}
+
+	else
+	{
+		ml_str_append (out, ml_str_view (doc));
+	}
+
+	ml_str_free (&doc);
+	ml_str_free (&words);
+	ml_results_free (&res);
+	ml_session_free (&s);
 	return code;
 }
 
@@ -1394,6 +1502,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "syntax"))
 	{
 		add (out, syntax_text);
+	}
+
+	else if (is (cmd, "export"))
+	{
+		code = cmd_export (&o, out, err);
 	}
 
 	else if (is (cmd, "theme"))

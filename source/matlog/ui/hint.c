@@ -12,6 +12,7 @@ static const char *const hints [] =
 	"{:symbols on} lets unknown names stay symbols: x + y",
 	"{Alt+Enter} folds and unfolds a block of lines",
 	"{:theme} changes the colours: dark, light, contrast, mono",
+	"{:export latex} writes the session as a LaTeX file next to it",
 	"{Ctrl+Z} undoes, {Ctrl+Y} redoes, {Ctrl+S} saves, {Ctrl+Q} quits"
 };
 

@@ -315,6 +315,12 @@ options, a preview of the first rows, and the path), and `:export <format> [path
 - Placement: after milestone 3 for latex, mathml and markdown (they need only the AST and the results), after the layout engine for png and pdf. The
   syntax of every new domain brings its exporters (matrix is first); a domain is not done until its lines export in every format.
 
+Status: latex, mathml and markdown are built (`export/math` typesets a statement from its tree with a stack on the heap, `export/export` builds
+blocks from the session and has one writer per format), with `:export[!] FORMAT [body] [errors] [3-12] [path]` in the editor and
+`matlog export FILE FORMAT [words]` on the command line. Not built yet: png and pdf (they need the layout engine), the export panel and its preview,
+options other than the four words (`dark`, `steps`, `includes`, page size), options remembered per session, and the visual selection as the range.
+Math lines of other domains and includes are written as code until their domains are typeset.
+
 ### 4.12 Proofs and their validation
 A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few
 statement lines, so it lives in the same `.mlog` file as the calculations, with notes between the steps, and it is exported like everything else.
