@@ -163,6 +163,11 @@ static void test_note (void)
 	ml_editor_free (&ed);
 }
 
+static int32_t edit_is (const MlEditor *ed, const char *text)
+{
+	return ml_slice_equal (ml_str_view (ed->edit.text), ml_slice_cstr (text));
+}
+
 static void test_first_note (void)
 {
 	MlEditor ed;
@@ -173,7 +178,7 @@ static void test_first_note (void)
 	type (&ed, "N");
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "hello");
-	CHECK (ml_slice_equal (ml_str_view (ed.edit.text), ml_slice_cstr ("hello")));
+	CHECK (edit_is (&ed, "hello"));
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (ed.session.lines.len == 1);
 	CHECK (line_is (&ed, 0, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "hello"));
@@ -190,6 +195,55 @@ static void test_first_note (void)
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "1+1"));
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "top"));
 	CHECK (line_is (&ed, 2, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "hello"));
+
+	ml_editor_free (&ed);
+}
+
+static void test_note_freeform (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "n");
+	type (&ed, "hello world");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "second");
+
+	/* Up keeps the column, Down goes back */
+	press (&ed, ML_KEY_UP);
+	CHECK (ed.edit_index == 0 && ed.edit_existing);
+	CHECK (ml_lineedit_cursor_col (&ed.edit) == 6);
+	press (&ed, ML_KEY_DOWN);
+	CHECK (ed.edit_index == 1 && ml_lineedit_cursor_col (&ed.edit) == 6);
+
+	/* Left at the start and Right at the end cross to the neighbour */
+	press (&ed, ML_KEY_HOME);
+	press (&ed, ML_KEY_LEFT);
+	CHECK (ed.edit_index == 0 && ml_lineedit_cursor_col (&ed.edit) == 11);
+	press (&ed, ML_KEY_RIGHT);
+	CHECK (ed.edit_index == 1 && ml_lineedit_cursor_col (&ed.edit) == 0);
+
+	/* Backspace at the start joins, Delete at the end joins */
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.edit_index == 0 && ed.session.lines.len == 1);
+	CHECK (ed.edit.cursor == 11);
+	CHECK (
+		line_is (&ed, 0, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "hello worldsecond")
+	);
+
+	/* Enter splits at the cursor */
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.edit_index == 1);
+	CHECK (edit_is (&ed, "second"));
+	CHECK (ed.edit.cursor == 0);
+	press (&ed, ML_KEY_UP);
+	press (&ed, ML_KEY_END);
+	press (&ed, ML_KEY_DELETE);
+	CHECK (ed.session.lines.len == 1);
+	CHECK (edit_is (&ed, "hello worldsecond"));
+	press (&ed, ML_KEY_ESCAPE);
 
 	ml_editor_free (&ed);
 }
@@ -334,7 +388,7 @@ static void test_edit_line (void)
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "!");
-	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_LAMBDA, "memo!"));
 
 	/* clearing a math line makes it blank */
@@ -1252,6 +1306,7 @@ void run_editor_tests (void)
 	test_insert ();
 	test_note ();
 	test_first_note ();
+	test_note_freeform ();
 	test_navigation ();
 	test_yank_paste ();
 	test_edit_line ();

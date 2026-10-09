@@ -201,7 +201,7 @@ static MlResult find_marks (MarkVec *marks, MlSlice t)
 
 			flanking (t, pos, len, c == '_', &open, &close);
 
-			/* a run of three: italic then bold when it opens, else bold first */
+			/* a run of three: italic then bold if it opens, else bold first */
 			for (uint64_t k = 0; k < len && r == ML_OK; )
 			{
 				uint64_t left   = len - k;

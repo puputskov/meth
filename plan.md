@@ -136,6 +136,11 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
 - **Replacements in notes**: the rewrites of the math lines work in notes too, so `pi` becomes `π`, `\alpha` `α`, `<=` `≤`, `->` `→`, `x^2` `x²` and
   `sqrt(x)` `√x`; backspace right after a rewrite brings the typed text back, as in math lines. The rules of one domain only (the logic symbols, `lambda`) are
   not active in notes. A word that is really a word can be kept by undoing the rewrite (backspace).
+- **Horizontal rule**: a note line that is only `---` (also `***` or `___`, three or more) is drawn as a line across the whole width of the screen, as
+  in Markdown, and exported as one (`<hr>`, `\hrule`). While the line is edited it is shown as typed.
+- **Free form editing**: inside notes the cursor moves like in a text editor. Up and Down go to the neighbouring note and keep the column, Left at the
+  start of a note goes to the end of the previous one and Right at the end to the start of the next, Backspace at the start joins the note with the
+  previous one and Delete at the end joins it with the next, and Enter splits the note at the cursor. Movement stops at the edge of the block of notes.
 
 ### 4.5 Units
 - Quantities carry SI dimensions; operations check and transform dimensions.
@@ -227,8 +232,7 @@ can no longer be finished (a key was renamed, a syntax changed) fails the build.
 - Built in themes: a dark one, a light one, and a high contrast one (for readability; every pair of foreground and background in it keeps a contrast
   ratio of at least 7:1, checked by a test), plus a monochrome one that only uses bold, dim and underline. The default follows the terminal's background
   when it can be queried (OSC 11), otherwise dark.
-- Themes are chosen with `:theme name` (Tab completes the names) and the choice is remembered in a small settings file next to the progress file of the
-  tutorial. A user theme is a plain text file `name.theme` in the settings folder, one `class = style` entry per line, for example
+- Themes are chosen with `:theme name` (Tab completes the names) and the choice is remembered in the settings file (section 4.15). A user theme is a plain text file `name.theme` in the settings folder, one `class = style` entry per line, for example
   `number = #b5cea8` or `error = #f44747 underline`; a line that does not parse is reported and ignored, and classes that are missing fall back to the
   built in dark theme, so a theme file can be short. `:theme reload` reads the files again.
 - The screen draws styled text through the same row strings it already compares to the last frame, so changing the theme redraws every row once and a
@@ -370,6 +374,31 @@ generated static website.
   first pages cover what exists (algebra syntax, matrices, keys, commands, the command line, the file format); the website build comes with the
   export module (it uses its MathML writer). Each later domain adds its pages as part of its "done when".
 
+### 4.15 Settings and key bindings
+- One plain text settings file `settings.mlcfg` in the settings folder of the user (Windows `%APPDATA%\matlog`, Linux `$XDG_CONFIG_HOME/matlog` or
+  `~/.config/matlog`, macOS `~/Library/Application Support/matlog`; the folder is found in the `platform` module). The theme file `.theme`, the
+  tutorial progress and the history of the command line live in the same folder. `MATLOG_CONFIG` overrides the folder, which also makes the tests and
+  the CLI independent of the real home of the user.
+- The format is line based, `key = value`, `#` starts a comment, sections in `[brackets]` group the keys (`[editor]`, `[display]`, `[keys.normal]`,
+  `[keys.insert]`, `[keys.note]`, `[keys.visual]`, `[keys.command]`). A line that does not parse is reported (file, line number, reason) and ignored, so
+  the tool always starts; unknown keys are kept when the file is written again, so a newer file survives an older program.
+- Settings: theme, colour level, the default domain, the width of the result column, whether the ghost preview and the live Markdown preview are on,
+  how many lines the undo history keeps, whether the last file is reopened at the start, and the confirm before `:q!`. Every setting has a built in
+  default, so an empty or missing file is a valid configuration.
+- **Key bindings**: a binding maps a key (`j`, `Ctrl+r`, `Alt+Left`, `F2`, a sequence of keys such as `dd` or `g g`) in one input state to a named
+  action (`move-down`, `delete-line`, `undo`, `open-note-below`, ...). The editor looks up keys in the table of the state instead of comparing
+  characters, and the built in keys are the default table, so the vim like keys of section 3.1 are the defaults and a file entry replaces or removes one
+  (`j = none`). The table is checked when it is loaded: unknown actions, unknown key names, a key that is a prefix of another in the same state, and
+  conflicts are reported. Text keys (typing in insert and note states) are not bindable, only the control keys there.
+- In the tool: `:set key value` changes a setting (Tab completes names and values) and writes it to the file, `:set` alone lists them, `:map state key
+  action` and `:unmap state key` change a binding, `:map` lists them, `:config` shows the path of the file and opens the settings page of the
+  documentation, `:config reload` reads the file again. The documentation (section 4.14) and the tutorial show the keys of the user, not the
+  defaults, since both read the same table; a generated reference of all actions is a documentation page.
+- The file is written atomically (temporary file, then rename) and only when the user changed something, with the order and the comments of the
+  existing file kept.
+- The CLI (section 4.13) reads the same settings for the display options and ignores the key bindings; `matlog config get|set|list|path` reads and
+  changes settings without the screen, for scripts and agents.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -428,6 +457,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 13. Documentation (section 4.14): the page format and the in-tool viewer and search first, with pages for what exists; the website build with the export module.
 14. Tutorial mode (section 4.9). Stage 1 (usage of the tool) can be built any time after milestone 2, since keys, commands, results and ghost mode
    exist; the milestone 3 to 7 lessons of stage 2 are added together with the domains. The whole tutorial is complete when the last domain is done.
+15. Settings and key bindings (section 4.15). The key table should come before the tutorial and the documentation so that they can show the
+   user's own keys; the settings file can be built any time after milestone 2.
 
 ## 8. Milestone 1 tasks
 
