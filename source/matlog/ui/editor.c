@@ -11,7 +11,8 @@ static const char *const state_names [ML_STATE_COUNT] =
 	[ML_STATE_MATH]    = "MATH",
 	[ML_STATE_NOTE]    = "NOTE",
 	[ML_STATE_COMMAND] = "COMMAND",
-	[ML_STATE_SELECT]  = "SELECT"
+	[ML_STATE_SELECT]  = "SELECT",
+	[ML_STATE_HELP]    = "HELP"
 };
 
 const char *ml_input_state_name (MlInputState state)
@@ -49,6 +50,7 @@ void ml_editor_init (MlEditor *ed)
 	ed->steps_line    = 0;
 	ml_str_init (&ed->steps);
 	ml_str_init (&ed->theme_files);
+	ml_help_init (&ed->help);
 	ml_lineedit_init (&ed->edit);
 	ml_rewriter_init (&ed->rewriter, ML_DOMAIN_ALGEBRA);
 	MlLineVec_init (&ed->yank);
@@ -75,6 +77,12 @@ void ml_editor_init (MlEditor *ed)
 	ed->colors        = ML_COLORS_24BIT;
 }
 
+void ml_editor_set_size (MlEditor *ed, uint32_t cols, uint32_t rows)
+{
+	ml_editor_set_page (ed, ml_choose (rows > 2, rows - 2, 1));
+	ml_help_set_view (&ed->help, cols, rows);
+}
+
 void ml_editor_set_page (MlEditor *ed, uint64_t rows)
 {
 	ed->page_rows = ml_choose (rows > 0, rows, 1);
@@ -85,6 +93,7 @@ void ml_editor_free (MlEditor *ed)
 	ml_results_free (&ed->results);
 	ml_str_free (&ed->steps);
 	ml_str_free (&ed->theme_files);
+	ml_help_free (&ed->help);
 	ml_session_free (&ed->session);
 	ml_lineedit_free (&ed->edit);
 	ml_rewriter_free (&ed->rewriter);
@@ -263,6 +272,8 @@ static MlResult commit_line (MlEditor *ed)
 }
 
 static void set_domain (MlEditor *ed, MlDomain domain);
+static MlResult settle (MlEditor *ed);
+static MlResult resume (MlEditor *ed);
 
 /* Alt+Left and Alt+Right scroll through the domains. */
 static int32_t is_domain_cycle (MlKey key)
@@ -1913,6 +1924,147 @@ static MlResult export_command (
 	return r;
 }
 
+/*
+ * Opens the help viewer at what was typed after :help (nothing: the index
+ * page). A search that finds nothing is said in the status line.
+ */
+static MlResult open_help (MlEditor *ed, MlSlice topic)
+{
+	MlResult r = ml_help_open (&ed->help, topic);
+
+	if (r == ML_OK)
+	{
+		ed->state = ML_STATE_HELP;
+	}
+
+	else if (r == ML_ERR_INVALID)
+	{
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (
+			&ed->message,
+			"no help for %.*s",
+			(int)topic.len,
+			topic.data
+		);
+	}
+
+	return r;
+}
+
+/* The word under the cursor of the line being typed (or the command). */
+static MlSlice word_at_cursor (const MlEditor *ed)
+{
+	MlSlice  text  = ml_str_view (ed->edit.text);
+	uint64_t start = ed->edit.cursor;
+	uint64_t end   = ed->edit.cursor;
+
+	while (
+		   start > 0
+		&& (
+			   (text.data [start - 1] >= 'a' && text.data [start - 1] <= 'z')
+			|| (text.data [start - 1] >= 'A' && text.data [start - 1] <= 'Z')
+			|| (text.data [start - 1] >= '0' && text.data [start - 1] <= '9')
+			|| text.data [start - 1] == '_'
+		)
+	)
+	{
+		start--;
+	}
+
+	while (
+		   end < text.len
+		&& (
+			   (text.data [end] >= 'a' && text.data [end] <= 'z')
+			|| (text.data [end] >= 'A' && text.data [end] <= 'Z')
+			|| (text.data [end] >= '0' && text.data [end] <= '9')
+			|| text.data [end] == '_'
+		)
+	)
+	{
+		end++;
+	}
+
+	return ml_slice_sub (text, start, end - start);
+}
+
+/*
+ * F1: the help for the word under the cursor, or for the command being typed.
+ * The line being typed is written into the session first, the viewer closes
+ * into it again.
+ */
+static MlResult help_key_f1 (MlEditor *ed)
+{
+	MlResult r       = ML_OK;
+	int32_t  editing = ed->state == ML_STATE_MATH || ed->state == ML_STATE_NOTE;
+	MlStr    topic;
+
+	ml_str_init (&topic);
+
+	if (editing || ed->state == ML_STATE_COMMAND)
+	{
+		r = ml_str_append (&topic, word_at_cursor (ed));
+	}
+
+	if (r == ML_OK && editing)
+	{
+		r = settle (ed);
+	}
+
+	if (r == ML_OK)
+	{
+		r = open_help (ed, ml_str_view (topic));
+	}
+
+	/* nothing known about the word: the index, with a word about it */
+	if (r == ML_OK && ed->state != ML_STATE_HELP)
+	{
+		MlStr said;
+
+		ml_str_init (&said);
+		r = ml_str_append (&said, ml_str_view (ed->message));
+
+		if (r == ML_OK)
+		{
+			r = open_help (ed, ml_slice ("", 0));
+		}
+
+		if (r == ML_OK)
+		{
+			ml_str_clear (&ed->message);
+			r = ml_str_append (&ed->message, ml_str_view (said));
+		}
+
+		ml_str_free (&said);
+	}
+
+	ml_str_free (&topic);
+	return r;
+}
+
+/* The keys while the help viewer is shown. */
+static MlResult help_key (MlEditor *ed, MlKey key)
+{
+	int32_t search = 0;
+	MlResult r     = ml_help_key (&ed->help, key, &search);
+
+	if (r == ML_OK && search)
+	{
+		r = begin_command (ed);
+
+		if (r == ML_OK)
+		{
+			r = ml_lineedit_set (&ed->edit, ml_slice_cstr ("help "));
+		}
+	}
+
+	else if (r == ML_OK && !ed->help.open)
+	{
+		r = resume (ed);
+	}
+
+	return r;
+}
+
 static MlResult set_mode (MlEditor *ed, MlSlice name)
 {
 	MlResult       r = ML_OK;
@@ -2291,6 +2443,11 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "symbols"))
 	{
 		r = set_symbols (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "help") || is_cmd (cmd, "h"))
+	{
+		r = open_help (ed, arg);
 	}
 
 	else if (is_cmd (cmd, "export") || is_cmd (cmd, "export!"))
@@ -3969,7 +4126,13 @@ static MlResult command_key (MlEditor *ed, MlKey key)
 		r = run_command (ed);
 		ml_lineedit_clear (&ed->edit);
 
-		if (r == ML_OK && ed->steps_open)
+		/* the help viewer opened by the command stays */
+		if (r == ML_OK && ed->state == ML_STATE_HELP)
+		{
+			r = ML_OK;
+		}
+
+		else if (r == ML_OK && ed->steps_open)
 		{
 			enter_select (ed, ed->session.cursor);
 		}
@@ -4031,9 +4194,37 @@ MlResult ml_editor_mouse (MlEditor *ed, MlKey key, MlHit hit)
 	);
 	int32_t  action  = (int32_t)key.cp;
 
+	/* in the help viewer the wheel scrolls */
+	if (ed->state == ML_STATE_HELP && key.code == ML_KEY_MOUSE)
+	{
+		MlKey step =
+		{
+			.code = ml_choose (
+				action == ML_MOUSE_WHEEL_UP,
+				ML_KEY_UP,
+				ML_KEY_DOWN
+			),
+			.cp   = 0,
+			.mods = 0
+		};
+
+		for (
+			uint64_t i = 0;
+			i < 3 && r == ML_OK
+				&& (action == ML_MOUSE_WHEEL_UP || action == ML_MOUSE_WHEEL_DOWN);
+			i++
+		)
+		{
+			r = help_key (ed, step);
+		}
+
+		action = ML_MOUSE_NONE;
+	}
+
 	if (
 		   key.code != ML_KEY_MOUSE
 		|| ed->state == ML_STATE_COMMAND
+		|| ed->state == ML_STATE_HELP
 		|| ed->picking
 	)
 	{
@@ -4129,7 +4320,17 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 	ml_str_clear (&ed->message);
 	ml_session_checkpoint (&ed->session);
 
-	if (ed->state == ML_STATE_SELECT)
+	if (key.code == ML_KEY_F1 && ed->state != ML_STATE_HELP)
+	{
+		r = help_key_f1 (ed);
+	}
+
+	else if (ed->state == ML_STATE_HELP)
+	{
+		r = help_key (ed, key);
+	}
+
+	else if (ed->state == ML_STATE_SELECT)
 	{
 		r = select_key (ed, key);
 	}
@@ -4169,6 +4370,24 @@ MlResult ml_editor_status (MlStr *out, const MlEditor *ed)
 		{
 			r = ml_str_append (out, ml_str_view (ed->edit.text));
 		}
+	}
+
+	else if (ed->state == ML_STATE_HELP)
+	{
+		r = ml_str_appendf (
+			out,
+			"-- HELP -- %.*s  (Tab links, Enter follow, Backspace back, / search, q close)",
+			(int)ml_choose (
+				ed->help.results,
+				ed->help.query.len,
+				ed->help.docs.pages.data [ed->help.page].title.len
+			),
+			ml_choose (
+				ed->help.results,
+				ed->help.query.data,
+				ed->help.docs.pages.data [ed->help.page].title.data
+			)
+		);
 	}
 
 	else if (ed->picking)

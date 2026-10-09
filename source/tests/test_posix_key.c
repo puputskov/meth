@@ -190,22 +190,22 @@ static void test_csi_u (void)
 
 static void test_mouse (void)
 {
-	MlVtDecode d = dec ("[<0;12;3M", 11, 1);
+	MlVtDecode d = dec ("[<0;12;3M", sizeof "[<0;12;3M" - 1, 1);
 
-	CHECK (d.used == 11 && d.key.code == ML_KEY_MOUSE);
+	CHECK (d.used == 10 && d.key.code == ML_KEY_MOUSE);
 	CHECK (d.key.cp == ML_MOUSE_PRESS && d.key.col == 12 && d.key.row == 3);
-	d = dec ("[<32;5;6M", 11, 1);
+	d = dec ("[<32;5;6M", sizeof "[<32;5;6M" - 1, 1);
 	CHECK (d.key.code == ML_KEY_MOUSE && d.key.cp == ML_MOUSE_DRAG);
 	CHECK (d.key.col == 5 && d.key.row == 6);
-	d = dec ("[<0;5;6m", 10, 1);
+	d = dec ("[<0;5;6m", sizeof "[<0;5;6m" - 1, 1);
 	CHECK (d.key.code == ML_KEY_MOUSE && d.key.cp == ML_MOUSE_RELEASE);
-	d = dec ("[<64;5;6M", 11, 1);
+	d = dec ("[<64;5;6M", sizeof "[<64;5;6M" - 1, 1);
 	CHECK (d.key.cp == ML_MOUSE_WHEEL_UP);
-	d = dec ("[<65;5;6M", 11, 1);
+	d = dec ("[<65;5;6M", sizeof "[<65;5;6M" - 1, 1);
 	CHECK (d.key.cp == ML_MOUSE_WHEEL_DOWN);
-	d = dec ("[<2;5;6M", 10, 1);
-	CHECK (d.key.code == ML_KEY_NONE && d.used == 10);
-	d = dec ("[<4;5;6M", 10, 1);
+	d = dec ("[<2;5;6M", sizeof "[<2;5;6M" - 1, 1);
+	CHECK (d.key.code == ML_KEY_NONE && d.used == 9);
+	d = dec ("[<4;5;6M", sizeof "[<4;5;6M" - 1, 1);
 	CHECK (d.key.mods == ML_MOD_SHIFT);
 }
 

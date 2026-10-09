@@ -53,6 +53,10 @@ typedef enum MlClass
 	ML_CLASS_HINT_KEY, /* the important part of a hint, see hint.h */
 	ML_CLASS_NOTE,     /* the text of a note */
 	ML_CLASS_NOTE_CODE, /* `code` in a note */
+	ML_CLASS_HELP_TITLE, /* the help viewer: the title of a page */
+	ML_CLASS_HELP_HEAD,  /* a heading */
+	ML_CLASS_HELP_LINK,  /* a link to another page */
+	ML_CLASS_HELP_CODE,  /* `code`, commands, keys */
 	ML_CLASS_COUNT
 } MlClass;
 

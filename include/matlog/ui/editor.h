@@ -6,6 +6,7 @@
 #include <matlog/session/results.h>
 #include <matlog/session/steps.h>
 #include <matlog/ui/complete.h>
+#include <matlog/ui/help.h>
 #include <matlog/ui/lineedit.h>
 #include <matlog/ui/rewrite.h>
 #include <matlog/ui/theme.h>
@@ -45,6 +46,7 @@
  *	         F3  show or hide the steps of the line
  *	         Ctrl+S  save;  Ctrl+Q  quit;  Ctrl+P  command line
  *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3 :steps
+ *	         :help [page|words]  (F1: help for the word under the cursor)
  *	         :theme [name|reload]  :colors [24bit|256|16|off]
  *	         :export[!] latex|mathml|markdown [body] [errors] [3-12] [path]
  *	         :undo :redo  :[range]d  :[range]y  :[range]m dest  :[range]t dest
@@ -60,6 +62,7 @@ typedef enum MlInputState
 	ML_STATE_NOTE,     /* a note is being edited */
 	ML_STATE_COMMAND,  /* the command line */
 	ML_STATE_SELECT,   /* whole lines are selected */
+	ML_STATE_HELP,     /* the help viewer, see help.h */
 	ML_STATE_COUNT
 } MlInputState;
 
@@ -113,6 +116,7 @@ typedef struct MlEditor
 	MlColorLevel colors;
 	/* the theme files of the user, name.theme per line, read by Ctrl+P */
 	MlStr        theme_files;
+	MlHelp       help; /* the help viewer, shown in the state HELP */
 } MlEditor;
 
 /* The selected text in text order; valid is 0 when nothing is selected. */
@@ -135,6 +139,12 @@ void ml_editor_init (MlEditor *ed);
  * no such one).
  */
 MlResult ml_editor_apply_theme (MlEditor *ed, MlSlice name);
+
+/*
+ * The size of the screen: Page Up and Page Down move a page of its rows, and
+ * the help viewer lays its pages out for it.
+ */
+void ml_editor_set_size (MlEditor *ed, uint32_t cols, uint32_t rows);
 
 /* The lines a Page Up or Page Down moves: the height of the text area. */
 void ml_editor_set_page (MlEditor *ed, uint64_t rows);

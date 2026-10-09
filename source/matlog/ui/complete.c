@@ -14,6 +14,7 @@ typedef enum ArgKind
 	ARG_THEME,
 	ARG_COLORS,
 	ARG_EXPORT,
+	ARG_HELP,
 	ARG_PATH /* files are not completed yet */
 } ArgKind;
 
@@ -41,7 +42,12 @@ static const Command commands [] =
 	{ .name = "mode",  .arg = ARG_DOMAIN,  .needs_arg = 1 },
 	{ .name = "pga",   .arg = ARG_PGA_DIM, .needs_arg = 1 },
 	{ .name = "steps", .arg = ARG_NONE,    .needs_arg = 0 },
+	{ .name = "fold", .arg = ARG_NONE,     .needs_arg = 0 },
+	{ .name = "unfold", .arg = ARG_NONE,   .needs_arg = 0 },
+	{ .name = "foldall", .arg = ARG_NONE,  .needs_arg = 0 },
+	{ .name = "unfoldall", .arg = ARG_NONE, .needs_arg = 0 },
 	{ .name = "symbols", .arg = ARG_ON_OFF, .needs_arg = 0 },
+	{ .name = "help", .arg = ARG_HELP, .needs_arg = 0 },
 	{ .name = "export", .arg = ARG_EXPORT, .needs_arg = 1 },
 	{ .name = "export!", .arg = ARG_EXPORT, .needs_arg = 1 },
 	{ .name = "theme", .arg = ARG_THEME,   .needs_arg = 0 },
