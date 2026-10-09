@@ -30,7 +30,7 @@ typedef struct VkEntry
 	MlKeyCode code;
 } VkEntry;
 
-static const VkEntry vk_table[] =
+static const VkEntry vk_table [] =
 {
 	{ .vk = VK_BACK_,   .code = ML_KEY_BACKSPACE },
 	{ .vk = VK_TAB_,    .code = ML_KEY_TAB },
@@ -51,11 +51,10 @@ static const VkEntry vk_table[] =
 static MlKeyCode code_from_vk (uint16_t vk)
 {
 	MlKeyCode code = ML_KEY_NONE;
-	uint64_t  i;
 
-	for (i = 0; i < sizeof vk_table / sizeof vk_table[0] && code == ML_KEY_NONE; i++)
+	for (uint64_t i = 0; i < sizeof vk_table / sizeof vk_table [0] && code == ML_KEY_NONE; i++)
 	{
-		code = vk_table[i].vk == vk ? vk_table[i].code : ML_KEY_NONE;
+		code = vk_table [i].vk == vk ? vk_table [i].code : ML_KEY_NONE;
 	}
 
 	if (vk >= VK_F1_ && vk <= VK_F12_)
@@ -80,7 +79,12 @@ MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 {
 	MlDecodeResult res =
 	{
-		.key          = { .code = ML_KEY_NONE, .cp = 0, .mods = 0 },
+		.key =
+		{
+			.code = ML_KEY_NONE,
+			.cp   = 0,
+			.mods = 0
+		},
 		.pending_high = pending_high
 	};
 	MlKeyCode code = code_from_vk (raw.vk);

@@ -30,7 +30,12 @@ static MlSlice lit (const char *s)
 
 static MlKey decode (uint16_t vk, uint16_t unicode, uint32_t control)
 {
-	MlRawKey raw = { .vk = vk, .unicode = unicode, .control = control };
+	MlRawKey raw =
+	{
+		.vk      = vk,
+		.unicode = unicode,
+		.control = control
+	};
 
 	return ml_key_decode_win32 (raw, 0).key;
 }
@@ -39,8 +44,18 @@ static void test_key_decode (void)
 {
 	MlKey          k;
 	MlDecodeResult d;
-	MlRawKey       hi = { .vk = 0, .unicode = 0xD83D, .control = 0 };
-	MlRawKey       lo = { .vk = 0, .unicode = 0xDE00, .control = 0 };
+	MlRawKey       hi =
+	{
+		.vk      = 0,
+		.unicode = 0xD83D,
+		.control = 0
+	};
+	MlRawKey lo =
+	{
+		.vk      = 0,
+		.unicode = 0xDE00,
+		.control = 0
+	};
 
 	/* Esc is its own key, distinct from the arrows */
 	k = decode (VK_ESC, 0x1B, 0);
@@ -100,9 +115,24 @@ static void test_key_decode (void)
 static void test_key_format (void)
 {
 	MlStr s;
-	MlKey esc  = { .code = ML_KEY_ESCAPE, .cp = 0, .mods = 0 };
-	MlKey left = { .code = ML_KEY_LEFT, .cp = 0, .mods = ML_MOD_CTRL | ML_MOD_ALT };
-	MlKey pi   = { .code = ML_KEY_CHAR, .cp = 0x03C0, .mods = 0 };
+	MlKey esc =
+	{
+		.code = ML_KEY_ESCAPE,
+		.cp   = 0,
+		.mods = 0
+	};
+	MlKey left =
+	{
+		.code = ML_KEY_LEFT,
+		.cp   = 0,
+		.mods = ML_MOD_CTRL | ML_MOD_ALT
+	};
+	MlKey pi =
+	{
+		.code = ML_KEY_CHAR,
+		.cp   = 0x03C0,
+		.mods = 0
+	};
 
 	ml_str_init (&s);
 	CHECK (ml_key_format (&s, esc) == ML_OK);
@@ -168,7 +198,6 @@ static void test_fs (void)
 	MlSlice tmp  = lit ("matlog_test_file.tmp.tmp");
 	MlStr   s;
 	MlStr   big;
-	int32_t i;
 
 	ml_str_init (&s);
 	ml_str_init (&big);
@@ -192,7 +221,7 @@ static void test_fs (void)
 	CHECK (ml_slice_equal (ml_str_view (s), lit ("second")));
 
 	/* a file larger than the read buffer, and reading appends */
-	for (i = 0; i < 5000; i++)
+	for (int32_t i = 0; i < 5000; i++)
 	{
 		CHECK (ml_str_append (&big, lit ("0123456789")) == ML_OK);
 	}

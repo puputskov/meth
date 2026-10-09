@@ -19,6 +19,8 @@ Interactive math shell written in C. See `plan.md` for the design.
 - Always put an empty line after a closing `}` of a block, unless the next line is another `}` or a preprocessor line. This includes `else` and `else if`: `}`, empty line, `else`.
 - A space goes between a function name and its opening parenthesis, in declarations, definitions and calls (also macros and `sizeof`):
   `ml_str_clear (MlStr *s)`, `ml_str_clear (&s)`. Exception: the parameter list in a `#define NAME(args)` must stay attached.
+- A space also goes before the `[` of an array subscript or array declarator: `e.bytes [0]`, `s->data [idx]`, `uint8_t buf [4]`.
+  (Designated index entries `[ML_KEY_NONE] = ...` start the line, so there is nothing before the bracket.)
 - Align the `=` signs of consecutive assignment and declaration lines (same indent, no blank line between) with spaces:
   `uint64_t need    = size + align;` / `MlArenaBlock *nb = block_new (cap);`. Compound assignments (`+=`) and inline `{ .a = 1, .b = 2 }` are not aligned.
 - Declarations in a block (consecutive lines, same indent) are aligned in columns: type, then variable name, then `=`, then trailing comments:
@@ -31,8 +33,20 @@ Interactive math shell written in C. See `plan.md` for the design.
 - Use fixed-width types: `int32_t`, `uint32_t`, `uint8_t`, `int64_t`... instead of `int`, `unsigned int`, `unsigned char`, `long long`.
   Sizes, counts and indices are `uint64_t`, not `size_t` (64 bit targets only, enforced in `matlog/core/types.h`). `char` stays for text bytes,
   and `int main` stays as the C standard requires.
-- Struct initializers always use named (designated) entries: `{ .width = 2, .height = 5, .name = "foo" }`, never `{ 2, 5, "foo" }`.
-  Plain arrays of scalars or strings (e.g. a table of names) are the only exception.
+- Struct initializers always use named (designated) entries and are written one entry per line, braces on their own lines (nested
+  initializers too), with the `=` of the entries aligned:
+  ```c
+  MlLine line =
+  {
+  	.kind   = ML_LINE_NONE,
+  	.domain = ML_DOMAIN_ALGEBRA
+  };
+  ```
+  Rows of a data table (`{ .lo = 0x0300, .hi = 0x036F },`) stay on one line each.
+- Tables indexed by an enum use designated index entries, one per line, with the `=` aligned: `[ML_DOMAIN_ALGEBRA]   = "algebra",`.
+  Do not use numeric designators (`[1] = ...`): the index names nothing, so compute the value instead. Plain value lists with
+  no natural index (e.g. test data) stay positional.
+- Declare loop variables in the `for` statement: `for (uint64_t i = 0; i < n; i++)`, not at the top of the function.
 - No early exits. Every function has a single `return` at its end. Avoid `break`, `continue` and `goto`.
   Chain conditions with a result variable (`if (r == ML_OK) { ... }`) instead of returning early.
 - If cleanup is needed, do it in one cleanup stage at the end of the function.

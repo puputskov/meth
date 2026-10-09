@@ -100,7 +100,7 @@ static inline MlResult Name##_insert (Name *v, uint64_t idx, T value) \
 	if (r == ML_OK) \
 	{ \
 		memmove (v->data + idx + 1, v->data + idx, (v->len - idx) * sizeof (T)); \
-		v->data[idx] = value; \
+		v->data [idx] = value; \
 		v->len++; \
 	} \
 \
@@ -118,7 +118,7 @@ static inline MlResult Name##_set (Name *v, uint64_t idx, T value) \
 \
 	if (r == ML_OK) \
 	{ \
-		v->data[idx] = value; \
+		v->data [idx] = value; \
 	} \
 \
 	return r; \
@@ -147,7 +147,7 @@ static inline T Name##_get (const Name *v, uint64_t idx) \
 	T zero; \
 \
 	memset (&zero, 0, sizeof zero); \
-	return idx < v->len ? v->data[idx] : zero; \
+	return idx < v->len ? v->data [idx] : zero; \
 }
 
 #endif /* MATLOG_CORE_VEC_H */

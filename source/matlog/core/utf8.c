@@ -32,14 +32,13 @@ static uint64_t seq_len (uint8_t lead)
 
 static uint8_t byte_at (MlSlice s, uint64_t i)
 {
-	return (uint8_t)s.data[i];
+	return (uint8_t)s.data [i];
 }
 
+/* The payload bits of a lead byte: a 1 byte sequence uses 7 bits, a 2, 3, 4 byte one 5, 4, 3. */
 static uint32_t lead_payload (uint8_t lead, uint64_t n)
 {
-	static const uint8_t mask[5] = { 0, 0x7F, 0x1F, 0x0F, 0x07 };
-
-	return lead & mask[n];
+	return n == 1 ? lead : (uint32_t)(lead & (0xFFu >> (n + 1)));
 }
 
 MlDecoded ml_utf8_decode (MlSlice s)
@@ -54,9 +53,8 @@ MlDecoded ml_utf8_decode (MlSlice s)
 		uint64_t n  = seq_len (byte_at (s, 0));
 		uint32_t c  = lead_payload (byte_at (s, 0), n);
 		int32_t  ok = n != 0 && n <= s.len;
-		uint64_t i;
 
-		for (i = 1; ok && i < n; i++)
+		for (uint64_t i = 1; ok && i < n; i++)
 		{
 			ok = (byte_at (s, i) & 0xC0) == 0x80;
 			c = (c << 6) | (byte_at (s, i) & 0x3F);
@@ -81,15 +79,15 @@ MlEncoded ml_utf8_encode (uint32_t cp)
 
 	if (cp < 0x80)
 	{
-		e.bytes[0] = (char)cp;
-		e.size     = 1;
+		e.bytes [0] = (char)cp;
+		e.size      = 1;
 	}
 
 	else if (cp < 0x800)
 	{
-		e.bytes[0] = (char)(0xC0 | (cp >> 6));
-		e.bytes[1] = (char)(0x80 | (cp & 0x3F));
-		e.size     = 2;
+		e.bytes [0] = (char)(0xC0 | (cp >> 6));
+		e.bytes [1] = (char)(0x80 | (cp & 0x3F));
+		e.size      = 2;
 	}
 
 	else if (cp >= 0xD800 && cp <= 0xDFFF)
@@ -99,19 +97,19 @@ MlEncoded ml_utf8_encode (uint32_t cp)
 
 	else if (cp < 0x10000)
 	{
-		e.bytes[0] = (char)(0xE0 | (cp >> 12));
-		e.bytes[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
-		e.bytes[2] = (char)(0x80 | (cp & 0x3F));
-		e.size     = 3;
+		e.bytes [0] = (char)(0xE0 | (cp >> 12));
+		e.bytes [1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+		e.bytes [2] = (char)(0x80 | (cp & 0x3F));
+		e.size      = 3;
 	}
 
 	else if (cp <= 0x10FFFF)
 	{
-		e.bytes[0] = (char)(0xF0 | (cp >> 18));
-		e.bytes[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
-		e.bytes[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
-		e.bytes[3] = (char)(0x80 | (cp & 0x3F));
-		e.size     = 4;
+		e.bytes [0] = (char)(0xF0 | (cp >> 18));
+		e.bytes [1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+		e.bytes [2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+		e.bytes [3] = (char)(0x80 | (cp & 0x3F));
+		e.size      = 4;
 	}
 
 	return e;
@@ -175,7 +173,7 @@ typedef struct Range
 } Range;
 
 /* Code points >= U+0300 that are not one column wide. */
-static const Range special_widths[] =
+static const Range special_widths [] =
 {
 	{ .lo = 0x0300, .hi = 0x036F, .width = 0 }, { .lo = 0x0483, .hi = 0x0489, .width = 0 },
 	{ .lo = 0x0591, .hi = 0x05BD, .width = 0 }, { .lo = 0x1100, .hi = 0x115F, .width = 2 },
@@ -195,9 +193,8 @@ static const Range special_widths[] =
 
 int32_t ml_cp_width (uint32_t cp)
 {
-	int32_t  w     = 1;
-	int32_t  found = 0;
-	uint64_t i;
+	int32_t w     = 1;
+	int32_t found = 0;
 
 	if (cp < 0x20 || (cp >= 0x7F && cp < 0xA0))
 	{
@@ -206,10 +203,10 @@ int32_t ml_cp_width (uint32_t cp)
 
 	else if (cp >= 0x300)
 	{
-		for (i = 0; i < sizeof special_widths / sizeof special_widths[0] && !found; i++)
+		for (uint64_t i = 0; i < sizeof special_widths / sizeof special_widths [0] && !found; i++)
 		{
-			found = cp >= special_widths[i].lo && cp <= special_widths[i].hi;
-			w = found ? special_widths[i].width : w;
+			found = cp >= special_widths [i].lo && cp <= special_widths [i].hi;
+			w = found ? special_widths [i].width : w;
 		}
 	}
 
@@ -230,4 +227,14 @@ uint64_t ml_utf8_width (MlSlice s)
 	}
 
 	return width;
+}
+
+int32_t ml_cp_is_word (uint32_t cp)
+{
+	int32_t ascii = (cp >= '0' && cp <= '9') || (cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') || cp == '_';
+	int32_t latin = (cp >= 0xC0 && cp <= 0x24F && cp != 0xD7 && cp != 0xF7) || cp == 0xAA || cp == 0xB5 || cp == 0xBA;
+	int32_t greek = (cp >= 0x370 && cp <= 0x3FF && cp != 0x37E && cp != 0x387);
+	int32_t other = (cp >= 0x400 && cp <= 0x52F) || (cp >= 0x3040 && cp <= 0x30FF) || (cp >= 0x4E00 && cp <= 0x9FFF);
+
+	return ascii || latin || greek || other;
 }

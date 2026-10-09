@@ -26,7 +26,7 @@ void ml_str_clear (MlStr *s)
 	s->len = 0;
 	if (s->data)
 	{
-		s->data[0] = '\0';
+		s->data [0] = '\0';
 	}
 }
 
@@ -65,7 +65,7 @@ MlResult ml_str_reserve (MlStr *s, uint64_t len)
 		{
 			if (!s->data)
 			{
-				p[0] = '\0';
+				p [0] = '\0';
 			}
 
 			s->data = p;
@@ -105,7 +105,7 @@ MlResult ml_str_insert (MlStr *s, uint64_t pos, MlSlice text)
 		memmove (s->data + pos + text.len, s->data + pos, s->len - pos);
 		memcpy (s->data + pos, text.data, text.len);
 		s->len += text.len;
-		s->data[s->len] = '\0';
+		s->data [s->len] = '\0';
 	}
 
 	return r;
@@ -165,7 +165,7 @@ MlResult ml_str_erase (MlStr *s, uint64_t pos, uint64_t n)
 		{
 			memmove (s->data + pos, s->data + pos + count, s->len - pos - count);
 			s->len -= count;
-			s->data[s->len] = '\0';
+			s->data [s->len] = '\0';
 		}
 	}
 

@@ -80,7 +80,16 @@ void ml_console_close (MlConsole *c)
 
 MlKeyResult ml_console_read_key (MlConsole *c)
 {
-	MlKeyResult res = { .result = ML_OK, .key = { .code = ML_KEY_NONE, .cp = 0, .mods = 0 } };
+	MlKeyResult res =
+	{
+		.result = ML_OK,
+		.key =
+		{
+			.code = ML_KEY_NONE,
+			.cp   = 0,
+			.mods = 0
+		}
+	};
 
 	while (res.result == ML_OK && res.key.code == ML_KEY_NONE)
 	{
@@ -117,7 +126,11 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 
 MlConsoleSize ml_console_size (const MlConsole *c)
 {
-	MlConsoleSize              size = { .cols = 0, .rows = 0 };
+	MlConsoleSize size =
+	{
+		.cols = 0,
+		.rows = 0
+	};
 	CONSOLE_SCREEN_BUFFER_INFO info;
 
 	if (GetConsoleScreenBufferInfo (to_handle (c->out_handle), &info))

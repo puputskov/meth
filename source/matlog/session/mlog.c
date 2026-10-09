@@ -12,12 +12,11 @@ static int32_t starts_with (MlSlice s, const char *prefix)
 
 static int32_t is_blank (MlSlice s)
 {
-	uint64_t i;
-	int32_t  blank = 1;
+	int32_t blank = 1;
 
-	for (i = 0; i < s.len && blank; i++)
+	for (uint64_t i = 0; i < s.len && blank; i++)
 	{
-		blank = s.data[i] == ' ' || s.data[i] == '\t';
+		blank = s.data [i] == ' ' || s.data [i] == '\t';
 	}
 
 	return blank;
@@ -28,7 +27,7 @@ static uint64_t find_space (MlSlice s)
 {
 	uint64_t i = 0;
 
-	while (i < s.len && s.data[i] != ' ')
+	while (i < s.len && s.data [i] != ' ')
 	{
 		i++;
 	}
@@ -39,7 +38,12 @@ static uint64_t find_space (MlSlice s)
 /* Decides what a single line (without its line ending) means. */
 static MlLineView classify (MlSlice line)
 {
-	MlLineView view = { .kind = ML_LINE_UNKNOWN, .domain = ML_DOMAIN_ALGEBRA, .text = line };
+	MlLineView view =
+	{
+		.kind   = ML_LINE_UNKNOWN,
+		.domain = ML_DOMAIN_ALGEBRA,
+		.text   = line
+	};
 
 	if (!ml_utf8_valid (line))
 	{
@@ -52,10 +56,10 @@ static MlLineView classify (MlSlice line)
 		view.text = ml_slice ("", 0);
 	}
 
-	else if (line.data[0] == '#')
+	else if (line.data [0] == '#')
 	{
 		/* "# text": the one space after the marker is not part of the text */
-		uint64_t skip = (line.len > 1 && line.data[1] == ' ') ? 2 : 1;
+		uint64_t skip = (line.len > 1 && line.data [1] == ' ') ? 2 : 1;
 
 		view.kind = ML_LINE_NOTE;
 		view.text = ml_slice_sub (line, skip, line.len - skip);
@@ -96,14 +100,14 @@ MlResult ml_mlog_parse (MlSession *s, MlSlice text)
 		MlSlice    line;
 		MlLineView view;
 
-		while (end < text.len && text.data[end] != '\n')
+		while (end < text.len && text.data [end] != '\n')
 		{
 			end++;
 		}
 
 		line = ml_slice_sub (text, pos, end - pos);
 
-		if (line.len > 0 && line.data[line.len - 1] == '\r')
+		if (line.len > 0 && line.data [line.len - 1] == '\r')
 		{
 			line.len--;
 		}
@@ -163,9 +167,8 @@ static MlResult format_line (MlStr *out, MlLineView v)
 MlResult ml_mlog_format (MlStr *out, const MlSession *s)
 {
 	MlResult r = ML_OK;
-	uint64_t i;
 
-	for (i = 0; i < s->lines.len && r == ML_OK; i++)
+	for (uint64_t i = 0; i < s->lines.len && r == ML_OK; i++)
 	{
 		r = format_line (out, ml_session_get (s, i));
 	}
@@ -178,7 +181,6 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 	MlResult  r = ML_OK;
 	MlStr     file;
 	MlSession loaded;
-	uint64_t  i;
 
 	ml_str_init (&file);
 	ml_session_init (&loaded);
@@ -197,7 +199,7 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 
 	if (r == ML_OK)
 	{
-		for (i = 0; i < loaded.lines.len; i++)
+		for (uint64_t i = 0; i < loaded.lines.len; i++)
 		{
 			MlLineView v = ml_session_get (&loaded, i);
 

@@ -12,14 +12,13 @@ static MlSlice lit (const char *s)
 static void test_domains (void)
 {
 	MlDomainResult r;
-	uint32_t       i;
 
 	CHECK (strcmp (ml_domain_name (ML_DOMAIN_MATRIX), "matrix") == 0);
 	CHECK (strcmp (ml_domain_name (ML_DOMAIN_PGA3), "pga3") == 0);
 	CHECK (strcmp (ml_domain_name ((MlDomain)99), "unknown") == 0);
 
 	/* every name parses back to its domain */
-	for (i = 0; i < ML_DOMAIN_COUNT; i++)
+	for (uint32_t i = 0; i < ML_DOMAIN_COUNT; i++)
 	{
 		r = ml_domain_from_name (lit (ml_domain_name ((MlDomain)i)));
 		CHECK (r.result == ML_OK && r.domain == (MlDomain)i);
@@ -90,7 +89,6 @@ static void test_edit (void)
 static void test_cursor (void)
 {
 	MlSession s;
-	uint32_t  i;
 
 	ml_session_init (&s);
 
@@ -100,7 +98,7 @@ static void test_cursor (void)
 	ml_session_move_cursor (&s, 3);
 	CHECK (s.cursor == 0);
 
-	for (i = 0; i < 5; i++)
+	for (uint32_t i = 0; i < 5; i++)
 	{
 		CHECK (ml_session_append (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, lit ("n")) == ML_OK);
 	}

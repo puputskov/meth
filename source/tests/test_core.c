@@ -46,7 +46,6 @@ static void test_arena (void)
 	double  *d;
 	char    *s;
 	void    *big;
-	int32_t i;
 
 	ml_arena_init (&a, 128);
 
@@ -55,10 +54,10 @@ static void test_arena (void)
 
 	xs = ML_ARENA_NEW_ARRAY (&a, int32_t, 10);
 	CHECK (xs != NULL);
-	for (i = 0; i < 10; i++)
+	for (int32_t i = 0; i < 10; i++)
 	{
-		CHECK (xs[i] == 0);
-		xs[i] = i;
+		CHECK (xs [i] == 0);
+		xs [i] = i;
 	}
 
 	ml_arena_alloc (&a, 1, 1);
@@ -74,13 +73,13 @@ static void test_arena (void)
 	CHECK (big != NULL);
 	CHECK (((uintptr_t)big % 16) == 0);
 	memset (big, 0xAB, 1000);
-	for (i = 0; i < 10; i++)
+	for (int32_t i = 0; i < 10; i++)
 	{
-		CHECK (xs[i] == i);
+		CHECK (xs [i] == i);
 	}
 
 	/* many small allocations spill across blocks */
-	for (i = 0; i < 1000; i++)
+	for (int32_t i = 0; i < 1000; i++)
 	{
 		CHECK (ml_arena_alloc (&a, 24, 8) != NULL);
 	}
@@ -96,14 +95,13 @@ static void test_vec (void)
 	IntVec  v;
 	PairVec pv;
 	Pair    p;
-	int32_t i;
 
 	IntVec_init (&v);
 	CHECK (v.len == 0);
 	CHECK (IntVec_get (&v, 0) == 0);
 	CHECK (IntVec_pop (&v) == ML_ERR_RANGE);
 
-	for (i = 0; i < 100; i++)
+	for (int32_t i = 0; i < 100; i++)
 	{
 		CHECK (IntVec_push (&v, i) == ML_OK);
 	}
@@ -146,11 +144,20 @@ static void test_vec (void)
 static void test_utf8 (void)
 {
 	/* "π√x≤" : 2, 3, 1, 3 bytes */
-	MlSlice               s     = lit ("\xCF\x80\xE2\x88\x9A" "x" "\xE2\x89\xA4");
+	MlSlice               s      = lit ("\xCF\x80\xE2\x88\x9A" "x" "\xE2\x89\xA4");
 	MlDecoded             d;
 	MlEncoded             e;
-	uint64_t              i;
-	static const uint32_t cps[] = { 0, 0x7F, 0x80, 0x7FF, 0x800, 0xFFFF, 0x10000, 0x10FFFF };
+	static const uint32_t cps [] =
+	{
+		0,
+		0x7F,
+		0x80,
+		0x7FF,
+		0x800,
+		0xFFFF,
+		0x10000,
+		0x10FFFF
+	};
 
 	CHECK (s.len == 9);
 	CHECK (ml_utf8_valid (s));
@@ -173,12 +180,12 @@ static void test_utf8 (void)
 	CHECK (ml_utf8_prev (s, 0) == 0);
 
 	/* encode / decode round trip over the interesting boundaries */
-	for (i = 0; i < sizeof cps / sizeof cps[0]; i++)
+	for (uint64_t i = 0; i < sizeof cps / sizeof cps [0]; i++)
 	{
-		e = ml_utf8_encode (cps[i]);
+		e = ml_utf8_encode (cps [i]);
 		CHECK (e.size >= 1);
 		d = ml_utf8_decode (ml_slice (e.bytes, e.size));
-		CHECK (d.size == e.size && d.cp == cps[i]);
+		CHECK (d.size == e.size && d.cp == cps [i]);
 	}
 
 	CHECK (ml_utf8_encode (0xD800).size == 0);
@@ -206,8 +213,7 @@ static void test_utf8 (void)
 
 static void test_str (void)
 {
-	MlStr   s;
-	int32_t i;
+	MlStr s;
 
 	ml_str_init (&s);
 	CHECK (strcmp (ml_str_cstr (s), "") == 0);
@@ -242,12 +248,12 @@ static void test_str (void)
 
 	/* growth across many appends */
 	ml_str_clear (&s);
-	for (i = 0; i < 10000; i++)
+	for (int32_t i = 0; i < 10000; i++)
 	{
 		CHECK (ml_str_append (&s, lit ("ab")) == ML_OK);
 	}
 
-	CHECK (s.len == 20000 && s.data[s.len] == '\0');
+	CHECK (s.len == 20000 && s.data [s.len] == '\0');
 
 	ml_str_free (&s);
 	CHECK (s.data == NULL && s.len == 0);

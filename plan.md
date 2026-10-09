@@ -141,10 +141,10 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 - Indentation uses ONLY tabs. Spaces are only for alignment.
 - Opening brace always on its own line (Allman); empty line after a closing `}` unless followed by `}` (so also between `}` and `else`).
 - No early exits: one `return` per function, one cleanup stage at the end, avoid `break`/`continue`/`goto`.
-- Space between function name and `(`: `ml_str_clear (&s)`.
+- Space between function name and `(` (`ml_str_clear (&s)`) and before array subscripts (`e.bytes [0]`).
 - Align `=` of consecutive assignment lines, and align type / name / `=` / comment columns of consecutive declarations (spaces only).
 - Fixed-width integer types only (`int32_t`, `uint64_t`, ...); sizes and counts are `uint64_t`, not `size_t`.
-- Struct initializers use named entries (`{ .width = 2, .height = 5 }`).
+- Struct initializers use named entries (`{ .width = 2, .height = 5 }`); enum-indexed tables use `[ENUM] = value` entries; loop variables are declared in the `for`.
 - Avoid pointers where possible (structs by value, indices, typed containers). See `CLAUDE.md` for the full rules.
 - OS specific code lives in `platform/<os>/` (e.g. `source/matlog/platform/win32/`, `include/matlog/platform/win32/`); only the matching folder is built. Portable code stays in `platform/`.
 - Headers go in `include/matlog/`, sources in `source/matlog/`, include as `<matlog/x.h>`.

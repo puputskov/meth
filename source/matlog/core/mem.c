@@ -141,7 +141,7 @@ char *ml_arena_strdup (MlArena *a, MlSlice s)
 	if (p)
 	{
 		memcpy (p, s.data, s.len);
-		p[s.len] = '\0';
+		p [s.len] = '\0';
 	}
 
 	return p;

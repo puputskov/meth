@@ -13,7 +13,7 @@ static uint64_t name_start (MlSlice path)
 
 	while (i > 0 && !found)
 	{
-		found = is_sep (path.data[i - 1]);
+		found = is_sep (path.data [i - 1]);
 		i    -= found ? 0 : 1;
 	}
 
@@ -33,7 +33,7 @@ MlSlice ml_path_dir (MlSlice path)
 	uint64_t end   = start;
 
 	/* drop trailing separators, but keep a lone root separator */
-	while (end > 1 && is_sep (path.data[end - 1]))
+	while (end > 1 && is_sep (path.data [end - 1]))
 	{
 		end--;
 	}
@@ -43,9 +43,9 @@ MlSlice ml_path_dir (MlSlice path)
 
 int32_t ml_path_is_absolute (MlSlice path)
 {
-	int32_t drive = path.len >= 2 && path.data[1] == ':';
+	int32_t drive = path.len >= 2 && path.data [1] == ':';
 
-	return (path.len >= 1 && is_sep (path.data[0])) || drive;
+	return (path.len >= 1 && is_sep (path.data [0])) || drive;
 }
 
 MlResult ml_path_join (MlStr *out, MlSlice dir, MlSlice name)
@@ -59,7 +59,7 @@ MlResult ml_path_join (MlStr *out, MlSlice dir, MlSlice name)
 
 	else
 	{
-		int32_t has_sep = is_sep (dir.data[dir.len - 1]);
+		int32_t has_sep = is_sep (dir.data [dir.len - 1]);
 
 		r = ml_str_append (out, dir);
 

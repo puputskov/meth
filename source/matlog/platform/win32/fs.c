@@ -38,8 +38,8 @@ static MlResult wide_from_utf8 (WideVec *out, MlSlice s)
 			MultiByteToWideChar (CP_UTF8, MB_ERR_INVALID_CHARS, s.data, (int32_t)s.len, (LPWSTR)out->data, n);
 		}
 
-		out->data[n] = 0;
-		out->len     = (uint64_t)n + 1;
+		out->data [n] = 0;
+		out->len      = (uint64_t)n + 1;
 	}
 
 	return r;
@@ -83,7 +83,7 @@ MlResult ml_fs_read_file (MlStr *out, MlSlice path)
 
 	while (r == ML_OK && more)
 	{
-		char  buf[16384];
+		char  buf [16384];
 		DWORD got = 0;
 
 		if (!ReadFile (file, buf, sizeof buf, &got, NULL))

@@ -164,9 +164,9 @@ static void test_format (void)
 
 static void test_round_trip (void)
 {
-	MlStr a;
-	MlStr b;
-	const char *samples[] =
+	MlStr      a;
+	MlStr      b;
+	const char *samples [] =
 	{
 		"# note\nm:matrix A = [[1,2],[3,4]]\n\ninclude \"x.mlog\"\nm:pga2 e12 * e1\n",
 		"garbage line\nm:nonsense x\n# ok\n",
@@ -174,18 +174,17 @@ static void test_round_trip (void)
 		"\n\n\n",
 		"#  two spaces\n#\n"
 	};
-	uint32_t i;
 
-	for (i = 0; i < sizeof samples / sizeof samples[0]; i++)
+	for (uint32_t i = 0; i < sizeof samples / sizeof samples [0]; i++)
 	{
 		ml_str_init (&a);
 		ml_str_init (&b);
 
 		/* the output is stable: parsing and formatting it again changes nothing */
-		CHECK (round_trip (&a, lit (samples[i])) == ML_OK);
+		CHECK (round_trip (&a, lit (samples [i])) == ML_OK);
 		CHECK (round_trip (&b, ml_str_view (a)) == ML_OK);
 		CHECK (ml_slice_equal (ml_str_view (a), ml_str_view (b)));
-		CHECK (ml_slice_equal (ml_str_view (a), lit (samples[i])));
+		CHECK (ml_slice_equal (ml_str_view (a), lit (samples [i])));
 
 		ml_str_free (&a);
 		ml_str_free (&b);
