@@ -522,4 +522,4 @@ steps can be shown on request.
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Next step: milestone 3, task 7 (steps for matrix operations). Tasks 1 to 6 are done (matrices, vectors, values, syntax, evaluator, typeset display).
+Milestone 3 is done (matrices and vectors: values, syntax, evaluator, typeset display, steps on `s`/`:steps` for det, inv, rref, rank, solve and products). Not done from section 4.1: the `?` suffix that asks for steps as a line is typed, and steps for the other operators (they come with milestone 4). Next: milestone 4, or the command line interface of section 4.13 (`eval`, `run`, JSON), which needs only what exists.

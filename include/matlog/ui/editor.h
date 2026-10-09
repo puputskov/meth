@@ -3,6 +3,7 @@
 
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
+#include <matlog/session/steps.h>
 #include <matlog/ui/complete.h>
 #include <matlog/ui/lineedit.h>
 #include <matlog/ui/rewrite.h>
@@ -14,6 +15,7 @@
  *
  *	Normal   j k (or Down Up)  move the cursor line     G gg  last / first line
  *	         dd yy p P         delete / yank / paste after / paste before
+ *	         s                 show or hide the steps of the cursor line
  *	         Enter             edit the cursor line     i  new math line below
  *	         n                 new note line below      :  command line
  *	         Alt+Left / Alt+Right  previous / next domain (also in Insert,
@@ -23,7 +25,7 @@
  *	Insert   typing, with the rewrites of rewrite.h; Enter commits the line
  *	         and starts the next one, Esc commits and returns to Normal
  *	Note     like Insert for free text: no rewrites
- *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3
+ *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3 :steps
  *	         :12 goes to line 12; Tab accepts the ghost text, see complete.h
  *
  * A new editor starts in Insert, in the domain of its session.
@@ -52,6 +54,10 @@ typedef struct MlEditor
 	MlResults    results; /* of the session lines, see results.h */
 	/* the session revision the results were computed for */
 	uint64_t     results_rev;
+	/* the steps shown under a line (Normal state `s`, or :steps) */
+	int32_t      steps_open;
+	uint64_t     steps_line;
+	MlStr        steps;
 	MlInputState state;
 	MlLineEdit   edit;    /* the line being typed, or the command */
 	MlRewriter   rewriter;

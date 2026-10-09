@@ -673,10 +673,11 @@ static MlResult append_suggestions (
 
 /* A row of the typeset result of a matrix, under the text of its line. */
 static MlResult append_block_row (
-	MlStr    *out,
-	MlSlice  text,
-	uint64_t indent,
-	uint32_t cols
+	MlStr      *out,
+	MlSlice    text,
+	uint64_t   indent,
+	uint32_t   cols,
+	const char *style
 )
 {
 	uint64_t pad = ml_choose (indent + 2 < cols, indent + 2, cols);
@@ -684,7 +685,7 @@ static MlResult append_block_row (
 
 	if (r == ML_OK)
 	{
-		r = append_cstr (out, STYLE_DIM);
+		r = append_cstr (out, style);
 	}
 
 	if (r == ML_OK)
@@ -740,7 +741,17 @@ static MlSlice block_row (MlSlice block, uint64_t n)
 	);
 }
 
-/* The rows a line takes: its own, then the typeset result of a matrix. */
+/* The steps under a line that has them open (only in the quiet states). */
+static MlSlice steps_of (const MlEditor *ed, uint64_t src, int32_t editing)
+{
+	return ml_choose (
+		ed->steps_open && !editing && ed->steps_line == src,
+		ml_str_view (ed->steps),
+		ml_slice ("", 0)
+	);
+}
+
+/* The rows a line takes: its own, the typeset result of a matrix, the steps. */
 static uint64_t line_height (
 	const MlEditor *ed,
 	uint64_t       idx,
@@ -758,7 +769,8 @@ static uint64_t line_height (
 	return 1 + ml_choose (
 		typing,
 		0,
-		block_rows (ml_results_get (&ed->results, src).block)
+		  block_rows (ml_results_get (&ed->results, src).block)
+		+ block_rows (steps_of (ed, src, editing))
 	);
 }
 
@@ -906,11 +918,25 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				line
 			);
 
-			layout.result = append_block_row (
-				&row,
-				block_row (ml_results_get (&ed->results, src).block, sub - 1),
-				num_width + 1 + ML_GUTTER_WIDTH,
-				s->cols
+			MlSlice  result = ml_results_get (&ed->results, src).block;
+			uint64_t shown  = block_rows (result);
+
+			layout.result = ml_choose (
+				sub - 1 < shown,
+				append_block_row (
+					&row,
+					block_row (result, sub - 1),
+					num_width + 1 + ML_GUTTER_WIDTH,
+					s->cols,
+					STYLE_DIM
+				),
+				append_block_row (
+					&row,
+					block_row (steps_of (ed, src, editing), sub - 1 - shown),
+					num_width + 1 + ML_GUTTER_WIDTH,
+					s->cols,
+					""
+				)
 			);
 		}
 

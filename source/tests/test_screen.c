@@ -688,6 +688,57 @@ static void test_matrix_rows (void)
 	ml_editor_free (&ed);
 }
 
+static void test_steps_rows (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 50, 14);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "A = [[1,2],[3,4]]");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "det(A)");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "1 + 1");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* a line without steps says so and opens nothing */
+	type (&ed, "s");
+	CHECK (!ed.steps_open);
+	CHECK (strcmp (ml_str_cstr (ed.message), "no steps for this line") == 0);
+
+	/* s on det (A) opens its steps under it, s again closes them */
+	type (&ed, "k");
+	type (&ed, "s");
+	CHECK (ed.steps_open && ed.steps_line == 1);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 3, " 2 alg> det(A)"));
+	CHECK (row_has (&l, 4, "          Eliminate below the diagonal:"));
+	CHECK (row_has (&l, 5, "          \xE2\x8E\xA1 1 2 \xE2\x8E\xA4"));
+	CHECK (row_has (&l, 7, "          R2 \xE2\x86\x90 R2 \xE2\x88\x92 3"));
+	CHECK (row_has (&l, 11, " 3 alg> 1 + 1"));
+	ml_layout_free (&l);
+	type (&ed, "s");
+	CHECK (!ed.steps_open);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 4, " 3 alg> 1 + 1"));
+	ml_layout_free (&l);
+
+	/* :steps does the same, and an edit of the session closes the steps */
+	type (&ed, ":steps");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.steps_open);
+	type (&ed, "G");
+	type (&ed, "dd");
+	CHECK (!ed.steps_open);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_basic_layout ();
@@ -702,4 +753,5 @@ void run_screen_tests (void)
 	test_results_clipping ();
 	test_results_follow_edits ();
 	test_matrix_rows ();
+	test_steps_rows ();
 }

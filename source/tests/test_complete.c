@@ -36,7 +36,7 @@ static void test_commands (void)
 	MlCompletion c = ml_complete_command (lit (""));
 
 	/* nothing typed: every command is listed, none is suggested */
-	CHECK (c.count == 13 && c.ghost == ML_MAX_CANDIDATES);
+	CHECK (c.count == 14 && c.ghost == ML_MAX_CANDIDATES);
 	CHECK (has_item (&c, "mode") && has_item (&c, "open!"));
 	CHECK (c.ghost_text.len == 0);
 

@@ -43,6 +43,9 @@ void ml_editor_init (MlEditor *ed)
 	ml_session_init (&ed->session);
 	ml_results_init (&ed->results);
 	ed->results_rev   = ed->session.revision;
+	ed->steps_open    = 0;
+	ed->steps_line    = 0;
+	ml_str_init (&ed->steps);
 	ml_lineedit_init (&ed->edit);
 	ml_rewriter_init (&ed->rewriter, ML_DOMAIN_ALGEBRA);
 	ml_str_init (&ed->yank.text);
@@ -61,6 +64,7 @@ void ml_editor_init (MlEditor *ed)
 void ml_editor_free (MlEditor *ed)
 {
 	ml_results_free (&ed->results);
+	ml_str_free (&ed->steps);
 	ml_session_free (&ed->session);
 	ml_lineedit_free (&ed->edit);
 	ml_rewriter_free (&ed->rewriter);
@@ -497,6 +501,41 @@ static MlResult pending_key (MlEditor *ed, uint32_t first, uint32_t ch)
 	return r;
 }
 
+/* Shows the steps of the cursor line under it, or hides them again. */
+static MlResult toggle_steps (MlEditor *ed)
+{
+	MlResult    r    = ML_OK;
+	MlLineSteps st;
+	int32_t     hide = ed->steps_open && ed->steps_line == ed->session.cursor;
+
+	ed->steps_open = 0;
+	ml_str_clear (&ed->steps);
+
+	if (!hide)
+	{
+		st = ml_line_steps (
+			&ed->steps,
+			&ed->results,
+			&ed->session,
+			ed->session.cursor
+		);
+		r  = st.result;
+
+		if (r == ML_OK && st.found)
+		{
+			ed->steps_open = 1;
+			ed->steps_line = ed->session.cursor;
+		}
+
+		else if (r == ML_OK)
+		{
+			r = set_message (ed, "no steps for this line");
+		}
+	}
+
+	return r;
+}
+
 static MlResult normal_key (MlEditor *ed, MlKey key)
 {
 	MlResult r  = ML_OK;
@@ -537,6 +576,11 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 	else if (ch == 'd' || ch == 'y' || ch == 'g')
 	{
 		ed->pending = ch;
+	}
+
+	else if (ch == 's')
+	{
+		r = toggle_steps (ed);
 	}
 
 	else if (ch == 'p')
@@ -800,6 +844,11 @@ static MlResult run_command (MlEditor *ed)
 		r = set_mode (ed, arg);
 	}
 
+	else if (is_cmd (cmd, "steps"))
+	{
+		r = toggle_steps (ed);
+	}
+
 	else if (is_cmd (cmd, "pga"))
 	{
 		r = set_mode (ed, ml_choose (
@@ -918,6 +967,7 @@ MlResult ml_editor_refresh (MlEditor *ed)
 	{
 		r = ml_results_update (&ed->results, &ed->session, 0);
 		ed->results_rev = ed->session.revision;
+		ed->steps_open  = 0;
 	}
 
 	return r;
