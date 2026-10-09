@@ -577,6 +577,27 @@ static MlResult print_node (
 		);
 	}
 
+	else if (ml_sym_is_set (n))
+	{
+		r = ml_str_append (out, ml_slice_cstr ("{"));
+
+		if (r == ML_OK)
+		{
+			r = push_text (st, "}");
+		}
+
+		/* the stack pops the last pushed first: the items go in reverse */
+		for (uint64_t i = n->count; i > 0 && r == ML_OK; i--)
+		{
+			r = push_node (st, n->kids [i - 1], 0, 0);
+
+			if (r == ML_OK && i > 1)
+			{
+				r = push_text (st, ", ");
+			}
+		}
+	}
+
 	else if (n->kind == ML_SYM_FUNC)
 	{
 		r = ml_str_append (out, n->name);

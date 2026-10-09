@@ -154,7 +154,7 @@ int32_t ml_int_verify (
 /* ---- substitution ---- */
 
 /* Every distinct inner part of f that contains x, the outer ones first. */
-static void collect_parts (
+void ml_sym_collect_parts (
 	MlSymCtx    *ctx,
 	const MlSym *f,
 	const MlSym *x,
@@ -220,7 +220,7 @@ static const MlSym *subst_with (
 	MlStepLog   *saved  = ctx->log;
 
 	SymPtrVec_init (&cands);
-	collect_parts (ctx, f, x, &cands);
+	ml_sym_collect_parts (ctx, f, x, &cands);
 	*rule = ML_RULE_NONE;
 
 	for (uint64_t i = 0; i < cands.len && result == NULL && ctx->status == ML_OK; i++)

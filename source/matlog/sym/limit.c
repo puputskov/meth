@@ -539,7 +539,7 @@ static Ev ev_node (Lim *L, const MlSym *s, const Ev *kids)
 		}
 	}
 
-	else
+	else if (s->count == 1)
 	{
 		r = ev_func (L, s->name, kids [0]);
 	}

@@ -260,6 +260,11 @@ static const MlSym *rule (
 		}
 	}
 
+	else if (n->kind == ML_SYM_FUNC && n->count != 1)
+	{
+		ctx->status = ML_ERR_INVALID;
+	}
+
 	else if (n->kind == ML_SYM_FUNC)
 	{
 		out = function_rule (ctx, n->name, n->kids [0], d [0], name);

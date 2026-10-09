@@ -33,7 +33,7 @@ static const MlSym *ln_of (MlSymCtx *ctx, const MlSym *u)
 }
 
 /* u = a x + b with a and b free of x and a not zero? */
-static int32_t linear_parts (
+int32_t ml_sym_linear_parts (
 	MlSymCtx    *ctx,
 	const MlSym *u,
 	const MlSym *x,
@@ -133,7 +133,7 @@ static const MlSym *table (
 	else if (
 		   g->kind == ML_SYM_POW
 		&& g->kids [1]->kind == ML_SYM_NUM
-		&& linear_parts (ctx, g->kids [0], x, &a, &b)
+		&& ml_sym_linear_parts (ctx, g->kids [0], x, &a, &b)
 	)
 	{
 		const MlSym *n = g->kids [1];
@@ -172,7 +172,7 @@ static const MlSym *table (
 			|| is_name (g->kids [0]->name, "cos")
 		)
 		&& ml_sym_compare (ctx, g->kids [1], int_node (ctx, 2)) == 0
-		&& linear_parts (ctx, g->kids [0]->kids [0], x, &a, &b)
+		&& ml_sym_linear_parts (ctx, g->kids [0]->kids [0], x, &a, &b)
 	)
 	{
 		/* sin^2 u = (1 - cos 2u) / 2 and cos^2 u = (1 + cos 2u) / 2 */
@@ -202,7 +202,7 @@ static const MlSym *table (
 	else if (
 		   g->kind == ML_SYM_POW
 		&& !ml_sym_has_var (g->kids [0], x->name)
-		&& linear_parts (ctx, g->kids [1], x, &a, &b)
+		&& ml_sym_linear_parts (ctx, g->kids [1], x, &a, &b)
 	)
 	{
 		/* b^u / (a ln b), and e^u / a */
@@ -218,7 +218,7 @@ static const MlSym *table (
 
 	else if (
 		   g->kind == ML_SYM_FUNC
-		&& linear_parts (ctx, g->kids [0], x, &a, &b)
+		&& ml_sym_linear_parts (ctx, g->kids [0], x, &a, &b)
 	)
 	{
 		const MlSym *u = g->kids [0];

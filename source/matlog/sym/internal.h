@@ -92,11 +92,42 @@ const MlSym *ml_int_rational (
 	const MlSym *x
 );
 
+/* f as a quotient of two polynomials (the denominator of degree >= 1). */
+int32_t ml_rational_parts (
+	MlSymCtx    *ctx,
+	const MlSym *f,
+	const MlSym *x,
+	MlPoly      *num,
+	MlPoly      *den
+);
+
 /* The antiderivative of f when it is a quotient of polynomials, else NULL. */
 const MlSym *ml_int_rational_sym (
 	MlSymCtx    *ctx,
 	const MlSym *f,
 	const MlSym *x
+);
+
+/* The square root of a positive rational: 2 sqrt (2) for 8, 3/2 for 9/4. */
+const MlSym *ml_rat_root_node (MlSymCtx *ctx, MlRat r);
+
+/* The distinct inner parts of f that contain x, the outer ones first. */
+void ml_sym_collect_parts (
+	MlSymCtx    *ctx,
+	const MlSym *f,
+	const MlSym *x,
+	SymPtrVec   *out
+);
+
+/*
+ * u = a x + b with a and b free of x and a not zero: 1 and the parts, else 0.
+ */
+int32_t ml_sym_linear_parts (
+	MlSymCtx    *ctx,
+	const MlSym *u,
+	const MlSym *x,
+	const MlSym **a,
+	const MlSym **b
 );
 
 /* ---- integration (integrate.c, intmore.c) ---- */

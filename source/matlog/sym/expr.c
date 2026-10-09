@@ -179,6 +179,31 @@ const MlSym *ml_sym_func (MlSymCtx *ctx, MlSlice name, const MlSym *arg)
 	return ml_choose (ctx->status == ML_OK, s, &failed_node);
 }
 
+const MlSym *ml_sym_func_n (
+	MlSymCtx           *ctx,
+	MlSlice            name,
+	const MlSym *const *kids,
+	uint64_t           count
+)
+{
+	const MlSym *s = ml_sym_raw (ctx, ML_SYM_FUNC, kids, count);
+
+	if (ctx->status == ML_OK)
+	{
+		((MlSym *)s)->name = name_copy (ctx, name);
+	}
+
+	return ml_choose (ctx->status == ML_OK, s, &failed_node);
+}
+
+int32_t ml_sym_is_set (const MlSym *s)
+{
+	return (
+		   s->kind == ML_SYM_FUNC
+		&& ml_slice_equal (s->name, ml_slice_cstr ("set"))
+	);
+}
+
 int32_t ml_sym_is_num (const MlSym *s)
 {
 	return s->kind == ML_SYM_NUM;

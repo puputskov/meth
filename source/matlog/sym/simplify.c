@@ -1125,6 +1125,11 @@ const MlSym *ml_sym_rewrite (
 		}
 	}
 
+	else if (orig->kind == ML_SYM_FUNC && orig->count != 1)
+	{
+		out = ml_sym_func_n (ctx, orig->name, kids, count);
+	}
+
 	else if (orig->kind == ML_SYM_FUNC)
 	{
 		out = ml_sym_call (ctx, orig->name, kids [0]);
@@ -1140,7 +1145,7 @@ const MlSym *ml_sym_rewrite (
 	)
 	{
 		const MlSym *before = ml_choose (
-			orig->kind == ML_SYM_FUNC,
+			orig->kind == ML_SYM_FUNC && count == 1,
 			ml_sym_func (ctx, orig->name, kids [0]),
 			ml_sym_raw (ctx, orig->kind, kids, count)
 		);

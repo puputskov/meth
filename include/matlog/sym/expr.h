@@ -148,6 +148,22 @@ const MlSym *ml_sym_raw (
 
 const MlSym *ml_sym_func (MlSymCtx *ctx, MlSlice name, const MlSym *arg);
 
+/*
+ * A function node over any number of kids, kept as given. The only one the
+ * engine makes is the set of solutions, "set" (see ml_sym_set).
+ */
+const MlSym *ml_sym_func_n (
+	MlSymCtx           *ctx,
+	MlSlice            name,
+	const MlSym *const *kids,
+	uint64_t           count
+);
+
+/* The set {a, b ...} of items, without repeats, in increasing order. */
+const MlSym *ml_sym_set (MlSymCtx *ctx, const MlSym *const *items, uint64_t n);
+
+int32_t ml_sym_is_set (const MlSym *s);
+
 /* ---- inspection ---- */
 
 int32_t ml_sym_is_num (const MlSym *s);
@@ -255,6 +271,21 @@ MlSymLimit ml_sym_limit (
 	const MlSym *at,
 	int32_t     side
 );
+
+typedef struct MlSymSolution
+{
+	int32_t     found; /* 0 when the engine cannot solve the equation */
+	const MlSym *set;  /* the real solutions, as a set */
+} MlSymSolution;
+
+/*
+ * The real solutions of f = 0 for the symbol x: the roots of a polynomial
+ * (rational roots, then the quadratic formula for what is left), of a quotient
+ * of polynomials (without the zeros of the denominator), and of an
+ * expression that is a polynomial in exp (x), ln (x), a power or a root of x.
+ * An equation the engine cannot solve is not found, never guessed.
+ */
+MlSymSolution ml_sym_solve (MlSymCtx *ctx, const MlSym *f, const MlSym *x);
 
 /* ---- text ---- */
 

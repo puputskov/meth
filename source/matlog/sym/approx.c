@@ -130,9 +130,14 @@ static double node_value (const MlSym *s, const double *kids, int32_t *ok)
 		v = pow (kids [0], kids [1]);
 	}
 
-	else
+	else if (s->count == 1)
 	{
 		v = function_value (s->name, kids [0], ok);
+	}
+
+	else
+	{
+		*ok = 0;
 	}
 
 	return v;

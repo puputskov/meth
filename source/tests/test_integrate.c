@@ -104,10 +104,33 @@ static void test_not_found (void)
 	CHECK (shows ("integrate(1/(x^3 + x + 1), x)", ""));
 }
 
+static void test_solve (void)
+{
+	CHECK (shows ("solve(x^2 - 4, x)", "{-2, 2}"));
+	CHECK (shows ("solve(x^2 - 2, x)", "{-\xE2\x88\x9A" "2, \xE2\x88\x9A" "2}"));
+	CHECK (shows ("solve(x^3 - 6x^2 + 11x - 6, x)", "{1, 2, 3}"));
+	CHECK (shows ("solve(2x^2 - 3x - 2, x)", "{-1/2, 2}"));
+	CHECK (shows ("solve(x^2 + 1, x)", "{}"));
+	CHECK (shows ("solve(2x + 3, x)", "{-3/2}"));
+	CHECK (shows ("solve(5, x)", "{}"));
+	CHECK (shows ("solve(1/x + 1, x)", "{-1}"));
+	CHECK (shows ("solve(x/(x - 1), x)", "{0}"));
+	CHECK (shows ("solve(1/x - 2, x)", "{1/2}"));
+	CHECK (shows ("solve(x^4 - 5x^2 + 4, x)", "{-2, -1, 1, 2}"));
+	CHECK (shows ("solve(exp(x) - 2, x)", "{ln(2)}"));
+	CHECK (shows ("solve(exp(2x) - 3exp(x) + 2, x)", "{0, ln(2)}"));
+	CHECK (shows ("solve(sqrt(x) - 3, x)", "{9}"));
+	CHECK (shows ("solve(ln(x) - 1, x)", "{exp(1)}"));
+	CHECK (shows ("solve(x^3 + x + 1, x)", ""));
+	CHECK (shows ("solve(x*exp(x), x)", ""));
+	CHECK (shows ("solve(0, x)", ""));
+}
+
 void run_integrate_tests (void);
 
 void run_integrate_tests (void)
 {
+	test_solve ();
 	test_partial_fractions ();
 	test_substitution ();
 	test_parts ();

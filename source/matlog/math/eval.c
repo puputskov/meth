@@ -1276,6 +1276,7 @@ static MlValue symbolic_call (
 	int32_t   is_integrate = ml_slice_equal (name, ml_slice_cstr ("integrate"));
 	int32_t   is_subs      = ml_slice_equal (name, ml_slice_cstr ("subs"));
 	int32_t   is_limit     = ml_slice_equal (name, ml_slice_cstr ("limit"));
+	int32_t   is_solve     = ml_slice_equal (name, ml_slice_cstr ("solve"));
 	int32_t   fits         = (
 		   ml_choose (
 			   is_diff,
@@ -1286,7 +1287,11 @@ static MlValue symbolic_call (
 				   ml_choose (
 					   is_limit,
 					   argc == 3 || argc == 4,
-					   ml_choose (is_subs, argc == 3, argc == 1)
+					   ml_choose (
+						   is_solve,
+						   argc == 2,
+						   ml_choose (is_subs, argc == 3, argc == 1)
+					   )
 				   )
 			   )
 		   )
@@ -1316,6 +1321,11 @@ static MlValue symbolic_call (
 		ml_steplog_line (cx->log, ml_slice_cstr ("Limit:"));
 	}
 
+	else if (is_solve)
+	{
+		ml_steplog_line (cx->log, ml_slice_cstr ("Solve (real solutions):"));
+	}
+
 	else if (!is_subs)
 	{
 		ml_steplog_line (
@@ -1333,7 +1343,7 @@ static MlValue symbolic_call (
 		out = error_at (ML_EVAL_ARITY);
 	}
 
-	else if (!is_diff && !is_integrate && !is_subs && !is_limit)
+	else if (!is_diff && !is_integrate && !is_subs && !is_limit && !is_solve)
 	{
 		const MlSym *f;
 
@@ -1378,6 +1388,21 @@ static MlValue symbolic_call (
 					x,
 					formula_arg (&c, 3, none)
 				);
+			}
+
+			else if (is_solve)
+			{
+				MlSymSolution sol = ml_sym_solve (&c.ctx, f, x);
+
+				if (sol.found)
+				{
+					result = sol.set;
+				}
+
+				else if (c.ctx.status == ML_OK)
+				{
+					out = error_at (ML_EVAL_CANNOT_SOLVE);
+				}
 			}
 
 			else if (is_limit)
@@ -1518,6 +1543,28 @@ static int32_t is_symbolic_name (MlSlice name)
 		|| ml_slice_equal (name, ml_slice_cstr ("diff"))
 		|| ml_slice_equal (name, ml_slice_cstr ("integrate"))
 		|| ml_slice_equal (name, ml_slice_cstr ("limit"))
+	);
+}
+
+/*
+ * Is the node a name that stands for nothing (no variable, parameter,
+ * constant or unit)? solve (f, x) with such a second argument solves the
+ * equation f = 0, solve (A, b) with a matrix is the linear system.
+ */
+static int32_t is_unbound_symbol (
+	MlEvalCtx     *cx,
+	const MlScope *sc,
+	uint64_t      node
+)
+{
+	MlSlice name = ml_ast_text (&sc->ast, sc->source, node);
+
+	return (
+		   ml_ast_node (&sc->ast, node).kind == ML_NODE_NAME
+		&& !param_find (sc, name).found
+		&& ml_env_lookup (cx->env, name, cx->snapshot).kind == ML_BIND_NONE
+		&& constant_find (name).kind == ML_VALUE_NONE
+		&& !ml_unit_find (name).found
 	);
 }
 
@@ -2027,6 +2074,16 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 		CALL_UNKNOWN
 	);
 	MlValue       r      = ml_value_none ();
+
+	if (
+		   kind == CALL_BUILTIN
+		&& argc == 2
+		&& ml_slice_equal (name, ml_slice_cstr ("solve"))
+		&& is_unbound_symbol (cx, sc, ml_ast_child (&sc->ast, f.node, 2))
+	)
+	{
+		kind = CALL_SYMBOLIC;
+	}
 
 	if (kind == CALL_SYMBOLIC)
 	{

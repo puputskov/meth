@@ -64,7 +64,7 @@ static void add_polynomial_part (
  * The square root of a positive rational in its simplest form: k sqrt (m) / d
  * with the square factors taken out of m (sqrt (8) is 2 sqrt (2)).
  */
-static const MlSym *root_of (MlSymCtx *ctx, MlRat r)
+const MlSym *ml_rat_root_node (MlSymCtx *ctx, MlRat r)
 {
 	MlBig       prod = ml_big_mul (ctx->arena, r.num, r.den);
 	MlU64Result m    = ml_big_to_u64 (prod);
@@ -136,7 +136,7 @@ static const MlSym *inverse_quadratic (
 
 	if (ml_rat_sign (delta) > 0)
 	{
-		const MlSym *root = root_of (ctx, delta);
+		const MlSym *root = ml_rat_root_node (ctx, delta);
 
 		*signed_log = 0;
 		out         = ml_sym_mul (
@@ -148,7 +148,7 @@ static const MlSym *inverse_quadratic (
 
 	else
 	{
-		const MlSym *root = root_of (ctx, ml_rat_neg (ctx->arena, delta));
+		const MlSym *root = ml_rat_root_node (ctx, ml_rat_neg (ctx->arena, delta));
 
 		*signed_log = 1;
 		out         = ml_sym_mul (
@@ -484,6 +484,33 @@ static int32_t denominator_poly (
 	return ok && found && ctx->status == ML_OK;
 }
 
+int32_t ml_rational_parts (
+	MlSymCtx    *ctx,
+	const MlSym *f,
+	const MlSym *x,
+	MlPoly      *num,
+	MlPoly      *den
+)
+{
+	SymPtrVec numerators;
+	int32_t   ok = 0;
+
+	SymPtrVec_init (&numerators);
+
+	if (denominator_poly (ctx, f, x, den, &numerators))
+	{
+		const MlSym *top = ml_sym_expand (
+			ctx,
+			ml_sym_product (ctx, numerators.data, numerators.len)
+		);
+
+		ok = ml_poly_from_sym (ctx, top, x, num) && den->len >= 2;
+	}
+
+	SymPtrVec_free (&numerators);
+	return ok;
+}
+
 const MlSym *ml_int_rational_sym (
 	MlSymCtx    *ctx,
 	const MlSym *f,
@@ -491,25 +518,13 @@ const MlSym *ml_int_rational_sym (
 )
 {
 	const MlSym *result = NULL;
-	SymPtrVec   numerators;
 	MlPoly      den;
 	MlPoly      num;
 
-	SymPtrVec_init (&numerators);
-
-	if (denominator_poly (ctx, f, x, &den, &numerators))
+	if (ml_rational_parts (ctx, f, x, &num, &den))
 	{
-		const MlSym *top = ml_sym_expand (
-			ctx,
-			ml_sym_product (ctx, numerators.data, numerators.len)
-		);
-
-		if (ml_poly_from_sym (ctx, top, x, &num) && den.len >= 2)
-		{
-			result = ml_int_rational (ctx, num, den, x);
-		}
+		result = ml_int_rational (ctx, num, den, x);
 	}
 
-	SymPtrVec_free (&numerators);
 	return result;
 }
