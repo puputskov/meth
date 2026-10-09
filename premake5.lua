@@ -4,6 +4,7 @@ workspace "matlog"
 	platforms { "x64" }
 	architecture "x86_64"
 	startproject "matlog"
+	debugdir ""
 
 	filter "configurations:Debug"
 		defines { "DEBUG" }
