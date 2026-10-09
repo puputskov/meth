@@ -368,12 +368,12 @@ static void edit_to_column (MlEditor *ed, uint64_t col)
 	}
 }
 
-/* The note at idx, or a line of kind ML_LINE_NONE. */
-static MlLineView note_at (const MlEditor *ed, uint64_t idx)
+/* The line at idx, or a line of kind ML_LINE_NONE (also for includes). */
+static MlLineView line_at (const MlEditor *ed, uint64_t idx)
 {
 	MlLineView v = ml_session_get (&ed->session, idx);
 
-	if (v.kind != ML_LINE_NOTE)
+	if (v.kind == ML_LINE_INCLUDE)
 	{
 		v.kind = ML_LINE_NONE;
 	}
@@ -381,32 +381,47 @@ static MlLineView note_at (const MlEditor *ed, uint64_t idx)
 	return v;
 }
 
-/* Where the cursor lands in the note that is moved to. */
-typedef enum NoteSpot
+/* Where the cursor lands in the line that is moved to. */
+typedef enum LineSpot
 {
-	NOTE_SPOT_COLUMN,
-	NOTE_SPOT_START,
-	NOTE_SPOT_END
-} NoteSpot;
+	LINE_SPOT_COLUMN,
+	LINE_SPOT_START,
+	LINE_SPOT_END
+} LineSpot;
+
+/* The input state that edits a line of this kind. */
+static MlInputState state_for (MlLineKind kind)
+{
+	return ml_choose (kind == ML_LINE_NOTE, ML_STATE_NOTE, ML_STATE_INSERT);
+}
+
+/* Starts editing the line idx of the session, with its own kind. */
+static MlResult edit_line_at (MlEditor *ed, uint64_t idx, MlSlice text)
+{
+	MlLineView v = ml_session_get (&ed->session, idx);
+
+	return begin_line (ed, state_for (v.kind), v.kind, v.domain, idx, 1, text);
+}
 
 /*
- * Up (dir < 0) and Down (dir > 0) in a note: the neighbouring note is edited
- * next. Nothing happens when the neighbour is not a note.
+ * Up (dir < 0) and Down (dir > 0): the neighbouring line is edited next, the
+ * column is kept. Nothing happens at the first and the last line.
  */
-static MlResult note_move (MlEditor *ed, int32_t dir, NoteSpot spot)
+static MlResult line_move (MlEditor *ed, int32_t dir, LineSpot spot)
 {
 	MlResult   r      = ML_OK;
 	int32_t    stored = ed->edit_existing || ed->edit.text.len > 0;
 	int32_t    exists = ed->edit_existing;
 	uint64_t   col    = ml_lineedit_cursor_col (&ed->edit);
 	uint64_t   cur    = ed->edit_index;
+	int32_t    can    = ml_choose (dir < 0, cur > 0, 1);
 	uint64_t   next   = ml_choose (dir < 0, cur - 1, cur + exists);
-	MlLineView v      = note_at (ed, next);
+	MlLineView v      = line_at (ed, ml_choose (can, next, 0));
 	MlStr      text;
 
 	ml_str_init (&text);
 
-	if (v.kind == ML_LINE_NOTE && !(dir < 0 && cur == 0))
+	if (can && v.kind != ML_LINE_NONE)
 	{
 		r = ml_str_append (&text, v.text);
 
@@ -418,23 +433,19 @@ static MlResult note_move (MlEditor *ed, int32_t dir, NoteSpot spot)
 
 		if (r == ML_OK)
 		{
-			r = begin_line (
+			r = edit_line_at (
 				ed,
-				ML_STATE_NOTE,
-				ML_LINE_NOTE,
-				ed->edit_domain,
 				next + (dir > 0 && !exists && stored),
-				1,
 				ml_str_view (text)
 			);
 		}
 
-		if (r == ML_OK && spot == NOTE_SPOT_COLUMN)
+		if (r == ML_OK && spot == LINE_SPOT_COLUMN)
 		{
 			edit_to_column (ed, col);
 		}
 
-		else if (r == ML_OK && spot == NOTE_SPOT_START)
+		else if (r == ML_OK && spot == LINE_SPOT_START)
 		{
 			ml_lineedit_home (&ed->edit);
 		}
@@ -445,37 +456,69 @@ static MlResult note_move (MlEditor *ed, int32_t dir, NoteSpot spot)
 	return r;
 }
 
+/* Lines of the same sort (note or math) can be joined. */
+static int32_t joinable (MlLineKind a, MlLineKind b)
+{
+	return (
+		   a != ML_LINE_NONE
+		&& b != ML_LINE_NONE
+		&& (
+			   a == b
+			|| a == ML_LINE_BLANK
+			|| b == ML_LINE_BLANK
+		)
+	);
+}
+
+/* The kind a line joined from a and b has. */
+static MlLineKind joined_kind (MlLineKind a, MlLineKind b, uint64_t len)
+{
+	return ml_choose (
+		len == 0,
+		ML_LINE_BLANK,
+		ml_choose (a == ML_LINE_BLANK, b, a)
+	);
+}
+
 /*
- * Backspace at the start of a note (dir < 0) joins it with the previous
- * note, Delete at its end (dir > 0) joins the next note into it. The cursor
+ * Backspace at the start of a line (dir < 0) joins it with the previous
+ * line, Delete at its end (dir > 0) joins the next line into it. The cursor
  * stays where the two met.
  */
-static MlResult note_join (MlEditor *ed, int32_t dir)
+static MlResult line_join (MlEditor *ed, int32_t dir)
 {
-	MlResult r = ml_rewriter_flush (&ed->rewriter, &ed->edit);
-	MlStr    joined;
-	int32_t  done   = 0;
-	uint64_t at     = 0;
-	uint64_t target = 0;
+	MlResult   r      = ml_rewriter_flush (&ed->rewriter, &ed->edit);
+	MlStr      joined;
+	MlLineView a;
+	MlLineView b;
+	MlLineKind kind   = ML_LINE_NONE;
+	int32_t    done   = 0;
+	uint64_t   at     = 0;
+	uint64_t   target = ed->edit_index;
+	int32_t    stored = ed->edit_existing || ed->edit.text.len > 0;
 
 	ml_str_init (&joined);
 
-	if (r == ML_OK && dir < 0)
+	if (r == ML_OK && dir < 0 && ed->edit_index > 0)
 	{
-		MlLineView prev = note_at (
-			ed,
-			ml_choose (ed->edit_index > 0, ed->edit_index - 1, 0)
-		);
+		a = line_at (ed, ed->edit_index - 1);
+		b = (MlLineView)
+		{
+			.kind   = ed->edit_kind,
+			.domain = ed->edit_domain,
+			.text   = ml_str_view (ed->edit.text)
+		};
+		kind = joined_kind (a.kind, b.kind, a.text.len + b.text.len);
 
-		if (prev.kind == ML_LINE_NOTE && ed->edit_index > 0)
+		if (joinable (a.kind, b.kind))
 		{
 			target = ed->edit_index - 1;
-			at     = prev.text.len;
-			r      = ml_str_append (&joined, prev.text);
+			at     = a.text.len;
+			r      = ml_str_append (&joined, a.text);
 
 			if (r == ML_OK)
 			{
-				r = ml_str_append (&joined, ml_str_view (ed->edit.text));
+				r = ml_str_append (&joined, b.text);
 			}
 
 			if (r == ML_OK && ed->edit_existing)
@@ -488,8 +531,8 @@ static MlResult note_join (MlEditor *ed, int32_t dir)
 				r = ml_session_replace (
 					&ed->session,
 					target,
-					ML_LINE_NOTE,
-					ed->edit_domain,
+					kind,
+					a.domain,
 					ml_str_view (joined)
 				);
 				done = (r == ML_OK);
@@ -497,57 +540,46 @@ static MlResult note_join (MlEditor *ed, int32_t dir)
 		}
 	}
 
-	else if (r == ML_OK && (ed->edit_existing || ed->edit.text.len > 0))
+	else if (r == ML_OK && dir > 0 && stored)
 	{
 		r      = commit_line (ed);
 		target = ed->edit_index;
+		a      = line_at (ed, target);
+		b      = line_at (ed, target + 1);
 
-		if (r == ML_OK)
+		if (r == ML_OK && joinable (a.kind, b.kind))
 		{
-			MlLineView after = note_at (ed, target + 1);
-			MlLineView cur   = note_at (ed, target);
+			kind = joined_kind (a.kind, b.kind, a.text.len + b.text.len);
+			at   = a.text.len;
+			r    = ml_str_append (&joined, a.text);
 
-			if (after.kind == ML_LINE_NOTE && cur.kind == ML_LINE_NOTE)
+			if (r == ML_OK)
 			{
-				at = cur.text.len;
-				r  = ml_str_append (&joined, cur.text);
+				r = ml_str_append (&joined, b.text);
+			}
 
-				if (r == ML_OK)
-				{
-					r = ml_str_append (&joined, after.text);
-				}
+			if (r == ML_OK)
+			{
+				r = ml_session_delete (&ed->session, target + 1);
+			}
 
-				if (r == ML_OK)
-				{
-					r = ml_session_delete (&ed->session, target + 1);
-				}
-
-				if (r == ML_OK)
-				{
-					r = ml_session_replace (
-						&ed->session,
-						target,
-						ML_LINE_NOTE,
-						ed->edit_domain,
-						ml_str_view (joined)
-					);
-					done = (r == ML_OK);
-				}
+			if (r == ML_OK)
+			{
+				r = ml_session_replace (
+					&ed->session,
+					target,
+					kind,
+					ml_choose (a.kind == ML_LINE_BLANK, b.domain, a.domain),
+					ml_str_view (joined)
+				);
+				done = (r == ML_OK);
 			}
 		}
 	}
 
 	if (r == ML_OK && done)
 	{
-		r = begin_line (
-			ed,
-			ML_STATE_NOTE,
-			ML_LINE_NOTE,
-			ed->edit_domain,
-			target,
-			1,
-			ml_str_view (joined)
-		);
+		r = edit_line_at (ed, target, ml_str_view (joined));
 		ed->edit.cursor = at;
 	}
 
@@ -557,10 +589,10 @@ static MlResult note_join (MlEditor *ed, int32_t dir)
 }
 
 /*
- * The keys that cross the edge of a note: Up and Down, Left at the start,
+ * The keys that cross the edge of a line: Up and Down, Left at the start,
  * Right at the end, Backspace at the start and Delete at the end.
  */
-static MlEditResult note_edge_key (MlEditor *ed, MlKey key)
+static MlEditResult line_edge_key (MlEditor *ed, MlKey key)
 {
 	MlEditResult res =
 	{
@@ -573,47 +605,52 @@ static MlEditResult note_edge_key (MlEditor *ed, MlKey key)
 
 	if (plain && key.code == ML_KEY_UP)
 	{
-		res.result  = note_move (ed, -1, NOTE_SPOT_COLUMN);
+		res.result  = line_move (ed, -1, LINE_SPOT_COLUMN);
 		res.handled = 1;
 	}
 
 	else if (plain && key.code == ML_KEY_DOWN)
 	{
-		res.result  = note_move (ed, 1, NOTE_SPOT_COLUMN);
+		res.result  = line_move (ed, 1, LINE_SPOT_COLUMN);
 		res.handled = 1;
 	}
 
 	else if (plain && start && key.code == ML_KEY_LEFT)
 	{
-		res.result  = note_move (ed, -1, NOTE_SPOT_END);
+		res.result  = line_move (ed, -1, LINE_SPOT_END);
 		res.handled = 1;
 	}
 
 	else if (plain && end && key.code == ML_KEY_RIGHT)
 	{
-		res.result  = note_move (ed, 1, NOTE_SPOT_START);
+		res.result  = line_move (ed, 1, LINE_SPOT_START);
 		res.handled = 1;
 	}
 
 	else if (plain && start && key.code == ML_KEY_BACKSPACE)
 	{
-		res.result  = note_join (ed, -1);
+		res.result  = line_join (ed, -1);
 		res.handled = 1;
 	}
 
 	else if (plain && end && key.code == ML_KEY_DELETE)
 	{
-		res.result  = note_join (ed, 1);
+		res.result  = line_join (ed, 1);
 		res.handled = 1;
 	}
 
 	return res;
 }
 
-/* Enter in a note: the text after the cursor becomes a new note below. */
-static MlResult note_split (MlEditor *ed)
+/*
+ * Enter: the text after the cursor becomes a new line below, of the same
+ * kind; at the end of a math line the new line is a fresh one of the session
+ * domain.
+ */
+static MlResult line_split (MlEditor *ed)
 {
-	MlResult r = ml_rewriter_flush (&ed->rewriter, &ed->edit);
+	MlResult r    = ml_rewriter_flush (&ed->rewriter, &ed->edit);
+	int32_t  note = ed->state == ML_STATE_NOTE;
 	MlStr    tail;
 
 	ml_str_init (&tail);
@@ -640,9 +677,13 @@ static MlResult note_split (MlEditor *ed)
 	{
 		r = begin_line (
 			ed,
-			ML_STATE_NOTE,
-			ML_LINE_NOTE,
-			ed->edit_domain,
+			ed->state,
+			ml_choose (note, ML_LINE_NOTE, ML_LINE_MATH),
+			ml_choose (
+				note || tail.len > 0,
+				ed->edit_domain,
+				ed->session.domain
+			),
 			ed->edit_index + 1,
 			0,
 			ml_str_view (tail)
@@ -683,9 +724,27 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (key.code == ML_KEY_ENTER && ed->state == ML_STATE_NOTE)
+	else if (
+		   key.code == ML_KEY_CHAR
+		&& key.cp == 'n'
+		&& (key.mods & ML_MOD_CTRL)
+		&& ed->state != ML_STATE_COMMAND
+	)
 	{
-		r = note_split (ed);
+		/* Ctrl+N turns the line being edited into a note, or back */
+		int32_t note = ed->state != ML_STATE_NOTE;
+
+		ed->state     = ml_choose (note, ML_STATE_NOTE, ML_STATE_INSERT);
+		ed->edit_kind = ml_choose (note, ML_LINE_NOTE, ML_LINE_MATH);
+		ml_rewriter_set_domain (
+			&ed->rewriter,
+			ml_choose (note, ML_REWRITE_NOTES, ed->edit_domain)
+		);
+	}
+
+	else if (key.code == ML_KEY_ENTER && ed->state != ML_STATE_COMMAND)
+	{
+		r = line_split (ed);
 	}
 
 	else if (key.code == ML_KEY_ENTER)
@@ -700,10 +759,7 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 
 	else if (ed->state == ML_STATE_INSERT || ed->state == ML_STATE_NOTE)
 	{
-		if (ed->state == ML_STATE_NOTE)
-		{
-			res = note_edge_key (ed, key);
-		}
+		res = line_edge_key (ed, key);
 
 		if (!res.handled)
 		{

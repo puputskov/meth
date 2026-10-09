@@ -311,6 +311,41 @@ static void test_ctrl_z (void)
 	ml_editor_free (&ed);
 }
 
+static void test_modeless (void)
+{
+	MlEditor ed;
+	MlKey    toggle = { .code = ML_KEY_CHAR, .cp = 'n', .mods = ML_MOD_CTRL };
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "1+1");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "2+2");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "3+3");
+
+	/* Up and Down roam through math lines too, the column is kept */
+	press (&ed, ML_KEY_UP);
+	CHECK (ed.edit_index == 1 && ed.edit.cursor == 3);
+	press (&ed, ML_KEY_HOME);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.edit_index == 0 && ed.session.lines.len == 2);
+	CHECK (edit_is (&ed, "1+12+2"));
+	CHECK (ed.edit.cursor == 3);
+
+	/* Enter splits a math line at the cursor */
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.edit_index == 1 && edit_is (&ed, "2+2"));
+
+	/* Ctrl+N turns the line into a note and back */
+	CHECK (ml_editor_handle_key (&ed, toggle) == ML_OK);
+	CHECK (ed.state == ML_STATE_NOTE);
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "2+2"));
+
+	ml_editor_free (&ed);
+}
+
 static void test_navigation (void)
 {
 	MlEditor ed;
@@ -438,7 +473,7 @@ static void test_edit_line (void)
 	CHECK (ed.edit.cursor == 5);
 	CHECK (status_is (&ed, "-- INSERT -- matrix>"));
 	type (&ed, "2");
-	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
 	CHECK (ed.state == ML_STATE_NORMAL);
 	CHECK (ed.session.lines.len == 2);
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 12"));
@@ -458,7 +493,7 @@ static void test_edit_line (void)
 	type (&ed, "gg");
 	press (&ed, ML_KEY_ENTER);
 	ml_lineedit_clear (&ed.edit);
-	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
 	CHECK (ml_session_get (&ed.session, 0).kind == ML_LINE_BLANK);
 
 	ml_editor_free (&ed);
@@ -1372,6 +1407,7 @@ void run_editor_tests (void)
 	test_note_freeform ();
 	test_note_below_code ();
 	test_ctrl_z ();
+	test_modeless ();
 	test_navigation ();
 	test_yank_paste ();
 	test_edit_line ();

@@ -37,7 +37,20 @@ Each domain is a mode (see section 3).
 
 Two independent layers.
 
-### 3.1 Input state
+### 3.0 Direction: free form editing instead of modes
+The tool moves from a modal editor to a free form one, like a normal text editor. The document is a list of lines and there is always a text
+cursor in one of them; typing edits that line in place, no key is needed to start editing.
+- Done: the tool starts on a line that is being edited; Up and Down move to the neighbouring line (math or note) and keep the column; Left at the
+  start and Right at the end cross to the neighbour; Backspace at the start joins the line with the previous one and Delete at the end joins the next
+  one in; Enter splits the line at the cursor; `Ctrl+N` turns the line into a note and back; `Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes.
+- Next: the line commands get keys that work while editing, so that Normal can be dropped: `Ctrl+P` opens the command line, `Shift+Up/Down` select
+  lines, `Ctrl+C`, `Ctrl+X`, `Ctrl+V` copy, cut and paste lines or the selected text, `Ctrl+Shift+K` deletes a line, `Alt+Up/Down` move lines,
+  `Ctrl+[` and `Ctrl+]` fold and unfold the block, `Page Up/Down` and `Ctrl+Home/End` move far. Ranges (`:5,8m 2`) stay as command line
+  commands. The domain of a block is changed with `Alt+Left/Right` (already so).
+- The vim keys (section 3.1) stay reachable through `Esc` while the free form keys are built, and become an optional binding set in the key
+  table of section 4.15 afterwards (`:set keys vim`), not the default.
+
+### 3.1 Input state (the vim keys)
 - **Normal:** navigate and manage lines. `j`/`k` move between lines, `dd` deletes a line, `yy` copies one, `Enter` re-edits one.
   Domain mode is switched here.
 - **Insert (math):** type an expression in the current domain. Ghost mode and completion are active.
