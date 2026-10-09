@@ -141,6 +141,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 - Indentation uses ONLY tabs. Spaces are only for alignment.
 - Opening brace always on its own line (Allman); empty line after a closing `}` unless followed by `}` (so also between `}` and `else`).
 - No early exits: one `return` per function, one cleanup stage at the end, avoid `break`/`continue`/`goto`.
+- No recursion: trees and nested data are walked with a loop and an explicit heap stack (or the tree's own links), parsers are
+  state machines. The C stack use never depends on the input. See `CLAUDE.md`.
 - Space between function name and `(` (`ml_str_clear (&s)`) and before array subscripts (`e.bytes [0]`).
 - Align `=` of consecutive assignment lines, and align type / name / `=` / comment columns of consecutive declarations (spaces only).
 - Lines are at most 80 columns (tab = 4); long expressions are broken one argument / operand per line.

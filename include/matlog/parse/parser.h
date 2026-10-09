@@ -129,12 +129,12 @@ typedef struct MlParseResult
 } MlParseResult;
 
 /*
- * Limits that keep recursion shallow. The parser nests at most
- * ML_PARSE_MAX_DEPTH parentheses, calls and prefix operators, and every
- * function that walks the tree recursively (printing, evaluating) is safe
- * because no tree is higher than ML_PARSE_MAX_TREE_DEPTH levels, which also
- * bounds long chains such as 1+1+1+... Both limits keep the stack use well
- * below the default 1 MB.
+ * Limits on the input. The parser does not recurse (it is a state machine with a
+ * stack of frames on the heap, see parser.c), and neither does anything that
+ * walks the tree, so these only keep the work and the memory of one line small:
+ * at most ML_PARSE_MAX_DEPTH nested parentheses, calls and prefix operators, and
+ * no tree higher than ML_PARSE_MAX_TREE_DEPTH levels, which also bounds long
+ * chains such as 1+1+1+...
  */
 #define ML_PARSE_MAX_DEPTH      200
 #define ML_PARSE_MAX_TREE_DEPTH 1000

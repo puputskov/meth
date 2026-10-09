@@ -76,6 +76,11 @@ Interactive math shell written in C. See `plan.md` for the design.
 - No early exits. Every function has a single `return` at its end. Avoid `break`, `continue` and `goto`.
   Chain conditions with a result variable (`if (r == ML_OK) { ... }`) instead of returning early.
 - If cleanup is needed, do it in one cleanup stage at the end of the function.
+- No recursion, anywhere. Walk trees and other nested data with a loop and an explicit stack (a typed vector on the heap),
+  or with the tree's own links (parent, first child, next sibling) when it has them, never with a function that calls
+  itself, directly or through other functions. A recursive descent parser becomes a state machine: each grammar function is
+  a mode, and what a call would keep on the C stack is a frame on the explicit stack. The C stack use of the program must not
+  depend on its input. Nesting limits (depth of parentheses, tree height, calls) stay as limits on the heap stacks.
 - Avoid pointers when possible: pass and return small structs by value (e.g. `MlSlice`, result structs), use indices instead of
   pointers, and use typed containers instead of `void *`. Pointers are fine for arena allocations and for the "self" of a mutable
   container.

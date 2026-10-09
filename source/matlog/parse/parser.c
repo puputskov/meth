@@ -2,15 +2,61 @@
 
 #define NIL ML_NODE_NIL_INDEX
 
+/*
+ * The parser does not recurse (see the machine below). The grammar functions
+ * are modes of one loop, and what a call would keep on the C stack is a frame
+ * on a stack of its own.
+ */
+typedef enum ParseMode
+{
+	MODE_BINARY,       /* binary operators of the level in Parser.level and up */
+	MODE_UNARY,        /* {'-' | '+'} factor */
+	MODE_FACTOR,       /* primary {'!' | superscript} ['^' unary] */
+	MODE_PRIMARY,      /* atom | '√' operand */
+	MODE_SQRT_OPERAND, /* the operand of '√' */
+	MODE_ATOM,         /* number | name [call] | '(' expression ')' */
+	MODE_RETURN        /* a node (Parser.val) is ready for the top frame */
+} ParseMode;
+
+/* What was going on when a mode started another one: where to go on. */
+typedef enum FrameKind
+{
+	FRAME_BIN_LHS,        /* waiting for the first operand */
+	FRAME_BIN_RHS,        /* waiting for the right operand of an operator */
+	FRAME_UNARY,          /* waiting for the operand of '-' or '+' */
+	FRAME_FACTOR_PRIMARY, /* waiting for the primary of a factor */
+	FRAME_FACTOR_EXP,     /* waiting for the exponent after '^' */
+	FRAME_PRIMARY_SQRT,   /* waiting for the operand of '√' */
+	FRAME_SQRT_PREFIX,    /* waiting for the operand inside a '√' operand */
+	FRAME_SQRT_ATOM,      /* waiting for the atom of a '√' operand */
+	FRAME_PAREN,          /* waiting for the expression inside '(' ')' */
+	FRAME_CALL_ARG        /* waiting for an argument of a call */
+} FrameKind;
+
+typedef struct ParseFrame
+{
+	FrameKind   kind;
+	uint64_t    node;  /* left operand, base of a power, call */
+	uint64_t    start; /* byte where a prefix operator starts */
+	MlTokenKind token; /* the operator */
+	uint64_t    level; /* minimum operator level */
+} ParseFrame;
+
+ML_VEC_DEFINE (ParseFrameVec, ParseFrame)
+
 typedef struct Parser
 {
-	MlSlice      source;
-	MlTokenVec   tokens;
-	uint64_t     pos;
-	MlAst        ast;
-	MlParseError error;
-	int32_t      failed;
-	uint64_t     depth;
+	MlSlice        source;
+	MlTokenVec     tokens;
+	uint64_t       pos;
+	MlAst          ast;
+	MlParseError   error;
+	int32_t        failed;
+	uint64_t       depth;
+	ParseFrameVec  stack;
+	ParseMode      mode;
+	uint64_t       level; /* argument of MODE_BINARY */
+	uint64_t       val;   /* the node that MODE_RETURN hands over */
 } Parser;
 
 static const char *const error_texts [ML_PARSE_CODE_COUNT] =
@@ -376,8 +422,7 @@ static MlNodeKind binary_kind (MlTokenKind kind)
 }
 
 /*
- * The superscript text must be an integer. The buffer for the check lives
- * here, away from the stack of the recursive functions.
+ * The superscript text must be an integer.
  */
 static int32_t superscript_is_integer (const Parser *p, MlToken t)
 {
@@ -462,218 +507,54 @@ static void close_call (Parser *p, uint64_t call)
 }
 
 /*
- * The expression grammar is a handful of small mutually recursive functions;
- * each level of parentheses costs four of them (atom, binary, unary, factor).
- * They keep no buffers or tree nodes in their frames, only a few integers.
+ * The expression grammar, without recursion.
+ *
+ * Every function of a recursive descent parser is a mode. Where such a parser
+ * would call a function and later continue after the call, this one pushes a
+ * frame that says where to continue and switches to the mode of the callee;
+ * where the callee would return a node it sets Parser.val and switches to
+ * MODE_RETURN, which pops a frame and continues there. The loop in parse_expr
+ * runs until the frame it started with is the only one left. The stack of
+ * frames lives on the heap, and the nesting limit (enter, ML_PARSE_MAX_DEPTH)
+ * keeps it short.
  */
-static uint64_t parse_binary (Parser *p, uint64_t min_level);
-static uint64_t parse_unary (Parser *p);
 
-static uint64_t parse_expr (Parser *p)
+static void push (
+	Parser      *p,
+	FrameKind   kind,
+	uint64_t    node,
+	uint64_t    start,
+	MlTokenKind token,
+	uint64_t    level
+)
 {
-	return parse_binary (p, 1);
+	ParseFrame f =
+	{
+		.kind  = kind,
+		.node  = node,
+		.start = start,
+		.token = token,
+		.level = level
+	};
+
+	if (ParseFrameVec_push (&p->stack, f) != ML_OK)
+	{
+		fail (p, ML_PARSE_NO_MEMORY, peek (p));
+	}
 }
 
-/* name '(' [expression {',' expression}] ')' with the name already read. */
-static uint64_t parse_call (Parser *p, uint64_t name)
+/* Hands a node to the frame on top of the stack. */
+static void give (Parser *p, uint64_t node)
 {
-	uint64_t call = add_node (
-		p,
-		ML_NODE_CALL,
-		node_at (p, name).start,
-		node_end (p, name)
-	);
-
-	adopt (p, call, name);
-	advance (p);
-
-	if (enter (p))
-	{
-		int32_t more = peek (p).kind != ML_TOK_RPAREN;
-
-		while (more && !p->failed)
-		{
-			adopt (p, call, parse_expr (p));
-			more = !p->failed && peek (p).kind == ML_TOK_COMMA;
-
-			if (more)
-			{
-				advance (p);
-			}
-		}
-
-		close_call (p, call);
-		leave (p);
-	}
-
-	return ml_choose (p->failed, NIL, call);
+	p->val  = node;
+	p->mode = MODE_RETURN;
 }
 
-/* number | name [call] | '(' expression ')' */
-static uint64_t parse_atom (Parser *p)
+/* Starts an expression: binary operators of every level. */
+static void call_expr (Parser *p)
 {
-	MlToken  t    = peek (p);
-	uint64_t node = NIL;
-
-	if (p->failed)
-	{
-		node = NIL;
-	}
-
-	else if (t.kind == ML_TOK_NUMBER)
-	{
-		advance (p);
-		node = add_leaf (p, ML_NODE_NUMBER, t);
-	}
-
-	else if (t.kind == ML_TOK_NAME)
-	{
-		advance (p);
-		node = add_leaf (p, ML_NODE_NAME, t);
-
-		if (!p->failed && peek (p).kind == ML_TOK_LPAREN)
-		{
-			node = parse_call (p, node);
-		}
-	}
-
-	else if (t.kind == ML_TOK_LPAREN)
-	{
-		advance (p);
-
-		if (enter (p))
-		{
-			node = parse_expr (p);
-			close_paren (p);
-			leave (p);
-		}
-	}
-
-	else
-	{
-		fail_expected (p, t);
-	}
-
-	return ml_choose (p->failed, NIL, node);
-}
-
-/* The operand of a square root sign: one factor, optionally signed. */
-static uint64_t parse_sqrt_operand (Parser *p)
-{
-	MlTokenKind kind    = peek (p).kind;
-	uint64_t    start   = peek (p).start;
-	uint64_t    node    = NIL;
-	int32_t     entered = !p->failed && enter (p);
-
-	if (!entered)
-	{
-		node = NIL;
-	}
-
-	else if (kind == ML_TOK_MINUS || kind == ML_TOK_SQRT)
-	{
-		advance (p);
-		node = prefix (
-			p,
-			ml_choose (kind == ML_TOK_MINUS, ML_NODE_NEG, ML_NODE_SQRT),
-			start,
-			parse_sqrt_operand (p)
-		);
-	}
-
-	else
-	{
-		node = parse_atom (p);
-	}
-
-	if (entered)
-	{
-		leave (p);
-	}
-
-	return ml_choose (p->failed, NIL, node);
-}
-
-/* The start of a factor: atom | '√' operand. */
-static uint64_t parse_primary (Parser *p)
-{
-	uint64_t start = peek (p).start;
-	uint64_t node  = NIL;
-
-	if (peek (p).kind == ML_TOK_SQRT)
-	{
-		advance (p);
-		node = prefix (p, ML_NODE_SQRT, start, parse_sqrt_operand (p));
-	}
-
-	else
-	{
-		node = parse_atom (p);
-	}
-
-	return node;
-}
-
-/* primary {'!' | superscript} ['^' unary]: the exponent may be signed */
-static uint64_t parse_factor (Parser *p)
-{
-	uint64_t node = parse_primary (p);
-
-	while (
-		   !p->failed
-		&& (
-			   peek (p).kind == ML_TOK_BANG
-			|| peek (p).kind == ML_TOK_SUPERSCRIPT
-		)
-	)
-	{
-		node = postfix (p, node, advance (p));
-	}
-
-	if (!p->failed && peek (p).kind == ML_TOK_CARET)
-	{
-		advance (p);
-
-		if (enter (p))
-		{
-			node = binary (p, ML_NODE_POW, node, parse_unary (p));
-			leave (p);
-		}
-	}
-
-	return ml_choose (p->failed, NIL, node);
-}
-
-/* {'-' | '+'} factor */
-static uint64_t parse_unary (Parser *p)
-{
-	MlTokenKind kind  = peek (p).kind;
-	uint64_t    start = peek (p).start;
-	uint64_t    node  = NIL;
-
-	if (!p->failed && (kind == ML_TOK_MINUS || kind == ML_TOK_PLUS))
-	{
-		advance (p);
-
-		if (enter (p))
-		{
-			uint64_t operand = parse_unary (p);
-
-			leave (p);
-			node = ml_choose (
-				kind == ML_TOK_PLUS,
-				operand,
-				prefix (p, ML_NODE_NEG, start, operand)
-			);
-		}
-	}
-
-	else
-	{
-		node = parse_factor (p);
-	}
-
-	return ml_choose (p->failed, NIL, node);
+	p->mode  = MODE_BINARY;
+	p->level = 1;
 }
 
 /*
@@ -697,13 +578,181 @@ static uint64_t operator_level (const Parser *p)
 	);
 }
 
-/* unary {operator unary} for the operators of level min_level and above. */
-static uint64_t parse_binary (Parser *p, uint64_t min_level)
+/* ---- modes ---- */
+
+static void mode_binary (Parser *p)
 {
-	uint64_t node  = parse_unary (p);
+	push (p, FRAME_BIN_LHS, NIL, 0, ML_TOK_END, p->level);
+	p->mode = MODE_UNARY;
+}
+
+static void mode_unary (Parser *p)
+{
+	MlTokenKind kind  = peek (p).kind;
+	uint64_t    start = peek (p).start;
+
+	if (kind == ML_TOK_MINUS || kind == ML_TOK_PLUS)
+	{
+		advance (p);
+
+		if (enter (p))
+		{
+			push (p, FRAME_UNARY, NIL, start, kind, 0);
+		}
+
+		else
+		{
+			give (p, NIL);
+		}
+	}
+
+	else
+	{
+		p->mode = MODE_FACTOR;
+	}
+}
+
+static void mode_factor (Parser *p)
+{
+	push (p, FRAME_FACTOR_PRIMARY, NIL, 0, ML_TOK_END, 0);
+	p->mode = MODE_PRIMARY;
+}
+
+static void mode_primary (Parser *p)
+{
+	uint64_t start = peek (p).start;
+
+	if (peek (p).kind == ML_TOK_SQRT)
+	{
+		advance (p);
+		push (p, FRAME_PRIMARY_SQRT, NIL, start, ML_TOK_END, 0);
+		p->mode = MODE_SQRT_OPERAND;
+	}
+
+	else
+	{
+		p->mode = MODE_ATOM;
+	}
+}
+
+/* One factor after a root sign, optionally signed: -x, √x, x, (x). */
+static void mode_sqrt_operand (Parser *p)
+{
+	MlTokenKind kind  = peek (p).kind;
+	uint64_t    start = peek (p).start;
+
+	if (!enter (p))
+	{
+		give (p, NIL);
+	}
+
+	else if (kind == ML_TOK_MINUS || kind == ML_TOK_SQRT)
+	{
+		advance (p);
+		push (p, FRAME_SQRT_PREFIX, NIL, start, kind, 0);
+	}
+
+	else
+	{
+		push (p, FRAME_SQRT_ATOM, NIL, 0, ML_TOK_END, 0);
+		p->mode = MODE_ATOM;
+	}
+}
+
+/* name '(' ... with the name read: the call node, then its arguments. */
+static void start_call (Parser *p, uint64_t name)
+{
+	uint64_t call = add_node (
+		p,
+		ML_NODE_CALL,
+		node_at (p, name).start,
+		node_end (p, name)
+	);
+
+	adopt (p, call, name);
+	advance (p);
+
+	if (!p->failed && enter (p))
+	{
+		if (peek (p).kind != ML_TOK_RPAREN)
+		{
+			push (p, FRAME_CALL_ARG, call, 0, ML_TOK_END, 0);
+			call_expr (p);
+		}
+
+		else
+		{
+			close_call (p, call);
+			leave (p);
+			give (p, call);
+		}
+	}
+
+	else
+	{
+		give (p, NIL);
+	}
+}
+
+static void mode_atom (Parser *p)
+{
+	MlToken t = peek (p);
+
+	if (t.kind == ML_TOK_NUMBER)
+	{
+		advance (p);
+		give (p, add_leaf (p, ML_NODE_NUMBER, t));
+	}
+
+	else if (t.kind == ML_TOK_NAME)
+	{
+		uint64_t name;
+
+		advance (p);
+		name = add_leaf (p, ML_NODE_NAME, t);
+
+		if (!p->failed && peek (p).kind == ML_TOK_LPAREN)
+		{
+			start_call (p, name);
+		}
+
+		else
+		{
+			give (p, name);
+		}
+	}
+
+	else if (t.kind == ML_TOK_LPAREN)
+	{
+		advance (p);
+
+		if (enter (p))
+		{
+			push (p, FRAME_PAREN, NIL, 0, ML_TOK_END, 0);
+			call_expr (p);
+		}
+
+		else
+		{
+			give (p, NIL);
+		}
+	}
+
+	else
+	{
+		fail_expected (p, t);
+		give (p, NIL);
+	}
+}
+
+/* ---- returns ---- */
+
+/* The left operand is known: take the next operator or hand the node on. */
+static void binary_continue (Parser *p, uint64_t min_level, uint64_t node)
+{
 	uint64_t level = operator_level (p);
 
-	while (!p->failed && level >= min_level && level > 0)
+	if (!p->failed && level >= min_level && level > 0)
 	{
 		MlTokenKind kind = peek (p).kind;
 
@@ -718,16 +767,211 @@ static uint64_t parse_binary (Parser *p, uint64_t min_level)
 			advance (p);
 		}
 
-		node = binary (
-			p,
-			binary_kind (kind),
-			node,
-			parse_binary (p, level + 1)
-		);
-		level = operator_level (p);
+		push (p, FRAME_BIN_RHS, node, 0, kind, min_level);
+		p->mode  = MODE_BINARY;
+		p->level = level + 1;
 	}
 
-	return ml_choose (p->failed, NIL, node);
+	else
+	{
+		give (p, node);
+	}
+}
+
+/* The primary of a factor is known: postfix operators, then an exponent. */
+static void factor_continue (Parser *p, uint64_t node)
+{
+	while (
+		   !p->failed
+		&& (
+			   peek (p).kind == ML_TOK_BANG
+			|| peek (p).kind == ML_TOK_SUPERSCRIPT
+		)
+	)
+	{
+		node = postfix (p, node, advance (p));
+	}
+
+	if (!p->failed && peek (p).kind == ML_TOK_CARET)
+	{
+		advance (p);
+
+		if (enter (p))
+		{
+			push (p, FRAME_FACTOR_EXP, node, 0, ML_TOK_END, 0);
+			p->mode = MODE_UNARY;
+		}
+
+		else
+		{
+			give (p, NIL);
+		}
+	}
+
+	else
+	{
+		give (p, node);
+	}
+}
+
+/* An argument of a call is known: the next one, or the end of the call. */
+static void call_arg_continue (Parser *p, uint64_t call, uint64_t arg)
+{
+	int32_t more;
+
+	adopt (p, call, arg);
+	more = !p->failed && peek (p).kind == ML_TOK_COMMA;
+
+	if (more)
+	{
+		advance (p);
+		push (p, FRAME_CALL_ARG, call, 0, ML_TOK_END, 0);
+		call_expr (p);
+	}
+
+	else
+	{
+		close_call (p, call);
+		leave (p);
+		give (p, call);
+	}
+}
+
+static void mode_return (Parser *p)
+{
+	ParseFrame f   = p->stack.data [p->stack.len - 1];
+	uint64_t   val = p->val;
+
+	p->stack.len--;
+
+	if (f.kind == FRAME_BIN_LHS)
+	{
+		binary_continue (p, f.level, val);
+	}
+
+	else if (f.kind == FRAME_BIN_RHS)
+	{
+		binary_continue (
+			p,
+			f.level,
+			binary (p, binary_kind (f.token), f.node, val)
+		);
+	}
+
+	else if (f.kind == FRAME_UNARY)
+	{
+		leave (p);
+		give (
+			p,
+			ml_choose (
+				f.token == ML_TOK_PLUS,
+				val,
+				prefix (p, ML_NODE_NEG, f.start, val)
+			)
+		);
+	}
+
+	else if (f.kind == FRAME_FACTOR_PRIMARY)
+	{
+		factor_continue (p, val);
+	}
+
+	else if (f.kind == FRAME_FACTOR_EXP)
+	{
+		leave (p);
+		give (p, binary (p, ML_NODE_POW, f.node, val));
+	}
+
+	else if (f.kind == FRAME_PRIMARY_SQRT)
+	{
+		give (p, prefix (p, ML_NODE_SQRT, f.start, val));
+	}
+
+	else if (f.kind == FRAME_SQRT_PREFIX)
+	{
+		leave (p);
+		give (
+			p,
+			prefix (
+				p,
+				ml_choose (f.token == ML_TOK_MINUS, ML_NODE_NEG, ML_NODE_SQRT),
+				f.start,
+				val
+			)
+		);
+	}
+
+	else if (f.kind == FRAME_SQRT_ATOM)
+	{
+		leave (p);
+		give (p, val);
+	}
+
+	else if (f.kind == FRAME_PAREN)
+	{
+		close_paren (p);
+		leave (p);
+		give (p, val);
+	}
+
+	else
+	{
+		call_arg_continue (p, f.node, val);
+	}
+}
+
+static void parse_step (Parser *p)
+{
+	if (p->mode == MODE_BINARY)
+	{
+		mode_binary (p);
+	}
+
+	else if (p->mode == MODE_UNARY)
+	{
+		mode_unary (p);
+	}
+
+	else if (p->mode == MODE_FACTOR)
+	{
+		mode_factor (p);
+	}
+
+	else if (p->mode == MODE_PRIMARY)
+	{
+		mode_primary (p);
+	}
+
+	else if (p->mode == MODE_SQRT_OPERAND)
+	{
+		mode_sqrt_operand (p);
+	}
+
+	else if (p->mode == MODE_ATOM)
+	{
+		mode_atom (p);
+	}
+
+	else
+	{
+		mode_return (p);
+	}
+}
+
+/* expression: runs the machine until the whole expression is one node. */
+static uint64_t parse_expr (Parser *p)
+{
+	uint64_t base = p->stack.len;
+
+	call_expr (p);
+
+	while (!p->failed && (p->mode != MODE_RETURN || p->stack.len > base))
+	{
+		parse_step (p);
+	}
+
+	p->stack.len = base;
+	return ml_choose (p->failed, NIL, p->val);
 }
 
 /* name '(' [name {',' name}] ')' '=' at the current position? */
@@ -906,6 +1150,10 @@ MlParseResult ml_parse (MlSlice source)
 	p.pos          = 0;
 	p.failed       = 0;
 	p.depth        = 0;
+	p.mode         = MODE_BINARY;
+	p.level        = 1;
+	p.val          = NIL;
+	ParseFrameVec_init (&p.stack);
 	p.error.code   = ML_PARSE_OK;
 	p.error.start  = 0;
 	p.error.len    = 0;
@@ -934,6 +1182,7 @@ MlParseResult ml_parse (MlSlice source)
 		ml_ast_free (&result.ast);
 	}
 
+	ParseFrameVec_free (&p.stack);
 	MlTokenVec_free (&p.tokens);
 	return result;
 }
@@ -964,78 +1213,135 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_PARAMS]   = ""
 };
 
-/* Recursive, which is safe: no tree is higher than ML_PARSE_MAX_TREE_DEPTH. */
-static MlResult dump_node (
+static const char *node_label (MlNodeKind kind)
+{
+	return ml_choose (
+		(int32_t)kind < ML_NODE_KIND_COUNT,
+		node_labels [kind],
+		""
+	);
+}
+
+/* Leaves are printed as their text; every other node is a group. */
+static int32_t is_group (MlNodeKind kind)
+{
+	return (
+		   kind != ML_NODE_NIL
+		&& kind != ML_NODE_NUMBER
+		&& kind != ML_NODE_NAME
+		&& kind != ML_NODE_SUPERSCRIPT
+	);
+}
+
+/*
+ * What is printed when the walk arrives at a node: the separator that belongs
+ * between it and what came before, then its text, or for a group the opening
+ * parenthesis and the label.
+ */
+static MlResult dump_enter (
 	MlStr       *out,
 	MlSlice     source,
 	const MlAst *ast,
+	uint64_t    root,
 	uint64_t    index
 )
 {
-	MlNodeKind kind  = ml_ast_node (ast, index).kind;
-	uint64_t   first = ml_ast_node (ast, index).first;
-	MlResult   r     = ML_OK;
-	int32_t    group = 0;
+	MlNode   node   = ml_ast_node (ast, index);
+	MlNode   parent = ml_ast_node (ast, node.parent);
+	MlResult r      = ML_OK;
 
-	if (kind == ML_NODE_NIL)
+	if (index != root)
+	{
+		/* a params group has no label, so its first child needs no space */
+		int32_t tight = (
+			   index == parent.first
+			&& node_label (parent.kind) [0] == '\0'
+		);
+
+		r = ml_str_append (out, ml_slice_cstr (ml_choose (tight, "", " ")));
+	}
+
+	if (r == ML_OK && node.kind == ML_NODE_NIL)
 	{
 		r = ml_str_append (out, ml_slice_cstr ("nil"));
 	}
 
-	else if (kind == ML_NODE_NUMBER || kind == ML_NODE_NAME)
-	{
-		r = ml_str_append (out, ml_ast_text (ast, source, index));
-	}
-
-	else if (kind == ML_NODE_SUPERSCRIPT)
+	else if (r == ML_OK && node.kind == ML_NODE_SUPERSCRIPT)
 	{
 		r = ml_superscript_to_ascii (out, ml_ast_text (ast, source, index));
 	}
 
-	else
+	else if (r == ML_OK && !is_group (node.kind))
 	{
-		const char *label = ml_choose (
-			(int32_t)kind < ML_NODE_KIND_COUNT,
-			node_labels [kind],
-			""
-		);
-
-		group = 1;
-		r     = ml_str_appendf (out, "(%s", label);
-
-		for (
-			uint64_t c = first;
-			c != NIL && r == ML_OK;
-			c = ml_ast_node (ast, c).next
-		)
-		{
-			r = ml_str_append (
-				out,
-				ml_slice_cstr (
-					ml_choose (
-						c == first && label [0] == '\0',
-						"",
-						" "
-					)
-				)
-			);
-
-			if (r == ML_OK)
-			{
-				r = dump_node (out, source, ast, c);
-			}
-		}
+		r = ml_str_append (out, ml_ast_text (ast, source, index));
 	}
 
-	if (r == ML_OK && group)
+	else if (r == ML_OK)
 	{
-		r = ml_str_append (out, ml_slice_cstr (")"));
+		r = ml_str_appendf (out, "(%s", node_label (node.kind));
 	}
 
 	return r;
 }
 
+/*
+ * Walks the tree depth first by following the first, next and parent links,
+ * so it needs no stack: down to the first child when there is one, otherwise
+ * to the next sibling, and when there is none up to the parent, whose group
+ * is closed on the way.
+ */
 MlResult ml_ast_dump (MlStr *out, MlSlice source, const MlAst *ast)
 {
-	return dump_node (out, source, ast, ast->root);
+	uint64_t root   = ast->root;
+	uint64_t cur    = root;
+	int32_t  done   = 0;
+	MlResult r      = ML_OK;
+
+	while (!done && r == ML_OK)
+	{
+		MlNode node = ml_ast_node (ast, cur);
+
+		r = dump_enter (out, source, ast, root, cur);
+
+		if (r == ML_OK && is_group (node.kind) && node.first != NIL)
+		{
+			cur = node.first;
+		}
+
+		else
+		{
+			int32_t climbing = r == ML_OK;
+
+			/* a group without children closes at once */
+			if (r == ML_OK && is_group (node.kind))
+			{
+				r = ml_str_append (out, ml_slice_cstr (")"));
+			}
+
+			while (climbing && r == ML_OK)
+			{
+				MlNode here = ml_ast_node (ast, cur);
+
+				if (cur == root)
+				{
+					done     = 1;
+					climbing = 0;
+				}
+
+				else if (here.next != NIL)
+				{
+					cur      = here.next;
+					climbing = 0;
+				}
+
+				else
+				{
+					cur = here.parent;
+					r   = ml_str_append (out, ml_slice_cstr (")"));
+				}
+			}
+		}
+	}
+
+	return r;
 }
