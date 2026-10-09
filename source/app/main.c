@@ -22,7 +22,7 @@
  * that do not know it ignore the request.
  */
 #define ALT_SCREEN_ON  "\x1b[?1049h\x1b[>1u"
-#define ALT_SCREEN_OFF "\x1b[<u\x1b[?1049l"
+#define ALT_SCREEN_OFF "\x1b[0m\x1b[<u\x1b[?1049l"
 
 /* Opens the session file, or starts a new session that will be saved there. */
 static MlResult open_session (MlEditor *ed, MlSlice path)
