@@ -103,11 +103,7 @@ Two independent layers.
 - Extension `.mlog`, e.g. `physics.mlog`. Files live wherever the user puts them (no forced folder).
 - `matlog physics.mlog` opens or creates that file. Plain `matlog` opens a scratch session in the current directory.
 - In the shell, `:open other.mlog` switches session. A recent files list makes returning easy.
-- File format (UTF-8, `
-` or `
-
-` accepted, written with `
-`): one entry per line, `<tag> <text>`.
+- File format (UTF-8, CRLF or LF accepted, written with LF): one entry per line, `<tag> <text>`.
   - `#` note line: `# some free text`
   - `m:<domain>` math line: `m:matrix A = [[1,2],[3,4]]`
   - `include "path.mlog"` include line (no tag)
@@ -157,11 +153,41 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 7. PGA.
 8. Visualization and notes polish, completion.
 
-## 8. Out of scope (for now)
+## 8. Milestone 1 tasks
+
+Goal: run `matlog file.mlog`, type lines in insert/note mode, switch domain, move around in normal mode, and have everything saved and reloaded. Lines are only echoed (no evaluation yet).
+
+Each task lists its files (headers in `include/matlog/`, sources in `source/matlog/`) and a done-when check.
+
+1. **Core basics** (`core/`): `mem.h` (arena allocator), `str.h` (UTF-8 string builder, code point iteration, display width), `vec.h` (growable array macro/helpers), `err.h` (result codes).
+   Done when: a small test executable exercises arena, string append and UTF-8 iteration (`π` as multi-byte, combining cases excluded for now).
+2. **Platform layer** (`platform/`): `console.h` (enable raw mode and VT output, UTF-8 code page 65001, read key events incl. arrows/Esc/Ctrl, terminal size, resize notice), `fs.h` (read whole file, atomic write via temp + rename, path join, directory of path).
+   Done when: a demo prints each key event decoded as a key code plus modifiers, and Esc is told apart from arrow-key sequences.
+3. **Session model** (`session/session.h`): `Line {kind, domain, text}`, `Session {path, lines[], cursor}`, insert/delete/replace line, domain enum (`algebra`, `equations`, `matrix`, `vector`, `lambda`, `pga2`, `pga3`, `boolean`).
+   Done when: unit-style test builds a session in memory and edits it.
+4. **`.mlog` reader/writer** (`session/mlog.h`): parse and write the format from section 4.7 (note `# `, math `m:<domain> `, `include "x"`, blank), CRLF and LF both accepted, unknown tag becomes an error line, atomic save.
+   Done when: round trip (read, write, read) of a sample file gives identical lines, and a corrupt file never loses data.
+5. **Line editor** (`ui/lineedit.h`): single-line UTF-8 buffer with cursor, insert, backspace, delete, left/right/home/end, word jump, by code point, redraw with correct column width.
+   Done when: edits work with `π`, `√x`, and wide text without cursor drift.
+6. **Rewrite table** (`ui/rewrite.h`): table of ASCII to unicode forms (global + per domain), applied when a token completes, one-step undo with backspace (section 4.2.1). Initial entries: `sqrt(x)` to `√x`, `^2` to `²`, `pi`, `<=`, `>=`, `!=`, `->`, `\alpha`-style Greek, `lambda x.`.
+   Done when: typing `x^2 + sqrt(y)` shows `x² + √y` and backspace right after a rewrite restores the ASCII.
+7. **Input state machine** (`ui/modes.h`): normal/insert/note states, `Esc`, keys from section 3.1 (`j`,`k`,`dd`,`yy`,`p`,`Enter`,`i`,`n`), domain switch keys (`g` + letter) and `:` command line with `:mode`, `:open`, `:w`, `:q`.
+   Done when: all keys work against the session model and the status line shows state + domain (e.g. `-- INSERT -- matrix>`).
+8. **Screen rendering** (`ui/screen.h`): draws visible lines from the session (domain tag, note styling), status line, command line, scrolling to keep the cursor visible, minimal redraw, handles resize.
+   Done when: a session larger than the terminal scrolls correctly and survives resize.
+9. **App wiring** (`app/main.c`): parse args, open or create file (or scratch session), run main loop, save after each committed line, restore terminal on exit and on crash/Ctrl+C.
+   Done when: acceptance test below passes.
+10. **Build**: `premake5.lua` unchanged except possibly a second small `tests` project (console app) for task 1-5 checks.
+
+Acceptance test (manual): open a new file, write a math line in `matrix`, a note, switch to `lambda`, write another line, `:q`, reopen the file and see the same three lines with the same domains and the terminal restored.
+
+Out of milestone 1: evaluation, ghost mode, autocompletion, includes (parsed and stored, not executed), steps.
+
+## 9. Out of scope (for now)
 
 - Own GUI window, GUI toolkit, network features, plugins.
 
-## 9. Decisions log
+## 10. Decisions log
 
 - Terminal only (VT/ANSI, unicode, braille plots); Windows first behind a `platform` layer.
 - Exact rationals + bignum; floats only on request.
@@ -172,6 +198,6 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 - Integrals start with polynomials/tables; PGA both 2D and 3D via a generic signature.
 - Includes are read-only and acyclic.
 
-## 10. Open questions
+## 11. Open questions
 
-None at the moment. Next step: break milestone 1 into concrete tasks (module headers, line editor, session file reader/writer).
+None at the moment. Next step: implement milestone 1 tasks in order.
