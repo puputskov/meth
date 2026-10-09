@@ -26,6 +26,9 @@ Each domain is a mode (see section 3).
 | Projective geometric algebra (PGA) | multivectors, geometric products, motors; both 2D `R(2,0,1)` and 3D `R(3,0,1)` |
 | Boolean algebra | expressions, truth tables, simplification |
 | Units | SI units and conversions, dimensional analysis (cross-cutting, usable in any mode) |
+| Complex numbers and quaternions | arithmetic, polar form, rotations (section 4.17) |
+| Statistics | descriptive statistics, regression, distributions (section 4.22) |
+| Images | load, convolution kernels, pointwise maps (section 4.20) |
 
 ### 2.1 Domain details
 - Integration scope, in order: polynomials and the table integrals (powers, `exp`, `ln`, trig), linearity and constant factors,
@@ -445,6 +448,88 @@ generated static website.
 - The CLI (section 4.13) reads the same settings for the display options and ignores the key bindings; `matlog config get|set|list|path` reads and
   changes settings without the screen, for scripts and agents.
 
+### 4.16 Examples and snippets
+
+- **Examples** are worked sessions that show how to solve real problems with matlog, written as `.mlog` files in `examples/` with notes that explain each
+  step. They are built in like the documentation pages (compiled in, browsable in the help viewer under an "Examples" entry, searchable), and `:examples`
+  opens a table of contents grouped by area; picking one opens it as a read only session that can be copied into the user's own file. Every example is
+  evaluated by a test, so it never goes stale.
+- They cover every area (arithmetic, symbolic, matrices, units, boolean, lambda, PGA, statistics, images) and interesting algorithms and problems
+  with their solution: solving linear systems, least squares fit, Newton's method, change of basis, rotations with motors, Church numerals and
+  recursion with the Y combinator, minimising a boolean circuit, and a robot arm.
+- **Inverse kinematics** is a flagship example: a planar two link arm (forward kinematics with rotations, the closed form inverse with `acos`,
+  the Jacobian and its pseudo inverse, damped least squares iteration), then a 3D arm with motors once PGA exists. It shows what the tool must be able
+  to do and drives requirements for functions, vectors and plots.
+- **Snippets** are small named pieces of text that expand in place: `:snippet name` or a completion entry inserts a template (a line or a block
+  with placeholders; Tab moves to the next one). Built in snippets (a matrix template, a loop style sum, a rotation) plus the user's own in a
+  `snippets` file in the settings folder; they appear in autocompletion (section 4.3) and in the help.
+
+### 4.17 More number systems: complex numbers and quaternions
+
+- **Complex numbers** are a value kind with exact rational parts (`3 + 4i`, `i^2 = -1`): arithmetic, `conj`, `re`, `im`, `abs`, `arg`, polar form,
+  `sqrt` of negatives, roots of unity, and complex roots in `solve` (the `not_real` error becomes a result where it makes sense). Matrices may hold
+  complex entries.
+- **Quaternions** are a value kind (`1 + 2i + 3j + 4k`, or `quat (w, x, y, z)`): the Hamilton product, conjugate, norm, inverse, normalise, conversion
+  from and to axis angle and rotation matrices, `slerp`, rotating a vector (`q v q*`). Shown in the same way as results are today, with exact or approximate
+  parts. They connect to PGA (motors, milestone 7) and to the inverse kinematics example.
+- Both get highlight classes, completion, steps for the product, export in LaTeX and MathML, JSON types `complex` and `quaternion`, and documentation pages.
+
+### 4.18 Standard library
+
+- A library of useful functions written in matlog's own language and included by default (read only, acyclic includes as in section 4.8, so a user can
+  read and copy them): number theory (`isprime`, `factor`, `fib`, `binomial`), sequences and sums (`sum`, `prod`, `range`), root finding (`newton`,
+  `bisect`), numeric integration and ODE steps (`simpson`, `rk4`), interpolation and fits (`lerp`, `polyfit`, `lstsq`), vector helpers (`proj`,
+  `gram_schmidt`), geometry (rotation matrices, `deg`, `rad`), physical constants with units, and the stat functions of section 4.22.
+- This needs user defined functions with several statements, conditionals, recursion limits and lists/ranges in the language (to be designed: the
+  evaluator today has single expression functions). Functions are documented by a comment convention that the help viewer and the completion read.
+- Each function has a test and, where it teaches something, an example (section 4.16).
+
+### 4.19 Export of functions to C, C++ and Python
+
+- A function or a block of definitions can be exported as source code: `:export-code FILE.c|.cpp|.py` or `matlog codegen FILE:LINE --lang c|cpp|python`.
+  The expression tree of the function is the input; the output is a plain function (doubles, or fixed-size arrays for vectors and matrices) with the
+  names of the parameters, a comment holding the original matlog line, and constants and helper functions it needs from the standard library.
+- Targets: C11 (`double`, `<math.h>`), C++17 (`std::array`, `<cmath>`, optionally a small header only vector/matrix type), Python 3 (plain functions,
+  optionally with NumPy). Exact rationals become `double` constants (with a note), integers stay integers where the type is known.
+- Symbolic results are exported after simplification, so `diff` and `integrate` results become code (derivatives and Jacobians for the inverse kinematics
+  example). A test compiles the output of the examples with the system compiler, or runs it with Python when present, and compares values.
+- Functions that cannot be exported (symbols that stand for nothing, unsupported domains) give a clear error with a byte range.
+
+### 4.20 Images and kernels
+
+- **Load an image** (`img = load ("photo.png")`; PNG and PPM/PGM to start, read by the program itself without a dependency) as a value kind `image`
+  (width, height, channels, float or 8 bit samples). Shown in the terminal as a small preview (half blocks and 24 bit colour, or braille in grayscale),
+  with `size (img)`, `crop`, `resize`, `gray`, `channel`, and `save (img, "out.png")`.
+- **Kernels** are small matrices applied by convolution: `conv (img, K)` with the matrices of the matrix domain (blur, sharpen, Sobel edges, Gaussian
+  from a function), with the border rules named (`clamp`, `wrap`, `zero`). Also pointwise kernels, written as an expression of `p` (the pixel) and
+  `x`, `y`: `map (img, p -> 255 - p)`. Steps show the sum for one chosen pixel, as the matrix product steps do.
+- Kernels written as matlog functions can be exported to C, C++ and Python (section 4.19) as a loop over the pixels.
+- Limits: images are held on the heap with a size cap (so ghost mode stays fast: ghost never runs a kernel on a large image, it shows the size
+  only); the CLI gets `matlog eval` with image results written to a file. Needs PNG decoding (inflate) and encoding (the export module needs it for
+  section 4.11 anyway, so they are shared).
+
+### 4.21 Watch window
+
+- A panel (toggle `F4`, or `:watch`) listing every variable and function of the environment at the cursor line: name, type (`exact`, `approx`,
+  `matrix 3x3`, `expr`, `quantity`, `complex`, `image 640x480`, `function f(x, y)`, boolean and lambda definitions), and value (shortened to fit, a
+  matrix as its dimensions plus the first rows). The list follows the cursor: it shows the environment as that line saw it (the snapshots the
+  results already keep), so moving up and down shows how values change, and the names defined or changed by the cursor line are marked.
+- Enter on an entry expands it (a full matrix, a long expression), and `d` jumps to the line that defines it. Sorting by order of definition
+  or name, and a filter by typing. The panel is drawn in the screen module with theme classes of its own (`watch-name`, `watch-type`, `watch-value`).
+- The same data is available from the CLI: `matlog vars FILE[:LINE]` prints the table (`--format json` for tools).
+
+### 4.22 Statistics
+
+- Functions over lists/vectors (data can be written `[1, 2, 3]`, loaded from a CSV file with `load_csv ("data.csv")`, or generated with `range`):
+  `mean`, `median`, `mode`, `var`, `std` (sample and population forms), `min`, `max`, `quantile`, `iqr`, `cov`, `corr`, `skew`, `kurt`, `cumsum`,
+  `sort`, `histogram`, with exact rational results where the data is exact.
+- Regression: `linfit (x, y)` (slope, intercept, r squared), `polyfit (x, y, n)`, `lstsq`, with the steps of the normal equations shown as matrix steps.
+- Distributions: `normal_pdf`, `normal_cdf` and its inverse, `binomial_pdf`, `poisson_pdf`, `t`/`chi2` quantiles for tests, `zscore`; combinatorics
+  (`binomial`, `perm`) from the standard library. Random numbers only through an explicit seeded generator (`rand (seed)`) so results stay
+  reproducible when a session is opened again.
+- Visualisation (section 4.6): histogram and scatter plots in braille/block characters. Highlight, completion, docs page, examples
+  and tests as for every domain; the results are exact where possible, approximate and marked as `≈` otherwise.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
@@ -505,6 +590,14 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
    exist; the milestone 3 to 7 lessons of stage 2 are added together with the domains. The whole tutorial is complete when the last domain is done.
 15. Settings and key bindings (section 4.15). The key table should come before the tutorial and the documentation so that they can show the
    user's own keys; the settings file can be built any time after milestone 2.
+16. Examples and snippets (section 4.16): the browsable table of contents and the first examples can start as soon as the help viewer exists
+   (it does); examples that need later features (inverse kinematics with motors, images, statistics) are added with those features, each tested.
+17. Complex numbers and quaternions (section 4.17), before PGA's motors are tied to quaternions, and before the polished inverse kinematics example.
+18. Statistics (section 4.22) and the standard library (section 4.18). The standard library needs multi statement user functions in the language
+   and lists/ranges first; statistics can start with the vector functions that already exist.
+19. Watch window (section 4.21), after the editor can show a side panel; it only reads the environment snapshots the results keep.
+20. Export of functions to C, C++ and Python (section 4.19), after the standard library, so the helper functions can be exported with the function.
+21. Images and kernels (section 4.20), with the PNG reader and writer shared with the export module (milestone 10).
 
 ## 8. Milestone 1 tasks
 
