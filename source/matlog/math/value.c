@@ -16,6 +16,7 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_NOT_INTEGER]    = "an integer is needed",
 	[ML_EVAL_UNDEFINED_NAME] = "undefined name",
 	[ML_EVAL_NOT_FUNCTION]   = "not a function",
+	[ML_EVAL_NOT_VALUE]      = "a function is not a number",
 	[ML_EVAL_ARITY]          = "wrong number of arguments",
 	[ML_EVAL_TOO_LARGE]      = "value too large",
 	[ML_EVAL_DEPTH]          = "recursion too deep",
@@ -482,6 +483,25 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 	return r;
 }
 
+/*
+ * A range that is a plain name. The range of an error inside a function body
+ * is the call, which has a parenthesis; quoting that as a name would be wrong.
+ */
+static int32_t is_word (MlSlice text)
+{
+	int32_t word = text.len > 0;
+
+	for (uint64_t i = 0; i < text.len; i++)
+	{
+		if (text.data [i] == '(')
+		{
+			word = 0;
+		}
+	}
+
+	return word;
+}
+
 MlResult ml_error_message (MlStr *out, MlValue v, MlSlice source)
 {
 	MlResult r = ml_str_append (out, ml_slice_cstr (ml_error_text (v.error)));
@@ -491,6 +511,7 @@ MlResult ml_error_message (MlStr *out, MlValue v, MlSlice source)
 		&& v.error == ML_EVAL_UNDEFINED_NAME
 		&& v.error_len > 0
 		&& v.error_start + v.error_len <= source.len
+		&& is_word (ml_slice_sub (source, v.error_start, v.error_len))
 	)
 	{
 		r = ml_str_append (out, ml_slice_cstr (" '"));

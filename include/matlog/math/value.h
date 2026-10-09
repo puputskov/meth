@@ -35,6 +35,7 @@ typedef enum MlErrorKind
 	ML_EVAL_NOT_INTEGER,    /* an integer is needed */
 	ML_EVAL_UNDEFINED_NAME, /* variable or function that does not exist */
 	ML_EVAL_NOT_FUNCTION,   /* a call of something that is not a function */
+	ML_EVAL_NOT_VALUE,      /* a function used where a number is needed */
 	ML_EVAL_ARITY,          /* wrong number of arguments */
 	ML_EVAL_TOO_LARGE,      /* the result got too large */
 	ML_EVAL_DEPTH,          /* recursion went too deep */

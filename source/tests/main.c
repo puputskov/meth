@@ -18,6 +18,7 @@ void run_value_tests (void);
 void run_lexer_tests (void);
 void run_parser_tests (void);
 void run_env_tests (void);
+void run_eval_tests (void);
 
 int main (void)
 {
@@ -36,6 +37,7 @@ int main (void)
 	run_lexer_tests ();
 	run_parser_tests ();
 	run_env_tests ();
+	run_eval_tests ();
 
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);
 	return ml_choose (
