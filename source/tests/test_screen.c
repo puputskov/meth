@@ -1230,6 +1230,62 @@ static void test_themed_notes (void)
 	ml_editor_free (&ed);
 }
 
+static void test_theme_switch (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+	MlKey    ctrl_p = { .code = ML_KEY_CHAR, .cp = 'p', .mods = ML_MOD_CTRL };
+
+	ml_editor_init (&ed);
+	ed.highlight = 1;
+	ml_editor_begin (&ed);
+	ml_screen_init (&s, 40, 8);
+	type (&ed, "2+x");
+	press (&ed, ML_KEY_ESCAPE);
+
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[38;2;181;206;168m" "2"));
+	ml_layout_free (&l);
+
+	/* :theme light changes the colours of the line */
+	CHECK (ml_editor_handle_key (&ed, ctrl_p) == ML_OK);
+	type (&ed, "theme light");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.highlight);
+	CHECK (ml_slice_equal (lit (ed.theme.name), lit ("light")));
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[38;2;9;134;88m" "2"));
+	CHECK (!row_contains (&l, 0, "\x1b[38;2;181;206;168m"));
+	ml_layout_free (&l);
+
+	/* the frame that follows a theme change draws the line again */
+	{
+		MlStr out;
+
+		ml_str_init (&out);
+		ml_theme_builtin (&ed.theme, lit ("dark"));
+		CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
+		ml_str_clear (&out);
+		ml_theme_builtin (&ed.theme, lit ("light"));
+		CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
+		CHECK (out.len > 0);
+		CHECK (strstr (ml_str_cstr (out), "[38;2;9;134;88m") != NULL);
+		ml_str_free (&out);
+	}
+
+	/* and contrast */
+	CHECK (ml_editor_handle_key (&ed, ctrl_p) == ML_OK);
+	type (&ed, "theme contrast");
+	press (&ed, ML_KEY_ENTER);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[38;2;127;255;127m" "2"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_themed_rows (void)
 {
 	MlEditor ed;
@@ -1283,6 +1339,7 @@ void run_screen_tests (void)
 	test_empty_gutter ();
 	test_block_start_gutter ();
 	test_themed_rows ();
+	test_theme_switch ();
 	test_themed_notes ();
 	test_basic_layout ();
 	test_hit ();

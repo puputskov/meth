@@ -120,40 +120,60 @@ static MlResult sync_folds (MlEditor *ed, MlStr *path, MlStr *folds)
 #define SETTINGS_COLORS  "colors"
 
 /*
- * Keeps the look in the settings file: when the theme or the colour level
- * is not what was seen the last time (look holds "theme colors"), both are
- * written. A file that cannot be written is not worth an exit.
+ * Keeps the look in the settings file: the theme is written when it is not
+ * the one seen the last time, the colour level likewise, each on its own so
+ * that a level that was only detected is not written down. look holds
+ * "theme colors" as seen last (empty before the first call). A file that
+ * cannot be written is not worth an exit.
  */
 static MlResult sync_look (const MlEditor *ed, MlStr *look)
 {
 	MlResult r = ML_OK;
 	MlStr    now;
+	MlSlice  was   = ml_str_view (*look);
+	uint64_t split = 0;
+	MlSlice  theme = ml_slice_cstr (ed->theme.name);
+	MlSlice  level = ml_slice_cstr (ml_color_level_name (ed->colors));
 
 	ml_str_init (&now);
+
+	while (split < was.len && was.data [split] != ' ')
+	{
+		split++;
+	}
+
+	if (look->len > 0)
+	{
+		if (!ml_slice_equal (ml_slice_sub (was, 0, split), theme))
+		{
+			ml_settings_set (
+				ml_slice_cstr (SETTINGS_DISPLAY),
+				ml_slice_cstr (SETTINGS_THEME),
+				theme
+			);
+		}
+
+		if (
+			!ml_slice_equal (
+				ml_slice_sub (was, split + 1, was.len - split - 1),
+				level
+			)
+		)
+		{
+			ml_settings_set (
+				ml_slice_cstr (SETTINGS_DISPLAY),
+				ml_slice_cstr (SETTINGS_COLORS),
+				level
+			);
+		}
+	}
+
 	r = ml_str_appendf (
 		&now,
 		"%s %s",
 		ed->theme.name,
 		ml_color_level_name (ed->colors)
 	);
-
-	if (
-		   r == ML_OK
-		&& look->len > 0
-		&& !ml_slice_equal (ml_str_view (now), ml_str_view (*look))
-	)
-	{
-		ml_settings_set (
-			ml_slice_cstr (SETTINGS_DISPLAY),
-			ml_slice_cstr (SETTINGS_THEME),
-			ml_slice_cstr (ed->theme.name)
-		);
-		ml_settings_set (
-			ml_slice_cstr (SETTINGS_DISPLAY),
-			ml_slice_cstr (SETTINGS_COLORS),
-			ml_slice_cstr (ml_color_level_name (ed->colors))
-		);
-	}
 
 	if (r == ML_OK)
 	{

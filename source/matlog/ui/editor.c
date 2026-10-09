@@ -1694,7 +1694,16 @@ static MlResult set_theme (MlEditor *ed, MlSlice arg)
 		ed->theme     = next;
 		ed->highlight = 1;
 		ml_str_clear (&ed->message);
-		r = ml_str_appendf (&ed->message, "theme: %s", next.name);
+		r = ml_str_appendf (
+			&ed->message,
+			"theme: %s%s",
+			next.name,
+			ml_choose (
+				ed->colors == ML_COLORS_OFF,
+				" (colors are off, see :colors)",
+				""
+			)
+		);
 	}
 
 	else if (load_user_theme (ed, name) != ML_OK)
