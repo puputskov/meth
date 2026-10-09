@@ -1439,6 +1439,47 @@ static MlResult quit (MlEditor *ed, int32_t force)
 	return r;
 }
 
+/*
+ * :symbols on makes a name that stands for nothing a symbol (x + y is the
+ * expression x + y), :symbols off brings back the error for a mistyped name.
+ * Without an argument the setting is shown.
+ */
+static MlResult set_symbols (MlEditor *ed, MlSlice arg)
+{
+	MlResult r = ML_OK;
+
+	if (ml_slice_equal (arg, ml_slice_cstr ("on")))
+	{
+		ed->results.free_symbols     = 1;
+		ed->results.env.free_symbols = 1;
+	}
+
+	else if (ml_slice_equal (arg, ml_slice_cstr ("off")))
+	{
+		ed->results.free_symbols     = 0;
+		ed->results.env.free_symbols = 0;
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_results_update (&ed->results, &ed->session, 0);
+	}
+
+	if (r == ML_OK)
+	{
+		r = set_message (
+			ed,
+			ml_choose (
+				ed->results.free_symbols,
+				"symbols: on",
+				"symbols: off"
+			)
+		);
+	}
+
+	return r;
+}
+
 static MlResult set_mode (MlEditor *ed, MlSlice name)
 {
 	MlResult       r = ML_OK;
@@ -1810,6 +1851,11 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "steps"))
 	{
 		r = toggle_steps (ed);
+	}
+
+	else if (is_cmd (cmd, "symbols"))
+	{
+		r = set_symbols (ed, arg);
 	}
 
 	else if (is_cmd (cmd, "undo") || is_cmd (cmd, "u"))

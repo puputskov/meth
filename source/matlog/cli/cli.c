@@ -32,6 +32,7 @@ static const char *const help_overview =
 	"  --format text|json   the output form (default text)\n"
 	"  --session FILE       eval: the session whose definitions are visible\n"
 	"  --write              eval: keep the new lines in the session file\n"
+	"  --symbols            a name that stands for nothing is a symbol\n"
 	"\n"
 	"An argument - reads standard input. Exit codes: 0 success, 1 an "
 	"expression\n"
@@ -102,7 +103,8 @@ static const char *const syntax_text =
 	"             det inv transpose trace rank rref solve identity dot "
 	"cross norm\n"
 	"Symbolic     simplify(f) expand(f) subs(f, x, v) diff(f, x [, n]) "
-	"integrate(f, x [, a, b]) limit(f, x, a [, side]); inf is infinity\n"
+	"integrate(f, x [, a, b]) limit(f, x, a [, side]) solve(f, x);\n"
+	"             inf is infinity; solve gives the real roots of f as a set\n"
 	"             names are symbols inside these: diff(x^3, x) is 3x\xC2\xB2; "
 	"results can be stored\n"
 	"Units        5 km + 300 m, 12 N * 3 m; a to b converts: 3 ft to m;\n"
@@ -266,6 +268,7 @@ typedef struct Options
 	int32_t    json;
 	MlSlice    session;
 	int32_t    write;
+	int32_t    symbols; /* --symbols: unknown names are symbols */
 	MlSliceVec rest;    /* the arguments that are not options */
 	const char *problem; /* NULL, or what is wrong with the arguments */
 } Options;
@@ -288,6 +291,7 @@ static MlResult options_read (
 	o->json    = 0;
 	o->session = ml_slice ("", 0);
 	o->write   = 0;
+	o->symbols = 0;
 	o->problem = NULL;
 	MlSliceVec_init (&o->rest);
 
@@ -333,6 +337,11 @@ static MlResult options_read (
 		else if (is (a, "--write"))
 		{
 			o->write = 1;
+		}
+
+		else if (is (a, "--symbols"))
+		{
+			o->symbols = 1;
 		}
 
 		else if (starts_with (a, "--"))
@@ -728,6 +737,8 @@ static int32_t cmd_eval (
 
 	ml_session_init (&s);
 	ml_results_init (&res);
+	res.free_symbols     = o->symbols;
+	res.env.free_symbols = o->symbols;
 
 	if (o->rest.len == 0)
 	{
@@ -829,6 +840,8 @@ static int32_t cmd_run (const Options *o, MlStr *out, MlStr *err)
 
 	ml_session_init (&s);
 	ml_results_init (&res);
+	res.free_symbols     = o->symbols;
+	res.env.free_symbols = o->symbols;
 
 	if (o->rest.len != 1)
 	{
@@ -1084,6 +1097,8 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 
 	ml_session_init (&s);
 	ml_results_init (&res);
+	res.free_symbols     = o->symbols;
+	res.env.free_symbols = o->symbols;
 
 	if (o->rest.len != 1)
 	{

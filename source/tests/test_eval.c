@@ -1057,6 +1057,39 @@ static void test_limits (void)
 	session_free (&s);
 }
 
+static void test_free_symbols (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* off by default: a name that stands for nothing is a mistake */
+	CHECK (fails (&s, "x + y", ML_EVAL_UNDEFINED_NAME));
+
+	s.env.free_symbols = 1;
+	CHECK (shows (&s, "x + y", "x + y"));
+	CHECK (shows (&s, "2x + 3x", "5x"));
+	CHECK (shows (&s, "x - x", "0"));
+	CHECK (shows (&s, "x*y*2", "2x\xC2\xB7y"));
+	CHECK (shows (&s, "sin(x)", "sin(x)"));
+	CHECK (shows (&s, "(x + 1)*(x - 1)", "(x - 1)\xC2\xB7(x + 1)"));
+	CHECK (shows (&s, "diff(x^3, x)", "3x\xC2\xB2"));
+	CHECK (shows (&s, "solve(x^2 - 9, x)", "{-3, 3}"));
+
+	/* a symbol can be stored, and a number defined later hides the symbol */
+	run (&s, "e1 = x + 1");
+	CHECK (shows (&s, "e1*2", "2x + 2"));
+	run (&s, "x = 4");
+	CHECK (shows (&s, "x + 1", "5"));
+	CHECK (shows (&s, "subs(e1, x, 2)", "3"));
+
+	/* constants and units are still what they are */
+	CHECK (shows (&s, "2pi", "\xE2\x89\x88 6.28318531"));
+	CHECK (shows (&s, "5 km", "5000 m"));
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -1077,4 +1110,5 @@ void run_eval_tests (void)
 	test_symbolic_errors ();
 	test_units ();
 	test_limits ();
+	test_free_symbols ();
 }

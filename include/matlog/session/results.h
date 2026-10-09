@@ -73,6 +73,7 @@ typedef struct MlResults
 {
 	MlEnv           env;
 	MlLineResultVec lines;
+	int32_t         free_symbols; /* see MlEnv; kept when the env restarts */
 } MlResults;
 
 void ml_results_init (MlResults *r);

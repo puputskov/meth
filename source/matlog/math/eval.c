@@ -1094,6 +1094,18 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 			{
 				v = unit_value (cx->arena, name);
 			}
+
+			if (
+				   v.kind == ML_VALUE_ERROR
+				&& v.error == ML_EVAL_UNDEFINED_NAME
+				&& cx->env->free_symbols
+			)
+			{
+				MlSymCtx sctx;
+
+				ml_symctx_init (&sctx, cx->arena);
+				v = ml_value_expr (ml_sym_var (&sctx, name), sctx.status);
+			}
 		}
 	}
 

@@ -9,6 +9,7 @@ typedef enum ArgKind
 	ARG_NONE = 0,
 	ARG_DOMAIN,
 	ARG_PGA_DIM,
+	ARG_ON_OFF,
 	ARG_PATH /* files are not completed yet */
 } ArgKind;
 
@@ -36,6 +37,7 @@ static const Command commands [] =
 	{ .name = "mode",  .arg = ARG_DOMAIN,  .needs_arg = 1 },
 	{ .name = "pga",   .arg = ARG_PGA_DIM, .needs_arg = 1 },
 	{ .name = "steps", .arg = ARG_NONE,    .needs_arg = 0 },
+	{ .name = "symbols", .arg = ARG_ON_OFF, .needs_arg = 0 },
 	{ .name = "undo",  .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "redo",  .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "delete", .arg = ARG_NONE,   .needs_arg = 0 },
@@ -168,6 +170,12 @@ MlCompletion ml_complete_command (MlSlice line)
 			{
 				add_candidate (&c, typed, ml_domain_name ((MlDomain)d));
 			}
+		}
+
+		else if (kind == ARG_ON_OFF && !more)
+		{
+			add_candidate (&c, typed, "on");
+			add_candidate (&c, typed, "off");
 		}
 
 		else if (kind == ARG_PGA_DIM && !more)

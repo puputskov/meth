@@ -44,6 +44,12 @@ typedef struct MlEnv
 {
 	MlArena      arena;
 	MlBindingVec bindings;
+	/*
+	 * 1: a name that stands for nothing is a symbol, so x + y is the
+	 * expression x + y instead of an error (see :symbols). It is a property
+	 * of the evaluation, not of a binding, and survives ml_env_truncate.
+	 */
+	int32_t      free_symbols;
 } MlEnv;
 
 void ml_env_init (MlEnv *env);

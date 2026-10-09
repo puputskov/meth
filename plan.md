@@ -689,6 +689,22 @@ with exact results and steps on request.
 5. **Integral** (`sym/integrate.c`): polynomials, table, linear arguments, definite integrals; steps.
 6. **Values and evaluator**: the expression value kind, the symbolic functions in the evaluator, environment copies, results, JSON type `expr`.
 7. **Steps** for the symbolic functions (`s` on a line).
+8. **Limits** (`sym/limit.c`): `limit(f, x, a [, side])`, `a` a point or `inf`/`-inf`, `side` 1 or -1 (both sides must agree without it). An extended
+   evaluation (finite values with the side they are approached from, infinities, unknown) gives the limit by substitution, and l'Hopital's rule on
+   a quotient, or on a product of a zero and an infinite factor written as a quotient, gives the rest. What is not found is `no_limit`. Definite
+   integrals with `inf` bounds use it (`integrate(exp(-x), x, 0, inf)`). Not built: infinity minus infinity (`sqrt(x^2+x) - x`), series.
+9. **More integrals** (`sym/ratfun.c`, `sym/intmore.c`): partial fractions for quotients of polynomials (rational roots of the denominator with their
+   multiplicities and one irreducible quadratic, solved as an exact linear system; atan or a logarithm for the quadratic), substitution (every inner
+   part of the integrand is tried as u), integration by parts (repeated through a work list, by the order inverse trig, log, algebraic, trig, exp,
+   and solving I = A + k I when the integral comes back), and the half angle formulas for sin² and cos². An answer from these methods is checked by
+   differentiating it at sample points before it is believed. Not built: a quadratic factor that is squared in the denominator, cubics and quartics
+   without rational roots, trigonometric substitution. The rules of the steps are the enum `MlRule` with `ml_rule_name`.
+10. **Solving** (`sym/solve.c`): `solve(f, x)` gives the real solutions of f = 0 as a set `{-2, 2}`: roots of polynomials (rational roots, then the
+   quadratic formula), polynomials in x^k, quotients (without the zeros of the denominator, sums of fractions over one line), and polynomials in
+   exp(x), ln(x), a power or a root of x. When the second argument is a name that stands for nothing it is this; with matrices it is still the
+   linear system. Not built: systems of equations (the equations domain), complex roots, cubic and quartic formulas, trigonometric equations.
+11. **Free symbols**: `:symbols on` (or `matlog eval --symbols`) makes a name that stands for nothing a symbol everywhere, so `x + y` is the
+   expression `x + y`; off by default so that a mistyped name stays an error. A number defined later hides the symbol.
 
 ## 9d. Milestone 5 tasks
 
@@ -747,4 +763,9 @@ and a result can be shown in any unit of the same dimension (`to`), also reduced
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Milestones 1 to 4 are done (milestone 5, units, is started: milestone 5 is built (the editor does not use the math completion and there is no highlighting yet): the dimensions, the unit table, the quantity values, the `to` syntax, the evaluator, the display, the conversion steps and `dim`) (milestone 4: symbolic simplify, expand, subs, diff and integrate with steps; integration by parts and substitution, limits and solving equations are not built yet). Built beyond the milestones: the command line interface (eval, run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes. Next: the highlighting and themes, export, documentation, the tutorial, proofs (sections 4.9 to 4.14), or milestone 5 (units).
+Milestones 1 to 5 are done. What each leaves for later is written in its own section: milestone 3 (the matrix steps are built, a typeset display of
+results is), milestone 4 (see its tasks 8 to 11 for what was added after the first version, and what is still missing there), milestone 5 (unit
+names in the completion and the highlighting of math lines, which do not exist yet). Built beyond the milestones: the command line interface (eval,
+run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes, the free form editor
+with selection, mouse, pages and the settings file for folds (section 3). Next: highlighting and themes, export, documentation, the tutorial, proofs
+(sections 4.9 to 4.14), or milestone 6 (lambda calculus and boolean algebra).
