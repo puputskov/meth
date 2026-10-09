@@ -459,7 +459,12 @@ static void test_boolean (void)
 	CHECK (is_value (&r, 2, "a \xE2\x88\xA7 b"));
 	CHECK (ml_results_get (&r, 2).block.len > 0);
 	CHECK (ml_results_get (&r, 3).kind == ML_RESULT_ERROR);
-	CHECK (ml_slice_equal (ml_results_get (&r, 3).code, lit ("bool_expected_operand")));
+	CHECK (
+		ml_slice_equal (
+			ml_results_get (&r, 3).code,
+			lit ("bool_expected_operand")
+		)
+	);
 	CHECK (is_value (&r, 4, "2"));
 
 	/* the algebra lines do not see the boolean names */
@@ -468,7 +473,15 @@ static void test_boolean (void)
 	CHECK (ml_results_get (&r, 5).kind == ML_RESULT_ERROR);
 
 	/* editing the definition changes the lines below it */
-	CHECK (ml_session_replace (&s, 0, ML_LINE_MATH, ML_DOMAIN_BOOLEAN, lit ("p = a | b")) == ML_OK);
+	CHECK (
+		ml_session_replace (
+			&s,
+			0,
+			ML_LINE_MATH,
+			ML_DOMAIN_BOOLEAN,
+			lit ("p = a | b")
+		) == ML_OK
+	);
 	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 	CHECK (is_value (&r, 1, "true"));
 
