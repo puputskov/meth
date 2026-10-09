@@ -35,7 +35,11 @@ MlResult ml_config_os_dir (MlStr *out)
 
 		if (r == ML_OK)
 		{
-			r = ml_path_join (out, ml_str_view (base), ml_slice_cstr ("matlog"));
+			r = ml_path_join (
+				out,
+				ml_str_view (base),
+				ml_slice_cstr ("matlog")
+			);
 		}
 	}
 

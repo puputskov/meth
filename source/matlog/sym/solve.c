@@ -81,17 +81,26 @@ static int32_t poly_roots (MlSymCtx *ctx, MlPoly p, SymPtrVec *out)
 			if (ml_rat_sign (disc) > 0)
 			{
 				const MlSym *root = ml_rat_root_node (ctx, disc);
-				const MlSym *mid  = ml_sym_num (ctx, ml_rat_neg (ctx->arena, pp));
+				const MlSym *mid
+					= ml_sym_num (ctx, ml_rat_neg (ctx->arena, pp));
 
 				add (
 					ctx,
 					out,
-					ml_sym_div (ctx, ml_sym_sub (ctx, mid, root), int_node (ctx, 2))
+					ml_sym_div (
+						ctx,
+						ml_sym_sub (ctx, mid, root),
+						int_node (ctx, 2)
+					)
 				);
 				add (
 					ctx,
 					out,
-					ml_sym_div (ctx, ml_sym_add (ctx, mid, root), int_node (ctx, 2))
+					ml_sym_div (
+						ctx,
+						ml_sym_add (ctx, mid, root),
+						int_node (ctx, 2)
+					)
 				);
 			}
 		}
@@ -141,7 +150,8 @@ static int32_t invert (
 		}
 	}
 
-	else if (u->kind == ML_SYM_POW && ml_sym_linear_parts (ctx, u->kids [0], x, &a, &b))
+	else if (u->kind == ML_SYM_POW
+	         && ml_sym_linear_parts (ctx, u->kids [0], x, &a, &b))
 	{
 		const MlSym *e     = u->kids [1];
 		const MlSym *one_n = NULL;
@@ -161,7 +171,11 @@ static int32_t invert (
 					add (
 						ctx,
 						out,
-						ml_sym_div (ctx, ml_sym_sub (ctx, ml_sym_neg (ctx, r), b), a)
+						ml_sym_div (
+							ctx,
+							ml_sym_sub (ctx, ml_sym_neg (ctx, r), b),
+							a
+						)
 					);
 				}
 
@@ -173,7 +187,10 @@ static int32_t invert (
 				const MlSym *r = ml_choose (
 					sg >= 0,
 					ml_sym_pow (ctx, w0, one_n),
-					ml_sym_neg (ctx, ml_sym_pow (ctx, ml_sym_neg (ctx, w0), one_n))
+					ml_sym_neg (
+						ctx,
+						ml_sym_pow (ctx, ml_sym_neg (ctx, w0), one_n)
+					)
 				);
 
 				add (ctx, out, ml_sym_div (ctx, ml_sym_sub (ctx, r, b), a));
@@ -310,7 +327,8 @@ static int32_t together (
 			ds [i].c [0] = ml_rat_from_i64 (ctx->arena, 1);
 		}
 
-		ok = ml_poly_from_sym (ctx, t, x, &ns [i]) || ml_rational_parts (ctx, t, x, &ns [i], &ds [i]);
+		ok = ml_poly_from_sym (ctx, t, x, &ns [i])
+		     || ml_rational_parts (ctx, t, x, &ns [i], &ds [i]);
 		all = ml_poly_mul (ctx, all, ds [i]);
 		ok  = ok && all.len <= MAX_POLY_DEGREE + 1;
 	}
@@ -351,7 +369,7 @@ static int32_t satisfies (
 
 	if (ml_sym_to_double (ctx->arena, ml_sym_substitute (ctx, f, x, root), &v))
 	{
-		ok = (v < 0 ? -v : v) < 1e-6;
+		ok = ml_choose (v < 0, -v, v) < 1e-6;
 	}
 
 	ctx->log = saved;
@@ -399,7 +417,8 @@ static int32_t by_inner_part (
 
 		g = ml_sym_expand (ctx, g);
 
-		if (!ml_sym_has_var (g, x->name) && ml_poly_from_sym (ctx, g, w, &p) && p.len > 1)
+		if (!ml_sym_has_var (g, x->name) && ml_poly_from_sym (ctx, g, w, &p)
+		    && p.len > 1)
 		{
 			SymPtrVec ws;
 			int32_t   solved;
@@ -428,6 +447,7 @@ MlSymSolution ml_sym_solve (MlSymCtx *ctx, const MlSym *f, const MlSym *x)
 		.found = 0,
 		.set   = NULL
 	};
+
 	const MlSym *e = ml_sym_expand (ctx, f);
 	SymPtrVec   roots;
 	SymPtrVec   kept;
@@ -530,12 +550,14 @@ const MlSym *ml_sym_set (MlSymCtx *ctx, const MlSym *const *items, uint64_t n)
 		uint64_t at    = 0;
 		int32_t  known = 0;
 
-		while (at < sorted.len && item_order (ctx, sorted.data [at], items [i]) < 0)
+		while (at < sorted.len
+		       && item_order (ctx, sorted.data [at], items [i]) < 0)
 		{
 			at++;
 		}
 
-		known = at < sorted.len && item_order (ctx, sorted.data [at], items [i]) == 0;
+		known = at < sorted.len
+		        && item_order (ctx, sorted.data [at], items [i]) == 0;
 
 		if (!known)
 		{
@@ -544,7 +566,8 @@ const MlSym *ml_sym_set (MlSymCtx *ctx, const MlSym *const *items, uint64_t n)
 				ctx->status = ML_ERR_NOMEM;
 			}
 
-			for (uint64_t k = sorted.len - 1; k > at && ctx->status == ML_OK; k--)
+			for (uint64_t k = sorted.len - 1; k > at && ctx->status == ML_OK;
+			     k--)
 			{
 				sorted.data [k] = sorted.data [k - 1];
 			}

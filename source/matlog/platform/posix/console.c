@@ -188,6 +188,7 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 			.mods = 0
 		}
 	};
+
 	int32_t waited = 0;
 
 	(void)c;
@@ -239,6 +240,7 @@ MlConsoleSize ml_console_size (const MlConsole *c)
 		.cols = 0,
 		.rows = 0
 	};
+
 	struct winsize ws;
 
 	(void)c;

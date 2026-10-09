@@ -217,6 +217,7 @@ MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key)
 		.result  = ML_OK,
 		.handled = 1
 	};
+
 	int32_t  ctrl      = (key.mods & ML_MOD_CTRL) != 0;
 	int32_t  alt       = (key.mods & ML_MOD_ALT) != 0;
 	int32_t  ctrl_char = key.code == ML_KEY_CHAR && ctrl && !alt;
@@ -337,6 +338,7 @@ MlTextWindow ml_text_window (
 		.result    = ML_OK,
 		.first_col = start_col
 	};
+
 	uint64_t pos       = 0;
 	uint64_t col       = 0;
 	int32_t  done      = 0;

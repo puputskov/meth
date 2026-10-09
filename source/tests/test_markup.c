@@ -88,9 +88,11 @@ static void test_marks (void)
 	CHECK (parses_to ("**a** and **b**", "a and b", "b.....b"));
 
 	/* nesting, also of three stars */
-	CHECK (
-		parses_to ("**bold *and italic***", "bold and italic", "bbbbb**********")
-	);
+	CHECK (parses_to (
+		"**bold *and italic***",
+		"bold and italic",
+		"bbbbb**********"
+	));
 	CHECK (parses_to ("***both***", "both", "****"));
 	CHECK (parses_to ("<u>**x**</u>", "x", "*"));
 	CHECK (parses_to ("*a **b** c*", "a b c", "ii*ii"));
@@ -195,8 +197,12 @@ static void test_live (void)
 	CHECK (strcmp (ml_str_cstr (m.plain), "a **bold** *it*") == 0);
 	CHECK (m.styles.len == m.plain.len);
 	CHECK (m.styles.data [0] == 0);
-	CHECK (m.styles.data [2] == ML_STYLE_MARK && m.styles.data [3] == ML_STYLE_MARK);
-	CHECK (m.styles.data [4] == ML_STYLE_BOLD && m.styles.data [7] == ML_STYLE_BOLD);
+	CHECK (
+		m.styles.data [2] == ML_STYLE_MARK && m.styles.data [3] == ML_STYLE_MARK
+	);
+	CHECK (
+		m.styles.data [4] == ML_STYLE_BOLD && m.styles.data [7] == ML_STYLE_BOLD
+	);
 	CHECK (m.styles.data [8] == ML_STYLE_MARK);
 	CHECK (m.styles.data [12] == ML_STYLE_ITALIC);
 

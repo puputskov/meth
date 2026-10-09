@@ -9,7 +9,7 @@
  */
 typedef enum ParseMode
 {
-	MODE_BINARY,       /* binary operators of the level in Parser.level and up */
+	MODE_BINARY, /* binary operators of the level in Parser.level and up */
 	MODE_UNARY,        /* {'-' | '+'} factor */
 	MODE_FACTOR,       /* primary {'!' | superscript} ['^' unary] */
 	MODE_PRIMARY,      /* atom | '√' operand */
@@ -272,6 +272,7 @@ static uint64_t add_node (
 		.start  = start,
 		.len    = end - start
 	};
+
 	uint64_t index = p->ast.nodes.len;
 	MlResult r     = ml_choose (
 		p->failed,

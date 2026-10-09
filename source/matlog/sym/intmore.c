@@ -105,7 +105,8 @@ static int32_t value_at (
 	double      *out
 )
 {
-	const MlSym *at = ml_sym_div (ctx, int_node (ctx, num), int_node (ctx, den));
+	const MlSym *at
+		= ml_sym_div (ctx, int_node (ctx, num), int_node (ctx, den));
 
 	return ml_sym_to_double (
 		ctx->arena,
@@ -140,10 +141,10 @@ int32_t ml_int_verify (
 			&& value_at (ctx, slope, x, points [i], scales [i], &got)
 		)
 		{
-			double scale = 1.0 + (want < 0 ? -want : want);
+			double scale = 1.0 + ml_choose (want < 0, -want, want);
 			double gap   = want - got;
 
-			ok = (gap < 0 ? -gap : gap) <= 1e-7 * scale;
+			ok = ml_choose (gap < 0, -gap, gap) <= 1e-7 * scale;
 		}
 	}
 
@@ -223,7 +224,9 @@ static const MlSym *subst_with (
 	ml_sym_collect_parts (ctx, f, x, &cands);
 	*rule = ML_RULE_NONE;
 
-	for (uint64_t i = 0; i < cands.len && result == NULL && ctx->status == ML_OK; i++)
+	for (uint64_t i = 0;
+	     i < cands.len && result == NULL && ctx->status == ML_OK;
+	     i++)
 	{
 		const MlSym *u = cands.data [i];
 		const MlSym *du;
@@ -266,7 +269,8 @@ static const MlSym *subst_with (
 
 /* ---- integration by parts ---- */
 
-/* How early a factor is chosen as u: inverse trig, log, algebraic, trig, exp. */
+/* How early a factor is chosen as u: inverse trig, log, algebraic, trig, exp.
+ */
 static uint32_t liate_rank (const MlSym *g, const MlSym *x)
 {
 	uint32_t rank = 6;
@@ -366,7 +370,8 @@ static int32_t split_parts (
 				/* a lone factor is u itself, dv is 1 */
 				for (uint64_t k = 0; t->kind == ML_SYM_MUL && k < count; k++)
 				{
-					if (k != i && SymPtrVec_push (&others, t->kids [k]) != ML_OK)
+					if (k != i
+					    && SymPtrVec_push (&others, t->kids [k]) != ML_OK)
 					{
 						ctx->status = ML_ERR_NOMEM;
 					}

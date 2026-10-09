@@ -142,13 +142,18 @@ static const MlSym *inverse_quadratic (
 		out         = ml_sym_mul (
 			ctx,
 			ml_sym_div (ctx, int_node (ctx, 2), root),
-			ml_sym_call (ctx, ml_slice_cstr ("atan"), ml_sym_div (ctx, lin, root))
+			ml_sym_call (
+				ctx,
+				ml_slice_cstr ("atan"),
+				ml_sym_div (ctx, lin, root)
+			)
 		);
 	}
 
 	else
 	{
-		const MlSym *root = ml_rat_root_node (ctx, ml_rat_neg (ctx->arena, delta));
+		const MlSym *root
+			= ml_rat_root_node (ctx, ml_rat_neg (ctx->arena, delta));
 
 		*signed_log = 1;
 		out         = ml_sym_mul (
@@ -332,7 +337,11 @@ static void quadratic_terms (
 	push_part (
 		ctx,
 		parts,
-		ml_sym_mul (ctx, rat_node (ctx, ml_rat_mul (ctx->arena, bb, half)), logq)
+		ml_sym_mul (
+			ctx,
+			rat_node (ctx, ml_rat_mul (ctx->arena, bb, half)),
+			logq
+		)
 	);
 	push_part (ctx, parts, ml_sym_mul (ctx, rat_node (ctx, rest), one_over));
 }
@@ -349,11 +358,11 @@ static int32_t proper_fraction (
 	MlPolyRoots roots  = ml_poly_roots (ctx, den);
 	MlRat       lead   = ml_poly_lead (den);
 	uint64_t    n      = den.len - 1;
-	int32_t     ok     = roots.ok && (roots.rest.len == 1 || roots.rest.len == 3);
+	int32_t     ok = roots.ok && (roots.rest.len == 1 || roots.rest.len == 3);
 
 	if (ok)
 	{
-		MlPoly d0     = ml_poly_scale (ctx, den, ml_rat_recip (ctx->arena, lead));
+		MlPoly   d0 = ml_poly_scale (ctx, den, ml_rat_recip (ctx->arena, lead));
 		MlPoly scaled = ml_poly_scale (ctx, r, ml_rat_recip (ctx->arena, lead));
 		MlMat  a      = ml_mat_zero (ctx->arena, n, n);
 		MlMat  b      = ml_mat_zero (ctx->arena, n, 1);

@@ -231,6 +231,7 @@ MlLineSteps ml_line_steps (
 		.result = ML_OK,
 		.found  = 0
 	};
+
 	MlLineView  view   = ml_session_get (s, idx);
 
 	if (

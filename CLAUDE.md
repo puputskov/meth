@@ -99,3 +99,7 @@ own line and one entry per line (it writes `= {`, so leave existing tables alone
 operands aligned after the operator, the star in the name column of aligned declarations, `ml_choose`, single return, no recursion.
 Do not run it over a whole existing file without looking at the diff: about one line in seven of the current code would change.
 
+`python tools/stylecheck.py` checks the rules a tool can check (tabs, brace placement, empty line after `}`, 80 columns, no `?:`, spaces before `(`
+and `[`, fixed-width types, one `return` at the end, no `break`/`continue`/`goto`, no recursion through the call graph, no numeric designators).
+`--fix` adds the empty lines after `}` and turns leading spaces into tabs. Run it before a commit; the aim is 0 findings.
+

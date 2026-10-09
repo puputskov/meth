@@ -59,10 +59,24 @@ static int32_t shows (const char *text, const char *expected)
 
 static void test_partial_fractions (void)
 {
-	CHECK (shows ("integrate(1/(x^2 - 1), x)", "ln(abs(x - 1))/2 - ln(abs(x + 1))/2"));
-	CHECK (shows ("integrate(1/(x^2 + 2), x)", "atan(x/\xE2\x88\x9A" "2)/\xE2\x88\x9A" "2"));
-	CHECK (shows ("integrate((x^3 + 1)/(x^2 - 1), x)", "x\xC2\xB2/2 + ln(abs(x - 1))"));
-	CHECK (shows ("integrate(1/(x*(x + 1)^2), x)", "ln(abs(x)) - ln(abs(x + 1)) + 1/(x + 1)"));
+	CHECK (shows (
+		"integrate(1/(x^2 - 1), x)",
+		"ln(abs(x - 1))/2 - ln(abs(x + 1))/2"
+	));
+	CHECK (shows (
+		"integrate(1/(x^2 + 2), x)",
+		"atan(x/\xE2\x88\x9A"
+		"2)/\xE2\x88\x9A"
+		"2"
+	));
+	CHECK (shows (
+		"integrate((x^3 + 1)/(x^2 - 1), x)",
+		"x\xC2\xB2/2 + ln(abs(x - 1))"
+	));
+	CHECK (shows (
+		"integrate(1/(x*(x + 1)^2), x)",
+		"ln(abs(x)) - ln(abs(x + 1)) + 1/(x + 1)"
+	));
 	CHECK (shows ("integrate(1/(x^2 + 2x + 5), x)", "atan(x/2 + 1/2)/2"));
 }
 
@@ -79,14 +93,50 @@ static void test_substitution (void)
 static void test_parts (void)
 {
 	CHECK (shows ("integrate(x*sin(x), x)", "-x\xC2\xB7" "cos(x) + sin(x)"));
-	CHECK (shows ("integrate(x^2*exp(x), x)", "x\xC2\xB2\xC2\xB7" "exp(x) - 2x\xC2\xB7" "exp(x) + 2exp(x)"));
-	CHECK (shows ("integrate(x*ln(x), x)", "x\xC2\xB2\xC2\xB7" "ln(x)/2 - x\xC2\xB2/4"));
-	CHECK (shows ("integrate(atan(x), x)", "x\xC2\xB7" "atan(x) - ln(x\xC2\xB2 + 1)/2"));
-	CHECK (shows ("integrate(exp(x)*sin(x), x)", "-cos(x)\xC2\xB7" "exp(x)/2 + exp(x)\xC2\xB7" "sin(x)/2"));
-	CHECK (shows ("integrate(exp(2x)*cos(x), x)", "2cos(x)\xC2\xB7" "exp(2x)/5 + exp(2x)\xC2\xB7" "sin(x)/5"));
-	CHECK (shows ("integrate(x*ln(x)^2, x)", "x\xC2\xB2\xC2\xB7" "ln(x)\xC2\xB2/2 - x\xC2\xB2\xC2\xB7" "ln(x)/2 + x\xC2\xB2/4"));
-	CHECK (shows ("integrate(x^3*exp(x^2), x)", "x\xC2\xB2\xC2\xB7" "exp(x\xC2\xB2)/2 - exp(x\xC2\xB2)/2"));
-	CHECK (shows ("integrate(exp(sqrt(x)), x)", "2\xE2\x88\x9Ax\xC2\xB7" "exp(\xE2\x88\x9Ax) - 2exp(\xE2\x88\x9Ax)"));
+	CHECK (shows (
+		"integrate(x^2*exp(x), x)",
+		"x\xC2\xB2\xC2\xB7"
+		"exp(x) - 2x\xC2\xB7"
+		"exp(x) + 2exp(x)"
+	));
+	CHECK (shows (
+		"integrate(x*ln(x), x)",
+		"x\xC2\xB2\xC2\xB7"
+		"ln(x)/2 - x\xC2\xB2/4"
+	));
+	CHECK (shows (
+		"integrate(atan(x), x)",
+		"x\xC2\xB7"
+		"atan(x) - ln(x\xC2\xB2 + 1)/2"
+	));
+	CHECK (shows (
+		"integrate(exp(x)*sin(x), x)",
+		"-cos(x)\xC2\xB7"
+		"exp(x)/2 + exp(x)\xC2\xB7"
+		"sin(x)/2"
+	));
+	CHECK (shows (
+		"integrate(exp(2x)*cos(x), x)",
+		"2cos(x)\xC2\xB7"
+		"exp(2x)/5 + exp(2x)\xC2\xB7"
+		"sin(x)/5"
+	));
+	CHECK (shows (
+		"integrate(x*ln(x)^2, x)",
+		"x\xC2\xB2\xC2\xB7"
+		"ln(x)\xC2\xB2/2 - x\xC2\xB2\xC2\xB7"
+		"ln(x)/2 + x\xC2\xB2/4"
+	));
+	CHECK (shows (
+		"integrate(x^3*exp(x^2), x)",
+		"x\xC2\xB2\xC2\xB7"
+		"exp(x\xC2\xB2)/2 - exp(x\xC2\xB2)/2"
+	));
+	CHECK (shows (
+		"integrate(exp(sqrt(x)), x)",
+		"2\xE2\x88\x9Ax\xC2\xB7"
+		"exp(\xE2\x88\x9Ax) - 2exp(\xE2\x88\x9Ax)"
+	));
 	CHECK (shows ("integrate(x*exp(x), x, 0, 1)", "1"));
 	CHECK (shows ("integrate(1/(x^2 + 1), x, -inf, inf)", "\xCF\x80"));
 }
@@ -107,7 +157,12 @@ static void test_not_found (void)
 static void test_solve (void)
 {
 	CHECK (shows ("solve(x^2 - 4, x)", "{-2, 2}"));
-	CHECK (shows ("solve(x^2 - 2, x)", "{-\xE2\x88\x9A" "2, \xE2\x88\x9A" "2}"));
+	CHECK (shows (
+		"solve(x^2 - 2, x)",
+		"{-\xE2\x88\x9A"
+		"2, \xE2\x88\x9A"
+		"2}"
+	));
 	CHECK (shows ("solve(x^3 - 6x^2 + 11x - 6, x)", "{1, 2, 3}"));
 	CHECK (shows ("solve(2x^2 - 3x - 2, x)", "{-1/2, 2}"));
 	CHECK (shows ("solve(x^2 + 1, x)", "{}"));

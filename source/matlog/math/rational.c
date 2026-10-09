@@ -416,6 +416,7 @@ MlRatDecimal ml_rat_format_decimal (
 		.result = ml_rat_status (x),
 		.exact  = 0
 	};
+
 	MlBigDiv parts;
 	MlBig    rem;
 	MlBig    ten     = ml_big_from_u64 (arena, 10);

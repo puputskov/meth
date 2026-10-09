@@ -177,7 +177,8 @@ static const MlSym *table (
 	{
 		/* sin^2 u = (1 - cos 2u) / 2 and cos^2 u = (1 + cos 2u) / 2 */
 		int32_t     is_sin = is_name (g->kids [0]->name, "sin");
-		const MlSym *u2    = ml_sym_mul (ctx, int_node (ctx, 2), g->kids [0]->kids [0]);
+		const MlSym *u2
+			= ml_sym_mul (ctx, int_node (ctx, 2), g->kids [0]->kids [0]);
 		const MlSym *s2    = ml_sym_div (
 			ctx,
 			ml_sym_call (ctx, ml_slice_cstr ("sin"), u2),
@@ -186,7 +187,11 @@ static const MlSym *table (
 
 		*rule = ML_RULE_INT_HALF_ANGLE;
 		out   = ml_sym_div (ctx, x, int_node (ctx, 2));
-		out   = ml_choose (is_sin, ml_sym_sub (ctx, out, s2), ml_sym_add (ctx, out, s2));
+		out   = ml_choose (
+			is_sin,
+			ml_sym_sub (ctx, out, s2),
+			ml_sym_add (ctx, out, s2)
+		);
 	}
 
 	else if (ml_sym_compare (ctx, g, x) == 0)
@@ -410,7 +415,7 @@ void ml_int_split (
 
 		if (
 			SymPtrVec_push (
-				ml_sym_has_var (f, x->name) ? &varying : &constant,
+				ml_choose (ml_sym_has_var (f, x->name), &varying, &constant),
 				f
 			) != ML_OK
 		)
@@ -525,7 +530,8 @@ const MlSym *ml_int_simple (MlSymCtx *ctx, const MlSym *g, const MlSym *x)
 			big = ml_int_rational_sym (ctx, f, x);
 		}
 
-		if (big == NULL || SymPtrVec_push (&parts, ml_sym_mul (ctx, c, big)) != ML_OK)
+		if (big == NULL
+		    || SymPtrVec_push (&parts, ml_sym_mul (ctx, c, big)) != ML_OK)
 		{
 			all = 0;
 		}
@@ -590,6 +596,7 @@ MlSymIntegral ml_sym_integrate (MlSymCtx *ctx, const MlSym *s, const MlSym *x)
 		.found = 0,
 		.value = ml_sym_failed ()
 	};
+
 	const MlSym *expanded = ml_sym_expand (ctx, s);
 	uint64_t    count     = ml_choose (
 		expanded->kind == ML_SYM_ADD,

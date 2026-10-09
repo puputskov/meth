@@ -483,6 +483,7 @@ static void test_pick_block (void)
 		.cp   = 0,
 		.mods = ML_MOD_SHIFT
 	};
+
 	MlStr    status;
 
 	ml_editor_init (&ed);
@@ -692,6 +693,7 @@ static void test_domains (void)
 		"algebra", "equations", "matrix", "vector",
 		"lambda", "boolean", "pga2", "pga3"
 	};
+
 	static const MlDomain    domains [] =
 	{
 		ML_DOMAIN_ALGEBRA, ML_DOMAIN_EQUATIONS, ML_DOMAIN_MATRIX,

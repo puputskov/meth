@@ -30,6 +30,7 @@ MlBracketMatch ml_bracket_match (MlSlice text, uint64_t cursor)
 		.at      = 0,
 		.partner = 0
 	};
+
 	int32_t  opening = 0;
 	uint64_t at      = ml_choose (cursor < text.len, cursor, text.len);
 	uint8_t  other   = ml_choose (

@@ -76,7 +76,11 @@ MlRat ml_poly_lead (MlPoly p)
 
 static MlRat coeff (MlPoly p, uint64_t i)
 {
-	return ml_choose (i < p.len, p.c [ml_choose (i < p.len, i, 0)], ml_rat_error (ML_OK));
+	return ml_choose (
+		i < p.len,
+		p.c [ml_choose (i < p.len, i, 0)],
+		ml_rat_error (ML_OK)
+	);
 }
 
 MlPoly ml_poly_add (MlSymCtx *ctx, MlPoly a, MlPoly b)
@@ -363,7 +367,11 @@ static MlRat eval_rat (MlSymCtx *ctx, MlPoly p, MlRat at)
 
 	for (uint64_t i = p.len; i > 0; i--)
 	{
-		v = ml_rat_add (ctx->arena, ml_rat_mul (ctx->arena, v, at), p.c [i - 1]);
+		v = ml_rat_add (
+			ctx->arena,
+			ml_rat_mul (ctx->arena, v, at),
+			p.c [i - 1]
+		);
 	}
 
 	return v;
@@ -516,7 +524,8 @@ MlPolyRoots ml_poly_roots (MlSymCtx *ctx, MlPoly p)
 			/* what is left, made monic */
 			MlRat lead = ml_poly_lead (cur);
 
-			out.rest = ml_poly_scale (ctx, cur, ml_rat_recip (ctx->arena, lead));
+			out.rest
+				= ml_poly_scale (ctx, cur, ml_rat_recip (ctx->arena, lead));
 		}
 	}
 

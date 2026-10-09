@@ -201,43 +201,34 @@ static const MlSym *rule (
 		const MlSym *e  = n->kids [1];
 		int32_t     in_e = ml_sym_has_var (e, x->name);
 		int32_t     in_b = ml_sym_has_var (b, x->name);
+		const MlSym *factors [3];
 
 		if (!in_e)
 		{
 			/* e b^(e-1) b' */
 			*name = ML_RULE_DIFF_POWER;
-			out   = ml_sym_product (
+			factors [0] = e;
+			factors [1] = ml_sym_pow (
 				ctx,
-				(const MlSym *[3]){
-					e,
-					ml_sym_pow (
-						ctx,
-						b,
-						ml_sym_add (ctx, e, int_node (ctx, -1))
-					),
-					d [0]
-				},
-				3
+				b,
+				ml_sym_add (ctx, e, int_node (ctx, -1))
 			);
+			factors [2] = d [0];
+			out         = ml_sym_product (ctx, factors, 3);
 		}
 
 		else if (!in_b)
 		{
 			/* b^e ln(b) e' ; for e (the constant) ln(e) is 1 */
 			*name = ML_RULE_DIFF_EXPONENTIAL;
-			out   = ml_sym_product (
-				ctx,
-				(const MlSym *[3]){
-					n,
-					ml_choose (
-						ml_sym_is_var (b, ml_slice_cstr ("e")),
-						int_node (ctx, 1),
-						ml_sym_call (ctx, ml_slice_cstr ("ln"), b)
-					),
-					d [1]
-				},
-				3
+			factors [0] = n;
+			factors [1] = ml_choose (
+				ml_sym_is_var (b, ml_slice_cstr ("e")),
+				int_node (ctx, 1),
+				ml_sym_call (ctx, ml_slice_cstr ("ln"), b)
 			);
+			factors [2] = d [1];
+			out         = ml_sym_product (ctx, factors, 3);
 		}
 
 		else

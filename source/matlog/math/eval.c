@@ -1035,6 +1035,7 @@ static MlParamHit param_find (const MlScope *sc, MlSlice name)
 		.found = 0,
 		.index = 0
 	};
+
 	uint64_t   n   = ml_binding_param_count (sc->func);
 
 	for (uint64_t i = 0; i < n && !hit.found; i++)
@@ -2348,6 +2349,7 @@ static MlValue eval_with (
 		.failed   = 0,
 		.log      = log
 	};
+
 	MlNode    root = ml_ast_node (ast, ast->root);
 	MlValue   r    = ml_value_none ();
 

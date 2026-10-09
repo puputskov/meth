@@ -139,12 +139,12 @@ typedef struct MlParseResult
 } MlParseResult;
 
 /*
- * Limits on the input. The parser does not recurse (it is a state machine with a
- * stack of frames on the heap, see parser.c), and neither does anything that
+ * Limits on the input. The parser does not recurse (it is a state machine with
+ * a stack of frames on the heap, see parser.c), and neither does anything that
  * walks the tree, so these only keep the work and the memory of one line small:
- * at most ML_PARSE_MAX_DEPTH nested parentheses, calls and prefix operators, and
- * no tree higher than ML_PARSE_MAX_TREE_DEPTH levels, which also bounds long
- * chains such as 1+1+1+...
+ * at most ML_PARSE_MAX_DEPTH nested parentheses, calls and prefix operators,
+ * and no tree higher than ML_PARSE_MAX_TREE_DEPTH levels, which also bounds
+ * long chains such as 1+1+1+...
  */
 #define ML_PARSE_MAX_DEPTH      200
 #define ML_PARSE_MAX_TREE_DEPTH 1000

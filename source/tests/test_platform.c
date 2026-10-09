@@ -54,6 +54,7 @@ static void test_key_decode (void)
 		.unicode = 0xD83D,
 		.control = 0
 	};
+
 	MlRawKey lo =
 	{
 		.vk      = 0,
@@ -129,12 +130,14 @@ static void test_key_format (void)
 		.cp   = 0,
 		.mods = 0
 	};
+
 	MlKey left =
 	{
 		.code = ML_KEY_LEFT,
 		.cp   = 0,
 		.mods = ML_MOD_CTRL | ML_MOD_ALT
 	};
+
 	MlKey pi =
 	{
 		.code = ML_KEY_CHAR,

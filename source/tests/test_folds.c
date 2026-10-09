@@ -41,7 +41,8 @@ static void make_session (MlSession *s)
 	}
 
 	CHECK (
-		ml_session_append (s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, lit ("")) == ML_OK
+		ml_session_append (s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, lit (""))
+		== ML_OK
 	);
 
 	for (uint64_t i = 0; i < 2; i++)
@@ -85,7 +86,7 @@ static int32_t format_is (const MlSession *s, const char *expected)
 	ml_str_init (&text);
 	same = (
 		   ml_folds_format (&text, s) == ML_OK
-		&& ml_slice_equal (ml_str_view (text), lit(expected))
+		&& ml_slice_equal (ml_str_view (text), lit (expected))
 	);
 	ml_str_free (&text);
 	return same;

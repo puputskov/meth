@@ -204,6 +204,7 @@ static MlKey mouse_key (
 		.col  = col,
 		.row  = row
 	};
+
 	uint32_t base  = button & 3;
 	int32_t  wheel = (button & 64) != 0;
 	int32_t  drag  = (button & 32) != 0;

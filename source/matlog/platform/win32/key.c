@@ -103,6 +103,7 @@ MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 		},
 		.pending_high = pending_high
 	};
+
 	MlKeyCode code = code_from_vk (raw.vk);
 	uint32_t  mods = mods_from_control (raw.control);
 	uint32_t  cp   = raw.unicode;

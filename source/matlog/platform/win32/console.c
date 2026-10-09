@@ -101,6 +101,7 @@ static MlKey mouse_key (HANDLE out, MOUSE_EVENT_RECORD m, DWORD *buttons)
 		.col  = 0,
 		.row  = 0
 	};
+
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	int32_t down = (m.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) != 0;
 	int32_t was  = (*buttons & FROM_LEFT_1ST_BUTTON_PRESSED) != 0;
@@ -190,11 +191,14 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 
 		else if (rec.EventType == MOUSE_EVENT)
 		{
+			DWORD buttons = c->mouse_buttons;
+
 			res.key = mouse_key (
 				to_handle (c->out_handle),
 				rec.Event.MouseEvent,
-				&c->mouse_buttons
+				&buttons
 			);
+			c->mouse_buttons = buttons;
 		}
 
 		else if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
@@ -205,6 +209,7 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 				.unicode = rec.Event.KeyEvent.uChar.UnicodeChar,
 				.control = rec.Event.KeyEvent.dwControlKeyState
 			};
+
 			MlDecodeResult d = ml_key_decode_win32 (raw, c->pending_high);
 
 			c->pending_high = d.pending_high;
@@ -222,6 +227,7 @@ MlConsoleSize ml_console_size (const MlConsole *c)
 		.cols = 0,
 		.rows = 0
 	};
+
 	CONSOLE_SCREEN_BUFFER_INFO info;
 
 	if (GetConsoleScreenBufferInfo (to_handle (c->out_handle), &info))

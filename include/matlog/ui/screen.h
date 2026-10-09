@@ -73,7 +73,12 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed);
 void ml_layout_free (MlLayout *layout);
 
 /* The text a click at a terminal cell (1 based) hits. */
-MlHit ml_screen_hit (MlScreen *s, const MlEditor *ed, uint32_t col, uint32_t row);
+MlHit ml_screen_hit (
+	MlScreen       *s,
+	const MlEditor *ed,
+	uint32_t        col,
+	uint32_t        row
+);
 
 /* Appends the VT output that brings the terminal up to date. */
 MlResult ml_screen_render (MlScreen *s, MlStr *out, const MlEditor *ed);

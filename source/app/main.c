@@ -201,13 +201,14 @@ static MlResult read_stdin (MlStr *out)
 		got = fread (buf, 1, sizeof buf, stdin);
 		r   = ml_str_append (out, ml_slice (buf, got));
 	}
+
 	while (r == ML_OK && got > 0);
 
 	return r;
 }
 
 /* Runs a command line command (cli.h): no screen, results on stdout. */
-static int32_t run_command_line (int argc, char **argv)
+static int32_t run_command_line (int32_t argc, char **argv)
 {
 	int32_t    code = ML_EXIT_IO;
 	MlSliceVec args;
@@ -221,7 +222,7 @@ static int32_t run_command_line (int argc, char **argv)
 	ml_str_init (&out);
 	ml_str_init (&err);
 
-	for (int i = 1; i < argc && r == ML_OK; i++)
+	for (int32_t i = 1; i < argc && r == ML_OK; i++)
 	{
 		r = MlSliceVec_push (&args, ml_slice_cstr (argv [i]));
 	}
@@ -246,7 +247,7 @@ static int32_t run_command_line (int argc, char **argv)
 }
 
 /* The interactive editor. */
-static int run_interactive (int argc, char **argv)
+static int32_t run_interactive (int32_t argc, char **argv)
 {
 	MlResult      r = ML_OK;
 	MlConsole     con;

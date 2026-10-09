@@ -35,11 +35,8 @@ static const MlSym *int_node (MlSymCtx *ctx, int64_t n)
 
 /* ---- ordering ---- */
 
-/*
- * The degree of one factor: a symbol or a function is 1 (pi and e are
- * numbers: 0), a power of one with a number as exponent is that number.
- */
-static MlRat degree_of_factor (MlSymCtx *ctx, const MlSym *s)
+/* The degree of a symbol or a function: 1 (pi and e are numbers: 0). */
+static MlRat symbol_degree (MlSymCtx *ctx, const MlSym *s)
 {
 	MlRat d = ml_rat_zero (ctx->arena);
 
@@ -58,7 +55,18 @@ static MlRat degree_of_factor (MlSymCtx *ctx, const MlSym *s)
 		d = one_rat (ctx);
 	}
 
-	else if (
+	return d;
+}
+
+/*
+ * The degree of one factor: that of a symbol or a function, or for a power of
+ * one with a number as exponent the product of the degree and the exponent.
+ */
+static MlRat degree_of_factor (MlSymCtx *ctx, const MlSym *s)
+{
+	MlRat d = symbol_degree (ctx, s);
+
+	if (
 		   s->kind == ML_SYM_POW
 		&& s->kids [1]->kind == ML_SYM_NUM
 		&& (
@@ -69,11 +77,7 @@ static MlRat degree_of_factor (MlSymCtx *ctx, const MlSym *s)
 	{
 		d = ml_rat_mul (
 			ctx->arena,
-			ml_choose (
-				s->kids [0]->kind == ML_SYM_FUNC,
-				one_rat (ctx),
-				degree_of_factor (ctx, s->kids [0])
-			),
+			symbol_degree (ctx, s->kids [0]),
 			s->kids [1]->num
 		);
 	}
@@ -765,7 +769,8 @@ const MlSym *ml_sym_pow (MlSymCtx *ctx, const MlSym *a, const MlSym *b)
 		{
 			/* a factor that is a power takes the exponent along: (x^p)^n */
 			const MlSym *kid   = base->kids [i];
-			const MlSym *kbase = ml_choose (kid->kind == ML_SYM_POW, kid->kids [0], kid);
+			const MlSym *kbase
+				= ml_choose (kid->kind == ML_SYM_POW, kid->kids [0], kid);
 			const MlSym *kexp  = ml_choose (
 				kid->kind == ML_SYM_POW,
 				ml_sym_mul (ctx, kid->kids [1], exp),

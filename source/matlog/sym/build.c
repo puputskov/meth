@@ -608,7 +608,7 @@ const MlSym *ml_sym_from_ast (
 			const MlSym *v     = node_value (&b, sc, &pushed);
 
 			/* a call of a user function went on in a new scope */
-			sc = &b.scopes.data [b.scopes.len - 1 - (pushed ? 1 : 0)];
+			sc = &b.scopes.data [b.scopes.len - 1 - ml_choose (pushed, 1, 0)];
 
 			if (!pushed)
 			{

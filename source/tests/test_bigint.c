@@ -266,6 +266,7 @@ static void test_divmod (void)
 		0, 1, 2, 0x7FFFFFFFu, 0x80000000u, 0x80000001u, 0xFFFFFFFEu,
 		0xFFFFFFFFu
 	};
+
 	int32_t all_good = 1;
 
 	ml_arena_init (&a, 0);

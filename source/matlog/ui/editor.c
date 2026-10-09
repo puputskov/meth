@@ -272,8 +272,10 @@ static MlDomain next_domain (MlDomain domain, MlKey key)
 	return (MlDomain)(((uint32_t)domain + step) % count);
 }
 
-/* The domain of the line being typed (and of the next ones), or of a note's
-   neighbours. */
+/*
+ * The domain of the line being typed (and of the next ones), or of a note's
+ * neighbours.
+ */
 static MlResult cycle_line_domain (MlEditor *ed, MlKey key)
 {
 	MlResult r = ML_OK;
@@ -484,6 +486,7 @@ static MlResult line_join (MlEditor *ed, int32_t dir)
 			.domain = ed->edit_domain,
 			.text   = ml_str_view (ed->edit.text)
 		};
+
 		kind = joined_kind (a.kind, b.kind, a.text.len + b.text.len);
 
 		/* an empty line goes back into the line before it, of any kind */
@@ -616,6 +619,7 @@ static MlEditResult line_edge_key (MlEditor *ed, MlKey key)
 		.result  = ML_OK,
 		.handled = 0
 	};
+
 	int32_t      plain = key.mods == 0;
 	int32_t      word  = key.mods == ML_MOD_CTRL;
 	int32_t      start = ed->edit.cursor == 0;
@@ -1531,6 +1535,7 @@ static Address parse_address (const MlEditor *ed, MlSlice s)
 		.after = 0,
 		.used  = 0
 	};
+
 	uint64_t n    = ed->session.lines.len;
 
 	if (s.len > 0 && s.data [0] == '.')
@@ -1580,6 +1585,7 @@ static Range parse_range (const MlEditor *ed, MlSlice s)
 		.last  = ed->session.cursor,
 		.used  = 0
 	};
+
 	Address a;
 
 	if (s.len > 0 && s.data [0] == '%')
@@ -2726,28 +2732,6 @@ static MlResult select_move (MlEditor *ed, MlKey key)
 		}
 	}
 
-	else if (
-		   r == ML_OK
-		&& (key.code == ML_KEY_PAGE_UP || key.code == ML_KEY_PAGE_DOWN)
-	)
-	{
-		MlKey step =
-		{
-			.code = ml_choose (
-				key.code == ML_KEY_PAGE_UP,
-				ML_KEY_UP,
-				ML_KEY_DOWN
-			),
-			.cp   = 0,
-			.mods = ML_MOD_SHIFT
-		};
-
-		for (uint64_t i = 0; i < ed->page_rows && r == ML_OK; i++)
-		{
-			r = select_move (ed, step);
-		}
-	}
-
 	else if (r == ML_OK && key.code == ML_KEY_HOME)
 	{
 		ml_lineedit_home (&ed->edit);
@@ -2859,6 +2843,7 @@ static MlEditResult row_key (MlEditor *ed, MlKey key)
 		.result  = ML_OK,
 		.handled = 1
 	};
+
 	int32_t      ctrl = (key.mods & ML_MOD_CTRL) != 0;
 	int32_t      alt  = (key.mods & ML_MOD_ALT) != 0;
 
@@ -3007,6 +2992,7 @@ static MlEditResult text_select_key (MlEditor *ed, MlKey key)
 		.result  = ML_OK,
 		.handled = 0
 	};
+
 	MlTextRange  s    = ml_editor_selection (ed);
 	int32_t      move = (
 		   (key.mods & ML_MOD_SHIFT)
@@ -3023,7 +3009,32 @@ static MlEditResult text_select_key (MlEditor *ed, MlKey key)
 		)
 	);
 
-	if (move)
+	if (
+		   move
+		&& (key.code == ML_KEY_PAGE_UP || key.code == ML_KEY_PAGE_DOWN)
+	)
+	{
+		/* a page is a number of Shift+Up or Shift+Down */
+		MlKey step =
+		{
+			.code = ml_choose (
+				key.code == ML_KEY_PAGE_UP,
+				ML_KEY_UP,
+				ML_KEY_DOWN
+			),
+			.cp   = 0,
+			.mods = ML_MOD_SHIFT
+		};
+
+		for (uint64_t i = 0; i < ed->page_rows && res.result == ML_OK; i++)
+		{
+			res.result = select_move (ed, step);
+		}
+
+		res.handled = 1;
+	}
+
+	else if (move)
 	{
 		res.result  = select_move (ed, key);
 		res.handled = 1;

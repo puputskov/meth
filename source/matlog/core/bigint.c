@@ -432,6 +432,7 @@ static MlBigDiv divmod_limb (MlArena *arena, MlBig x, uint32_t d)
 		.quot = ml_big_error (ML_ERR_NOMEM),
 		.rem  = ml_big_error (ML_ERR_NOMEM)
 	};
+
 	uint32_t *q  = limbs_new (arena, x.len);
 	uint64_t rem = 0;
 
@@ -460,6 +461,7 @@ static MlBigDiv divmod_knuth (MlArena *arena, MlBig x, MlBig y)
 		.quot = ml_big_error (ML_ERR_NOMEM),
 		.rem  = ml_big_error (ML_ERR_NOMEM)
 	};
+
 	uint64_t m  = x.len - y.len;
 	uint32_t *u = limbs_new (arena, x.len + 1);
 	uint32_t *v = limbs_new (arena, y.len);

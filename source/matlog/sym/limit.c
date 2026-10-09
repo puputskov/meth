@@ -318,7 +318,8 @@ static Ev ev_pow_num (Lim *L, Ev a, const MlSym *q)
 
 		if (cs > 0 || (cs < 0 && whole))
 		{
-			/* the slope q c^(q-1) has the sign of q, flipped for c < 0, q even */
+			/* the slope q c^(q-1) has the sign of q, flipped for c < 0, q even
+			 */
 			int32_t flip = cs < 0 && !odd;
 			int32_t side = a.side * qsign * ml_choose (flip, -1, 1);
 
@@ -534,7 +535,11 @@ static Ev ev_node (Lim *L, const MlSym *s, const Ev *kids)
 			r = ev_func (
 				L,
 				ml_slice_cstr ("exp"),
-				ev_mul (L, kids [1], ev_func (L, ml_slice_cstr ("ln"), kids [0]))
+				ev_mul (
+					L,
+					kids [1],
+					ev_func (L, ml_slice_cstr ("ln"), kids [0])
+				)
 			);
 		}
 	}
@@ -695,7 +700,8 @@ static int32_t split_quotient (
 
 	for (uint64_t i = 0; i < count && L->ctx->status == ML_OK; i++)
 	{
-		const MlSym *f = ml_choose (cur->kind == ML_SYM_MUL, cur->kids [i], cur);
+		const MlSym *f
+			= ml_choose (cur->kind == ML_SYM_MUL, cur->kids [i], cur);
 		Ev          e  = ev_tree (L, f);
 
 		if (
@@ -707,7 +713,11 @@ static int32_t split_quotient (
 			push (
 				L,
 				&bottom,
-				ml_sym_pow (L->ctx, f->kids [0], ml_sym_neg (L->ctx, f->kids [1]))
+				ml_sym_pow (
+					L->ctx,
+					f->kids [0],
+					ml_sym_neg (L->ctx, f->kids [1])
+				)
 			);
 		}
 
@@ -883,6 +893,7 @@ MlSymLimit ml_sym_limit (
 		.kind  = ML_LIMIT_NONE,
 		.value = NULL
 	};
+
 	int32_t    plus  = ml_sym_is_var (at, ml_slice_cstr ("inf"));
 	int32_t    minus = (
 		   at->kind == ML_SYM_MUL

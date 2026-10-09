@@ -195,6 +195,7 @@ static MlToken next_token (MlSlice source, uint64_t pos)
 		.start = pos,
 		.len   = d.size
 	};
+
 	int32_t starts_number = (
 		   is_digit (d.cp)
 		|| (
@@ -243,6 +244,7 @@ MlLexResult ml_lex (MlSlice source)
 	{
 		.result = ML_OK
 	};
+
 	uint64_t pos = 0;
 
 	MlTokenVec_init (&lexed.tokens);

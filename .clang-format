@@ -5,7 +5,7 @@ BasedOnStyle: LLVM
 Standard: c++11
 
 # Tabs indent, spaces only align (continuation lines, = columns, comments).
-UseTab: AlignWithSpaces
+UseTab: ForContinuationAndIndentation
 IndentWidth: 4
 TabWidth: 4
 ContinuationIndentWidth: 4

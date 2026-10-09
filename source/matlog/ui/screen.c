@@ -156,6 +156,7 @@ static Head append_head (
 		.result = ML_OK,
 		.used   = 0
 	};
+
 	MlStr num;
 	MlStr shown;
 
@@ -646,6 +647,7 @@ static MlTextWindow append_selected (
 		.result    = ML_OK,
 		.first_col = start_col
 	};
+
 	uint64_t pos     = 0;
 	uint64_t col     = 0;
 	int32_t  reverse = 0;
@@ -768,6 +770,7 @@ static MlTextWindow append_marked (
 		.result    = ML_OK,
 		.first_col = start_col
 	};
+
 	uint64_t pos = 0;
 	uint64_t col = 0;
 
@@ -818,6 +821,7 @@ static EditRow append_edit_row (
 		.head_used  = 0,
 		.first_col  = 0
 	};
+
 	Head    head = append_head (
 		out,
 		number,
@@ -1085,6 +1089,7 @@ static EditRow append_command_row (
 		.result     = ML_OK,
 		.cursor_col = 2
 	};
+
 	uint64_t avail = ml_choose (
 		cols > 2,
 		cols - 2,
@@ -1294,8 +1299,8 @@ static uint64_t selection_last (const MlEditor *ed)
 	);
 }
 
-/* The steps under a line that has them open (only in the quiet states). */
-static MlSlice steps_of (const MlEditor *ed, uint64_t src, int32_t editing)
+/* The steps under a line that has them open. */
+static MlSlice steps_of (const MlEditor *ed, uint64_t src)
 {
 	return ml_choose (
 		ed->steps_open && ed->steps_line == src,
@@ -1442,8 +1447,7 @@ static MlResult vlines_build (
 static uint64_t line_height (
 	const MlEditor *ed,
 	const VLineVec *vl,
-	uint64_t       v,
-	int32_t        editing
+	uint64_t       v
 )
 {
 	VLine    l      = vl->data [v];
@@ -1454,7 +1458,7 @@ static uint64_t line_height (
 	{
 		extra = (
 			  block_rows (ml_results_get (&ed->results, l.src).block)
-			+ block_rows (steps_of (ed, l.src, editing))
+			+ block_rows (steps_of (ed, l.src))
 		);
 	}
 
@@ -1466,15 +1470,14 @@ static uint64_t rows_between (
 	const MlEditor *ed,
 	const VLineVec *vl,
 	uint64_t       from,
-	uint64_t       to,
-	int32_t        editing
+	uint64_t       to
 )
 {
 	uint64_t rows = 0;
 
 	for (uint64_t i = from; i < to; i++)
 	{
-		rows += line_height (ed, vl, i, editing);
+		rows += line_height (ed, vl, i);
 	}
 
 	return rows;
@@ -1493,15 +1496,11 @@ static uint64_t scroll_top (
 	uint64_t       area
 )
 {
-	int32_t  editing = (
-		   ed->state == ML_STATE_MATH
-		|| ed->state == ML_STATE_NOTE
-	);
-	uint64_t t       = ml_choose (focus < top, focus, top);
+	uint64_t t = ml_choose (focus < top, focus, top);
 
 	while (
 		   t < focus
-		&& rows_between (ed, vl, t, focus + 1, editing) > area
+		&& rows_between (ed, vl, t, focus + 1) > area
 	)
 	{
 		t++;
@@ -1509,7 +1508,7 @@ static uint64_t scroll_top (
 
 	while (
 		   t > 0
-		&& rows_between (ed, vl, t - 1, vl->len, editing) <= area
+		&& rows_between (ed, vl, t - 1, vl->len) <= area
 	)
 	{
 		t--;
@@ -1529,6 +1528,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			.col = 1
 		}
 	};
+
 	int32_t editing = (
 		   ed->state == ML_STATE_MATH
 		|| ed->state == ML_STATE_NOTE
@@ -1570,6 +1570,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			.text_col  = 0,
 			.first_col = 0
 		};
+
 		uint64_t gutter_width = ml_utf8_width (
 			gutter_for (l.kind, l.domain, line == l.first, line == l.last)
 		);
@@ -1665,7 +1666,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				),
 				append_block_row (
 					&row,
-					block_row (steps_of (ed, l.src, editing), sub - 1 - shown),
+					block_row (steps_of (ed, l.src), sub - 1 - shown),
 					num_width + 1 + ML_GUTTER_WIDTH,
 					s->cols,
 					""
@@ -1757,13 +1758,13 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 		/* the next row belongs to the same line, or to the one after it */
 		sub++;
 
-		if (line < total && sub >= line_height (ed, &vl, line, editing))
+		if (line < total && sub >= line_height (ed, &vl, line))
 		{
 			line++;
 			sub = 0;
 
 			/* the lines hidden in a folded block take no row */
-			while (line < total && line_height (ed, &vl, line, editing) == 0)
+			while (line < total && line_height (ed, &vl, line) == 0)
 			{
 				line++;
 			}
@@ -1794,6 +1795,7 @@ MlHit ml_screen_hit (
 		.line   = 0,
 		.byte   = 0
 	};
+
 	MlLayout layout = ml_screen_layout (s, ed);
 
 	if (

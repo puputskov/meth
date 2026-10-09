@@ -477,6 +477,7 @@ static MlUndoResult step_history (MlSession *s, MlUndoVec *from, MlUndoVec *to)
 		.did    = 0,
 		.where  = 0
 	};
+
 	uint64_t group = ml_choose (
 		from->len > 0,
 		from->data [from->len - 1].group,
