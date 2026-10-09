@@ -32,12 +32,23 @@ void ml_str_clear (MlStr *s)
 
 MlSlice ml_str_view (MlStr s)
 {
-	return ml_slice (s.data ? s.data : "", s.len);
+	return ml_slice (
+		ml_choose (
+			s.data != NULL,
+			s.data,
+			""
+		),
+		s.len
+	);
 }
 
 const char *ml_str_cstr (MlStr s)
 {
-	return s.data ? s.data : "";
+	return ml_choose (
+		s.data,
+		s.data,
+		""
+	);
 }
 
 MlResult ml_str_reserve (MlStr *s, uint64_t len)
@@ -52,12 +63,20 @@ MlResult ml_str_reserve (MlStr *s, uint64_t len)
 	else if (len + 1 > s->cap)
 	{
 		uint64_t need = len + 1;
-		uint64_t cap  = s->cap ? s->cap : 16;
-		char     *p;
+		uint64_t cap  = ml_choose (
+			s->cap,
+			s->cap,
+			16
+		);
+		char *p;
 
 		while (cap < need)
 		{
-			cap = (cap > SIZE_MAX / 2) ? need : cap * 2;
+			cap = ml_choose (
+				(cap > SIZE_MAX / 2),
+				need,
+				cap * 2
+			);
 		}
 
 		p = realloc (s->data, cap);
@@ -120,7 +139,11 @@ MlResult ml_str_append_cp (MlStr *s, uint32_t cp)
 {
 	MlEncoded e = ml_utf8_encode (cp);
 
-	return e.size > 0 ? ml_str_append (s, ml_slice (e.bytes, e.size)) : ML_ERR_UTF8;
+	return ml_choose (
+		e.size > 0,
+		ml_str_append (s, ml_slice (e.bytes, e.size)),
+		ML_ERR_UTF8
+	);
 }
 
 MlResult ml_str_appendf (MlStr *s, const char *fmt, ...)
@@ -155,11 +178,19 @@ MlResult ml_str_appendf (MlStr *s, const char *fmt, ...)
 
 MlResult ml_str_erase (MlStr *s, uint64_t pos, uint64_t n)
 {
-	MlResult r = pos <= s->len ? ML_OK : ML_ERR_RANGE;
+	MlResult r = ml_choose (
+		pos <= s->len,
+		ML_OK,
+		ML_ERR_RANGE
+	);
 
 	if (r == ML_OK)
 	{
-		uint64_t count = n < s->len - pos ? n : s->len - pos;
+		uint64_t count = ml_choose (
+			n < s->len - pos,
+			n,
+			s->len - pos
+		);
 
 		if (count > 0)
 		{

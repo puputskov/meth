@@ -14,7 +14,11 @@ static uint64_t name_start (MlSlice path)
 	while (i > 0 && !found)
 	{
 		found = is_sep (path.data [i - 1]);
-		i    -= found ? 0 : 1;
+		i    -= ml_choose (
+			found,
+			0,
+			1
+		);
 	}
 
 	return i;

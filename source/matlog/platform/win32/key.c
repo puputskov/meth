@@ -54,7 +54,11 @@ static MlKeyCode code_from_vk (uint16_t vk)
 
 	for (uint64_t i = 0; i < sizeof vk_table / sizeof vk_table [0] && code == ML_KEY_NONE; i++)
 	{
-		code = vk_table [i].vk == vk ? vk_table [i].code : ML_KEY_NONE;
+		code = ml_choose (
+			vk_table [i].vk == vk,
+			vk_table [i].code,
+			ML_KEY_NONE
+		);
 	}
 
 	if (vk >= VK_F1_ && vk <= VK_F12_)
@@ -69,9 +73,21 @@ static uint32_t mods_from_control (uint32_t control)
 {
 	uint32_t mods = 0;
 
-	mods |= (control & CTRL_SHIFT) ? ML_MOD_SHIFT : 0;
-	mods |= (control & (CTRL_LEFT_CTRL | CTRL_RIGHT_CTRL)) ? ML_MOD_CTRL : 0;
-	mods |= (control & (CTRL_LEFT_ALT | CTRL_RIGHT_ALT)) ? ML_MOD_ALT : 0;
+	mods |= ml_choose (
+		(control & CTRL_SHIFT),
+		ML_MOD_SHIFT,
+		0
+	);
+	mods |= ml_choose (
+		(control & (CTRL_LEFT_CTRL | CTRL_RIGHT_CTRL)),
+		ML_MOD_CTRL,
+		0
+	);
+	mods |= ml_choose (
+		(control & (CTRL_LEFT_ALT | CTRL_RIGHT_ALT)),
+		ML_MOD_ALT,
+		0
+	);
 	return mods;
 }
 
@@ -117,12 +133,20 @@ MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 
 	else if (cp != 0 || raw.vk == VK_SPACE_)
 	{
-		cp = cp != 0 ? cp : ' ';
+		cp = ml_choose (
+			cp != 0,
+			cp,
+			' '
+		);
 
 		if (cp < 0x20)
 		{
 			/* Ctrl+A is 0x01 ... Ctrl+Z is 0x1A, Ctrl+\ ] ^ _ are 0x1C ... 0x1F */
-			cp = cp <= 26 ? 'a' + (cp - 1) : cp + 64;
+			cp = ml_choose (
+				cp <= 26,
+				'a' + (cp - 1),
+				cp + 64
+			);
 			mods |= ML_MOD_CTRL;
 		}
 
@@ -133,7 +157,11 @@ MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 		}
 
 		/* shift is already reflected in the character itself */
-		mods = (mods & (ML_MOD_CTRL | ML_MOD_ALT)) ? mods : (mods & ~ML_MOD_SHIFT);
+		mods = ml_choose (
+			(mods & (ML_MOD_CTRL | ML_MOD_ALT)),
+			mods,
+			(mods & ~ML_MOD_SHIFT)
+		);
 
 		res.key.code     = ML_KEY_CHAR;
 		res.key.cp       = cp;

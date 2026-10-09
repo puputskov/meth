@@ -38,7 +38,11 @@ static uint8_t byte_at (MlSlice s, uint64_t i)
 /* The payload bits of a lead byte: a 1 byte sequence uses 7 bits, a 2, 3, 4 byte one 5, 4, 3. */
 static uint32_t lead_payload (uint8_t lead, uint64_t n)
 {
-	return n == 1 ? lead : (uint32_t)(lead & (0xFFu >> (n + 1)));
+	return ml_choose (
+		n == 1,
+		lead,
+		(uint32_t)(lead & (0xFFu >> (n + 1)))
+	);
 }
 
 MlDecoded ml_utf8_decode (MlSlice s)
@@ -57,15 +61,29 @@ MlDecoded ml_utf8_decode (MlSlice s)
 		for (uint64_t i = 1; ok && i < n; i++)
 		{
 			ok = (byte_at (s, i) & 0xC0) == 0x80;
-			c = (c << 6) | (byte_at (s, i) & 0x3F);
+			c  = (c << 6) | (byte_at (s, i) & 0x3F);
 		}
 
 		/* overlong forms, surrogates, beyond U+10FFFF */
-		ok = ok && !(n == 2 && c < 0x80) && !(n == 3 && c < 0x800) &&
-			!(n == 4 && c < 0x10000) && !(c >= 0xD800 && c <= 0xDFFF) && c <= 0x10FFFF;
+		ok = (
+			   ok
+			&& !(n == 2      && c <  0x00080)
+			&& !(n == 3      && c <  0x00800)
+			&& !(n == 4      && c <  0x10000)
+			&& !(c >= 0xD800 && c <= 0x0DFFF)
+			&& c <= 0x10FFFF
+		);
 
-		d.cp   = ok ? c : ML_CP_REPLACEMENT;
-		d.size = ok ? n : 1;
+		d.cp = ml_choose (
+			ok,
+			c,
+			ML_CP_REPLACEMENT
+		);
+		d.size = ml_choose (
+			ok,
+			n,
+			1
+		);
 	}
 
 	return d;
@@ -148,13 +166,25 @@ uint64_t ml_utf8_count (MlSlice s)
 
 uint64_t ml_utf8_next (MlSlice s, uint64_t pos)
 {
-	return pos < s.len ? pos + ml_utf8_decode (ml_slice_sub (s, pos, s.len - pos)).size : s.len;
+	return ml_choose (
+		pos < s.len,
+		pos + ml_utf8_decode (ml_slice_sub (s, pos, s.len - pos)).size,
+		s.len
+	);
 }
 
 uint64_t ml_utf8_prev (MlSlice s, uint64_t pos)
 {
-	uint64_t i     = pos > 0 ? pos - 1 : 0;
-	uint64_t limit = pos > 4 ? pos - 4 : 0;
+	uint64_t i = ml_choose (
+		pos > 0,
+		pos - 1,
+		0
+	);
+	uint64_t limit = ml_choose (
+		pos > 4,
+		pos - 4,
+		0
+	);
 
 	/* step back over at most 3 continuation bytes */
 	while (i > limit && (byte_at (s, i) & 0xC0) == 0x80)
@@ -206,7 +236,11 @@ int32_t ml_cp_width (uint32_t cp)
 		for (uint64_t i = 0; i < sizeof special_widths / sizeof special_widths [0] && !found; i++)
 		{
 			found = cp >= special_widths [i].lo && cp <= special_widths [i].hi;
-			w = found ? special_widths [i].width : w;
+			w     = ml_choose (
+				found,
+				special_widths [i].width,
+				w
+			);
 		}
 	}
 
@@ -231,10 +265,39 @@ uint64_t ml_utf8_width (MlSlice s)
 
 int32_t ml_cp_is_word (uint32_t cp)
 {
-	int32_t ascii = (cp >= '0' && cp <= '9') || (cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') || cp == '_';
-	int32_t latin = (cp >= 0xC0 && cp <= 0x24F && cp != 0xD7 && cp != 0xF7) || cp == 0xAA || cp == 0xB5 || cp == 0xBA;
-	int32_t greek = (cp >= 0x370 && cp <= 0x3FF && cp != 0x37E && cp != 0x387);
-	int32_t other = (cp >= 0x400 && cp <= 0x52F) || (cp >= 0x3040 && cp <= 0x30FF) || (cp >= 0x4E00 && cp <= 0x9FFF);
+	int32_t ascii = (
+		   (cp >= '0' && cp <= '9')
+		|| (cp >= 'a' && cp <= 'z')
+		|| (cp >= 'A' && cp <= 'Z')
+		|| cp == '_'
+	);
+	int32_t latin = (
+		   (
+			   cp >= 0x0C0
+			&& cp <= 0x24F
+			&& cp != 0x0D7
+			&& cp != 0x0F7
+		)
+		|| cp == 0x0AA
+		|| cp == 0x0B5
+		|| cp == 0x0BA
+	);
+	int32_t greek = (
+		   cp >= 0x370
+		&& cp <= 0x3FF
+		&& cp != 0x37E
+		&& cp != 0x387
+	);
+	int32_t other = (
+		   (cp >= 0x0400 && cp <= 0x052F)
+		|| (cp >= 0x3040 && cp <= 0x30FF)
+		|| (cp >= 0x4E00 && cp <= 0x9FFF)
+	);
 
-	return ascii || latin || greek || other;
+	return (
+		   ascii
+		|| latin
+		|| greek
+		|| other
+	);
 }

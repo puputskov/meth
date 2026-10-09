@@ -15,5 +15,9 @@ const char *ml_result_str (MlResult r)
 {
 	int32_t known = (int32_t)r >= 0 && (uint64_t)r < sizeof names / sizeof names [0];
 
-	return known ? names [r] : "unknown error";
+	return ml_choose (
+		known,
+		names [r],
+		"unknown error"
+	);
 }

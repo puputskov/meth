@@ -12,4 +12,16 @@
  */
 _Static_assert (sizeof (size_t) == sizeof (uint64_t), "matlog requires a 64 bit platform");
 
+/*
+ * The conditional expression. Use it instead of the ?: operator; like ?: it only evaluates
+ * the argument that is chosen. Write the arguments one per line:
+ *
+ *	return ml_choose (
+ *		n > 0,
+ *		first (n),
+ *		0
+ *	);
+ */
+#define ml_choose(cond, a, b) ((cond) ? (a) : (b))
+
 #endif /* MATLOG_CORE_TYPES_H */

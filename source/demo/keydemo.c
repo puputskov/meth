@@ -61,11 +61,21 @@ int main (void)
 				r = print_line (&c, &line);
 			}
 
-			quit = k.key.code == ML_KEY_CHAR && (k.key.cp == 'q' || (k.key.cp == 'c' && (k.key.mods & ML_MOD_CTRL)));
+			quit = (
+				   k.key.code == ML_KEY_CHAR
+				&& (
+					   k.key.cp == 'q'
+					|| (k.key.cp == 'c' && (k.key.mods & ML_MOD_CTRL))
+				)
+			);
 		}
 	}
 
 	ml_console_close (&c);
 	ml_str_free (&line);
-	return r == ML_OK ? 0 : 1;
+	return ml_choose (
+		r == ML_OK,
+		0,
+		1
+	);
 }

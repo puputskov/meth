@@ -1,7 +1,7 @@
 #ifndef MATLOG_TEST_H
 #define MATLOG_TEST_H
 
-#include <stdint.h>
+#include <matlog/core/types.h>
 #include <stdio.h>
 
 /* Minimal test harness: each failed check is counted and reported, the run continues. */

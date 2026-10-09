@@ -28,7 +28,12 @@ MlResult ml_console_open (MlConsole *c)
 	c->active       = 0;
 	c->pending_high = 0;
 
-	if (in == INVALID_HANDLE_VALUE || out == INVALID_HANDLE_VALUE || in == NULL || out == NULL)
+	if (
+		   in  == INVALID_HANDLE_VALUE
+		|| out == INVALID_HANDLE_VALUE
+		|| in  == NULL
+		|| out == NULL
+	)
 	{
 		r = ML_ERR_IO;
 	}
@@ -150,7 +155,11 @@ MlResult ml_console_write (const MlConsole *c, MlSlice text)
 	while (r == ML_OK && pos < text.len)
 	{
 		DWORD written = 0;
-		DWORD chunk   = (DWORD)(text.len - pos > 0x10000 ? 0x10000 : text.len - pos);
+		DWORD chunk   = (DWORD)ml_choose (
+			text.len - pos > 0x10000,
+			0x10000,
+			text.len - pos
+		);
 
 		if (WriteFile (to_handle (c->out_handle), text.data + pos, chunk, &written, NULL) && written > 0)
 		{

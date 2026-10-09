@@ -59,7 +59,11 @@ MlResult ml_lineedit_insert_cp (MlLineEdit *e, uint32_t cp)
 {
 	MlEncoded enc = ml_utf8_encode (cp);
 
-	return enc.size > 0 ? ml_lineedit_insert (e, ml_slice (enc.bytes, enc.size)) : ML_ERR_UTF8;
+	return ml_choose (
+		enc.size > 0,
+		ml_lineedit_insert (e, ml_slice (enc.bytes, enc.size)),
+		ML_ERR_UTF8
+	);
 }
 
 /* Is the code point that ends at pos a word character? */
@@ -198,36 +202,41 @@ MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key)
 		.result  = ML_OK,
 		.handled = 1
 	};
-	int32_t  ctrl = (key.mods & ML_MOD_CTRL) != 0;
-	int32_t  alt  = (key.mods & ML_MOD_ALT) != 0;
-	uint32_t ch   = key.code == ML_KEY_CHAR ? key.cp : 0;
+	int32_t  ctrl      = (key.mods & ML_MOD_CTRL) != 0;
+	int32_t  alt       = (key.mods & ML_MOD_ALT) != 0;
+	int32_t  ctrl_char = key.code == ML_KEY_CHAR && ctrl && !alt;
+	uint32_t ch        = ml_choose (
+		key.code == ML_KEY_CHAR,
+		key.cp,
+		0
+	);
 
 	if (key.code == ML_KEY_CHAR && !ctrl && !alt)
 	{
 		res.result = ml_lineedit_insert_cp (e, key.cp);
 	}
 
-	else if (key.code == ML_KEY_CHAR && ctrl && !alt && ch == 'a')
+	else if (ctrl_char && ch == 'a')
 	{
 		ml_lineedit_home (e);
 	}
 
-	else if (key.code == ML_KEY_CHAR && ctrl && !alt && ch == 'e')
+	else if (ctrl_char && ch == 'e')
 	{
 		ml_lineedit_end (e);
 	}
 
-	else if (key.code == ML_KEY_CHAR && ctrl && !alt && ch == 'k')
+	else if (ctrl_char && ch == 'k')
 	{
 		ml_lineedit_kill_to_end (e);
 	}
 
-	else if (key.code == ML_KEY_CHAR && ctrl && !alt && ch == 'u')
+	else if (ctrl_char && ch == 'u')
 	{
 		ml_lineedit_kill_to_start (e);
 	}
 
-	else if (key.code == ML_KEY_CHAR && ctrl && !alt && ch == 'w')
+	else if (ctrl_char && ch == 'w')
 	{
 		ml_lineedit_delete_word_left (e);
 	}
@@ -326,8 +335,12 @@ static Window append_window (MlStr *out, MlSlice text, uint64_t start_col, uint6
 		{
 			show        = col >= start_col && col + cw - start_col <= avail;
 			done        = col + cw - start_col > avail && col >= start_col;
-			w.first_col = (show && !any) ? col : w.first_col;
-			any         = any || show;
+			w.first_col = ml_choose (
+				(show && !any),
+				col,
+				w.first_col
+			);
+			any = any || show;
 		}
 
 		if (show)
@@ -345,11 +358,19 @@ static Window append_window (MlStr *out, MlSlice text, uint64_t start_col, uint6
 
 MlResult ml_lineedit_render (MlStr *out, const MlLineEdit *e, MlSlice prompt, uint32_t prompt_width, uint32_t cols)
 {
-	MlResult r          = ML_OK;
-	uint64_t avail      = cols > (uint64_t)prompt_width + 1 ? cols - prompt_width - 1 : 1;
+	MlResult r     = ML_OK;
+	uint64_t avail = ml_choose (
+		cols > (uint64_t)prompt_width + 1,
+		cols - prompt_width - 1,
+		1
+	);
 	uint64_t cursor_col = ml_lineedit_cursor_col (e);
-	uint64_t start_col  = cursor_col >= avail ? cursor_col - avail + 1 : 0;
-	Window   win        =
+	uint64_t start_col  = ml_choose (
+		cursor_col >= avail,
+		cursor_col - avail + 1,
+		0
+	);
+	Window win =
 	{
 		.result    = ML_OK,
 		.first_col = 0
@@ -375,7 +396,12 @@ MlResult ml_lineedit_render (MlStr *out, const MlLineEdit *e, MlSlice prompt, ui
 
 	if (r == ML_OK)
 	{
-		uint64_t screen_col = (uint64_t)prompt_width + (cursor_col > win.first_col ? cursor_col - win.first_col : 0);
+		uint64_t offset = ml_choose (
+			cursor_col > win.first_col,
+			cursor_col - win.first_col,
+			0
+		);
+		uint64_t screen_col = (uint64_t)prompt_width + offset;
 
 		if (screen_col > 0)
 		{

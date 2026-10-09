@@ -33,6 +33,15 @@ Interactive math shell written in C. See `plan.md` for the design.
 - Use fixed-width types: `int32_t`, `uint32_t`, `uint8_t`, `int64_t`... instead of `int`, `unsigned int`, `unsigned char`, `long long`.
   Sizes, counts and indices are `uint64_t`, not `size_t` (64 bit targets only, enforced in `matlog/core/types.h`). `char` stays for text bytes,
   and `int main` stays as the C standard requires.
+- Never use the `?:` operator. Use the `ml_choose (cond, a, b)` macro from `matlog/core/types.h` (same lazy evaluation) and write its arguments one
+  per line, with the closing parenthesis on its own line. When it is nested in another call, that call's arguments go one per line too:
+  ```c
+  return ml_choose (
+  	enc.size > 0,
+  	ml_lineedit_insert (e, ml_slice (enc.bytes, enc.size)),
+  	ML_ERR_UTF8
+  );
+  ```
 - Struct initializers always use named (designated) entries and are written one entry per line, braces on their own lines (nested
   initializers too), with the `=` of the entries aligned:
   ```c

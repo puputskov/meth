@@ -16,7 +16,11 @@ const char *ml_domain_name (MlDomain domain)
 {
 	int32_t known = (int32_t)domain >= 0 && domain < ML_DOMAIN_COUNT;
 
-	return known ? domain_names [domain] : "unknown";
+	return ml_choose (
+		known,
+		domain_names [domain],
+		"unknown"
+	);
 }
 
 MlDomainResult ml_domain_from_name (MlSlice name)
@@ -137,8 +141,12 @@ static MlResult line_make (MlLine *out, MlLineKind kind, MlDomain domain, MlSlic
 
 MlResult ml_session_insert (MlSession *s, uint64_t idx, MlLineKind kind, MlDomain domain, MlSlice text)
 {
-	MlResult r    = idx <= s->lines.len ? ML_OK : ML_ERR_RANGE;
-	MlLine   line =
+	MlResult r = ml_choose (
+		idx <= s->lines.len,
+		ML_OK,
+		ML_ERR_RANGE
+	);
+	MlLine line =
 	{
 		.kind   = ML_LINE_NONE,
 		.domain = ML_DOMAIN_ALGEBRA,
@@ -180,8 +188,12 @@ MlResult ml_session_append (MlSession *s, MlLineKind kind, MlDomain domain, MlSl
 
 MlResult ml_session_replace (MlSession *s, uint64_t idx, MlLineKind kind, MlDomain domain, MlSlice text)
 {
-	MlResult r    = idx < s->lines.len ? ML_OK : ML_ERR_RANGE;
-	MlLine   line =
+	MlResult r = ml_choose (
+		idx < s->lines.len,
+		ML_OK,
+		ML_ERR_RANGE
+	);
+	MlLine line =
 	{
 		.kind   = ML_LINE_NONE,
 		.domain = ML_DOMAIN_ALGEBRA,
@@ -210,7 +222,11 @@ MlResult ml_session_replace (MlSession *s, uint64_t idx, MlLineKind kind, MlDoma
 
 MlResult ml_session_delete (MlSession *s, uint64_t idx)
 {
-	MlResult r = idx < s->lines.len ? ML_OK : ML_ERR_RANGE;
+	MlResult r = ml_choose (
+		idx < s->lines.len,
+		ML_OK,
+		ML_ERR_RANGE
+	);
 
 	if (r == ML_OK)
 	{
@@ -229,9 +245,17 @@ MlResult ml_session_delete (MlSession *s, uint64_t idx)
 
 void ml_session_set_cursor (MlSession *s, uint64_t idx)
 {
-	uint64_t last = s->lines.len > 0 ? s->lines.len - 1 : 0;
+	uint64_t last = ml_choose (
+		s->lines.len > 0,
+		s->lines.len - 1,
+		0
+	);
 
-	s->cursor = idx < last ? idx : last;
+	s->cursor = ml_choose (
+		idx < last,
+		idx,
+		last
+	);
 }
 
 void ml_session_move_cursor (MlSession *s, int64_t delta)
@@ -242,12 +266,20 @@ void ml_session_move_cursor (MlSession *s, int64_t delta)
 	{
 		uint64_t back = (uint64_t)(-(delta + 1)) + 1;
 
-		target = back > s->cursor ? 0 : s->cursor - back;
+		target = ml_choose (
+			back > s->cursor,
+			0,
+			s->cursor - back
+		);
 	}
 
 	else if (delta > 0)
 	{
-		target = (uint64_t)delta > UINT64_MAX - s->cursor ? UINT64_MAX : s->cursor + (uint64_t)delta;
+		target = ml_choose (
+			(uint64_t)delta > UINT64_MAX - s->cursor,
+			UINT64_MAX,
+			s->cursor + (uint64_t)delta
+		);
 	}
 
 	ml_session_set_cursor (s, target);

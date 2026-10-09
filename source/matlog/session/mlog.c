@@ -59,7 +59,11 @@ static MlLineView classify (MlSlice line)
 	else if (line.data [0] == '#')
 	{
 		/* "# text": the one space after the marker is not part of the text */
-		uint64_t skip = (line.len > 1 && line.data [1] == ' ') ? 2 : 1;
+		uint64_t skip = ml_choose (
+			(line.len > 1 && line.data [1] == ' '),
+			2,
+			1
+		);
 
 		view.kind = ML_LINE_NOTE;
 		view.text = ml_slice_sub (line, skip, line.len - skip);
@@ -72,7 +76,11 @@ static MlLineView classify (MlSlice line)
 
 		if (d.result == ML_OK)
 		{
-			uint64_t skip = space < line.len ? space + 1 : line.len;
+			uint64_t skip = ml_choose (
+				space < line.len,
+				space + 1,
+				line.len
+			);
 
 			view.kind   = ML_LINE_MATH;
 			view.domain = d.domain;
@@ -92,7 +100,11 @@ static MlLineView classify (MlSlice line)
 MlResult ml_mlog_parse (MlSession *s, MlSlice text)
 {
 	MlResult r   = ML_OK;
-	uint64_t pos = starts_with (text, "\xEF\xBB\xBF") ? 3 : 0;
+	uint64_t pos = ml_choose (
+		starts_with (text, "\xEF\xBB\xBF"),
+		3,
+		0
+	);
 
 	while (r == ML_OK && pos < text.len)
 	{
@@ -114,7 +126,7 @@ MlResult ml_mlog_parse (MlSession *s, MlSlice text)
 
 		view = classify (line);
 		r    = ml_session_append (s, view.kind, view.domain, view.text);
-		pos = end + 1;
+		pos  = end + 1;
 	}
 
 	return r;
@@ -126,27 +138,56 @@ static MlResult format_line (MlStr *out, MlLineView v)
 
 	if (v.kind == ML_LINE_NOTE)
 	{
-		r = ml_str_append (out, ml_slice_cstr (v.text.len > 0 ? "# " : "#"));
-		r = r == ML_OK ? ml_str_append (out, v.text) : r;
+		r = ml_str_append (
+			out,
+			ml_slice_cstr (
+				ml_choose (
+					v.text.len > 0,
+					"# ",
+					"#"
+				)
+			)
+		);
+		r = ml_choose (
+			r == ML_OK,
+			ml_str_append (out, v.text),
+			r
+		);
 	}
 
 	else if (v.kind == ML_LINE_MATH)
 	{
 		r = ml_str_append (out, ml_slice_cstr ("m:"));
-		r = r == ML_OK ? ml_str_append (out, ml_slice_cstr (ml_domain_name (v.domain))) : r;
+		r = ml_choose (
+			r == ML_OK,
+			ml_str_append (out, ml_slice_cstr (ml_domain_name (v.domain))),
+			r
+		);
 
 		if (r == ML_OK && v.text.len > 0)
 		{
 			r = ml_str_append (out, ml_slice_cstr (" "));
-			r = r == ML_OK ? ml_str_append (out, v.text) : r;
+			r = ml_choose (
+				r == ML_OK,
+				ml_str_append (out, v.text),
+				r
+			);
 		}
 	}
 
 	else if (v.kind == ML_LINE_INCLUDE)
 	{
 		r = ml_str_append (out, ml_slice_cstr ("include \""));
-		r = r == ML_OK ? ml_str_append (out, v.text) : r;
-		r = r == ML_OK ? ml_str_append (out, ml_slice_cstr ("\"")) : r;
+		r = ml_choose (
+			r == ML_OK,
+			ml_str_append (out, v.text),
+			r
+		);
+		r = ml_choose (
+			r == ML_OK,
+			ml_str_append (out, ml_slice_cstr ("\"")),
+			r
+		);
 	}
 
 	else if (v.kind == ML_LINE_UNKNOWN)
@@ -203,7 +244,11 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 		{
 			MlLineView v = ml_session_get (&loaded, i);
 
-			loaded.domain = v.kind == ML_LINE_MATH ? v.domain : loaded.domain;
+			loaded.domain = ml_choose (
+				v.kind == ML_LINE_MATH,
+				v.domain,
+				loaded.domain
+			);
 		}
 
 		loaded.dirty  = 0;
@@ -221,8 +266,12 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 
 MlResult ml_mlog_save (MlSession *s)
 {
-	MlResult r = s->path.len > 0 ? ML_OK : ML_ERR_INVALID;
-	MlStr    out;
+	MlResult r = ml_choose (
+		s->path.len > 0,
+		ML_OK,
+		ML_ERR_INVALID
+	);
+	MlStr out;
 
 	ml_str_init (&out);
 

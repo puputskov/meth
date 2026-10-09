@@ -90,11 +90,22 @@ static inline MlResult Name##_reserve (Name *v, uint64_t cap) \
 \
 static inline MlResult Name##_insert (Name *v, uint64_t idx, T value) \
 { \
-	MlResult r = idx <= v->len ? ML_OK : ML_ERR_RANGE; \
+	MlResult r = ml_choose ( \
+		idx <= v->len, \
+		ML_OK, \
+		ML_ERR_RANGE \
+	); \
 \
 	if (r == ML_OK && v->len == v->cap) \
 	{ \
-		r = Name##_reserve (v, v->cap ? v->cap * 2 : 8); \
+		r = Name##_reserve ( \
+			v, \
+			ml_choose ( \
+				v->cap > 0, \
+				v->cap * 2, \
+				8 \
+			) \
+		); \
 	} \
 \
 	if (r == ML_OK) \
@@ -114,7 +125,11 @@ static inline MlResult Name##_push (Name *v, T value) \
 \
 static inline MlResult Name##_set (Name *v, uint64_t idx, T value) \
 { \
-	MlResult r = idx < v->len ? ML_OK : ML_ERR_RANGE; \
+	MlResult r = ml_choose ( \
+		idx < v->len, \
+		ML_OK, \
+		ML_ERR_RANGE \
+	); \
 \
 	if (r == ML_OK) \
 	{ \
@@ -126,7 +141,11 @@ static inline MlResult Name##_set (Name *v, uint64_t idx, T value) \
 \
 static inline MlResult Name##_remove (Name *v, uint64_t idx) \
 { \
-	MlResult r = idx < v->len ? ML_OK : ML_ERR_RANGE; \
+	MlResult r = ml_choose ( \
+		idx < v->len, \
+		ML_OK, \
+		ML_ERR_RANGE \
+	); \
 \
 	if (r == ML_OK) \
 	{ \
@@ -139,7 +158,11 @@ static inline MlResult Name##_remove (Name *v, uint64_t idx) \
 \
 static inline MlResult Name##_pop (Name *v) \
 { \
-	return v->len > 0 ? Name##_remove (v, v->len - 1) : ML_ERR_RANGE; \
+	return ml_choose ( \
+		v->len > 0, \
+		Name##_remove (v, v->len - 1), \
+		ML_ERR_RANGE \
+	); \
 } \
 \
 static inline T Name##_get (const Name *v, uint64_t idx) \
@@ -147,7 +170,11 @@ static inline T Name##_get (const Name *v, uint64_t idx) \
 	T zero; \
 \
 	memset (&zero, 0, sizeof zero); \
-	return idx < v->len ? v->data [idx] : zero; \
+	return ml_choose ( \
+		idx < v->len, \
+		v->data [idx], \
+		zero \
+	); \
 }
 
 #endif /* MATLOG_CORE_VEC_H */

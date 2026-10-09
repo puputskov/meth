@@ -23,7 +23,11 @@ static MlResult wide_from_utf8 (WideVec *out, MlSlice s)
 	else if (s.len > 0)
 	{
 		n = MultiByteToWideChar (CP_UTF8, MB_ERR_INVALID_CHARS, s.data, (int32_t)s.len, NULL, 0);
-		r = n > 0 ? ML_OK : ML_ERR_UTF8;
+		r = ml_choose (
+			n > 0,
+			ML_OK,
+			ML_ERR_UTF8
+		);
 	}
 
 	if (r == ML_OK)
@@ -78,7 +82,11 @@ MlResult ml_fs_read_file (MlStr *out, MlSlice path)
 	{
 		file = CreateFileW ((LPCWSTR)wide.data, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
 			FILE_ATTRIBUTE_NORMAL, NULL);
-		r = file != INVALID_HANDLE_VALUE ? ML_OK : ML_ERR_IO;
+		r = ml_choose (
+			file != INVALID_HANDLE_VALUE,
+			ML_OK,
+			ML_ERR_IO
+		);
 	}
 
 	while (r == ML_OK && more)
@@ -151,13 +159,21 @@ MlResult ml_fs_write_file_atomic (MlSlice path, MlSlice data)
 	{
 		file = CreateFileW ((LPCWSTR)wide_tmp.data, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
 			FILE_ATTRIBUTE_NORMAL, NULL);
-		r = file != INVALID_HANDLE_VALUE ? ML_OK : ML_ERR_IO;
+		r = ml_choose (
+			file != INVALID_HANDLE_VALUE,
+			ML_OK,
+			ML_ERR_IO
+		);
 	}
 
 	while (r == ML_OK && pos < data.len)
 	{
 		DWORD written = 0;
-		DWORD chunk   = (DWORD)(data.len - pos > 0x100000 ? 0x100000 : data.len - pos);
+		DWORD chunk   = (DWORD)ml_choose (
+			data.len - pos > 0x100000,
+			0x100000,
+			data.len - pos
+		);
 
 		if (WriteFile (file, data.data + pos, chunk, &written, NULL) && written > 0)
 		{

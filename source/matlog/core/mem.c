@@ -70,9 +70,13 @@ static void *alloc_in_new_block (MlArena *a, uint64_t size, uint64_t align)
 
 	if (size <= SIZE_MAX - align)
 	{
-		uint64_t     need = size + align;
-		uint64_t     cap  = need > a->block_size ? need : a->block_size;
-		MlArenaBlock *nb  = block_new (cap);
+		uint64_t need = size + align;
+		uint64_t cap  = ml_choose (
+			need > a->block_size,
+			need,
+			a->block_size
+		);
+		MlArenaBlock *nb = block_new (cap);
 
 		if (nb)
 		{
@@ -98,7 +102,11 @@ static void *alloc_in_new_block (MlArena *a, uint64_t size, uint64_t align)
 void ml_arena_init (MlArena *a, uint64_t block_size)
 {
 	a->head       = NULL;
-	a->block_size = block_size ? block_size : ML_ARENA_DEFAULT_BLOCK;
+	a->block_size = ml_choose (
+		block_size,
+		block_size,
+		ML_ARENA_DEFAULT_BLOCK
+	);
 }
 
 void *ml_arena_alloc (MlArena *a, uint64_t size, uint64_t align)

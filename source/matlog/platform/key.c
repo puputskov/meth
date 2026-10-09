@@ -37,7 +37,11 @@ const char *ml_key_code_name (MlKeyCode code)
 {
 	int32_t known = (int32_t)code >= 0 && (int32_t)code < ML_KEY_COUNT;
 
-	return known ? code_names [code] : "Unknown";
+	return ml_choose (
+		known,
+		code_names [code],
+		"Unknown"
+	);
 }
 
 MlResult ml_key_format (MlStr *out, MlKey key)

@@ -13,7 +13,14 @@ MlSlice ml_slice (const char *data, uint64_t len)
 
 MlSlice ml_slice_cstr (const char *cstr)
 {
-	return ml_slice (cstr, cstr ? strlen (cstr) : 0);
+	return ml_slice (
+		cstr,
+		ml_choose (
+			cstr != NULL,
+			strlen (cstr),
+			0
+		)
+	);
 }
 
 MlSlice ml_slice_sub (MlSlice s, uint64_t pos, uint64_t n)
@@ -23,7 +30,11 @@ MlSlice ml_slice_sub (MlSlice s, uint64_t pos, uint64_t n)
 	if (pos < s.len)
 	{
 		r.data = s.data + pos;
-		r.len  = (n < s.len - pos) ? n : s.len - pos;
+		r.len  = ml_choose (
+			(n < s.len - pos),
+			n,
+			s.len - pos
+		);
 	}
 
 	return r;
