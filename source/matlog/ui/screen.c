@@ -628,7 +628,13 @@ static MlResult append_line_row (
 			r = append_note_text (out, ed, line.text, room);
 		}
 
-		else if (r == ML_OK && ed->highlight && line.kind == ML_LINE_MATH)
+		/* the reversed bar of the cursor line keeps the plain text */
+		else if (
+			   r == ML_OK
+			&& ed->highlight
+			&& !highlight
+			&& line.kind == ML_LINE_MATH
+		)
 		{
 			Themed t =
 			{

@@ -1310,6 +1310,32 @@ static void test_theme_switch (void)
 	ml_editor_free (&ed);
 }
 
+static void test_selected_row_theme (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ed.highlight = 1;
+	ml_editor_begin (&ed);
+	ml_screen_init (&s, 40, 8);
+	type (&ed, "2+x");
+	press (&ed, ML_KEY_ESCAPE);
+
+	/* the cursor line is a reversed bar: token colours would tint it */
+	ed.state  = ML_STATE_SELECT;
+	ed.anchor = 0;
+	ml_session_set_cursor (&ed.session, 0);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[7m"));
+	CHECK (!row_contains (&l, 0, "\x1b[38;2;181;206;168m"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_themed_rows (void)
 {
 	MlEditor ed;
@@ -1363,6 +1389,7 @@ void run_screen_tests (void)
 	test_empty_gutter ();
 	test_block_start_gutter ();
 	test_themed_rows ();
+	test_selected_row_theme ();
 	test_theme_switch ();
 	test_themed_notes ();
 	test_basic_layout ();
