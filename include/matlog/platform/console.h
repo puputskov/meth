@@ -19,6 +19,7 @@ typedef struct MlConsole
 	uint32_t saved_out_mode;
 	uint32_t saved_out_cp;
 	uint16_t pending_high; /* high surrogate waiting for its pair */
+	uint32_t mouse_buttons; /* button state of the last mouse event */
 	int32_t  active;
 } MlConsole;
 

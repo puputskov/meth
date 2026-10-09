@@ -30,7 +30,8 @@ static const char *const code_names [ML_KEY_COUNT] =
 	[ML_KEY_F10]       = "F10",
 	[ML_KEY_F11]       = "F11",
 	[ML_KEY_F12]       = "F12",
-	[ML_KEY_RESIZE]    = "Resize"
+	[ML_KEY_RESIZE]    = "Resize",
+	[ML_KEY_MOUSE]     = "Mouse"
 };
 
 const char *ml_key_code_name (MlKeyCode code)

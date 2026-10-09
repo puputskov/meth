@@ -4,7 +4,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#define MODE_IN_RAW  (ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS)
+#define MODE_IN_RAW \
+	(ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS | ENABLE_MOUSE_INPUT)
 #define MODE_OUT_ADD \
 	(ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
 
@@ -26,8 +27,9 @@ MlResult ml_console_open (MlConsole *c)
 	DWORD    in_mode  = 0;
 	DWORD    out_mode = 0;
 
-	c->active       = 0;
-	c->pending_high = 0;
+	c->active        = 0;
+	c->pending_high  = 0;
+	c->mouse_buttons = 0;
 
 	if (
 		   in  == INVALID_HANDLE_VALUE
@@ -84,6 +86,77 @@ void ml_console_close (MlConsole *c)
 	}
 }
 
+/*
+ * The key of a mouse event: left button press, drag with it down, release,
+ * and the wheel. *buttons keeps the buttons of the event before, to tell a
+ * press from a release.
+ */
+static MlKey mouse_key (HANDLE out, MOUSE_EVENT_RECORD m, DWORD *buttons)
+{
+	MlKey key =
+	{
+		.code = ML_KEY_NONE,
+		.cp   = 0,
+		.mods = 0,
+		.col  = 0,
+		.row  = 0
+	};
+	CONSOLE_SCREEN_BUFFER_INFO info;
+	int32_t down = (m.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) != 0;
+	int32_t was  = (*buttons & FROM_LEFT_1ST_BUTTON_PRESSED) != 0;
+	int32_t left = 0;
+	int32_t top  = 0;
+
+	if (GetConsoleScreenBufferInfo (out, &info))
+	{
+		left = info.srWindow.Left;
+		top  = info.srWindow.Top;
+	}
+
+	key.col  = (uint32_t)(m.dwMousePosition.X - left + 1);
+	key.row  = (uint32_t)(m.dwMousePosition.Y - top + 1);
+	key.mods |= ml_choose (
+		(m.dwControlKeyState & SHIFT_PRESSED) != 0,
+		ML_MOD_SHIFT,
+		0
+	);
+	key.mods |= ml_choose (
+		(m.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0,
+		ML_MOD_CTRL,
+		0
+	);
+	key.mods |= ml_choose (
+		(m.dwControlKeyState & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0,
+		ML_MOD_ALT,
+		0
+	);
+
+	if (m.dwEventFlags & MOUSE_WHEELED)
+	{
+		key.code = ML_KEY_MOUSE;
+		key.cp   = ml_choose (
+			(int16_t)HIWORD (m.dwButtonState) > 0,
+			ML_MOUSE_WHEEL_UP,
+			ML_MOUSE_WHEEL_DOWN
+		);
+	}
+
+	else if (m.dwEventFlags & MOUSE_MOVED)
+	{
+		key.code = ml_choose (down, ML_KEY_MOUSE, ML_KEY_NONE);
+		key.cp   = ML_MOUSE_DRAG;
+	}
+
+	else if (m.dwEventFlags == 0 && down != was)
+	{
+		key.code = ML_KEY_MOUSE;
+		key.cp   = ml_choose (down, ML_MOUSE_PRESS, ML_MOUSE_RELEASE);
+	}
+
+	*buttons = m.dwButtonState;
+	return key;
+}
+
 MlKeyResult ml_console_read_key (MlConsole *c)
 {
 	MlKeyResult res =
@@ -113,6 +186,15 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 		else if (rec.EventType == WINDOW_BUFFER_SIZE_EVENT)
 		{
 			res.key.code = ML_KEY_RESIZE;
+		}
+
+		else if (rec.EventType == MOUSE_EVENT)
+		{
+			res.key = mouse_key (
+				to_handle (c->out_handle),
+				rec.Event.MouseEvent,
+				&c->mouse_buttons
+			);
 		}
 
 		else if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)

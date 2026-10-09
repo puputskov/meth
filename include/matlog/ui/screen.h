@@ -42,10 +42,22 @@ typedef struct MlCursorPos
 	uint32_t col;
 } MlCursorPos;
 
+/* What a screen row shows, for finding the text under the mouse. */
+typedef struct MlRowInfo
+{
+	int32_t  kind;      /* 0: no text of a line, 1: a line, 2: a folded block */
+	uint64_t src;       /* the session line */
+	uint64_t text_col;  /* 0 based column where the text starts */
+	uint64_t first_col; /* the display column of the text shown there */
+} MlRowInfo;
+
+ML_VEC_DEFINE (MlRowInfoVec, MlRowInfo)
+
 typedef struct MlLayout
 {
 	MlResult    result;
 	MlRowVec    rows; /* exactly screen.rows strings, owned by the caller */
+	MlRowInfoVec info; /* one per row */
 	MlCursorPos cursor;
 } MlLayout;
 
@@ -59,6 +71,9 @@ void ml_screen_resize (MlScreen *s, uint32_t cols, uint32_t rows);
 MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed);
 
 void ml_layout_free (MlLayout *layout);
+
+/* The text a click at a terminal cell (1 based) hits. */
+MlHit ml_screen_hit (MlScreen *s, const MlEditor *ed, uint32_t col, uint32_t row);
 
 /* Appends the VT output that brings the terminal up to date. */
 MlResult ml_screen_render (MlScreen *s, MlStr *out, const MlEditor *ed);

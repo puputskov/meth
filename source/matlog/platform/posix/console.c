@@ -19,6 +19,9 @@
 
 #define INPUT_CAP 256
 
+#define MOUSE_ON  "[?1000h[?1002h[?1006h"
+#define MOUSE_OFF "[?1006l[?1002l[?1000l"
+
 /*
  * There is one terminal, so its state lives here: the settings to give back,
  * the bytes read but not decoded yet, and the resize notice from the signal.
@@ -43,6 +46,7 @@ MlResult ml_console_open (MlConsole *c)
 
 	c->active         = 0;
 	c->pending_high   = 0;
+	c->mouse_buttons  = 0;
 	c->in_handle      = STDIN_FILENO;
 	c->out_handle     = STDOUT_FILENO;
 	c->saved_in_mode  = 0;
@@ -80,6 +84,12 @@ MlResult ml_console_open (MlConsole *c)
 
 	if (r == ML_OK)
 	{
+		/* report the left button, drags and the wheel as SGR sequences */
+		r = ml_console_write (c, ml_slice_cstr (MOUSE_ON));
+	}
+
+	if (r == ML_OK)
+	{
 		/* no SA_RESTART: a resize interrupts the blocking read */
 		act.sa_handler = on_winch;
 		act.sa_flags   = 0;
@@ -95,6 +105,7 @@ void ml_console_close (MlConsole *c)
 {
 	if (c->active)
 	{
+		ml_console_write (c, ml_slice_cstr (MOUSE_OFF));
 		tcsetattr (STDIN_FILENO, TCSAFLUSH, &saved_termios);
 		sigaction (SIGWINCH, &saved_winch, NULL);
 		c->active = 0;

@@ -35,8 +35,20 @@ typedef enum MlKeyCode
 	ML_KEY_F11,
 	ML_KEY_F12,
 	ML_KEY_RESIZE, /* the terminal changed size, query it again */
+	ML_KEY_MOUSE,  /* the mouse, see MlKey.cp (MlMouseAction), col and row */
 	ML_KEY_COUNT
 } MlKeyCode;
+
+/* What the mouse did, in MlKey.cp of an ML_KEY_MOUSE. Left button only. */
+typedef enum MlMouseAction
+{
+	ML_MOUSE_NONE = 0,
+	ML_MOUSE_PRESS,
+	ML_MOUSE_DRAG, /* moved with the button down */
+	ML_MOUSE_RELEASE,
+	ML_MOUSE_WHEEL_UP,
+	ML_MOUSE_WHEEL_DOWN
+} MlMouseAction;
 
 #define ML_MOD_SHIFT 1u
 #define ML_MOD_CTRL  2u
@@ -51,6 +63,9 @@ typedef struct MlKey
 	 * letter and ML_MOD_CTRL.
 	 */
 	uint32_t mods;
+	/* ML_KEY_MOUSE: the cell, 1 based like a terminal position */
+	uint32_t col;
+	uint32_t row;
 } MlKey;
 
 const char *ml_key_code_name (MlKeyCode code);

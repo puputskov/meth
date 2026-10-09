@@ -1,6 +1,7 @@
 #ifndef MATLOG_UI_EDITOR_H
 #define MATLOG_UI_EDITOR_H
 
+#include <matlog/platform/key.h>
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
 #include <matlog/session/steps.h>
@@ -94,6 +95,10 @@ typedef struct MlEditor
 	int32_t    quit; /* a quit command was given */
 	/* how many lines Page Up and Page Down move, see ml_editor_set_page */
 	uint64_t   page_rows;
+	/* a mouse drag in progress: the text under the button when it went down */
+	int32_t    mouse_down;
+	uint64_t   mouse_line;
+	uint64_t   mouse_byte;
 } MlEditor;
 
 /* The selected text in text order; valid is 0 when nothing is selected. */
@@ -128,6 +133,23 @@ MlResult ml_editor_begin_note (MlEditor *ed);
  * the results of all lines are computed again before it returns.
  */
 MlResult ml_editor_handle_key (MlEditor *ed, MlKey key);
+
+/* The text under a place of the screen (see ml_screen_hit). */
+typedef struct MlHit
+{
+	int32_t  valid;  /* 0 when the place shows no text of a line */
+	int32_t  folded; /* the place is a folded block */
+	uint64_t line;   /* session line */
+	uint64_t byte;   /* byte in that line */
+} MlHit;
+
+/*
+ * A mouse event (key.code is ML_KEY_MOUSE) and what is under it on the screen,
+ * see ml_screen_hit. A press puts the cursor there (on a folded block it
+ * selects the block), a drag with the button down selects text from where the
+ * press was, the wheel moves the cursor three lines. Nothing else happens.
+ */
+MlResult ml_editor_mouse (MlEditor *ed, MlKey key, MlHit hit);
 
 /*
  * Computes the results again if the session changed since they were computed

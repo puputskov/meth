@@ -982,9 +982,48 @@ static void test_blocks_layout (void)
 	ml_editor_free (&ed);
 }
 
+static void test_hit (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlHit    h;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 40, 8);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "1+2");
+	press (&ed, ML_KEY_ENTER);
+	test_key (&ed, ML_KEY_CHAR, 'n', ML_MOD_CTRL);
+	type (&ed, "a note");
+
+	/* " 1 alg> 1+2": the text starts at column 9 (1 based) */
+	h = ml_screen_hit (&s, &ed, 11, 1);
+	CHECK (h.valid && !h.folded && h.line == 0 && h.byte == 2);
+	h = ml_screen_hit (&s, &ed, 2, 1);
+	CHECK (h.valid && h.line == 0 && h.byte == 0);
+	h = ml_screen_hit (&s, &ed, 30, 1);
+	CHECK (h.valid && h.line == 0 && h.byte == 3);
+
+	/* a note has no gutter text; the line being typed is the second */
+	h = ml_screen_hit (&s, &ed, 7, 2);
+	CHECK (h.valid && h.line == 1 && h.byte == 3);
+
+	/* an empty row and the status line are not text */
+	h = ml_screen_hit (&s, &ed, 5, 5);
+	CHECK (!h.valid);
+	h = ml_screen_hit (&s, &ed, 5, 8);
+	CHECK (!h.valid);
+	h = ml_screen_hit (&s, &ed, 0, 0);
+	CHECK (!h.valid);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_basic_layout ();
+	test_hit ();
 	test_typing_row ();
 	test_scrolling ();
 	test_clipping ();

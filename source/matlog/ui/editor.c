@@ -62,6 +62,9 @@ void ml_editor_init (MlEditor *ed)
 	ed->pick          = ML_DOMAIN_ALGEBRA;
 	ed->quit          = 0;
 	ed->page_rows     = 10;
+	ed->mouse_down    = 0;
+	ed->mouse_line    = 0;
+	ed->mouse_byte    = 0;
 }
 
 void ml_editor_set_page (MlEditor *ed, uint64_t rows)
@@ -3474,6 +3477,114 @@ static MlResult command_key (MlEditor *ed, MlKey key)
 	else
 	{
 		r = ml_lineedit_handle_key (&ed->edit, key).result;
+	}
+
+	return r;
+}
+
+/* The wheel: the cursor goes three lines, the text scrolls with it. */
+static MlResult mouse_wheel (MlEditor *ed, int32_t dir)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t i = 0; i < 3 && r == ML_OK; i++)
+	{
+		int32_t can = ml_choose (
+			dir < 0,
+			ed->edit_index > 0,
+			ed->edit_index + 1 < ed->session.lines.len
+		);
+
+		if (can)
+		{
+			r = line_move (ed, dir, LINE_SPOT_COLUMN);
+		}
+	}
+
+	return r;
+}
+
+MlResult ml_editor_mouse (MlEditor *ed, MlKey key, MlHit hit)
+{
+	MlResult r       = ML_OK;
+	int32_t  editing = (
+		   ed->state == ML_STATE_MATH
+		|| ed->state == ML_STATE_NOTE
+	);
+	int32_t  action  = (int32_t)key.cp;
+
+	if (
+		   key.code != ML_KEY_MOUSE
+		|| ed->state == ML_STATE_COMMAND
+		|| ed->picking
+	)
+	{
+		action = ML_MOUSE_NONE;
+	}
+
+	if (action == ML_MOUSE_WHEEL_UP && editing)
+	{
+		r = mouse_wheel (ed, -1);
+	}
+
+	else if (action == ML_MOUSE_WHEEL_DOWN && editing)
+	{
+		r = mouse_wheel (ed, 1);
+	}
+
+	else if (action == ML_MOUSE_PRESS && hit.valid && hit.folded)
+	{
+		ed->mouse_down = 0;
+		ed->selecting  = 0;
+		r              = settle (ed);
+
+		if (r == ML_OK)
+		{
+			ml_session_set_cursor (&ed->session, hit.line);
+			enter_select (ed, hit.line);
+		}
+	}
+
+	else if (action == ML_MOUSE_PRESS && hit.valid)
+	{
+		ed->selecting  = 0;
+		ed->mouse_down = 1;
+		ed->mouse_line = hit.line;
+		ed->mouse_byte = hit.byte;
+
+		if (ed->state == ML_STATE_SELECT)
+		{
+			ml_session_set_cursor (&ed->session, hit.line);
+			r = resume (ed);
+		}
+
+		if (r == ML_OK)
+		{
+			r = goto_pos (ed, hit.line, hit.byte);
+		}
+	}
+
+	else if (
+		   action == ML_MOUSE_DRAG
+		&& ed->mouse_down
+		&& hit.valid
+		&& !hit.folded
+		&& editing
+	)
+	{
+		if (!ed->selecting)
+		{
+			ed->selecting  = 1;
+			ed->sel_line   = ed->mouse_line;
+			ed->sel_anchor = ed->mouse_byte;
+		}
+
+		r = goto_pos (ed, hit.line, hit.byte);
+	}
+
+	else if (action == ML_MOUSE_RELEASE)
+	{
+		ed->mouse_down = 0;
 	}
 
 	return r;

@@ -1631,6 +1631,90 @@ static void test_paging (void)
 	ml_editor_free (&ed);
 }
 
+static MlHit hit_at (uint64_t line, uint64_t byte, int32_t folded)
+{
+	MlHit h =
+	{
+		.valid  = 1,
+		.folded = folded,
+		.line   = line,
+		.byte   = byte
+	};
+
+	return h;
+}
+
+static void mouse (MlEditor *ed, MlMouseAction action, MlHit hit)
+{
+	MlKey k =
+	{
+		.code = ML_KEY_MOUSE,
+		.cp   = action,
+		.mods = 0,
+		.col  = 1,
+		.row  = 1
+	};
+
+	CHECK (ml_editor_mouse (ed, k, hit) == ML_OK);
+}
+
+static void test_mouse (void)
+{
+	MlEditor    ed;
+	MlTextRange sel;
+	MlHit       none = { .valid = 0, .folded = 0, .line = 0, .byte = 0 };
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	type (&ed, "first line");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "second");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "third one");
+
+	/* a press puts the cursor there, in another line too */
+	mouse (&ed, ML_MOUSE_PRESS, hit_at (0, 6, 0));
+	CHECK (ed.edit_index == 0 && ed.edit.cursor == 6 && !ed.selecting);
+	mouse (&ed, ML_MOUSE_RELEASE, hit_at (0, 6, 0));
+
+	/* a drag selects from the press to the cursor, across lines */
+	mouse (&ed, ML_MOUSE_PRESS, hit_at (0, 6, 0));
+	mouse (&ed, ML_MOUSE_DRAG, hit_at (1, 3, 0));
+	mouse (&ed, ML_MOUSE_DRAG, hit_at (2, 5, 0));
+	mouse (&ed, ML_MOUSE_RELEASE, hit_at (2, 5, 0));
+	sel = ml_editor_selection (&ed);
+	CHECK (sel.valid && sel.first_line == 0 && sel.first_byte == 6);
+	CHECK (sel.last_line == 2 && sel.last_byte == 5);
+
+	/* a drag back above the press selects the other way */
+	mouse (&ed, ML_MOUSE_PRESS, hit_at (1, 3, 0));
+	mouse (&ed, ML_MOUSE_DRAG, hit_at (0, 2, 0));
+	sel = ml_editor_selection (&ed);
+	CHECK (sel.valid && sel.first_line == 0 && sel.first_byte == 2);
+	CHECK (sel.last_line == 1 && sel.last_byte == 3);
+	mouse (&ed, ML_MOUSE_RELEASE, hit_at (0, 2, 0));
+
+	/* typing replaces the selected text */
+	type (&ed, "X");
+	CHECK (edit_is (&ed, "fiXond"));
+
+	/* a drag without a press, and clicks on nothing, change nothing */
+	mouse (&ed, ML_MOUSE_DRAG, hit_at (0, 1, 0));
+	CHECK (!ed.selecting);
+	mouse (&ed, ML_MOUSE_PRESS, none);
+	CHECK (!ed.mouse_down && !ed.selecting);
+
+	/* the wheel moves the cursor three lines */
+	mouse (&ed, ML_MOUSE_PRESS, hit_at (0, 0, 0));
+	mouse (&ed, ML_MOUSE_RELEASE, hit_at (0, 0, 0));
+	mouse (&ed, ML_MOUSE_WHEEL_DOWN, none);
+	CHECK (ed.edit_index == 1);
+	mouse (&ed, ML_MOUSE_WHEEL_UP, none);
+	CHECK (ed.edit_index == 0);
+
+	ml_editor_free (&ed);
+}
+
 void run_editor_tests (void)
 {
 	test_insert ();
@@ -1659,4 +1743,5 @@ void run_editor_tests (void)
 	test_folds ();
 	test_fold_operations ();
 	test_paging ();
+	test_mouse ();
 }

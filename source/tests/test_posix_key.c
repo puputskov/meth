@@ -188,10 +188,32 @@ static void test_csi_u (void)
 	CHECK (is_key ("\x1b[97u", 5, ML_KEY_CHAR, 'a', 0));
 }
 
+static void test_mouse (void)
+{
+	MlVtDecode d = dec ("[<0;12;3M", 11, 1);
+
+	CHECK (d.used == 11 && d.key.code == ML_KEY_MOUSE);
+	CHECK (d.key.cp == ML_MOUSE_PRESS && d.key.col == 12 && d.key.row == 3);
+	d = dec ("[<32;5;6M", 11, 1);
+	CHECK (d.key.code == ML_KEY_MOUSE && d.key.cp == ML_MOUSE_DRAG);
+	CHECK (d.key.col == 5 && d.key.row == 6);
+	d = dec ("[<0;5;6m", 10, 1);
+	CHECK (d.key.code == ML_KEY_MOUSE && d.key.cp == ML_MOUSE_RELEASE);
+	d = dec ("[<64;5;6M", 11, 1);
+	CHECK (d.key.cp == ML_MOUSE_WHEEL_UP);
+	d = dec ("[<65;5;6M", 11, 1);
+	CHECK (d.key.cp == ML_MOUSE_WHEEL_DOWN);
+	d = dec ("[<2;5;6M", 10, 1);
+	CHECK (d.key.code == ML_KEY_NONE && d.used == 10);
+	d = dec ("[<4;5;6M", 10, 1);
+	CHECK (d.key.mods == ML_MOD_SHIFT);
+}
+
 void run_posix_key_tests (void);
 
 void run_posix_key_tests (void)
 {
+	test_mouse ();
 	test_plain ();
 	test_escape ();
 	test_csi_u ();

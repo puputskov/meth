@@ -184,16 +184,68 @@ static MlKey csi_u_key (uint32_t code, uint32_t mods)
 	return key;
 }
 
+/*
+ * The key of the SGR mouse report ESC [ < button ; col ; row M (press, move)
+ * or m (release). Button 0 is the left one, +4 shift, +8 alt, +16 ctrl, +32
+ * motion, 64 the wheel. Other buttons are not keys.
+ */
+static MlKey mouse_key (
+	uint32_t button,
+	uint32_t col,
+	uint32_t row,
+	int32_t  release
+)
+{
+	MlKey key =
+	{
+		.code = ML_KEY_NONE,
+		.cp   = 0,
+		.mods = 0,
+		.col  = col,
+		.row  = row
+	};
+	uint32_t base  = button & 3;
+	int32_t  wheel = (button & 64) != 0;
+	int32_t  drag  = (button & 32) != 0;
+
+	key.mods |= ml_choose ((button & 4) != 0, ML_MOD_SHIFT, 0);
+	key.mods |= ml_choose ((button & 8) != 0, ML_MOD_ALT, 0);
+	key.mods |= ml_choose ((button & 16) != 0, ML_MOD_CTRL, 0);
+
+	if (wheel && base < 2)
+	{
+		key.code = ML_KEY_MOUSE;
+		key.cp   = ml_choose (
+			base == 0,
+			ML_MOUSE_WHEEL_UP,
+			ML_MOUSE_WHEEL_DOWN
+		);
+	}
+
+	else if (!wheel && base == 0)
+	{
+		key.code = ML_KEY_MOUSE;
+		key.cp   = ml_choose (
+			release,
+			ML_MOUSE_RELEASE,
+			ml_choose (drag, ML_MOUSE_DRAG, ML_MOUSE_PRESS)
+		);
+	}
+
+	return key;
+}
+
 /* ESC [ parameters final, where bytes starts with ESC [. */
 static MlVtDecode decode_csi (MlSlice bytes, int32_t final)
 {
 	MlVtDecode d = need_more ();
 	uint64_t   end   = 2;
-	uint32_t   param [2];
+	uint32_t   param [3];
 	uint64_t   count = 0;
 
 	param [0] = 0;
 	param [1] = 0;
+	param [2] = 0;
 
 	/* parameter and intermediate bytes, then the final byte 0x40..0x7E */
 	while (
@@ -218,7 +270,7 @@ static MlVtDecode decode_csi (MlSlice bytes, int32_t final)
 				count++;
 			}
 
-			else if (c >= '0' && c <= '9' && count < 2)
+			else if (c >= '0' && c <= '9' && count < 3)
 			{
 				param [count] = param [count] * 10 + (uint32_t)(c - '0');
 			}
@@ -226,7 +278,12 @@ static MlVtDecode decode_csi (MlSlice bytes, int32_t final)
 
 		d = make (ML_KEY_NONE, 0, 0, end + 1);
 
-		if (letter == '~')
+		if ((letter == 'M' || letter == 'm') && bytes.data [2] == '<')
+		{
+			d.key = mouse_key (param [0], param [1], param [2], letter == 'm');
+		}
+
+		else if (letter == '~')
 		{
 			d.key.code = tilde_key (param [0]);
 			d.key.mods = modifiers_from (param [1]);

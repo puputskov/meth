@@ -69,7 +69,10 @@ typing edits that line in place. There is no key to start or to leave editing. T
 - **Pages and words:** `Page Up` and `Page Down` move the cursor a page of lines (the height of the text area), `Shift` selects; Ctrl+Left at the
   start of a line goes to the end of the one before, Ctrl+Right at the end to the start of the next, and Ctrl+Backspace and Ctrl+Delete join lines
   there. The key table of section 4.15 makes all of these keys changeable.
-- Not done yet: mouse selection.
+- **Mouse:** the terminal is asked for the left button, drags and the wheel (SGR reports on a VT terminal, console mouse events on Windows). A click puts the
+  cursor in the text under it, also in another line; a click on a folded block selects the block; a drag selects text from where the button went down, across
+  lines; the wheel moves the cursor three lines. A click in a result, a steps row or the status line does nothing. Wide notes with Markdown marks hidden are
+  hit by their raw text, so the cursor can land a few columns off there. Double click for words is not built.
 
 ### 3.1 Replaced vim keys (kept for the history of the design)
 The first versions were modal (Normal, Insert, Note and Visual states with `j k dd yy p v u ] [ z g :`). They were removed in favour of 3.0; the line

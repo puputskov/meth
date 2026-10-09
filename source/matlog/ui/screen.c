@@ -62,6 +62,7 @@ void ml_screen_resize (MlScreen *s, uint32_t cols, uint32_t rows)
 void ml_layout_free (MlLayout *layout)
 {
 	free_rows (&layout->rows);
+	MlRowInfoVec_free (&layout->info);
 }
 
 /*
@@ -623,6 +624,8 @@ typedef struct EditRow
 {
 	MlResult result;
 	uint32_t cursor_col; /* 1 based */
+	uint64_t head_used;  /* columns taken by the line number and the gutter */
+	uint64_t first_col;  /* display column of the first text column shown */
 } EditRow;
 
 /*
@@ -811,7 +814,9 @@ static EditRow append_edit_row (
 	EditRow row =
 	{
 		.result     = ML_OK,
-		.cursor_col = 1
+		.cursor_col = 1,
+		.head_used  = 0,
+		.first_col  = 0
 	};
 	Head    head = append_head (
 		out,
@@ -951,6 +956,9 @@ static EditRow append_edit_row (
 
 		ml_str_free (&value);
 	}
+
+	row.head_used = head.used;
+	row.first_col = w.first_col;
 
 	if (row.result == ML_OK)
 	{
@@ -1546,6 +1554,7 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 
 	VLineVec_init (&vl);
 	MlRowVec_init (&layout.rows);
+	MlRowInfoVec_init (&layout.info);
 	layout.result = vlines_build (&vl, ed, editing, editing_new, total);
 	s->top        = scroll_top (ed, &vl, s->top, focus, area);
 	line          = s->top;
@@ -1554,6 +1563,16 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 	{
 		MlStr row;
 		VLine l = ml_choose (line < total, vl.data [line], no_line);
+		MlRowInfo ri =
+		{
+			.kind      = 0,
+			.src       = 0,
+			.text_col  = 0,
+			.first_col = 0
+		};
+		uint64_t gutter_width = ml_utf8_width (
+			gutter_for (l.kind, l.domain, line == l.first, line == l.last)
+		);
 
 		ml_str_init (&row);
 
@@ -1595,6 +1614,10 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.result     = e.result;
 			layout.cursor.row = (uint32_t)(r + 1);
 			layout.cursor.col = e.cursor_col;
+			ri.kind           = 1;
+			ri.src            = ed->edit_index;
+			ri.text_col       = e.head_used;
+			ri.first_col      = e.first_col;
 		}
 
 		else if (
@@ -1621,6 +1644,9 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 					line == l.last
 				)
 			);
+			ri.kind     = 1;
+			ri.src      = l.src;
+			ri.text_col = num_width + 1 + gutter_width;
 		}
 
 		else if (line < total && sub > 0)
@@ -1693,6 +1719,10 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				ml_choose (l.folded, vl.data [l.last].src - src, 0)
 			);
 
+			ri.kind     = ml_choose (l.folded, 2, 1);
+			ri.src      = src;
+			ri.text_col = num_width + 1 + gutter_width;
+
 			if (layout.result == ML_OK && highlight)
 			{
 				layout.result = reverse_row (&row, s->cols);
@@ -1712,6 +1742,11 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 		if (layout.result == ML_OK)
 		{
 			layout.result = MlRowVec_push (&layout.rows, row);
+		}
+
+		if (layout.result == ML_OK)
+		{
+			layout.result = MlRowInfoVec_push (&layout.info, ri);
 		}
 
 		if (layout.result != ML_OK)
@@ -1743,6 +1778,56 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 	}
 
 	return layout;
+}
+
+MlHit ml_screen_hit (
+	MlScreen       *s,
+	const MlEditor *ed,
+	uint32_t       col,
+	uint32_t       row
+)
+{
+	MlHit    hit    =
+	{
+		.valid  = 0,
+		.folded = 0,
+		.line   = 0,
+		.byte   = 0
+	};
+	MlLayout layout = ml_screen_layout (s, ed);
+
+	if (
+		   layout.result == ML_OK
+		&& row >= 1
+		&& col >= 1
+		&& row <= layout.info.len
+		&& layout.info.data [row - 1].kind != 0
+	)
+	{
+		MlRowInfo ri   = layout.info.data [row - 1];
+		int32_t   typed = (
+			   (ed->state == ML_STATE_MATH || ed->state == ML_STATE_NOTE)
+			&& ri.src == ed->edit_index
+		);
+		MlSlice   text  = ml_choose (
+			typed,
+			ml_str_view (ed->edit.text),
+			ml_session_get (&ed->session, ri.src).text
+		);
+		uint64_t cell  = col - 1;
+
+		hit.valid  = 1;
+		hit.folded = ri.kind == 2;
+		hit.line   = ri.src;
+		hit.byte   = ml_choose (
+			cell > ri.text_col,
+			byte_at_column (text, cell - ri.text_col + ri.first_col),
+			byte_at_column (text, ri.first_col)
+		);
+	}
+
+	ml_layout_free (&layout);
+	return hit;
 }
 
 MlResult ml_screen_render (MlScreen *s, MlStr *out, const MlEditor *ed)

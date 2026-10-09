@@ -99,6 +99,15 @@ static MlResult run (
 			ml_screen_resize (screen, size.cols, size.rows);
 		}
 
+		else if (r == ML_OK && k.key.code == ML_KEY_MOUSE)
+		{
+			r = ml_editor_mouse (
+				ed,
+				k.key,
+				ml_screen_hit (screen, ed, k.key.col, k.key.row)
+			);
+		}
+
 		else if (r == ML_OK)
 		{
 			r = ml_editor_handle_key (ed, k.key);
