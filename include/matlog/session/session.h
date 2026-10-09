@@ -44,6 +44,38 @@ typedef struct MlLine
 
 ML_VEC_DEFINE (MlLineVec, MlLine)
 
+/*
+ * The history of changes, for undo and redo. Every change of the lines
+ * records the operation that takes it back; undoing applies such an
+ * operation and records the operation that takes the undo back, on the redo
+ * stack, so the two stacks are mirrors. The operations move the text of a
+ * line instead of copying it, so the history costs one small record per
+ * change. Records of one user action share a group, and undo takes back a
+ * whole group. A new change empties the redo stack.
+ */
+typedef enum MlUndoKind
+{
+	ML_UNDO_INSERT = 0, /* put line at idx */
+	ML_UNDO_DELETE,     /* remove the line at idx */
+	ML_UNDO_REPLACE,    /* put line at idx, in place of what is there */
+	ML_UNDO_MOVE        /* the lines idx..last now start at dest */
+} MlUndoKind;
+
+typedef struct MlUndoOp
+{
+	MlUndoKind kind;
+	uint64_t   idx;
+	uint64_t   last;
+	uint64_t   dest;
+	MlLine     line;  /* INSERT, REPLACE: owned until it is applied */
+	uint64_t   group;
+} MlUndoOp;
+
+ML_VEC_DEFINE (MlUndoVec, MlUndoOp)
+
+/* The most records kept; the oldest groups go first. */
+#define ML_UNDO_MAX 10000
+
 typedef struct MlLineView
 {
 	MlLineKind kind;
@@ -64,6 +96,9 @@ typedef struct MlSession
 	uint64_t  cursor; /* index of the current line */
 	MlDomain  domain; /* domain new math lines are written in */
 	int32_t   dirty;  /* changed since the last save */
+	MlUndoVec undo;   /* operations that take changes back */
+	MlUndoVec redo;   /* operations that take undos back */
+	uint64_t  group;  /* the group new records belong to */
 	/* counts every change of the lines, also a load; never goes back */
 	uint64_t  revision;
 } MlSession;
@@ -125,5 +160,39 @@ void ml_session_set_cursor (MlSession *s, uint64_t idx);
 void ml_session_move_cursor (MlSession *s, int64_t delta);
 
 void ml_session_set_domain (MlSession *s, MlDomain domain);
+
+/*
+ * Moves the lines first..last (inclusive) so that they start at index dest
+ * (counted after they are taken out, 0 to len - count). ML_ERR_RANGE for
+ * indices that do not fit. The cursor is not changed.
+ */
+MlResult ml_session_move (
+	MlSession *s,
+	uint64_t  first,
+	uint64_t  last,
+	uint64_t  dest
+);
+
+/*
+ * Starts a new undo group: the changes made from now on are taken back
+ * together by one ml_session_undo.
+ */
+void ml_session_checkpoint (MlSession *s);
+
+/* Forgets the whole history (after a file was loaded, say). */
+void ml_session_clear_history (MlSession *s);
+
+typedef struct MlUndoResult
+{
+	MlResult result;
+	int32_t  did;   /* 0 when there was nothing to undo or redo */
+	uint64_t where; /* a line the change touched, for the cursor */
+} MlUndoResult;
+
+/* Takes back the last group of changes. */
+MlUndoResult ml_session_undo (MlSession *s);
+
+/* Does again what the last undo took back. */
+MlUndoResult ml_session_redo (MlSession *s);
 
 #endif /* MATLOG_SESSION_SESSION_H */

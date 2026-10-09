@@ -257,6 +257,7 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 			);
 		}
 
+		ml_session_clear_history (&loaded);
 		loaded.dirty    = 0;
 		loaded.cursor   = 0;
 		loaded.revision = s->revision + 1;

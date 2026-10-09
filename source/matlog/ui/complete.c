@@ -33,7 +33,13 @@ static const Command commands [] =
 	{ .name = "e!",    .arg = ARG_PATH,    .needs_arg = 1 },
 	{ .name = "mode",  .arg = ARG_DOMAIN,  .needs_arg = 1 },
 	{ .name = "pga",   .arg = ARG_PGA_DIM, .needs_arg = 1 },
-	{ .name = "steps", .arg = ARG_NONE,    .needs_arg = 0 }
+	{ .name = "steps", .arg = ARG_NONE,    .needs_arg = 0 },
+	{ .name = "undo",  .arg = ARG_NONE,    .needs_arg = 0 },
+	{ .name = "redo",  .arg = ARG_NONE,    .needs_arg = 0 },
+	{ .name = "delete", .arg = ARG_NONE,   .needs_arg = 0 },
+	{ .name = "yank",  .arg = ARG_NONE,    .needs_arg = 0 },
+	{ .name = "move",  .arg = ARG_NONE,    .needs_arg = 1 },
+	{ .name = "copy",  .arg = ARG_NONE,    .needs_arg = 1 }
 };
 
 static MlCompletion completion_new (uint64_t token_start)

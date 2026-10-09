@@ -245,10 +245,225 @@ static void test_misc (void)
 	ml_session_free (&s);
 }
 
+/* The text of every line, "a|b|c". */
+static int32_t lines_are (const MlSession *s, const char *expected)
+{
+	MlStr   text;
+	int32_t same;
+
+	ml_str_init (&text);
+
+	for (uint64_t i = 0; i < s->lines.len; i++)
+	{
+		if (i > 0)
+		{
+			ml_str_append (&text, lit ("|"));
+		}
+
+		ml_str_append (&text, ml_session_get (s, i).text);
+	}
+
+	same = ml_slice_equal (ml_str_view (text), lit (expected));
+
+	if (!same)
+	{
+		printf (
+			"  lines are \"%s\", expected \"%s\"\n",
+			ml_str_cstr (text),
+			expected
+		);
+	}
+
+	ml_str_free (&text);
+	return same;
+}
+
+static void fill (
+	MlSession  *s,
+	const char *a,
+	const char *b,
+	const char *c,
+	const char *d
+)
+{
+	const char *list [4] = { a, b, c, d };
+
+	for (uint64_t i = 0; i < 4 && list [i] != NULL; i++)
+	{
+		CHECK (
+			ml_session_append (
+				s,
+				ML_LINE_MATH,
+				ML_DOMAIN_ALGEBRA,
+				lit (list [i])
+			) == ML_OK
+		);
+	}
+}
+
+static void test_move (void)
+{
+	MlSession s;
+
+	ml_session_init (&s);
+	fill (&s, "a", "b", "c", "d");
+
+	/* one line down, one up, a block both ways */
+	CHECK (ml_session_move (&s, 0, 0, 1) == ML_OK);
+	CHECK (lines_are (&s, "b|a|c|d"));
+	CHECK (ml_session_move (&s, 3, 3, 0) == ML_OK);
+	CHECK (lines_are (&s, "d|b|a|c"));
+	CHECK (ml_session_move (&s, 1, 2, 2) == ML_OK);
+	CHECK (lines_are (&s, "d|c|b|a"));
+	CHECK (ml_session_move (&s, 2, 3, 0) == ML_OK);
+	CHECK (lines_are (&s, "b|a|d|c"));
+
+	/* no move, and moves that do not fit */
+	CHECK (ml_session_move (&s, 1, 1, 1) == ML_OK);
+	CHECK (lines_are (&s, "b|a|d|c"));
+	CHECK (ml_session_move (&s, 0, 1, 3) == ML_ERR_RANGE);
+	CHECK (ml_session_move (&s, 2, 1, 0) == ML_ERR_RANGE);
+	CHECK (ml_session_move (&s, 0, 9, 0) == ML_ERR_RANGE);
+	CHECK (lines_are (&s, "b|a|d|c"));
+
+	ml_session_free (&s);
+}
+
+static void test_undo_redo (void)
+{
+	MlSession    s;
+	MlUndoResult u;
+
+	ml_session_init (&s);
+
+	/* nothing to undo yet */
+	u = ml_session_undo (&s);
+	CHECK (u.result == ML_OK && !u.did);
+	u = ml_session_redo (&s);
+	CHECK (u.result == ML_OK && !u.did);
+
+	/* one group per checkpoint */
+	ml_session_checkpoint (&s);
+	fill (&s, "a", NULL, NULL, NULL);
+	ml_session_checkpoint (&s);
+	fill (&s, "b", NULL, NULL, NULL);
+	ml_session_checkpoint (&s);
+	CHECK (
+		ml_session_replace (
+			&s,
+			0,
+			ML_LINE_NOTE,
+			ML_DOMAIN_ALGEBRA,
+			lit ("A")
+		) == ML_OK
+	);
+	ml_session_checkpoint (&s);
+	CHECK (ml_session_delete (&s, 0) == ML_OK);
+	CHECK (lines_are (&s, "b"));
+
+	/* undo walks back through delete, replace, inserts */
+	u = ml_session_undo (&s);
+	CHECK (u.did && lines_are (&s, "A|b"));
+	CHECK (ml_session_get (&s, 0).kind == ML_LINE_NOTE);
+	u = ml_session_undo (&s);
+	CHECK (u.did && lines_are (&s, "a|b"));
+	CHECK (ml_session_get (&s, 0).kind == ML_LINE_MATH);
+	u = ml_session_undo (&s);
+	CHECK (u.did && lines_are (&s, "a"));
+	u = ml_session_undo (&s);
+	CHECK (u.did && lines_are (&s, ""));
+	u = ml_session_undo (&s);
+	CHECK (!u.did);
+
+	/* and redo walks forward again */
+	u = ml_session_redo (&s);
+	CHECK (u.did && lines_are (&s, "a"));
+	u = ml_session_redo (&s);
+	CHECK (u.did && lines_are (&s, "a|b"));
+	u = ml_session_redo (&s);
+	CHECK (u.did && lines_are (&s, "A|b"));
+	u = ml_session_redo (&s);
+	CHECK (u.did && lines_are (&s, "b"));
+	u = ml_session_redo (&s);
+	CHECK (!u.did);
+
+	/* a new change empties the redo stack */
+	u = ml_session_undo (&s);
+	CHECK (u.did && lines_are (&s, "A|b"));
+	ml_session_checkpoint (&s);
+	fill (&s, "c", NULL, NULL, NULL);
+	u = ml_session_redo (&s);
+	CHECK (!u.did);
+	CHECK (lines_are (&s, "A|b|c"));
+
+	ml_session_free (&s);
+}
+
+static void test_undo_groups (void)
+{
+	MlSession    s;
+	MlUndoResult u;
+
+	ml_session_init (&s);
+	fill (&s, "a", "b", "c", "d");
+	ml_session_clear_history (&s);
+
+	/* several changes in one group are taken back together */
+	ml_session_checkpoint (&s);
+	CHECK (ml_session_delete (&s, 1) == ML_OK);
+	CHECK (ml_session_delete (&s, 1) == ML_OK);
+	CHECK (ml_session_move (&s, 1, 1, 0) == ML_OK);
+	CHECK (lines_are (&s, "d|a"));
+	u = ml_session_undo (&s);
+	CHECK (u.did && lines_are (&s, "a|b|c|d"));
+	u = ml_session_redo (&s);
+	CHECK (u.did && lines_are (&s, "d|a"));
+	u = ml_session_undo (&s);
+	CHECK (u.did && lines_are (&s, "a|b|c|d"));
+	CHECK (s.dirty);
+
+	/* the history is dropped when asked */
+	CHECK (ml_session_delete (&s, 0) == ML_OK);
+	ml_session_clear_history (&s);
+	u = ml_session_undo (&s);
+	CHECK (!u.did);
+
+	ml_session_free (&s);
+}
+
+static void test_undo_limit (void)
+{
+	MlSession s;
+
+	ml_session_init (&s);
+
+	/* the oldest groups are forgotten, the newest stay */
+	for (uint64_t i = 0; i < ML_UNDO_MAX + 50; i++)
+	{
+		ml_session_checkpoint (&s);
+		fill (&s, "x", NULL, NULL, NULL);
+	}
+
+	CHECK (s.undo.len <= ML_UNDO_MAX);
+
+	for (uint64_t i = 0; i < ML_UNDO_MAX; i++)
+	{
+		CHECK (ml_session_undo (&s).did);
+	}
+
+	CHECK (!ml_session_undo (&s).did);
+	CHECK (s.lines.len == 50);
+	ml_session_free (&s);
+}
+
 void run_session_tests (void)
 {
 	test_domains ();
 	test_edit ();
 	test_cursor ();
 	test_misc ();
+	test_move ();
+	test_undo_redo ();
+	test_undo_groups ();
+	test_undo_limit ();
 }

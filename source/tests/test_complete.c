@@ -36,18 +36,19 @@ static void test_commands (void)
 	MlCompletion c = ml_complete_command (lit (""));
 
 	/* nothing typed: every command is listed, none is suggested */
-	CHECK (c.count == 14 && c.ghost == ML_MAX_CANDIDATES);
+	CHECK (c.count == 20 && c.ghost == ML_MAX_CANDIDATES);
 	CHECK (has_item (&c, "mode") && has_item (&c, "open!"));
 	CHECK (c.ghost_text.len == 0);
 
 	/* one candidate left: its rest is the ghost text */
-	c = ml_complete_command (lit ("mo"));
+	c = ml_complete_command (lit ("mod"));
 	CHECK (c.count == 1 && has_item (&c, "mode"));
-	CHECK (ghost_is (c, "de"));
+	CHECK (ghost_is (c, "e"));
 	CHECK (c.append_space && c.token_start == 0);
 
 	c = ml_complete_command (lit ("m"));
-	CHECK (c.count == 1 && ghost_is (c, "ode"));
+	CHECK (c.count == 2 && has_item (&c, "mode") && has_item (&c, "move"));
+	CHECK (ghost_is (c, "ode"));
 
 	/* several candidates: the first longer one is suggested */
 	c = ml_complete_command (lit ("w"));
@@ -165,7 +166,7 @@ static void test_editor_keys (void)
 	CHECK (ml_editor_completion (&ed).count == 0);
 
 	/* :mo then Tab gives ":mode ", the values are listed, typing narrows */
-	type (&ed, ":mo");
+	type (&ed, ":mod");
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is           (&ed, "mode "));
@@ -285,13 +286,13 @@ static void test_screen (void)
 	 * the ghost text follows the typed text in a dim style; the cursor stays
 	 * after the typed text
 	 */
-	type (&ed, ":mo");
+	type (&ed, ":mod");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (plain_row_is (&l, 4, ":mode"));
 	CHECK (
-		strstr (ml_str_cstr (l.rows.data [4]), "mo\x1b[2mde\x1b[0m") != NULL
+		strstr (ml_str_cstr (l.rows.data [4]), "mod\x1b[2me\x1b[0m") != NULL
 	);
-	CHECK (l.cursor.row == 5 && l.cursor.col == 4);
+	CHECK (l.cursor.row == 5 && l.cursor.col == 5);
 	CHECK (plain_row_is (&l, 3, ""));
 	ml_layout_free (&l);
 

@@ -7,7 +7,8 @@ static const char *const state_names [ML_STATE_COUNT] =
 	[ML_STATE_NORMAL]  = "NORMAL",
 	[ML_STATE_INSERT]  = "INSERT",
 	[ML_STATE_NOTE]    = "NOTE",
-	[ML_STATE_COMMAND] = "COMMAND"
+	[ML_STATE_COMMAND] = "COMMAND",
+	[ML_STATE_VISUAL]  = "VISUAL"
 };
 
 typedef struct DomainKey
@@ -38,6 +39,23 @@ const char *ml_input_state_name (MlInputState state)
 	);
 }
 
+/* Frees the text of every line of v and empties it. */
+static void lines_clear (MlLineVec *v)
+{
+	for (uint64_t i = 0; i < v->len; i++)
+	{
+		ml_str_free (&v->data [i].text);
+	}
+
+	MlLineVec_clear (v);
+}
+
+static void lines_free (MlLineVec *v)
+{
+	lines_clear (v);
+	MlLineVec_free (v);
+}
+
 void ml_editor_init (MlEditor *ed)
 {
 	ml_session_init (&ed->session);
@@ -48,10 +66,10 @@ void ml_editor_init (MlEditor *ed)
 	ml_str_init (&ed->steps);
 	ml_lineedit_init (&ed->edit);
 	ml_rewriter_init (&ed->rewriter, ML_DOMAIN_ALGEBRA);
-	ml_str_init (&ed->yank.text);
+	MlLineVec_init (&ed->yank);
 	ml_str_init (&ed->message);
-	ed->yank.kind     = ML_LINE_NONE;
-	ed->yank.domain   = ML_DOMAIN_ALGEBRA;
+	ed->count         = 0;
+	ed->visual_anchor = 0;
 	ed->state         = ML_STATE_NORMAL;
 	ed->pending       = 0;
 	ed->edit_index    = 0;
@@ -68,7 +86,7 @@ void ml_editor_free (MlEditor *ed)
 	ml_session_free (&ed->session);
 	ml_lineedit_free (&ed->edit);
 	ml_rewriter_free (&ed->rewriter);
-	ml_str_free (&ed->yank.text);
+	lines_free (&ed->yank);
 	ml_str_free (&ed->message);
 }
 
@@ -339,22 +357,91 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 	return r;
 }
 
-/* The line register. */
-static MlResult yank_line (MlEditor *ed, uint64_t idx)
+/* Copies the lines first..last of the session into out (emptied first). */
+static MlResult collect_lines (
+	const MlEditor *ed,
+	MlLineVec      *out,
+	uint64_t       first,
+	uint64_t       last
+)
 {
-	MlLineView v = ml_session_get (&ed->session, idx);
-	MlResult   r = ML_OK;
+	MlResult r = ML_OK;
 
-	if (v.kind != ML_LINE_NONE)
+	lines_clear (out);
+
+	for (uint64_t i = first; i <= last && r == ML_OK; i++)
 	{
-		ml_str_clear (&ed->yank.text);
-		r = ml_str_append (&ed->yank.text, v.text);
+		MlLineView v = ml_session_get (&ed->session, i);
+		MlLine     l =
+		{
+			.kind   = v.kind,
+			.domain = v.domain,
+			.text =
+			{
+				.data = NULL,
+				.len  = 0,
+				.cap  = 0
+			}
+		};
+
+		r = ml_choose (
+			v.kind != ML_LINE_NONE,
+			ml_str_append (&l.text, v.text),
+			ML_ERR_RANGE
+		);
 
 		if (r == ML_OK)
 		{
-			ed->yank.kind   = v.kind;
-			ed->yank.domain = v.domain;
+			r = MlLineVec_push (out, l);
 		}
+
+		if (r != ML_OK)
+		{
+			ml_str_free (&l.text);
+		}
+	}
+
+	return r;
+}
+
+/* The line register becomes the lines first..last. */
+static MlResult yank_range (MlEditor *ed, uint64_t first, uint64_t last)
+{
+	return collect_lines (ed, &ed->yank, first, last);
+}
+
+/* Inserts copies of the lines of v at index at, one after the other. */
+static MlResult insert_lines (MlEditor *ed, const MlLineVec *v, uint64_t at)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t i = 0; i < v->len && r == ML_OK; i++)
+	{
+		r = ml_session_insert (
+			&ed->session,
+			at + i,
+			v->data [i].kind,
+			v->data [i].domain,
+			ml_str_view (v->data [i].text)
+		);
+	}
+
+	return r;
+}
+
+/* Puts the register at index at, reps times, and the cursor on its start. */
+static MlResult paste_lines (MlEditor *ed, uint64_t at, uint64_t reps)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t k = 0; k < reps && r == ML_OK; k++)
+	{
+		r = insert_lines (ed, &ed->yank, at + k * ed->yank.len);
+	}
+
+	if (r == ML_OK && ed->yank.len > 0)
+	{
+		ml_session_set_cursor (&ed->session, at);
 	}
 
 	return r;
@@ -362,27 +449,50 @@ static MlResult yank_line (MlEditor *ed, uint64_t idx)
 
 static MlResult paste_line (MlEditor *ed, int32_t below)
 {
-	MlResult r   = ML_OK;
-	uint64_t idx = ml_choose (
-		below,
-		line_below_cursor (ed),
-		ed->session.cursor
+	return paste_lines (
+		ed,
+		ml_choose (
+			below,
+			line_below_cursor (ed),
+			ed->session.cursor
+		),
+		ml_choose (ed->count > 0, ed->count, 1)
 	);
+}
 
-	if (ed->yank.kind != ML_LINE_NONE)
+/* Removes the lines first..last; the cursor goes to where they were. */
+static MlResult remove_range (MlEditor *ed, uint64_t first, uint64_t last)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t i = last + 1; i > first && r == ML_OK; i--)
 	{
-		r = ml_session_insert (
-			&ed->session,
-			idx,
-			ed->yank.kind,
-			ed->yank.domain,
-			ml_str_view (ed->yank.text)
-		);
+		r = ml_session_delete (&ed->session, i - 1);
 	}
 
-	if (r == ML_OK && ed->yank.kind != ML_LINE_NONE)
+	ml_session_set_cursor (&ed->session, first);
+	return r;
+}
+
+/* The last line of a range of n lines from the cursor, inside the session. */
+static uint64_t range_end (const MlEditor *ed, uint64_t n)
+{
+	uint64_t last = ed->session.cursor + n - 1;
+
+	return ml_choose (
+		last >= ed->session.lines.len,
+		ed->session.lines.len - 1,
+		last
+	);
+}
+
+static MlResult delete_range (MlEditor *ed, uint64_t first, uint64_t last)
+{
+	MlResult r = yank_range (ed, first, last);
+
+	if (r == ML_OK)
 	{
-		ml_session_set_cursor (&ed->session, idx);
+		r = remove_range (ed, first, last);
 	}
 
 	return r;
@@ -390,11 +500,65 @@ static MlResult paste_line (MlEditor *ed, int32_t below)
 
 static MlResult delete_line (MlEditor *ed)
 {
-	MlResult r = yank_line (ed, ed->session.cursor);
+	MlResult r = ML_OK;
 
-	if (r == ML_OK && ed->session.lines.len > 0)
+	if (ed->session.lines.len > 0)
 	{
-		r = ml_session_delete (&ed->session, ed->session.cursor);
+		r = delete_range (
+			ed,
+			ed->session.cursor,
+			range_end (ed, ml_choose (ed->count > 0, ed->count, 1))
+		);
+	}
+
+	return r;
+}
+
+/*
+ * Moves the lines first..last by delta (clamped to the session); the cursor
+ * and the selection move with them.
+ */
+static MlResult shift_lines (
+	MlEditor *ed,
+	uint64_t first,
+	uint64_t last,
+	int64_t  delta
+)
+{
+	MlResult r   = ML_OK;
+	uint64_t n   = last - first + 1;
+	uint64_t max = ed->session.lines.len - n;
+	uint64_t to  = first;
+
+	if (delta < 0)
+	{
+		to = ml_choose (
+			(uint64_t)(-delta) > first,
+			0,
+			first - (uint64_t)(-delta)
+		);
+	}
+
+	else if (delta > 0)
+	{
+		to = ml_choose (
+			first + (uint64_t)delta > max,
+			max,
+			first + (uint64_t)delta
+		);
+	}
+
+	if (to != first)
+	{
+		r = ml_session_move (&ed->session, first, last, to);
+	}
+
+	if (r == ML_OK && to != first)
+	{
+		ed->session.cursor += to;
+		ed->session.cursor -= first;
+		ed->visual_anchor  += to;
+		ed->visual_anchor  -= first;
 	}
 
 	return r;
@@ -425,7 +589,10 @@ static MlResult goto_key (MlEditor *ed, uint32_t ch)
 
 	if (!found && ch == 'g')
 	{
-		ml_session_set_cursor (&ed->session, 0);
+		ml_session_set_cursor (
+			&ed->session,
+			ml_choose (ed->count > 0, ed->count - 1, 0)
+		);
 	}
 
 	else if (!found)
@@ -488,9 +655,13 @@ static MlResult pending_key (MlEditor *ed, uint32_t first, uint32_t ch)
 		r = delete_line (ed);
 	}
 
-	else if (first == 'y' && ch == 'y')
+	else if (first == 'y' && ch == 'y' && ed->session.lines.len > 0)
 	{
-		r = yank_line (ed, ed->session.cursor);
+		r = yank_range (
+			ed,
+			ed->session.cursor,
+			range_end (ed, ml_choose (ed->count > 0, ed->count, 1))
+		);
 	}
 
 	else if (first == 'g')
@@ -536,14 +707,211 @@ static MlResult toggle_steps (MlEditor *ed)
 	return r;
 }
 
-static MlResult normal_key (MlEditor *ed, MlKey key)
+/* Takes back (or does again) the last user action. */
+static MlResult undo_redo (MlEditor *ed, int32_t redo)
 {
-	MlResult r  = ML_OK;
-	uint32_t ch = ml_choose (
+	MlResult     r = ML_OK;
+	MlUndoResult u = ml_choose (
+		redo,
+		ml_session_redo (&ed->session),
+		ml_session_undo (&ed->session)
+	);
+
+	r = u.result;
+
+	if (r == ML_OK && u.did)
+	{
+		ml_session_set_cursor (&ed->session, u.where);
+		r = set_message (ed, ml_choose (redo, "redone", "undone"));
+	}
+
+	else if (r == ML_OK)
+	{
+		r = set_message (
+			ed,
+			ml_choose (
+				redo,
+				"nothing to redo",
+				"nothing to undo"
+			)
+		);
+	}
+
+	return r;
+}
+
+/* The selected lines of the Visual state, first and last. */
+static uint64_t selection_first (const MlEditor *ed)
+{
+	return ml_choose (
+		ed->visual_anchor < ed->session.cursor,
+		ed->visual_anchor,
+		ed->session.cursor
+	);
+}
+
+static uint64_t selection_last (const MlEditor *ed)
+{
+	return ml_choose (
+		ed->visual_anchor > ed->session.cursor,
+		ed->visual_anchor,
+		ed->session.cursor
+	);
+}
+
+static int32_t is_alt_arrow (MlKey key, MlKeyCode code)
+{
+	return key.code == code && (key.mods & ML_MOD_ALT);
+}
+
+static MlResult begin_command (MlEditor *ed);
+
+/* The keys of the Visual state: whole lines are selected. */
+static MlResult visual_key (MlEditor *ed, MlKey key)
+{
+	MlResult r     = ML_OK;
+	uint64_t first = selection_first (ed);
+	uint64_t last  = selection_last (ed);
+	uint32_t ch    = ml_choose (
 		key.code == ML_KEY_CHAR && !(key.mods & (ML_MOD_CTRL | ML_MOD_ALT)),
 		key.cp,
 		0
 	);
+	uint64_t reps  = ml_choose (ed->count > 0, ed->count, 1);
+
+	if (ch >= '1' && ch <= '9')
+	{
+		ed->count = ed->count * 10 + (ch - '0');
+	}
+
+	else if (ch == '0' && ed->count > 0)
+	{
+		ed->count = ed->count * 10;
+	}
+
+	else
+	{
+		if (ed->pending != 0)
+		{
+			/* only gg is a two key command here */
+			ed->pending = 0;
+			ml_session_set_cursor (
+				&ed->session,
+				ml_choose (
+					ch == 'g',
+					ml_choose (ed->count > 0, ed->count - 1, 0),
+					ed->session.cursor
+				)
+			);
+		}
+
+		else if (key.code == ML_KEY_ESCAPE || ch == 'v' || ch == 'V')
+		{
+			ed->state = ML_STATE_NORMAL;
+		}
+
+		else if (is_alt_arrow (key, ML_KEY_DOWN))
+		{
+			r = shift_lines (ed, first, last, 1);
+		}
+
+		else if (is_alt_arrow (key, ML_KEY_UP))
+		{
+			r = shift_lines (ed, first, last, -1);
+		}
+
+		else if (ch == 'j' || key.code == ML_KEY_DOWN)
+		{
+			ml_session_move_cursor (&ed->session, (int64_t)reps);
+		}
+
+		else if (ch == 'k' || key.code == ML_KEY_UP)
+		{
+			ml_session_move_cursor (&ed->session, -(int64_t)reps);
+		}
+
+		else if (ch == 'G')
+		{
+			ml_session_set_cursor (
+				&ed->session,
+				ml_choose (ed->count > 0, ed->count - 1, ed->session.lines.len)
+			);
+		}
+
+		else if (ch == 'g')
+		{
+			ed->pending = ch;
+		}
+
+		else if (ch == 'o')
+		{
+			uint64_t t = ed->visual_anchor;
+
+			ed->visual_anchor = ed->session.cursor;
+			ml_session_set_cursor (&ed->session, t);
+		}
+
+		else if (ch == 'd' || ch == 'x')
+		{
+			r         = delete_range (ed, first, last);
+			ed->state = ML_STATE_NORMAL;
+		}
+
+		else if (ch == 'y')
+		{
+			r = yank_range (ed, first, last);
+			ml_session_set_cursor (&ed->session, first);
+			ed->state = ML_STATE_NORMAL;
+		}
+
+		else if (ch == 'p' || ch == 'P')
+		{
+			/* the selection is replaced; the register stays as it was */
+			r = remove_range (ed, first, last);
+
+			if (r == ML_OK)
+			{
+				r = paste_lines (ed, first, 1);
+			}
+
+			ed->state = ML_STATE_NORMAL;
+		}
+
+		else if (ch == ':')
+		{
+			r = begin_command (ed);
+
+			if (r == ML_OK)
+			{
+				r = ml_str_appendf (
+					&ed->edit.text,
+					"%u,%u",
+					(uint32_t)(first + 1),
+					(uint32_t)(last + 1)
+				);
+				ed->edit.cursor = ed->edit.text.len;
+			}
+		}
+
+		if (ed->pending == 0)
+		{
+			ed->count = 0;
+		}
+	}
+
+	return r;
+}
+
+static MlResult normal_key (MlEditor *ed, MlKey key)
+{
+	MlResult r    = ML_OK;
+	uint32_t ch   = ml_choose (
+		key.code == ML_KEY_CHAR && !(key.mods & (ML_MOD_CTRL | ML_MOD_ALT)),
+		key.cp,
+		0
+	);
+	uint64_t reps = ml_choose (ed->count > 0, ed->count, 1);
+	uint64_t at   = ed->session.cursor;
 
 	if (ed->pending != 0)
 	{
@@ -553,29 +921,75 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 		r           = pending_key (ed, first, ch);
 	}
 
+	else if (ch >= '1' && ch <= '9')
+	{
+		ed->count = ed->count * 10 + (ch - '0');
+	}
+
+	else if (ch == '0' && ed->count > 0)
+	{
+		ed->count = ed->count * 10;
+	}
+
 	else if (is_domain_cycle (key))
 	{
 		r = cycle_domain (ed, key);
 	}
 
+	else if (is_alt_arrow (key, ML_KEY_DOWN) && ed->session.lines.len > 0)
+	{
+		r = shift_lines (ed, at, at, 1);
+	}
+
+	else if (is_alt_arrow (key, ML_KEY_UP) && ed->session.lines.len > 0)
+	{
+		r = shift_lines (ed, at, at, -1);
+	}
+
 	else if (ch == 'j' || key.code == ML_KEY_DOWN)
 	{
-		ml_session_move_cursor (&ed->session, 1);
+		ml_session_move_cursor (&ed->session, (int64_t)reps);
 	}
 
 	else if (ch == 'k' || key.code == ML_KEY_UP)
 	{
-		ml_session_move_cursor (&ed->session, -1);
+		ml_session_move_cursor (&ed->session, -(int64_t)reps);
 	}
 
 	else if (ch == 'G')
 	{
-		ml_session_set_cursor (&ed->session, ed->session.lines.len);
+		ml_session_set_cursor (
+			&ed->session,
+			ml_choose (ed->count > 0, ed->count - 1, ed->session.lines.len)
+		);
 	}
 
 	else if (ch == 'd' || ch == 'y' || ch == 'g')
 	{
 		ed->pending = ch;
+	}
+
+	else if (ch == 'v' || ch == 'V')
+	{
+		if (ed->session.lines.len > 0)
+		{
+			ed->state         = ML_STATE_VISUAL;
+			ed->visual_anchor = ed->session.cursor;
+		}
+	}
+
+	else if (ch == 'u')
+	{
+		r = undo_redo (ed, 0);
+	}
+
+	else if (
+		   key.code == ML_KEY_CHAR
+		&& key.cp == 'r'
+		&& (key.mods & ML_MOD_CTRL)
+	)
+	{
+		r = undo_redo (ed, 1);
 	}
 
 	else if (ch == 's')
@@ -627,6 +1041,12 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 	else if (ch == ':')
 	{
 		r = begin_command (ed);
+	}
+
+	/* a number belongs to the command after it; pending keys keep it */
+	if (ed->pending == 0 && !(ch >= '0' && ch <= '9'))
+	{
+		ed->count = 0;
 	}
 
 	return r;
@@ -763,35 +1183,274 @@ static int32_t is_cmd (MlSlice cmd, const char *name)
 	return ml_slice_equal (cmd, ml_slice_cstr (name));
 }
 
-typedef struct LineNumber
+/* A range of lines in a command: 3  3,5  %  .  $  (1 based in the text). */
+typedef struct Range
+{
+	int32_t  given;
+	uint64_t first; /* 0 based, inclusive */
+	uint64_t last;
+	uint64_t used;  /* bytes of the text it took */
+} Range;
+
+typedef struct Address
 {
 	int32_t  valid;
-	uint64_t value;
-} LineNumber;
+	uint64_t line;  /* 0 based; the address 0 is the top, as 0 */
+	uint64_t after; /* the same address as "after this many lines" */
+	uint64_t used;
+} Address;
 
-/* A command made only of digits is a line number. */
-static LineNumber parse_line_number (MlSlice s)
+/* An address at the start of s: a number, '.' (cursor) or '$' (the end). */
+static Address parse_address (const MlEditor *ed, MlSlice s)
 {
-	LineNumber number =
+	Address a =
 	{
-		.valid = s.len > 0 && s.len <= 18,
-		.value = 0
+		.valid = 0,
+		.line  = 0,
+		.after = 0,
+		.used  = 0
 	};
+	uint64_t n    = ed->session.lines.len;
 
-	for (uint64_t i = 0; i < s.len && number.valid; i++)
+	if (s.len > 0 && s.data [0] == '.')
 	{
-		number.valid = s.data [i] >= '0' && s.data [i] <= '9';
-		number.value = number.value * 10 + (uint64_t)(s.data [i] - '0');
+		a.valid = 1;
+		a.used  = 1;
+		a.after = ed->session.cursor + 1;
 	}
 
-	return number;
+	else if (s.len > 0 && s.data [0] == '$')
+	{
+		a.valid = 1;
+		a.used  = 1;
+		a.after = n;
+	}
+
+	else
+	{
+		while (
+			   a.used < s.len
+			&& a.used < 18
+			&& s.data [a.used] >= '0'
+			&& s.data [a.used] <= '9'
+		)
+		{
+			a.after = a.after * 10 + (uint64_t)(s.data [a.used] - '0');
+			a.used++;
+			a.valid = 1;
+		}
+	}
+
+	if (a.valid)
+	{
+		a.after = ml_choose (a.after > n, n, a.after);
+		a.line  = ml_choose (a.after > 0, a.after - 1, 0);
+	}
+
+	return a;
+}
+
+static Range parse_range (const MlEditor *ed, MlSlice s)
+{
+	Range   rg =
+	{
+		.given = 0,
+		.first = ed->session.cursor,
+		.last  = ed->session.cursor,
+		.used  = 0
+	};
+	Address a;
+
+	if (s.len > 0 && s.data [0] == '%')
+	{
+		rg.given = 1;
+		rg.used  = 1;
+		rg.first = 0;
+		rg.last  = ml_choose (
+			ed->session.lines.len > 0,
+			ed->session.lines.len - 1,
+			0
+		);
+	}
+
+	else
+	{
+		a = parse_address (ed, s);
+
+		if (a.valid)
+		{
+			rg.given = 1;
+			rg.first = a.line;
+			rg.last  = a.line;
+			rg.used  = a.used;
+
+			if (a.used < s.len && s.data [a.used] == ',')
+			{
+				Address b = parse_address (
+					ed,
+					ml_slice_sub (s, a.used + 1, s.len - a.used - 1)
+				);
+
+				if (b.valid)
+				{
+					rg.last = b.line;
+					rg.used = a.used + 1 + b.used;
+				}
+			}
+
+			if (rg.last < rg.first)
+			{
+				uint64_t t = rg.first;
+
+				rg.first = rg.last;
+				rg.last  = t;
+			}
+		}
+	}
+
+	return rg;
+}
+
+/* The commands that work on a range of lines: d y m t and their long names. */
+typedef enum RangeCommand
+{
+	RC_NONE = 0,
+	RC_DELETE,
+	RC_YANK,
+	RC_MOVE,
+	RC_COPY
+} RangeCommand;
+
+static RangeCommand range_command (MlSlice cmd)
+{
+	RangeCommand c = RC_NONE;
+
+	c = ml_choose (is_cmd (cmd, "d") || is_cmd (cmd, "delete"), RC_DELETE, c);
+	c = ml_choose (is_cmd (cmd, "y") || is_cmd (cmd, "yank"), RC_YANK, c);
+	c = ml_choose (is_cmd (cmd, "m") || is_cmd (cmd, "move"), RC_MOVE, c);
+	c = ml_choose (
+		is_cmd (cmd, "t") || is_cmd (cmd, "co") || is_cmd (cmd, "copy"),
+		RC_COPY,
+		c
+	);
+	return c;
+}
+
+/* :[range]m dest moves the lines to after line dest. */
+static MlResult move_to (MlEditor *ed, Range rg, MlSlice arg)
+{
+	MlResult r     = ML_OK;
+	Address  dest  = parse_address (ed, arg);
+	uint64_t n     = rg.last - rg.first + 1;
+	uint64_t to    = rg.first;
+
+	if (!dest.valid || dest.used != arg.len)
+	{
+		r = set_message (ed, "m needs a line number to move after");
+	}
+
+	else if (dest.after > rg.last + 1)
+	{
+		to = dest.after - n;
+	}
+
+	else if (dest.after <= rg.first)
+	{
+		to = dest.after;
+	}
+
+	if (r == ML_OK && dest.valid && dest.used == arg.len && to != rg.first)
+	{
+		r = ml_session_move (&ed->session, rg.first, rg.last, to);
+	}
+
+	if (r == ML_OK && dest.valid && dest.used == arg.len)
+	{
+		ml_session_set_cursor (&ed->session, to);
+	}
+
+	return r;
+}
+
+/* :[range]t dest puts copies of the lines after line dest. */
+static MlResult copy_to (MlEditor *ed, Range rg, MlSlice arg)
+{
+	MlResult r    = ML_OK;
+	Address  dest = parse_address (ed, arg);
+
+	if (!dest.valid || dest.used != arg.len)
+	{
+		r = set_message (ed, "t needs a line number to copy after");
+	}
+
+	else
+	{
+		MlLineVec copies;
+
+		MlLineVec_init (&copies);
+		r = collect_lines (ed, &copies, rg.first, rg.last);
+
+		if (r == ML_OK)
+		{
+			r = insert_lines (ed, &copies, dest.after);
+		}
+
+		if (r == ML_OK)
+		{
+			ml_session_set_cursor (&ed->session, dest.after);
+		}
+
+		lines_free (&copies);
+	}
+
+	return r;
+}
+
+/* d, y, m, t with the range they were given (the cursor line by default). */
+static MlResult run_range_command (
+	MlEditor     *ed,
+	RangeCommand which,
+	Range        rg,
+	MlSlice      arg
+)
+{
+	MlResult r = ML_OK;
+
+	if (ed->session.lines.len == 0)
+	{
+		r = set_message (ed, "no lines");
+	}
+
+	else if (which == RC_DELETE)
+	{
+		r = delete_range (ed, rg.first, rg.last);
+	}
+
+	else if (which == RC_YANK)
+	{
+		r = yank_range (ed, rg.first, rg.last);
+	}
+
+	else if (which == RC_MOVE)
+	{
+		r = move_to (ed, rg, arg);
+	}
+
+	else
+	{
+		r = copy_to (ed, rg, arg);
+	}
+
+	return r;
 }
 
 /* Runs the command typed after ':'. */
 static MlResult run_command (MlEditor *ed)
 {
 	MlResult r     = ML_OK;
-	MlSlice  line  = trim (ml_str_view (ed->edit.text));
+	MlSlice  full  = trim (ml_str_view (ed->edit.text));
+	Range    rg    = parse_range (ed, full);
+	MlSlice  line  = ml_slice_sub (full, rg.used, full.len - rg.used);
 	uint64_t split = 0;
 	MlSlice  cmd;
 	MlSlice  arg;
@@ -799,6 +1458,20 @@ static MlResult run_command (MlEditor *ed)
 	while (split < line.len && line.data [split] != ' ')
 	{
 		split++;
+	}
+
+	/* m5 and t$ : a one letter command may touch its address */
+	if (
+		   line.len > 1
+		&& (line.data [0] == 'm' || line.data [0] == 't')
+		&& (
+			   (line.data [1] >= '0' && line.data [1] <= '9')
+			|| line.data [1] == '.'
+			|| line.data [1] == '$'
+		)
+	)
+	{
+		split = 1;
 	}
 
 	cmd = ml_slice_sub (line, 0, split);
@@ -849,6 +1522,21 @@ static MlResult run_command (MlEditor *ed)
 		r = toggle_steps (ed);
 	}
 
+	else if (is_cmd (cmd, "undo") || is_cmd (cmd, "u"))
+	{
+		r = undo_redo (ed, 0);
+	}
+
+	else if (is_cmd (cmd, "redo") || is_cmd (cmd, "red"))
+	{
+		r = undo_redo (ed, 1);
+	}
+
+	else if (range_command (cmd) != RC_NONE)
+	{
+		r = run_range_command (ed, range_command (cmd), rg, arg);
+	}
+
 	else if (is_cmd (cmd, "pga"))
 	{
 		r = set_mode (ed, ml_choose (
@@ -862,15 +1550,10 @@ static MlResult run_command (MlEditor *ed)
 		));
 	}
 
-	else if (parse_line_number (cmd).valid)
+	else if (rg.given && cmd.len == 0)
 	{
-		/* :12 goes to line 12 */
-		uint64_t number = parse_line_number (cmd).value;
-
-		ml_session_set_cursor (
-			&ed->session,
-			ml_choose (number > 0, number - 1, 0)
-		);
+		/* :12 goes to line 12, :3,5 to line 5 */
+		ml_session_set_cursor (&ed->session, rg.last);
 	}
 
 	else if (cmd.len > 0)
@@ -978,10 +1661,16 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 	MlResult r = ML_OK;
 
 	ml_str_clear (&ed->message);
+	ml_session_checkpoint (&ed->session);
 
 	if (ed->state == ML_STATE_NORMAL)
 	{
 		r = normal_key (ed, key);
+	}
+
+	else if (ed->state == ML_STATE_VISUAL)
+	{
+		r = visual_key (ed, key);
 	}
 
 	else if (ed->state == ML_STATE_COMMAND)

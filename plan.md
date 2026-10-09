@@ -42,6 +42,17 @@ Two independent layers.
   Domain mode is switched here.
 - **Insert (math):** type an expression in the current domain. Ghost mode and completion are active.
 - **Note:** type free text. No parsing, no ghost mode, no math completion. Entered from normal mode with `n`.
+- **Line operations** (all of them are single undo steps):
+  - Counts: a number before a command repeats it or sets how many lines it takes: `5j`, `3dd`, `3yy`, `2p`, `12G` (go to line 12).
+  - Delete, copy, paste: `dd` deletes (into the register), `yy` copies, `p` / `P` paste the whole register after / before the cursor line. The register holds
+    whole lines with their kind and domain, any number of them.
+  - Select: `v` starts a selection of whole lines (Visual state); `j k G gg 5j` extend it, `o` goes to the other end, `d` / `x` delete it, `y` copies it,
+    `p` replaces it with the register, `Esc` or `v` leave. The selected lines are drawn reversed.
+  - Move: `Alt+Up` / `Alt+Down` move the cursor line (or the whole selection) one line, the cursor follows.
+  - Ranges on the command line: `:3,5d`, `:%y`, `:.,$d`, `:2,4m 10` (move to after line 10, `0` is the top), `:2,4t $` (copy to the end); from Visual `:` starts
+    with the range of the selection filled in.
+  - Undo and redo: `u` and `Ctrl+r` (or `:undo`, `:redo`) take back and redo the last user action, also a multi-line one: a line typed, an edit, a paste, a
+    move, a delete of ten lines each count as one. The history is kept in memory (up to 10000 changes) and forgotten when another file is opened.
 - `Esc` returns to normal mode. A session starts in insert mode, in the last used domain.
 
 ### 3.2 Domain mode
@@ -51,6 +62,34 @@ Two independent layers.
 - Shown in the prompt, e.g. `matrix>`.
 - Each line is tagged with the domain it was written in. Switching is not a restart; prior lines keep their domain.
 - Variables and functions are shared across all domains. Type checks reject misuse (e.g. a matrix where a lambda is required).
+
+### 3.3 Blocks: notes and code, like the cells of a notebook
+The session is read as a sequence of **blocks**, as in a notebook: free text, then a block of code in one domain, then more text. This replaces the domain
+tag on every line (`alg>` on each row) by one header per block, and gives the text a place of its own.
+- **Code block**: a run of consecutive math lines in the same domain. Its first row carries the gutter (`alg>`, `mat>` ...); the other rows of the block
+  have an empty gutter and a thin rule at the left edge that shows how far the block goes. A change of domain, a note, or a blank line ends the block and the
+  next math line starts a new one, so the structure needs no markers of its own. The lines in a block still evaluate one after the other in the shared
+  environment, exactly as now (variables flow down through blocks and domains).
+- **Text block**: a run of consecutive note lines. It is drawn as plain wrapped text: no gutter, no line number column inside the text, no evaluation, no
+  ghost mode, no math completion. Note mode edits it like today; the lines of a text block are the paragraphs, and a blank line separates two.
+- **Collapse**: `za` toggles the block under the cursor (`zc` closes, `zo` opens, `zM` / `zR` close / open all). A closed code block is one row: its header,
+  the number of lines, its first line and the last result (`alg> 12 lines   a = 3 ...  = 10`). A closed text block shows its first line. Collapsing never
+  changes what is evaluated: the definitions of a closed block stay visible below it, like a cell that was run. The state is part of the view, not of the
+  file; it is kept in the settings file per session path and block number so it survives a restart.
+- **Moving around**: `]]` / `[[` jump to the next / previous block, `j` and `k` still go line by line (a closed block is one step). `dab` / `yab` delete
+  or copy the whole block, `Alt+Shift+Up/Down` move a block, visual selection can start with `V` on a block, and the line operations above work on the
+  lines inside blocks and across them.
+- **Domain switching** (`gm`, `gl`, `Alt+Left/Right`) sets the domain of the next line that is typed; typing it in another domain than the block above starts a
+  new block. On a line in the middle of a block the same keys change the domain of the whole block.
+- **File format**: unchanged. A line still starts with `m:domain ` (math) or `# ` (note), because the blocks follow from the lines, so old files, diffs and the
+  includes keep working, and files written by hand need no markers. (If a way to split two blocks of one domain without a blank line is ever wanted, a
+  line `m:algebra` with no text can do it, the same way a blank line does.)
+- **Screen**: the row layout already counts a variable number of rows per line (typeset matrices, steps); a closed block is a one row height, a text block
+  is its wrapped height. Scrolling, the cursor row and the Visual highlight work on lines as before.
+- **Interaction with the rest**: the tutorial and the documentation examples use the same blocks; export writes a text block as paragraphs and a code block
+  as a code environment; the proof domain (section 4.12) is a code block whose steps align under one header.
+- Placement: before the highlight and export work (both need to know blocks), after milestone 3. "Done when": the rows of a session show one header per
+  block; text blocks wrap and have no gutter; collapse hides and shows blocks and keeps the environment; tests drive the keys and check the layout rows.
 
 ## 4. Core features
 

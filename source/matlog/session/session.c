@@ -51,6 +51,9 @@ void ml_session_init (MlSession *s)
 	s->domain   = ML_DOMAIN_ALGEBRA;
 	s->dirty    = 0;
 	s->revision = 0;
+	s->group    = 0;
+	MlUndoVec_init (&s->undo);
+	MlUndoVec_init (&s->redo);
 }
 
 void ml_session_free (MlSession *s)
@@ -61,6 +64,9 @@ void ml_session_free (MlSession *s)
 		ml_str_free (&s->lines.data [i].text);
 	}
 
+	ml_session_clear_history (s);
+	MlUndoVec_free (&s->undo);
+	MlUndoVec_free (&s->redo);
 	MlLineVec_free (&s->lines);
 	ml_str_free (&s->path);
 	s->cursor = 0;
@@ -149,6 +155,214 @@ static MlResult line_make (
 	return r;
 }
 
+/* ---- operations and history ---- */
+
+static MlUndoOp op_make (MlUndoKind kind, uint64_t idx)
+{
+	MlUndoOp op =
+	{
+		.kind  = kind,
+		.idx   = idx,
+		.last  = idx,
+		.dest  = idx,
+		.line  =
+		{
+			.kind   = ML_LINE_NONE,
+			.domain = ML_DOMAIN_ALGEBRA,
+			.text =
+			{
+				.data = NULL,
+				.len  = 0,
+				.cap  = 0
+			}
+		},
+		.group = 0
+	};
+
+	return op;
+}
+
+static void op_free (MlUndoOp *op)
+{
+	ml_str_free (&op->line.text);
+}
+
+static void history_free (MlUndoVec *h)
+{
+	for (uint64_t i = 0; i < h->len; i++)
+	{
+		op_free (&h->data [i]);
+	}
+
+	MlUndoVec_clear (h);
+}
+
+void ml_session_clear_history (MlSession *s)
+{
+	history_free (&s->undo);
+	history_free (&s->redo);
+}
+
+void ml_session_checkpoint (MlSession *s)
+{
+	s->group++;
+}
+
+/* Moves the lines first..last so they start at dest; the lines shift. */
+static MlResult move_lines (
+	MlSession *s,
+	uint64_t  first,
+	uint64_t  last,
+	uint64_t  dest
+)
+{
+	MlResult r = ML_OK;
+	uint64_t n = last - first + 1;
+
+	if (first > last || last >= s->lines.len || dest + n > s->lines.len)
+	{
+		r = ML_ERR_RANGE;
+	}
+
+	else if (dest != first)
+	{
+		MlLine *block = (MlLine *)malloc (n * sizeof (MlLine));
+
+		if (block == NULL)
+		{
+			r = ML_ERR_NOMEM;
+		}
+
+		else
+		{
+			MlLine *data = s->lines.data;
+
+			memcpy (block, data + first, n * sizeof (MlLine));
+
+			if (dest > first)
+			{
+				memmove (
+					data + first,
+					data + last + 1,
+					(dest - first) * sizeof (MlLine)
+				);
+			}
+
+			else
+			{
+				memmove (
+					data + dest + n,
+					data + dest,
+					(first - dest) * sizeof (MlLine)
+				);
+			}
+
+			memcpy (data + dest, block, n * sizeof (MlLine));
+			free (block);
+		}
+	}
+
+	return r;
+}
+
+/*
+ * Does the operation and gives the one that takes it back. The line of the
+ * operation moves into the session or into the inverse; on a failure
+ * nothing has happened and the operation still owns it.
+ */
+static MlResult apply (MlSession *s, MlUndoOp op, MlUndoOp *inverse)
+{
+	MlResult r = ML_OK;
+
+	if (op.kind == ML_UNDO_INSERT)
+	{
+		r = MlLineVec_insert (&s->lines, op.idx, op.line);
+		*inverse = op_make (ML_UNDO_DELETE, op.idx);
+	}
+
+	else if (op.kind == ML_UNDO_DELETE && op.idx < s->lines.len)
+	{
+		*inverse      = op_make (ML_UNDO_INSERT, op.idx);
+		inverse->line = s->lines.data [op.idx];
+		r             = MlLineVec_remove (&s->lines, op.idx);
+	}
+
+	else if (op.kind == ML_UNDO_REPLACE && op.idx < s->lines.len)
+	{
+		*inverse                = op_make (ML_UNDO_REPLACE, op.idx);
+		inverse->line           = s->lines.data [op.idx];
+		s->lines.data [op.idx]  = op.line;
+	}
+
+	else if (op.kind == ML_UNDO_MOVE)
+	{
+		uint64_t n = op.last - op.idx + 1;
+
+		r = move_lines (s, op.idx, op.last, op.dest);
+		*inverse      = op_make (ML_UNDO_MOVE, op.dest);
+		inverse->last = op.dest + n - 1;
+		inverse->dest = op.idx;
+	}
+
+	else
+	{
+		r = ML_ERR_RANGE;
+	}
+
+	if (r == ML_OK)
+	{
+		s->dirty = 1;
+		s->revision++;
+	}
+
+	return r;
+}
+
+/* Drops the oldest group when the history is too long. */
+static void history_trim (MlUndoVec *h)
+{
+	if (h->len > ML_UNDO_MAX)
+	{
+		uint64_t group = h->data [0].group;
+		uint64_t n     = 0;
+
+		while (n < h->len && h->data [n].group == group)
+		{
+			op_free (&h->data [n]);
+			n++;
+		}
+
+		memmove (h->data, h->data + n, (h->len - n) * sizeof (MlUndoOp));
+		h->len -= n;
+	}
+}
+
+/*
+ * A change made by the user: applied, and its inverse remembered. When the
+ * inverse cannot be remembered the history is dropped, the change stays.
+ */
+static MlResult change (MlSession *s, MlUndoOp op)
+{
+	MlUndoOp inverse;
+	MlResult r = apply (s, op, &inverse);
+
+	if (r == ML_OK)
+	{
+		history_free (&s->redo);
+		inverse.group = s->group;
+
+		if (MlUndoVec_push (&s->undo, inverse) != ML_OK)
+		{
+			op_free (&inverse);
+			ml_session_clear_history (s);
+		}
+
+		history_trim (&s->undo);
+	}
+
+	return r;
+}
+
 MlResult ml_session_insert (
 	MlSession  *s,
 	uint64_t   idx,
@@ -162,37 +376,21 @@ MlResult ml_session_insert (
 		ML_OK,
 		ML_ERR_RANGE
 	);
-	MlLine line =
-	{
-		.kind   = ML_LINE_NONE,
-		.domain = ML_DOMAIN_ALGEBRA,
-		.text =
-		{
-			.data = NULL,
-			.len  = 0,
-			.cap  = 0
-		}
-	};
+	MlUndoOp op = op_make (ML_UNDO_INSERT, idx);
 
 	if (r == ML_OK)
 	{
-		r = line_make (&line, kind, domain, text);
+		r = line_make (&op.line, kind, domain, text);
 	}
 
 	if (r == ML_OK)
 	{
-		r = MlLineVec_insert (&s->lines, idx, line);
+		r = change (s, op);
 
 		if (r != ML_OK)
 		{
-			ml_str_free (&line.text);
+			op_free (&op);
 		}
-	}
-
-	if (r == ML_OK)
-	{
-		s->dirty = 1;
-		s->revision++;
 	}
 
 	return r;
@@ -221,29 +419,21 @@ MlResult ml_session_replace (
 		ML_OK,
 		ML_ERR_RANGE
 	);
-	MlLine line =
-	{
-		.kind   = ML_LINE_NONE,
-		.domain = ML_DOMAIN_ALGEBRA,
-		.text =
-		{
-			.data = NULL,
-			.len  = 0,
-			.cap  = 0
-		}
-	};
+	MlUndoOp op = op_make (ML_UNDO_REPLACE, idx);
 
 	if (r == ML_OK)
 	{
-		r = line_make (&line, kind, domain, text);
+		r = line_make (&op.line, kind, domain, text);
 	}
 
 	if (r == ML_OK)
 	{
-		ml_str_free (&s->lines.data [idx].text);
-		s->lines.data [idx] = line;
-		s->dirty            = 1;
-		s->revision++;
+		r = change (s, op);
+
+		if (r != ML_OK)
+		{
+			op_free (&op);
+		}
 	}
 
 	return r;
@@ -251,26 +441,86 @@ MlResult ml_session_replace (
 
 MlResult ml_session_delete (MlSession *s, uint64_t idx)
 {
-	MlResult r = ml_choose (
-		idx < s->lines.len,
-		ML_OK,
-		ML_ERR_RANGE
-	);
+	MlResult r = change (s, op_make (ML_UNDO_DELETE, idx));
 
 	if (r == ML_OK)
 	{
-		ml_str_free (&s->lines.data [idx].text);
-		r = MlLineVec_remove (&s->lines, idx);
-	}
-
-	if (r == ML_OK)
-	{
-		s->dirty = 1;
-		s->revision++;
 		ml_session_set_cursor (s, s->cursor);
 	}
 
 	return r;
+}
+
+MlResult ml_session_move (
+	MlSession *s,
+	uint64_t  first,
+	uint64_t  last,
+	uint64_t  dest
+)
+{
+	MlUndoOp op = op_make (ML_UNDO_MOVE, first);
+
+	op.last = last;
+	op.dest = dest;
+	return change (s, op);
+}
+
+/* Takes back (or redoes) the last group of the stack `from`. */
+static MlUndoResult step_history (MlSession *s, MlUndoVec *from, MlUndoVec *to)
+{
+	MlUndoResult res =
+	{
+		.result = ML_OK,
+		.did    = 0,
+		.where  = 0
+	};
+	uint64_t group = ml_choose (
+		from->len > 0,
+		from->data [from->len - 1].group,
+		0
+	);
+
+	while (
+		   res.result == ML_OK
+		&& from->len > 0
+		&& from->data [from->len - 1].group == group
+	)
+	{
+		MlUndoOp op = from->data [from->len - 1];
+		MlUndoOp inverse;
+
+		res.result = apply (s, op, &inverse);
+
+		if (res.result == ML_OK)
+		{
+			from->len--;
+			inverse.group = group;
+			res.did       = 1;
+			res.where     = ml_choose (
+				op.kind == ML_UNDO_MOVE,
+				op.dest,
+				op.idx
+			);
+
+			if (MlUndoVec_push (to, inverse) != ML_OK)
+			{
+				op_free (&inverse);
+				res.result = ML_ERR_NOMEM;
+			}
+		}
+	}
+
+	return res;
+}
+
+MlUndoResult ml_session_undo (MlSession *s)
+{
+	return step_history (s, &s->undo, &s->redo);
+}
+
+MlUndoResult ml_session_redo (MlSession *s)
+{
+	return step_history (s, &s->redo, &s->undo);
 }
 
 void ml_session_set_cursor (MlSession *s, uint64_t idx)

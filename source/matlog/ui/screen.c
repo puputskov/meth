@@ -741,6 +741,25 @@ static MlSlice block_row (MlSlice block, uint64_t n)
 	);
 }
 
+/* The selected lines of the Visual state. */
+static uint64_t selection_first (const MlEditor *ed)
+{
+	return ml_choose (
+		ed->visual_anchor < ed->session.cursor,
+		ed->visual_anchor,
+		ed->session.cursor
+	);
+}
+
+static uint64_t selection_last (const MlEditor *ed)
+{
+	return ml_choose (
+		ed->visual_anchor > ed->session.cursor,
+		ed->visual_anchor,
+		ed->session.cursor
+	);
+}
+
 /* The steps under a line that has them open (only in the quiet states). */
 static MlSlice steps_of (const MlEditor *ed, uint64_t src, int32_t editing)
 {
@@ -948,7 +967,15 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				idx - 1,
 				idx
 			);
-			int32_t highlight = !editing && src == ed->session.cursor;
+			int32_t highlight = (
+				   !editing
+				&& ed->state != ML_STATE_VISUAL
+				&& src == ed->session.cursor
+			) || (
+				   ed->state == ML_STATE_VISUAL
+				&& src >= selection_first (ed)
+				&& src <= selection_last (ed)
+			);
 
 			layout.result = append_line_row (
 				&row,
@@ -960,7 +987,13 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 				s->cols
 			);
 
-			if (highlight && !editing && ed->state == ML_STATE_NORMAL)
+			if (
+				   src == ed->session.cursor
+				&& (
+					   ed->state == ML_STATE_NORMAL
+					|| ed->state == ML_STATE_VISUAL
+				)
+			)
 			{
 				layout.cursor.row = (uint32_t)(r + 1);
 				layout.cursor.col = 1;

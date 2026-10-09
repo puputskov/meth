@@ -19,7 +19,7 @@
  * word, and only exists once the word has at least one character.
  */
 
-#define ML_MAX_CANDIDATES 16
+#define ML_MAX_CANDIDATES 24
 
 typedef struct MlCompletion
 {

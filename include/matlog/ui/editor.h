@@ -15,6 +15,11 @@
  *
  *	Normal   j k (or Down Up)  move the cursor line     G gg  last / first line
  *	         dd yy p P         delete / yank / paste after / paste before
+ *	         3dd 3yy 3p 5j 5G  a number first: that many lines, times, or
+ *	                           the line with that number
+ *	         v                 select lines (Visual state, see below)
+ *	         Alt+Up Alt+Down   move the cursor line up or down
+ *	         u  Ctrl+r         undo / redo, one user action at a time
  *	         s                 show or hide the steps of the cursor line
  *	         Enter             edit the cursor line     i  new math line below
  *	         n                 new note line below      :  command line
@@ -22,10 +27,20 @@
  *	                          where it changes the domain of the typed line)
  *	         g + m l a e v b 2 3   set the domain (matrix, lambda, algebra,
  *	                           equations, vector, boolean, pga2, pga3)
+ *	Visual   j k G gg 5j       extend the selection of whole lines
+ *	         d x / y           delete / yank the selected lines
+ *	         p P               replace the selected lines by the register
+ *	         Alt+Up Alt+Down   move the selected lines
+ *	         o                 go to the other end of the selection
+ *	         :                 command line with the range 3,5 filled in
+ *	         Esc v             back to Normal
  *	Insert   typing, with the rewrites of rewrite.h; Enter commits the line
  *	         and starts the next one, Esc commits and returns to Normal
  *	Note     like Insert for free text: no rewrites
  *	Command  :q :q! :w [path] :wq :open[!] path :mode name :pga 2|3 :steps
+ *	         :undo :redo  :[range]d  :[range]y  :[range]m dest  :[range]t dest
+ *	         ranges: 3  3,5  %  .  $  (1 based); m and t put the lines after
+ *	         line dest (0 is the top)
  *	         :12 goes to line 12; Tab accepts the ghost text, see complete.h
  *
  * A new editor starts in Insert, in the domain of its session.
@@ -37,16 +52,9 @@ typedef enum MlInputState
 	ML_STATE_INSERT,
 	ML_STATE_NOTE,
 	ML_STATE_COMMAND,
+	ML_STATE_VISUAL,
 	ML_STATE_COUNT
 } MlInputState;
-
-/* The line register of dd, yy, p and P. kind is ML_LINE_NONE when empty. */
-typedef struct MlYank
-{
-	MlLineKind kind;
-	MlDomain   domain;
-	MlStr      text;
-} MlYank;
 
 typedef struct MlEditor
 {
@@ -61,10 +69,12 @@ typedef struct MlEditor
 	MlInputState state;
 	MlLineEdit   edit;    /* the line being typed, or the command */
 	MlRewriter   rewriter;
-	MlYank       yank;
+	MlLineVec    yank;    /* the line register: whole lines, with their kinds */
 	MlStr        message; /* shown in the status line until the next key */
 	/* first key of a two key command (d, y or g), 0 when none */
 	uint32_t pending;
+	uint64_t count;         /* the number typed before a command, 0 if none */
+	uint64_t visual_anchor; /* the fixed end of the selection */
 	/* where the line being typed lives, or will be inserted */
 	uint64_t edit_index;
 	/* 1 when editing a line that is already in the session */
