@@ -53,8 +53,8 @@ typing edits that line in place. There is no key to start or to leave editing. T
   `Ctrl+V` work on the line the cursor is in (paste goes below it) and `Alt+Up/Down` move that line. `Ctrl+P` with several lines selected starts the
   command line with their range. Selected text is drawn reversed, and a reversed column marks a line break that is inside the selection.
 - **Lines:** `Ctrl+Home` and `Ctrl+End` go to the first and the last line, `Ctrl+Up` and `Ctrl+Down` to the previous and the next block.
-- **Notes are the default:** the tool starts on a note and Enter goes on with a note. `Ctrl+Enter` or `Shift+Enter` (or `Ctrl+B` where the terminal
-  cannot tell Enter's modifiers) opens the block choice: the status line shows the domains (`-- BLOCK -- algebra  [matrix]  vector ...`), Left/Right/
+- **Notes are the default:** the tool starts on a note and Enter goes on with a note. `Ctrl+Enter` or `Shift+Enter` (terminals report one or the other) starts a block of the
+  domain used last at once; `Ctrl+B` opens the block choice first: the status line shows the domains (`-- BLOCK -- algebra  [matrix]  vector ...`), Left/Right/
   Up/Down/Tab move the choice, a letter jumps to the next domain starting with it, Enter starts the block (an empty line becomes its first line, else
   the line is split at the cursor), Esc cancels. Enter in a block goes on with the block; Enter on an empty line of a block ends it (a blank line
   closes the block and a note follows). `Ctrl+N` turns a line into a note and back. `Alt+Left` and `Alt+Right` change the domain of a math line, in a

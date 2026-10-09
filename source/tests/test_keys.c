@@ -220,7 +220,6 @@ void test_normal (MlEditor *ed, const char *keys)
 			{
 				test_key (ed, ML_KEY_END, 0, 0);
 				test_key (ed, ML_KEY_ENTER, 0, ML_MOD_CTRL);
-				test_key (ed, ML_KEY_ENTER, 0, 0);
 			}
 
 			else if (c == 'N' || c == 'i' || c == 'n')

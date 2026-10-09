@@ -1137,7 +1137,13 @@ static void test_block_start_gutter (void)
 	MlEditor ed;
 	MlScreen s;
 	MlLayout l;
-	MlKey    k = { .code = ML_KEY_ENTER, .cp = 0, .mods = ML_MOD_CTRL };
+	MlKey    k = { .code = ML_KEY_CHAR, .cp = 'b', .mods = ML_MOD_CTRL };
+	MlKey    ctrl_enter =
+	{
+		.code = ML_KEY_ENTER,
+		.cp   = 0,
+		.mods = ML_MOD_CTRL
+	};
 
 	ml_editor_init (&ed);
 	ml_editor_begin_note (&ed);
@@ -1145,7 +1151,7 @@ static void test_block_start_gutter (void)
 	press (&ed, ML_KEY_ENTER);
 	ml_screen_init (&s, 40, 8);
 
-	/* while the domain of the block is chosen, and after it */
+	/* while the domain of the block is chosen (Ctrl+B), and after it */
 	CHECK (ml_editor_handle_key (&ed, k) == ML_OK);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 1, " 2 alg> "));
@@ -1154,6 +1160,30 @@ static void test_block_start_gutter (void)
 	CHECK (ed.state == ML_STATE_MATH);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 1, " 2 alg> "));
+	ml_layout_free (&l);
+
+	/* Ctrl+Enter starts the block at once, with the label */
+	ml_editor_free (&ed);
+	ml_editor_init (&ed);
+	ml_editor_begin_note (&ed);
+	CHECK (ml_editor_handle_key (&ed, ctrl_enter) == ML_OK);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1 alg> "));
+	ml_layout_free (&l);
+
+	/* also on the first line of a file that is already there */
+	ml_editor_free (&ed);
+	ml_editor_init (&ed);
+	ml_editor_begin_note (&ed);
+	type (&ed, "x");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_UP);
+	press (&ed, ML_KEY_END);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.edit_existing && ed.edit_index == 0);
+	CHECK (ml_editor_handle_key (&ed, ctrl_enter) == ML_OK);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1 alg> "));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);

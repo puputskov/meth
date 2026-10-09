@@ -822,15 +822,8 @@ static MlResult line_split (MlEditor *ed)
 static int32_t is_block_key (MlKey key)
 {
 	return (
-		   (
-			   key.code == ML_KEY_ENTER
-			&& (key.mods & (ML_MOD_CTRL | ML_MOD_SHIFT))
-		)
-		|| (
-			   key.code == ML_KEY_CHAR
-			&& key.cp == 'b'
-			&& (key.mods & ML_MOD_CTRL)
-		)
+		   key.code == ML_KEY_ENTER
+		&& (key.mods & (ML_MOD_CTRL | ML_MOD_SHIFT))
 	);
 }
 
@@ -854,6 +847,33 @@ static MlDomain domain_by_letter (MlDomain from, uint32_t ch)
 	}
 
 	return found;
+}
+
+/*
+ * Starts a block of a domain at the cursor: an empty line becomes its first
+ * line, else the line is split at the cursor. The domain is remembered as the
+ * one the next blocks start with.
+ */
+static MlResult start_block (MlEditor *ed, MlDomain domain)
+{
+	MlResult r = ML_OK;
+
+	ed->picking = 0;
+	set_domain (ed, domain);
+
+	if (ed->edit.text.len == 0)
+	{
+		ed->state       = ML_STATE_MATH;
+		ed->edit_kind   = ML_LINE_MATH;
+		ed->edit_domain = domain;
+	}
+
+	else
+	{
+		r = line_split_to (ed, ML_LINE_MATH, domain);
+	}
+
+	return r;
 }
 
 /* The keys while the block is chosen: move, pick by letter, Enter, Esc. */
@@ -888,21 +908,7 @@ static MlResult pick_key (MlEditor *ed, MlKey key)
 
 	else if (key.code == ML_KEY_ENTER)
 	{
-		ed->picking = 0;
-		set_domain (ed, ed->pick);
-
-		if (ed->edit.text.len == 0)
-		{
-			/* an empty line becomes the first line of the block */
-			ed->state       = ML_STATE_MATH;
-			ed->edit_kind   = ML_LINE_MATH;
-			ed->edit_domain = ed->pick;
-		}
-
-		else
-		{
-			r = line_split_to (ed, ML_LINE_MATH, ed->pick);
-		}
+		r = start_block (ed, ed->pick);
 	}
 
 	return r;
@@ -3447,6 +3453,13 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 
 	else if (is_block_key (key))
 	{
+		/* Ctrl+Enter, Shift+Enter: a block of the domain used last */
+		r = start_block (ed, ed->session.domain);
+	}
+
+	else if (is_ctrl_key (key, 'b'))
+	{
+		/* Ctrl+B: the domain is chosen first */
 		ed->picking = 1;
 		ed->pick    = ed->session.domain;
 	}

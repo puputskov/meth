@@ -36,8 +36,10 @@
  *	         cursor is in (paste goes below it) and Alt+Up Alt+Down move it
  *	         Alt+Enter  fold or unfold the block (a folded block is selected)
  *	         Ctrl+Up Ctrl+Down  previous / next block;  Ctrl+Home Ctrl+End
- *	         Ctrl+Enter, Shift+Enter, Ctrl+B  choose the domain of a new
- *	         block; Ctrl+N  turn the line into a note or back
+ *	         Ctrl+Enter, Shift+Enter  start a block of the domain used last
+ *	         (the same key twice: terminals differ in which one they report);
+ *	         Ctrl+B  choose the domain of the new block first;
+ *	         Ctrl+N  turn the line into a note or back
  *	         Alt+Left / Alt+Right  previous / next domain of the line
  *	         Ctrl+Z  undo;  Ctrl+Shift+Z, Ctrl+Y  redo
  *	         F3  show or hide the steps of the line
@@ -91,7 +93,7 @@ typedef struct MlEditor
 	int32_t    edit_existing;
 	MlLineKind edit_kind;
 	MlDomain   edit_domain;
-	/* 1 while the block to start is chosen (Ctrl+Enter, Shift+Enter) */
+	/* 1 while the block to start is chosen (Ctrl+B) */
 	int32_t    picking;
 	MlDomain   pick; /* the domain chosen so far */
 	int32_t    quit; /* a quit command was given */

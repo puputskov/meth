@@ -1702,6 +1702,13 @@ static MlResult vlines_build (
 		 * an empty math line that starts a block of its own shows the label
 		 * of its domain; one that goes on a block stays blank
 		 */
+		/* the line being typed is what the editor says, not what was saved */
+		if (!fresh && l.typing && ed->state == ML_STATE_MATH)
+		{
+			l.kind   = ML_LINE_MATH;
+			l.domain = ed->edit_domain;
+		}
+
 		if (fresh && ed->picking && ed->edit.text.len == 0)
 		{
 			/* the domain of the block being chosen is shown as it is chosen */

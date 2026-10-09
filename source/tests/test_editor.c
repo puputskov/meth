@@ -484,6 +484,13 @@ static void test_pick_block (void)
 		.mods = ML_MOD_SHIFT
 	};
 
+	MlKey    ctrl_b =
+	{
+		.code = ML_KEY_CHAR,
+		.cp   = 'b',
+		.mods = ML_MOD_CTRL
+	};
+
 	MlStr    status;
 
 	ml_editor_init (&ed);
@@ -494,8 +501,8 @@ static void test_pick_block (void)
 	CHECK (ed.state == ML_STATE_NOTE);
 	type (&ed, "intro");
 
-	/* Shift+Enter chooses the block; letters and arrows move the choice */
-	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
+	/* Ctrl+B chooses the block; letters and arrows move the choice */
+	CHECK (ml_editor_handle_key (&ed, ctrl_b) == ML_OK);
 	CHECK (ed.picking && ed.pick == ML_DOMAIN_ALGEBRA);
 	type (&ed, "m");
 	CHECK (ed.pick == ML_DOMAIN_MATRIX);
@@ -526,12 +533,19 @@ static void test_pick_block (void)
 
 	/* Esc cancels the choice, an empty line becomes the block's first line */
 	test_normal (&ed, "N");
-	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
+	CHECK (ml_editor_handle_key (&ed, ctrl_b) == ML_OK);
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (!ed.picking && ed.state == ML_STATE_NOTE);
-	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
+	CHECK (ml_editor_handle_key (&ed, ctrl_b) == ML_OK);
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.state == ML_STATE_MATH && ed.edit_index == 5);
+
+	/* Shift+Enter starts a block at once, of the domain used last */
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.state == ML_STATE_NOTE);
+	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
+	CHECK (!ed.picking && ed.state == ML_STATE_MATH);
+	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
 
 	ml_str_free (&status);
 	ml_editor_free (&ed);
@@ -1449,14 +1463,12 @@ static void test_note_rewrites (void)
 	ml_editor_free (&ed);
 }
 
-/* Ctrl+Enter, then Enter: starts a block of the session domain. */
+/* Ctrl+Enter: starts a block of the session domain. */
 static void press_block (MlEditor *ed)
 {
 	MlKey k = { .code = ML_KEY_ENTER, .cp = 0, .mods = ML_MOD_CTRL };
 
 	CHECK (ml_editor_handle_key (ed, k) == ML_OK);
-	CHECK (ed->picking);
-	press (ed, ML_KEY_ENTER);
 	CHECK (!ed->picking);
 }
 
