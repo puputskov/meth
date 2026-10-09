@@ -139,6 +139,13 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 - C11, no dependencies beyond the C standard library and the OS API.
 - Target is Windows now (Win32 console API), but all OS code lives in a small `platform` layer so Linux/macOS can be added later.
 - Indentation uses ONLY tabs. Spaces are only for alignment.
+- Opening brace always on its own line (Allman); empty line after a closing `}` unless followed by `}` (so also between `}` and `else`).
+- No early exits: one `return` per function, one cleanup stage at the end, avoid `break`/`continue`/`goto`.
+- Space between function name and `(`: `ml_str_clear (&s)`.
+- Align `=` of consecutive assignment lines, and align type / name / `=` / comment columns of consecutive declarations (spaces only).
+- Fixed-width integer types only (`int32_t`, `uint64_t`, ...); sizes and counts are `uint64_t`, not `size_t`.
+- Struct initializers use named entries (`{ .width = 2, .height = 5 }`).
+- Avoid pointers where possible (structs by value, indices, typed containers). See `CLAUDE.md` for the full rules.
 - Headers go in `include/matlog/`, sources in `source/matlog/`, include as `<matlog/x.h>`.
 - All build outputs go to `build/`.
 
