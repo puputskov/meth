@@ -18,7 +18,8 @@
  *	         Up Down move the cursor, across lines too; Backspace at the
  *	         start joins a line with the one before, Delete at the end with
  *	         the next; Enter splits the line; Esc writes the line into the
- *	         session (it is also written when the cursor leaves it)
+ *	         session (also when the cursor leaves it) and, in a block,
+ *	         starts a note below the block
  *	         Shift+Left Right Home End  select text; Backspace, Delete or
  *	         typing replace it
  *	Lines    Shift+Up Shift+Down  select whole lines, Ctrl+L the line;
@@ -87,6 +88,9 @@ void ml_editor_free (MlEditor *ed);
 
 /* Starts typing a new math line at the end of the session. */
 MlResult ml_editor_begin (MlEditor *ed);
+
+/* Writes the line being edited into the session (a new empty one is not). */
+MlResult ml_editor_commit (MlEditor *ed);
 
 /* Starts typing a new note at the end of the session (free form editing). */
 MlResult ml_editor_begin_note (MlEditor *ed);

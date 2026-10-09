@@ -1807,6 +1807,18 @@ static MlResult settle (MlEditor *ed)
 	return r;
 }
 
+MlResult ml_editor_commit (MlEditor *ed)
+{
+	MlResult r = settle (ed);
+
+	if (r == ML_OK)
+	{
+		r = ml_editor_refresh (ed);
+	}
+
+	return r;
+}
+
 /*
  * Edits the cursor line (a new note when there is none). A folded block is
  * not edited, it is selected.
@@ -2353,9 +2365,33 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 
 	else if (key.code == ML_KEY_ESCAPE)
 	{
-		/* Esc keeps what was typed, the way it is */
+		/*
+		 * Esc keeps what was typed; in a block it also leaves the block: a
+		 * new note starts below it
+		 */
 		ed->selecting = 0;
 		r             = settle (ed);
+
+		if (r == ML_OK && ed->state == ML_STATE_MATH && ed->edit_existing)
+		{
+			r = begin_line (
+				ed,
+				ML_STATE_NOTE,
+				ML_LINE_NOTE,
+				ed->session.domain,
+				ml_session_block (&ed->session, ed->edit_index).last + 1,
+				0,
+				ml_slice ("", 0)
+			);
+		}
+
+		else if (r == ML_OK && ed->state == ML_STATE_MATH)
+		{
+			/* an empty new line of the block becomes the note */
+			ed->state     = ML_STATE_NOTE;
+			ed->edit_kind = ML_LINE_NOTE;
+			ml_rewriter_set_domain (&ed->rewriter, ML_REWRITE_NOTES);
+		}
 	}
 
 	else if (undo_key (key) != 0)

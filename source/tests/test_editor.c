@@ -370,6 +370,42 @@ static void test_selection (void)
 	ml_editor_free (&ed);
 }
 
+static void test_esc_leaves_block (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "a");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "b");
+
+	/* Esc in a block keeps the line and starts a note below the block */
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.state == ML_STATE_NOTE && !ed.edit_existing);
+	CHECK (ed.edit_index == 2 && texts_are (&ed, "a|b"));
+	type (&ed, "after");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (texts_are (&ed, "a|b|after"));
+	CHECK (ml_session_get (&ed.session, 2).kind == ML_LINE_NOTE);
+
+	/* an empty new line of a block becomes the note */
+	test_normal (&ed, "o");
+	type (&ed, "c");
+	press (&ed, ML_KEY_ENTER);
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.state == ML_STATE_NOTE && ed.edit_index == 4);
+	CHECK (texts_are (&ed, "a|b|after|c"));
+
+	/* Esc in a note changes nothing */
+	type (&ed, "x");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.state == ML_STATE_NOTE && ed.edit_index == 4);
+	CHECK (texts_are (&ed, "a|b|after|c|x"));
+
+	ml_editor_free (&ed);
+}
+
 static void test_pick_block (void)
 {
 	MlEditor ed;
@@ -1485,6 +1521,7 @@ void run_editor_tests (void)
 	test_ctrl_z ();
 	test_modeless ();
 	test_selection ();
+	test_esc_leaves_block ();
 	test_pick_block ();
 	test_navigation ();
 	test_yank_paste ();

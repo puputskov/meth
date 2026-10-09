@@ -17,7 +17,8 @@ void test_key (MlEditor *ed, MlKeyCode code, uint32_t cp, uint32_t mods)
 
 void test_leave (MlEditor *ed)
 {
-	test_key (ed, ML_KEY_ESCAPE, 0, 0);
+	/* the line is written into the session, as Esc did */
+	CHECK (ml_editor_commit (ed) == ML_OK);
 
 	if (
 		   (ed->state == ML_STATE_MATH || ed->state == ML_STATE_NOTE)

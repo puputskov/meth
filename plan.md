@@ -43,7 +43,8 @@ typing edits that line in place. There is no key to start or to leave editing. T
 - **Text:** Left, Right, Home, End move in the line; Up and Down go to the neighbouring line and keep the column; Left at the start and Right at the end
   cross to the neighbour; Backspace at the start joins the line with the previous one, Delete at the end joins the next one in; Enter splits the line at
   the cursor; `Shift` with Left, Right, Home, End selects text, Backspace, Delete or typing replace the selection. A line is written into the session when
-  the cursor leaves it, on `Esc` and on every command, so there is nothing to commit by hand.
+  the cursor leaves it and on every command, so there is nothing to commit by hand. `Esc` in a math block writes the line and leaves the block: a new
+  note starts below it (an empty new line of the block becomes the note); in a note it only writes the line.
 - **Lines:** `Shift+Up` and `Shift+Down` select whole lines (`Ctrl+L` the cursor line); then Backspace or Delete remove them, `Ctrl+C` copies, `Ctrl+X`
   cuts, `Ctrl+V` replaces them with the copied lines, `Alt+Up` and `Alt+Down` move them, and any arrow or `Esc` goes back to editing. Without a
   selection `Ctrl+C`, `Ctrl+X` and `Ctrl+V` work on the line the cursor is in (paste goes below it) and `Alt+Up/Down` move that line. `Ctrl+Home` and
