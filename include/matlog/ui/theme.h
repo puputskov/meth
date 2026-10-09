@@ -47,6 +47,8 @@ typedef enum MlClass
 	ML_CLASS_RESULT_ERROR,
 	ML_CLASS_GHOST,    /* the preview of the result, completion text */
 	ML_CLASS_HINT_KEY, /* the important part of a hint, see hint.h */
+	ML_CLASS_NOTE,     /* the text of a note */
+	ML_CLASS_NOTE_CODE, /* `code` in a note */
 	ML_CLASS_COUNT
 } MlClass;
 

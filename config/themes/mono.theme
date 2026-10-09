@@ -22,3 +22,5 @@ result       = dim
 result-error = bold
 ghost        = dim
 hint-key     = bold
+note         = none
+note-code    = bold

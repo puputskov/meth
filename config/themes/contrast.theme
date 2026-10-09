@@ -22,3 +22,5 @@ result       = #ffffff
 result-error = #ff7f7f
 ghost        = #c0c0c0
 hint-key     = #7fdfff bold
+note         = #ffffff
+note-code    = #7fffd4

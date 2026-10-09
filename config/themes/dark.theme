@@ -22,3 +22,5 @@ result       = dim
 result-error = #f44747
 ghost        = dim
 hint-key     = #4fc1ff bold
+note         = none
+note-code    = #4ec9b0

@@ -444,7 +444,59 @@ static MlResult append_result (
  * and bold, italic, underline, strike and code are drawn as such. The text
  * is clipped by its width without the marks.
  */
-static MlResult append_note_text (MlStr *out, MlSlice text, uint64_t room)
+/* Notes with the styles of the theme (the plain way without one). */
+static MlResult append_markup (
+	MlStr          *out,
+	const MlEditor *ed,
+	const MlMarkup *m,
+	uint64_t       from,
+	uint64_t       len
+)
+{
+	MlResult r = ML_OK;
+	MlStr    base;
+	MlStr    code;
+
+	ml_str_init (&base);
+	ml_str_init (&code);
+
+	if (ed->highlight)
+	{
+		r = ml_style_sgr (&base, ed->theme.styles [ML_CLASS_NOTE], ed->colors);
+
+		if (r == ML_OK)
+		{
+			r = ml_style_sgr (
+				&code,
+				ed->theme.styles [ML_CLASS_NOTE_CODE],
+				ed->colors
+			);
+		}
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_markup_append_themed (
+			out,
+			m,
+			from,
+			len,
+			ml_str_view (base),
+			ml_str_view (code)
+		);
+	}
+
+	ml_str_free (&code);
+	ml_str_free (&base);
+	return r;
+}
+
+static MlResult append_note_text (
+	MlStr          *out,
+	const MlEditor *ed,
+	MlSlice        text,
+	uint64_t       room
+)
 {
 	MlMarkup m;
 	MlStr    shown;
@@ -466,7 +518,7 @@ static MlResult append_note_text (MlStr *out, MlSlice text, uint64_t room)
 
 	if (r == ML_OK)
 	{
-		r = ml_markup_append (out, &m, 0, shown.len);
+		r = append_markup (out, ed, &m, 0, shown.len);
 	}
 
 	ml_str_free (&shown);
@@ -573,7 +625,7 @@ static MlResult append_line_row (
 
 		else if (r == ML_OK && note)
 		{
-			r = append_note_text (out, line.text, room);
+			r = append_note_text (out, ed, line.text, room);
 		}
 
 		else if (r == ML_OK && ed->highlight && line.kind == ML_LINE_MATH)
@@ -758,10 +810,11 @@ static uint64_t byte_at_column (MlSlice text, uint64_t col)
  * on right away.
  */
 static MlTextWindow append_live_note (
-	MlStr    *out,
-	MlSlice  text,
-	uint64_t start_col,
-	uint64_t avail
+	MlStr          *out,
+	const MlEditor *ed,
+	MlSlice        text,
+	uint64_t       start_col,
+	uint64_t       avail
 )
 {
 	MlMarkup     m;
@@ -779,8 +832,9 @@ static MlTextWindow append_live_note (
 
 	if (w.result == ML_OK)
 	{
-		w.result = ml_markup_append (
+		w.result = append_markup (
 			out,
+			ed,
 			&m,
 			byte_at_column (text, w.first_col),
 			shown.len
@@ -1122,6 +1176,7 @@ static EditRow append_edit_row (
 	{
 		w = append_live_note (
 			out,
+			ed,
 			ml_str_view (ed->edit.text),
 			ml_lineedit_start_col (&ed->edit, avail),
 			avail

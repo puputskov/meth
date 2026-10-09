@@ -471,9 +471,19 @@ MlResult ml_markup_parse_live (MlMarkup *m, MlSlice text)
 }
 
 /* The escape sequence that sets exactly the styles of mask. */
-static MlResult set_style (MlStr *out, uint32_t mask)
+static MlResult set_style (
+	MlStr    *out,
+	uint32_t mask,
+	MlSlice  base,
+	MlSlice  code
+)
 {
 	MlResult r = ml_str_append (out, ml_slice_cstr ("\x1b[0m"));
+
+	if (r == ML_OK)
+	{
+		r = ml_str_append (out, base);
+	}
 
 	if (r == ML_OK && (mask & ML_STYLE_BOLD))
 	{
@@ -497,7 +507,10 @@ static MlResult set_style (MlStr *out, uint32_t mask)
 
 	if (r == ML_OK && (mask & ML_STYLE_CODE))
 	{
-		r = ml_str_append (out, ml_slice_cstr ("\x1b[36m"));
+		r = ml_str_append (
+			out,
+			ml_choose (code.len > 0, code, ml_slice_cstr ("\x1b[36m"))
+		);
 	}
 
 	if (r == ML_OK && (mask & ML_STYLE_MARK))
@@ -515,7 +528,26 @@ MlResult ml_markup_append (
 	uint64_t       len
 )
 {
-	MlResult r      = ML_OK;
+	return ml_markup_append_themed (
+		out,
+		m,
+		from,
+		len,
+		ml_slice ("", 0),
+		ml_slice ("", 0)
+	);
+}
+
+MlResult ml_markup_append_themed (
+	MlStr          *out,
+	const MlMarkup *m,
+	uint64_t       from,
+	uint64_t       len,
+	MlSlice        base,
+	MlSlice        code
+)
+{
+	MlResult r      = ml_str_append (out, base);
 	uint32_t shown  = 0;
 	uint64_t end    = ml_choose (
 		from + len > m->plain.len,
@@ -529,7 +561,7 @@ MlResult ml_markup_append (
 
 		if (want != shown)
 		{
-			r     = set_style (out, want);
+			r     = set_style (out, want, base, code);
 			shown = want;
 		}
 
@@ -542,7 +574,7 @@ MlResult ml_markup_append (
 		}
 	}
 
-	if (r == ML_OK && shown != 0)
+	if (r == ML_OK && (shown != 0 || base.len > 0))
 	{
 		r = ml_str_append (out, ml_slice_cstr ("\x1b[0m"));
 	}

@@ -1190,6 +1190,46 @@ static void test_block_start_gutter (void)
 	ml_editor_free (&ed);
 }
 
+static void test_themed_notes (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_editor_begin_note (&ed);
+	ml_screen_init (&s, 40, 8);
+	type (&ed, "use `x` here");
+
+	/* without a theme a code span keeps the old cyan */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[36m"));
+	ml_layout_free (&l);
+
+	/* with one it has the colour of the note-code class, in the line typed */
+	ed.highlight = 1;
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[38;2;78;201;176m"));
+	CHECK (!row_contains (&l, 0, "\x1b[36m"));
+	ml_layout_free (&l);
+
+	/* and in a note that is written into the session */
+	press (&ed, ML_KEY_ENTER);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[38;2;78;201;176m"));
+	ml_layout_free (&l);
+
+	/* a note style colours the whole note */
+	ed.theme.styles [ML_CLASS_NOTE].fg.set = 1;
+	ed.theme.styles [ML_CLASS_NOTE].fg.r   = 1;
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_contains (&l, 0, "\x1b[38;2;1;0;0m"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_themed_rows (void)
 {
 	MlEditor ed;
@@ -1243,6 +1283,7 @@ void run_screen_tests (void)
 	test_empty_gutter ();
 	test_block_start_gutter ();
 	test_themed_rows ();
+	test_themed_notes ();
 	test_basic_layout ();
 	test_hit ();
 	test_typing_row ();

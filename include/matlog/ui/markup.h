@@ -66,4 +66,18 @@ MlResult ml_markup_append (
 	uint64_t       len
 );
 
+/*
+ * The same with a base style: base is the escape sequence that every reset
+ * is followed by (the style of the plain text of the note), code the one of a
+ * code span (empty: the default). Either may be empty.
+ */
+MlResult ml_markup_append_themed (
+	MlStr          *out,
+	const MlMarkup *m,
+	uint64_t       from,
+	uint64_t       len,
+	MlSlice        base,
+	MlSlice        code
+);
+
 #endif /* MATLOG_UI_MARKUP_H */

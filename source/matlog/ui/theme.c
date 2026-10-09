@@ -20,7 +20,9 @@ static const char *const class_names [ML_CLASS_COUNT] =
 	[ML_CLASS_RESULT]       = "result",
 	[ML_CLASS_RESULT_ERROR] = "result-error",
 	[ML_CLASS_GHOST]        = "ghost",
-	[ML_CLASS_HINT_KEY]     = "hint-key"
+	[ML_CLASS_HINT_KEY]     = "hint-key",
+	[ML_CLASS_NOTE]         = "note",
+	[ML_CLASS_NOTE_CODE]    = "note-code"
 };
 
 static const char *const level_names [ML_COLORS_COUNT] =
@@ -209,7 +211,8 @@ static const Builtin builtins [] =
 			[ML_CLASS_RESULT]       = { .dim = 1 },
 			[ML_CLASS_RESULT_ERROR] = COLOR (0xF44747),
 			[ML_CLASS_GHOST]        = { .dim = 1 },
-			[ML_CLASS_HINT_KEY]     = { .fg = RGB (0x4FC1FF), .bold = 1 }
+			[ML_CLASS_HINT_KEY]     = { .fg = RGB (0x4FC1FF), .bold = 1 },
+			[ML_CLASS_NOTE_CODE]    = COLOR (0x4EC9B0)
 		}
 	},
 	{
@@ -232,7 +235,8 @@ static const Builtin builtins [] =
 			[ML_CLASS_RESULT]       = { .dim = 1 },
 			[ML_CLASS_RESULT_ERROR] = COLOR (0xCD3131),
 			[ML_CLASS_GHOST]        = { .dim = 1 },
-			[ML_CLASS_HINT_KEY]     = { .fg = RGB (0x0070C1), .bold = 1 }
+			[ML_CLASS_HINT_KEY]     = { .fg = RGB (0x0070C1), .bold = 1 },
+			[ML_CLASS_NOTE_CODE]    = COLOR (0x267F99)
 		}
 	},
 	{
@@ -256,7 +260,9 @@ static const Builtin builtins [] =
 			[ML_CLASS_RESULT]       = COLOR (0xFFFFFF),
 			[ML_CLASS_RESULT_ERROR] = COLOR (0xFF7F7F),
 			[ML_CLASS_GHOST]        = COLOR (0xC0C0C0),
-			[ML_CLASS_HINT_KEY]     = { .fg = RGB (0x7FDFFF), .bold = 1 }
+			[ML_CLASS_HINT_KEY]     = { .fg = RGB (0x7FDFFF), .bold = 1 },
+			[ML_CLASS_NOTE]         = COLOR (0xFFFFFF),
+			[ML_CLASS_NOTE_CODE]    = COLOR (0x7FFFD4)
 		}
 	},
 	{
@@ -276,7 +282,8 @@ static const Builtin builtins [] =
 			[ML_CLASS_RESULT]       = { .dim = 1 },
 			[ML_CLASS_RESULT_ERROR] = { .bold = 1 },
 			[ML_CLASS_GHOST]        = { .dim = 1 },
-			[ML_CLASS_HINT_KEY]     = { .bold = 1 }
+			[ML_CLASS_HINT_KEY]     = { .bold = 1 },
+			[ML_CLASS_NOTE_CODE]    = { .bold = 1 }
 		}
 	}
 };
