@@ -53,7 +53,11 @@ static const MlSym *fail_at (Build *b, const Scope *sc, MlNode node)
 	if (b->ctx->status == ML_OK)
 	{
 		b->ctx->status     = ML_ERR_INVALID;
-		b->ctx->fail_start = ml_choose (sc->inherited, sc->rep_start, node.start);
+		b->ctx->fail_start = ml_choose (
+			sc->inherited,
+			sc->rep_start,
+			node.start
+		);
 		b->ctx->fail_len   = ml_choose (sc->inherited, sc->rep_len, node.len);
 	}
 
@@ -61,7 +65,12 @@ static const MlSym *fail_at (Build *b, const Scope *sc, MlNode node)
 }
 
 /* The value of a name: parameter, the free symbol, a variable, or a symbol. */
-static const MlSym *name_value (Build *b, const Scope *sc, MlNode node, MlSlice name)
+static const MlSym *name_value (
+	Build       *b,
+	const Scope *sc,
+	MlNode      node,
+	MlSlice     name
+)
 {
 	const MlSym *out   = NULL;
 	uint64_t    params = ml_binding_param_count (sc->func);
@@ -116,7 +125,12 @@ static const MlSym *name_value (Build *b, const Scope *sc, MlNode node, MlSlice 
 }
 
 /* n! for a small whole number n. */
-static const MlSym *factorial_of (Build *b, const Scope *sc, MlNode node, const MlSym *a)
+static const MlSym *factorial_of (
+	Build       *b,
+	const Scope *sc,
+	MlNode      node,
+	const MlSym *a
+)
 {
 	int64_t     n   = 0;
 	const MlSym *out = NULL;
@@ -132,7 +146,11 @@ static const MlSym *factorial_of (Build *b, const Scope *sc, MlNode node, const 
 
 		for (int64_t i = 2; i <= n; i++)
 		{
-			acc = ml_rat_mul (b->ctx->arena, acc, ml_rat_from_i64 (b->ctx->arena, i));
+			acc = ml_rat_mul (
+				b->ctx->arena,
+				acc,
+				ml_rat_from_i64 (b->ctx->arena, i)
+			);
 		}
 
 		out = ml_sym_num (b->ctx, acc);
@@ -159,7 +177,12 @@ static const MlSym *kid (const Scope *sc, uint64_t node, uint64_t n)
 }
 
 /* A call whose callee is a name: a function, a user function or a product. */
-static const MlSym *call_value (Build *b, Scope *sc, MlNode node, int32_t *pushed)
+static const MlSym *call_value (
+	Build   *b,
+	Scope   *sc,
+	MlNode  node,
+	int32_t *pushed
+)
 {
 	uint64_t    callee = ml_ast_child (&sc->ast, sc->cur, 0);
 	MlSlice     name   = ml_ast_text (&sc->ast, sc->source, callee);
@@ -174,7 +197,10 @@ static const MlSym *call_value (Build *b, Scope *sc, MlNode node, int32_t *pushe
 	/* a parameter called with one argument is a product as well */
 	for (uint64_t i = 0; i < ml_binding_param_count (sc->func); i++)
 	{
-		is_var = is_var || ml_slice_equal (ml_binding_param (sc->func, i), name);
+		is_var = is_var || ml_slice_equal (
+			ml_binding_param (sc->func, i),
+			name
+		);
 	}
 
 	if (fn.kind == ML_BIND_FUNC)
@@ -221,8 +247,16 @@ static const MlSym *call_value (Build *b, Scope *sc, MlNode node, int32_t *pushe
 				inner.args      = (const MlSym *const *)args;
 				inner.call      = sc->cur;
 				inner.inherited = 1;
-				inner.rep_start = ml_choose (sc->inherited, sc->rep_start, node.start);
-				inner.rep_len   = ml_choose (sc->inherited, sc->rep_len, node.len);
+				inner.rep_start = ml_choose (
+					sc->inherited,
+					sc->rep_start,
+					node.start
+				);
+				inner.rep_len   = ml_choose (
+					sc->inherited,
+					sc->rep_len,
+					node.len
+				);
 
 				if (ScopeVec_push (&b->scopes, inner) != ML_OK)
 				{
@@ -240,7 +274,11 @@ static const MlSym *call_value (Build *b, Scope *sc, MlNode node, int32_t *pushe
 
 	else if (is_function_name (name) && argc == 1 && fn.kind == ML_BIND_NONE)
 	{
-		out = ml_sym_call (b->ctx, name, kid (sc, sc->cur, 1));
+		out = ml_choose (
+			b->ctx->raw,
+			ml_sym_func (b->ctx, name, kid (sc, sc->cur, 1)),
+			ml_sym_call (b->ctx, name, kid (sc, sc->cur, 1))
+		);
 	}
 
 	else if (is_name (name, "sqrt") && argc == 1 && fn.kind == ML_BIND_NONE)
@@ -280,6 +318,65 @@ static const MlSym *call_value (Build *b, Scope *sc, MlNode node, int32_t *pushe
 	else
 	{
 		out = fail_at (b, sc, node);
+	}
+
+	return out;
+}
+
+/* A node of the given kind over a and b, as written. */
+static const MlSym *raw2 (
+	MlSymCtx    *ctx,
+	MlSymKind   kind,
+	const MlSym *a,
+	const MlSym *b
+)
+{
+	const MlSym *kids [2] = { a, b };
+
+	return ml_sym_raw (ctx, kind, kids, 2);
+}
+
+/* The operator nodes built as written: no folding, no sorting. */
+static const MlSym *raw_operator (
+	Build       *b,
+	MlNodeKind  kind,
+	const MlSym *x,
+	const MlSym *y
+)
+{
+	MlSymCtx    *ctx   = b->ctx;
+	const MlSym *minus = ml_sym_int (ctx, -1);
+	const MlSym *out;
+
+	if (kind == ML_NODE_ADD)
+	{
+		out = raw2 (ctx, ML_SYM_ADD, x, y);
+	}
+
+	else if (kind == ML_NODE_SUB)
+	{
+		out = raw2 (ctx, ML_SYM_ADD, x, raw2 (ctx, ML_SYM_MUL, minus, y));
+	}
+
+	else if (kind == ML_NODE_MUL)
+	{
+		out = raw2 (ctx, ML_SYM_MUL, x, y);
+	}
+
+	else if (kind == ML_NODE_DIV)
+	{
+		out = raw2 (ctx, ML_SYM_MUL, x, raw2 (ctx, ML_SYM_POW, y, minus));
+	}
+
+	else if (kind == ML_NODE_POW)
+	{
+		out = raw2 (ctx, ML_SYM_POW, x, y);
+	}
+
+	else
+	{
+		/* NEG, the operand being x */
+		out = raw2 (ctx, ML_SYM_MUL, minus, x);
 	}
 
 	return out;
@@ -333,6 +430,30 @@ static const MlSym *node_value (Build *b, Scope *sc, int32_t *pushed)
 	else if (node.kind == ML_NODE_NAME)
 	{
 		out = name_value (b, sc, node, text);
+	}
+
+	else if (
+		   ctx->raw
+		&& (
+			   node.kind == ML_NODE_NEG
+			|| node.kind == ML_NODE_ADD
+			|| node.kind == ML_NODE_SUB
+			|| node.kind == ML_NODE_MUL
+			|| node.kind == ML_NODE_DIV
+			|| node.kind == ML_NODE_POW
+		)
+	)
+	{
+		out = raw_operator (
+			b,
+			node.kind,
+			kid (sc, sc->cur, 0),
+			ml_choose (
+				node.kind == ML_NODE_NEG,
+				kid (sc, sc->cur, 0),
+				kid (sc, sc->cur, 1)
+			)
+		);
 	}
 
 	else if (node.kind == ML_NODE_NEG)
@@ -445,7 +566,11 @@ const MlSym *ml_sym_from_ast (
 	first.source    = source;
 	first.ast       = *ast;
 	first.root      = node;
-	first.results   = ML_ARENA_NEW_ARRAY (ctx->arena, const MlSym *, ast->nodes.len);
+	first.results   = ML_ARENA_NEW_ARRAY (
+		ctx->arena,
+		const MlSym *,
+		ast->nodes.len
+	);
 	first.cur       = node;
 	first.down      = 1;
 	memset (&first.func, 0, sizeof first.func);
@@ -469,7 +594,10 @@ const MlSym *ml_sym_from_ast (
 	{
 		Scope *sc = &b.scopes.data [b.scopes.len - 1];
 
-		if (sc->down && ml_ast_node (&sc->ast, sc->cur).first != ML_NODE_NIL_INDEX)
+		if (
+			   sc->down
+			&& ml_ast_node (&sc->ast, sc->cur).first != ML_NODE_NIL_INDEX
+		)
 		{
 			sc->cur = ml_ast_node (&sc->ast, sc->cur).first;
 		}

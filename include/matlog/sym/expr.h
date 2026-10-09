@@ -77,6 +77,8 @@ typedef struct MlSymCtx
 	/* ml_sym_from_ast: the byte range of the text that is not a formula */
 	uint64_t     fail_start;
 	uint64_t     fail_len;
+	/* ml_sym_from_ast keeps the tree as written, to show how it simplifies */
+	int32_t      raw;
 } MlSymCtx;
 
 void ml_symctx_init (MlSymCtx *ctx, MlArena *arena);

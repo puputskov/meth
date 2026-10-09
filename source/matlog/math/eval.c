@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include <matlog/math/vector.h>
+#include <matlog/sym/expr.h>
 
 /* ---- context ------------------------------------------------------------ */
 
@@ -27,7 +28,9 @@ typedef enum MlCallKind
 	CALL_UNKNOWN,
 	CALL_PRODUCT, /* a(2) with a a number: a times 2 */
 	CALL_USER,
-	CALL_BUILTIN
+	CALL_BUILTIN,
+	/* simplify expand subs diff integrate: the arguments are formulas */
+	CALL_SYMBOLIC
 } MlCallKind;
 
 typedef struct MlFrame
@@ -60,6 +63,7 @@ typedef struct MlEvalCtx
 	MlValueVec  vals;
 	MlScopeVec  scopes;
 	int32_t     failed; /* a stack could not grow: out of memory */
+	MlStepLog   *log;    /* steps of symbolic calls, NULL: none wanted */
 } MlEvalCtx;
 
 static MlValue error_at (MlErrorKind kind)
@@ -661,6 +665,56 @@ static MlValue matrix_function (
 	return r;
 }
 
+/* The elementary functions of a formula; the others need numbers. */
+static MlValue formula_function (MlArena *arena, MlBuiltin id, MlValue a)
+{
+	MlValue  out = error_at (ML_EVAL_TYPE);
+	MlSymCtx ctx;
+
+	ml_symctx_init (&ctx, arena);
+
+	if (id == BUILTIN_SQRT)
+	{
+		out = ml_value_pow (
+			arena,
+			a,
+			ml_value_exact (
+				ml_rat_make (
+					arena,
+					ml_big_from_u64 (arena, 1),
+					ml_big_from_u64 (arena, 2)
+				)
+			)
+		);
+	}
+
+	else if (
+		   (id >= BUILTIN_SIN && id <= BUILTIN_LN)
+		|| id == BUILTIN_EXP
+		|| id == BUILTIN_ABS
+	)
+	{
+		out = ml_value_expr (
+			ml_sym_call (&ctx, ml_slice_cstr (builtins [id].name), a.sym),
+			ctx.status
+		);
+	}
+
+	else if (id == BUILTIN_LOG)
+	{
+		out = ml_value_expr (
+			ml_sym_div (
+				&ctx,
+				ml_sym_call (&ctx, ml_slice_cstr ("ln"), a.sym),
+				ml_sym_call (&ctx, ml_slice_cstr ("ln"), ml_sym_int (&ctx, 10))
+			),
+			ctx.status
+		);
+	}
+
+	return out;
+}
+
 static MlValue builtin_apply (
 	MlArena       *arena,
 	MlBuiltin     id,
@@ -670,13 +724,20 @@ static MlValue builtin_apply (
 {
 	MlValue r;
 	int32_t has_matrix = 0;
+	int32_t has_expr   = 0;
 
 	for (uint64_t i = 0; i < argc; i++)
 	{
 		has_matrix = has_matrix || ml_value_is_matrix (args [i]);
+		has_expr   = has_expr || ml_value_is_expr (args [i]);
 	}
 
-	if (id >= BUILTIN_DET)
+	if (has_expr)
+	{
+		r = formula_function (arena, id, args [0]);
+	}
+
+	else if (id >= BUILTIN_DET)
 	{
 		r = matrix_function (arena, id, args, argc);
 	}
@@ -835,7 +896,311 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 	return v;
 }
 
+/* ---- symbolic calls ----------------------------------------------------- */
+
+/*
+ * simplify (f), expand (f), subs (f, x, v), diff (f, x [, n]) and
+ * integrate (f, x [, a, b]): the arguments are not evaluated, they are read
+ * as formulas (sym/expr.h) in which names are symbols.
+ */
+
+typedef struct MlSymCall
+{
+	MlEvalCtx     *cx;
+	const MlScope *sc;
+	uint64_t      call;
+	MlSymCtx      ctx;
+} MlSymCall;
+
+/* The formula of argument n of the call; free is the symbol left alone. */
+static const MlSym *formula_arg (MlSymCall *c, uint64_t n, MlSlice free)
+{
+	return ml_sym_from_ast (
+		&c->ctx,
+		c->cx->env,
+		c->cx->snapshot,
+		c->sc->source,
+		&c->sc->ast,
+		ml_ast_child (&c->sc->ast, c->call, n),
+		free
+	);
+}
+
+/* The name written as argument n: the symbol worked on. */
+static MlSlice symbol_arg (const MlSymCall *c, uint64_t n)
+{
+	uint64_t arg = ml_ast_child (&c->sc->ast, c->call, n);
+
+	return ml_choose (
+		ml_ast_node (&c->sc->ast, arg).kind == ML_NODE_NAME,
+		ml_ast_text (&c->sc->ast, c->sc->source, arg),
+		ml_slice ("", 0)
+	);
+}
+
+/* The error for a failed context. */
+static MlValue sym_error (const MlSymCall *c)
+{
+	MlValue v = ml_value_expr (NULL, c->ctx.status);
+
+	return ml_choose (
+		c->ctx.status == ML_ERR_INVALID,
+		ml_value_error (
+			ML_EVAL_NOT_SYMBOLIC,
+			c->ctx.fail_start,
+			c->ctx.fail_len
+		),
+		v
+	);
+}
+
+/* diff (f, x, n): the n-th derivative, n a whole number written out. */
+static uint64_t derivative_order (
+	const MlSymCall *c,
+	uint64_t        argc,
+	int32_t         *ok
+)
+{
+	uint64_t order = 1;
+
+	*ok = 1;
+
+	if (argc == 3)
+	{
+		uint64_t arg  = ml_ast_child (&c->sc->ast, c->call, 3);
+		MlSlice  text = ml_ast_text (&c->sc->ast, c->sc->source, arg);
+		int64_t  n    = 0;
+		MlSymCtx tmp;
+
+		ml_symctx_init (&tmp, c->cx->arena);
+		*ok = (
+			   ml_ast_node (&c->sc->ast, arg).kind == ML_NODE_NUMBER
+			&& ml_sym_to_i64 (
+				ml_sym_num (&tmp, ml_rat_parse_decimal (c->cx->arena, text)),
+				&n
+			)
+			&& n >= 1
+			&& n <= 20
+		);
+		order = (uint64_t)n;
+	}
+
+	return order;
+}
+
+/* "F(x) = ..., then F(b) - F(a):" for a definite integral. */
+static void log_antiderivative (MlSymCall *c, const MlSym *big)
+{
+	if (c->cx->log != NULL && c->cx->log->status == ML_OK)
+	{
+		MlStr text;
+
+		ml_str_init (&text);
+		c->cx->log->status = ml_str_append (&text, ml_slice_cstr ("F(x) = "));
+
+		if (c->cx->log->status == ML_OK)
+		{
+			c->cx->log->status = ml_sym_format (&text, big);
+		}
+
+		if (c->cx->log->status == ML_OK)
+		{
+			c->cx->log->status = ml_str_append (
+				&text,
+				ml_slice_cstr (", the integral is F(upper) - F(lower):")
+			);
+		}
+
+		if (c->cx->log->status == ML_OK)
+		{
+			ml_steplog_line (c->cx->log, ml_str_view (text));
+		}
+
+		ml_str_free (&text);
+	}
+}
+
+static MlValue symbolic_call (
+	MlEvalCtx     *cx,
+	const MlScope *sc,
+	uint64_t      call,
+	MlSlice       name,
+	uint64_t      argc
+)
+{
+	MlSymCall c;
+	MlValue   out  = ml_value_none ();
+	MlSlice   none = ml_slice ("", 0);
+	int32_t   is_diff      = ml_slice_equal (name, ml_slice_cstr ("diff"));
+	int32_t   is_integrate = ml_slice_equal (name, ml_slice_cstr ("integrate"));
+	int32_t   is_subs      = ml_slice_equal (name, ml_slice_cstr ("subs"));
+	int32_t   fits         = (
+		   ml_choose (
+			   is_diff,
+			   argc == 2 || argc == 3,
+			   ml_choose (
+				   is_integrate,
+				   argc == 2 || argc == 4,
+				   ml_choose (is_subs, argc == 3, argc == 1)
+			   )
+		   )
+	);
+
+	c.cx   = cx;
+	c.sc   = sc;
+	c.call = call;
+	ml_symctx_init (&c.ctx, cx->arena);
+	c.ctx.log = cx->log;
+
+	if (is_diff)
+	{
+		ml_steplog_line (
+			cx->log,
+			ml_slice_cstr ("Differentiate, rule by rule:")
+		);
+	}
+
+	else if (is_integrate)
+	{
+		ml_steplog_line (cx->log, ml_slice_cstr ("Integrate with the table:"));
+	}
+
+	else if (!is_subs)
+	{
+		ml_steplog_line (
+			cx->log,
+			ml_choose (
+				ml_slice_equal (name, ml_slice_cstr ("expand")),
+				ml_slice_cstr ("Multiply out:"),
+				ml_slice_cstr ("Simplify:")
+			)
+		);
+	}
+
+	if (!fits)
+	{
+		out = error_at (ML_EVAL_ARITY);
+	}
+
+	else if (!is_diff && !is_integrate && !is_subs)
+	{
+		const MlSym *f;
+
+		/* to show how it simplifies, the formula is taken as written */
+		c.ctx.raw = cx->log != NULL;
+		f         = formula_arg (&c, 1, none);
+		c.ctx.raw = 0;
+		out = ml_choose (
+			ml_slice_equal (name, ml_slice_cstr ("expand")),
+			ml_value_expr (ml_sym_expand (&c.ctx, f), c.ctx.status),
+			ml_value_expr (ml_sym_simplify (&c.ctx, f), c.ctx.status)
+		);
+		out = ml_choose (c.ctx.status == ML_OK, out, sym_error (&c));
+	}
+
+	else
+	{
+		MlSlice      var = symbol_arg (&c, 2);
+		const MlSym  *x;
+		const MlSym  *f;
+		const MlSym  *result = NULL;
+
+		if (var.len == 0)
+		{
+			out = ml_value_error (
+				ML_EVAL_NOT_SYMBOLIC,
+				ml_ast_node (&sc->ast, ml_ast_child (&sc->ast, call, 2)).start,
+				ml_ast_node (&sc->ast, ml_ast_child (&sc->ast, call, 2)).len
+			);
+		}
+
+		else
+		{
+			x = ml_sym_var (&c.ctx, var);
+			f = formula_arg (&c, 1, var);
+
+			if (is_subs)
+			{
+				result = ml_sym_substitute (
+					&c.ctx,
+					f,
+					x,
+					formula_arg (&c, 3, none)
+				);
+			}
+
+			else if (is_diff)
+			{
+				int32_t  ok    = 1;
+				uint64_t order = derivative_order (&c, argc, &ok);
+
+				result = f;
+
+				for (uint64_t i = 0; i < order && ok; i++)
+				{
+					result = ml_sym_diff (&c.ctx, result, x);
+				}
+
+				out = ml_choose (ok, out, error_at (ML_EVAL_NOT_INTEGER));
+				result = ml_choose (ok, result, NULL);
+			}
+
+			else
+			{
+				MlSymIntegral big = ml_sym_integrate (&c.ctx, f, x);
+
+				if (!big.found && c.ctx.status == ML_OK)
+				{
+					out = error_at (ML_EVAL_CANNOT_INTEGRATE);
+				}
+
+				else if (argc == 4)
+				{
+					const MlSym *low  = formula_arg (&c, 3, none);
+					const MlSym *high = formula_arg (&c, 4, none);
+
+					log_antiderivative (&c, big.value);
+
+					result = ml_sym_sub (
+						&c.ctx,
+						ml_sym_substitute (&c.ctx, big.value, x, high),
+						ml_sym_substitute (&c.ctx, big.value, x, low)
+					);
+				}
+
+				else
+				{
+					result = big.value;
+				}
+			}
+
+			if (result != NULL && c.ctx.status == ML_OK)
+			{
+				out = ml_value_expr (result, c.ctx.status);
+			}
+
+			else if (c.ctx.status != ML_OK)
+			{
+				out = sym_error (&c);
+			}
+		}
+	}
+
+	return out;
+}
+
 /* ---- calls -------------------------------------------------------------- */
+
+static int32_t is_symbolic_name (MlSlice name)
+{
+	return (
+		   ml_slice_equal (name, ml_slice_cstr ("simplify"))
+		|| ml_slice_equal (name, ml_slice_cstr ("expand"))
+		|| ml_slice_equal (name, ml_slice_cstr ("subs"))
+		|| ml_slice_equal (name, ml_slice_cstr ("diff"))
+		|| ml_slice_equal (name, ml_slice_cstr ("integrate"))
+	);
+}
 
 static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 {
@@ -850,6 +1215,11 @@ static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 	else if (b.kind == ML_BIND_FUNC)
 	{
 		kind = CALL_USER;
+	}
+
+	else if (is_symbolic_name (name))
+	{
+		kind = CALL_SYMBOLIC;
 	}
 
 	else if (builtin_find (name) != BUILTIN_NONE)
@@ -1182,7 +1552,12 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 	);
 	MlValue       r      = ml_value_none ();
 
-	if (kind == CALL_UNKNOWN)
+	if (kind == CALL_SYMBOLIC)
+	{
+		r = symbolic_call (cx, sc, f.node, name, argc);
+	}
+
+	else if (kind == CALL_UNKNOWN)
 	{
 		r = ml_value_error (
 			ml_choose (
@@ -1230,7 +1605,7 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 		);
 	}
 
-	if (r.kind == ML_VALUE_ERROR)
+	if (r.kind == ML_VALUE_ERROR || kind == CALL_SYMBOLIC)
 	{
 		finish (cx, 0, r, node);
 	}
@@ -1411,12 +1786,13 @@ static void eval_step (MlEvalCtx *cx)
 
 /* ---- statements --------------------------------------------------------- */
 
-MlValue ml_eval (
+static MlValue eval_with (
 	MlArena     *arena,
 	const MlEnv *env,
 	uint64_t    snapshot,
 	MlSlice     source,
-	const MlAst *ast
+	const MlAst *ast,
+	MlStepLog   *log
 )
 {
 	MlEvalCtx cx =
@@ -1424,7 +1800,8 @@ MlValue ml_eval (
 		.arena    = arena,
 		.env      = env,
 		.snapshot = snapshot,
-		.failed   = 0
+		.failed   = 0,
+		.log      = log
 	};
 	MlNode    root = ml_ast_node (ast, ast->root);
 	MlValue   r    = ml_value_none ();
@@ -1472,6 +1849,29 @@ MlValue ml_eval (
 	return r;
 }
 
+MlValue ml_eval (
+	MlArena     *arena,
+	const MlEnv *env,
+	uint64_t    snapshot,
+	MlSlice     source,
+	const MlAst *ast
+)
+{
+	return eval_with (arena, env, snapshot, source, ast, NULL);
+}
+
+MlValue ml_eval_steps (
+	MlArena     *arena,
+	const MlEnv *env,
+	uint64_t    snapshot,
+	MlSlice     source,
+	const MlAst *ast,
+	MlStepLog   *log
+)
+{
+	return eval_with (arena, env, snapshot, source, ast, log);
+}
+
 MlResult ml_eval_commit (
 	MlEnv       *env,
 	MlSlice     source,
@@ -1484,7 +1884,11 @@ MlResult ml_eval_commit (
 
 	if (
 		   root.kind == ML_NODE_ASSIGN
-		&& (ml_value_is_number (value) || ml_value_is_matrix (value))
+		&& (
+			   ml_value_is_number (value)
+			|| ml_value_is_matrix (value)
+			|| ml_value_is_expr (value)
+		)
 	)
 	{
 		r = ml_env_define_var (

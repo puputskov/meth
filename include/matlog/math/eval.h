@@ -15,6 +15,12 @@
  *	f(x) = expr      ML_VALUE_NONE (the caller binds the function)
  *	empty line       ML_VALUE_NONE
  *
+ * Symbolic calls: simplify (f), expand (f), subs (f, x, v), diff (f, x [, n]),
+ * integrate (f, x [, a, b]) read their arguments as formulas, in which a name
+ * is a symbol (names with a number as value are replaced by it, except the
+ * symbol that is worked on). The value is an expression, or a number when
+ * no symbol is left. Elsewhere an unknown name is still an error.
+ *
  * Names are looked up, newest first, among the parameters of the function that
  * is running, the bindings of the environment, and the built in constants
  * (pi and e, which are approximations). A call is looked up the same way, in
@@ -49,6 +55,20 @@ MlValue ml_eval (
 	uint64_t    snapshot,
 	MlSlice     source,
 	const MlAst *ast
+);
+
+/*
+ * Like ml_eval, and the symbolic calls in the statement (simplify, expand,
+ * diff, integrate) explain themselves into the log, see steplog.h. The value
+ * is the same as ml_eval gives.
+ */
+MlValue ml_eval_steps (
+	MlArena     *arena,
+	const MlEnv *env,
+	uint64_t    snapshot,
+	MlSlice     source,
+	const MlAst *ast,
+	MlStepLog   *log
 );
 
 /*

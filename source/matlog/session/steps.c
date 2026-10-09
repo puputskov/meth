@@ -11,7 +11,8 @@ typedef enum StepKind
 	STEP_INV,
 	STEP_RREF,
 	STEP_SOLVE,
-	STEP_MUL
+	STEP_MUL,
+	STEP_SYMBOLIC
 } StepKind;
 
 /* The value of the subtree at node, in the environment of the line. */
@@ -103,6 +104,14 @@ static StepKind call_kind (MlSlice name, uint64_t argc)
 		STEP_SOLVE,
 		kind
 	);
+	kind = ml_choose (
+		   ml_slice_equal (name, ml_slice_cstr ("simplify"))
+		|| ml_slice_equal (name, ml_slice_cstr ("expand"))
+		|| ml_slice_equal (name, ml_slice_cstr ("diff"))
+		|| ml_slice_equal (name, ml_slice_cstr ("integrate")),
+		STEP_SYMBOLIC,
+		kind
+	);
 	return kind;
 }
 
@@ -146,7 +155,23 @@ static void explain (
 		kind = STEP_MUL;
 	}
 
-	if (kind != STEP_NONE)
+	if (kind == STEP_SYMBOLIC)
+	{
+		/* the evaluator explains symbolic calls itself */
+		MlAst view = *ast;
+
+		view.root = core;
+		ml_eval_steps (
+			arena,
+			&results->env,
+			snapshot,
+			source,
+			&view,
+			log
+		);
+	}
+
+	else if (kind != STEP_NONE)
 	{
 		Operand first  = operand (arena, results, snapshot, source, ast, a);
 		Operand second = operand (arena, results, snapshot, source, ast, b);

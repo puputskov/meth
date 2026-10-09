@@ -36,7 +36,12 @@ MlGhost ml_ghost (
 			&p.ast
 		);
 
-		if (v.kind == ML_VALUE_EXACT || v.kind == ML_VALUE_APPROX)
+		if (
+			   v.kind == ML_VALUE_EXACT
+			|| v.kind == ML_VALUE_APPROX
+			|| v.kind == ML_VALUE_MATRIX
+			|| v.kind == ML_VALUE_EXPR
+		)
 		{
 			g.result = ml_value_format (out, &arena, v);
 			g.shown  = g.result == ML_OK;

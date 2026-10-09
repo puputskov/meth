@@ -3,6 +3,7 @@
 #include <matlog/parse/parser.h>
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
+#include <matlog/session/steps.h>
 
 #define VERSION "matlog 0.3.0"
 
@@ -20,6 +21,7 @@ static const char *const help_overview =
 	"  run FILE       evaluate every line of a session file\n"
 	"  lex TEXT       the tokens of a text\n"
 	"  parse TEXT     the syntax tree of a text\n"
+	"  steps EXPR     the steps of an expression, or of FILE:LINE\n"
 	"  help [CMD]     this text, or the help of one command\n"
 	"  syntax         the syntax, functions and domains\n"
 	"  schema         the shape of the JSON output\n"
@@ -70,6 +72,16 @@ static const char *const help_parse =
 	"place\n"
 	"of the problem when TEXT is not a valid statement.\n";
 
+static const char *const help_steps =
+	"matlog steps [--session FILE] [--format text|json] EXPR\n"
+	"matlog steps [--format text|json] FILE:LINE\n"
+	"\n"
+	"Prints the steps of one line: the row operations of a matrix "
+	"calculation, the\n"
+	"rule used for each part of a derivative or an integral, the changes "
+	"made by simplify.\n"
+	"Exit code 1 when the line has no steps.\n";
+
 static const char *const syntax_text =
 	"Numbers      12  3.14  .5   exact fractions: 1/3 + 1/6 is 1/2\n"
 	"Operators    + - * / ^ (right associative)  ! (factorial)  "
@@ -89,6 +101,10 @@ static const char *const syntax_text =
 	"A*B\n"
 	"             det inv transpose trace rank rref solve identity dot "
 	"cross norm\n"
+	"Symbolic     simplify(f) expand(f) subs(f, x, v) diff(f, x [, n]) "
+	"integrate(f, x [, a, b])\n"
+	"             names are symbols inside these: diff(x^3, x) is 3x\xC2\xB2; "
+	"results can be stored\n"
 	"Results      exact (1/2) or approximate (\xE2\x89\x88 1.41421356); "
 	"errors have a code\n"
 	"Domains      algebra (evaluated now); equations matrix vector lambda "
@@ -117,7 +133,9 @@ static const char *const schema_text =
 	"error codes: syntax div_zero zero_pow_zero not_real domain "
 	"not_integer\n"
 	"  undefined_name not_function not_value arity too_large depth no_file\n"
-	"  include_loop size type not_exact singular no_memory, and for "
+	"  include_loop size type not_exact cannot_integrate not_symbolic\n"
+	"  singular\n"
+	"  no_memory, and for "
 	"text that does\n"
 	"  not parse parse_unexpected_end parse_unexpected_token "
 	"parse_expected_expr\n"
@@ -136,6 +154,7 @@ static const CommandInfo commands [] =
 	{ .name = "run", .summary = "evaluate a session file" },
 	{ .name = "lex", .summary = "tokens of a text" },
 	{ .name = "parse", .summary = "syntax tree of a text" },
+	{ .name = "steps", .summary = "steps of an expression or a line" },
 	{ .name = "help", .summary = "usage" },
 	{ .name = "syntax", .summary = "the syntax and functions" },
 	{ .name = "schema", .summary = "shape of the JSON output" },
@@ -398,7 +417,11 @@ static const char *type_name (MlValueKind kind)
 	return ml_choose (
 		kind == ML_VALUE_MATRIX,
 		"matrix",
-		ml_choose (kind == ML_VALUE_APPROX, "approx", "exact")
+		ml_choose (
+			kind == ML_VALUE_EXPR,
+			"expr",
+			ml_choose (kind == ML_VALUE_APPROX, "approx", "exact")
+		)
 	);
 }
 
@@ -1014,6 +1037,162 @@ static int32_t cmd_parse (
 	return code;
 }
 
+/* The number after the last colon of "file:12", 0 if there is none. */
+static uint64_t line_after_colon (MlSlice a, uint64_t *colon)
+{
+	uint64_t pos = a.len;
+	uint64_t n   = 0;
+
+	while (pos > 0 && a.data [pos - 1] != ':')
+	{
+		pos--;
+	}
+
+	*colon = ml_choose (pos > 0, pos - 1, a.len);
+
+	for (uint64_t i = pos; i < a.len && pos > 0; i++)
+	{
+		n = ml_choose (
+			a.data [i] >= '0' && a.data [i] <= '9',
+			n * 10 + (uint64_t)(a.data [i] - '0'),
+			0
+		);
+	}
+
+	return ml_choose (pos > 0 && pos < a.len, n, 0);
+}
+
+static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
+{
+	int32_t   code = ML_EXIT_OK;
+	MlSession s;
+	MlResults res;
+	MlResult  r    = ML_OK;
+	uint64_t  idx  = 0;
+	uint64_t  colon = 0;
+	uint64_t  num  = ml_choose (
+		o->rest.len == 1,
+		line_after_colon (o->rest.data [0], &colon),
+		0
+	);
+
+	ml_session_init (&s);
+	ml_results_init (&res);
+
+	if (o->rest.len != 1)
+	{
+		code = usage_error (
+			err,
+			"steps needs one expression or FILE:LINE",
+			ml_slice ("", 0)
+		);
+	}
+
+	else if (num > 0)
+	{
+		/* FILE:LINE */
+		r = ml_mlog_load (&s, ml_slice_sub (o->rest.data [0], 0, colon));
+
+		if (r != ML_OK)
+		{
+			code = ML_EXIT_IO;
+			add (err, "matlog: cannot read the file\n");
+		}
+
+		idx = num - 1;
+	}
+
+	else
+	{
+		if (o->session.len > 0)
+		{
+			r = ml_mlog_load (&s, o->session);
+		}
+
+		if (r != ML_OK)
+		{
+			code = ML_EXIT_IO;
+			add (err, "matlog: cannot read the session\n");
+		}
+
+		idx = s.lines.len;
+		r   = ml_choose (
+			r == ML_OK,
+			ml_session_append (
+				&s,
+				ML_LINE_MATH,
+				ML_DOMAIN_ALGEBRA,
+				o->rest.data [0]
+			),
+			r
+		);
+	}
+
+	if (code == ML_EXIT_OK)
+	{
+		r = ml_results_update (&res, &s, 0);
+	}
+
+	if (code == ML_EXIT_OK && r == ML_OK)
+	{
+		MlStr       text;
+		MlLineSteps st;
+
+		ml_str_init (&text);
+		st = ml_line_steps (&text, &res, &s, idx);
+
+		if (st.result != ML_OK)
+		{
+			code = ML_EXIT_IO;
+		}
+
+		else if (!st.found)
+		{
+			code = ML_EXIT_ERROR;
+			add (err, "matlog: no steps for this line\n");
+		}
+
+		else if (o->json)
+		{
+			MlLineView line = ml_session_get (&s, idx);
+			uint64_t   pos  = 0;
+			int32_t    first = 1;
+
+			r = ml_str_appendf (
+				out,
+				"{\"line\":%u,\"input\":",
+				(uint32_t)(idx + 1)
+			);
+			r = ml_choose (r == ML_OK, json_string (out, line.text), r);
+			r = ml_choose (r == ML_OK, add (out, ",\"steps\":["), r);
+
+			while (r == ML_OK && pos < text.len)
+			{
+				MlSlice row = next_line (ml_str_view (text), &pos);
+
+				r = ml_choose (r == ML_OK && !first, add (out, ","), r);
+				first = 0;
+				r = ml_choose (r == ML_OK, json_string (out, row), r);
+			}
+
+			r = ml_choose (r == ML_OK, add (out, "]}\n"), r);
+		}
+
+		else
+		{
+			r = ml_str_append (out, ml_str_view (text));
+			r = ml_choose (r == ML_OK, add (out, "\n"), r);
+		}
+
+		ml_str_free (&text);
+	}
+
+	code = ml_choose (r == ML_ERR_NOMEM, ML_EXIT_IO, code);
+	ml_results_free (&res);
+	ml_session_free (&s);
+	return code;
+}
+
 static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 {
 	int32_t     code  = ML_EXIT_OK;
@@ -1037,7 +1216,11 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 				ml_choose (
 					is (name, "lex"),
 					help_lex,
-					ml_choose (is (name, "parse"), help_parse, NULL)
+					ml_choose (
+						is (name, "parse"),
+						help_parse,
+						ml_choose (is (name, "steps"), help_steps, NULL)
+					)
 				)
 			)
 		);
@@ -1135,6 +1318,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "parse"))
 	{
 		code = cmd_parse (&o, stdin_text, out, err);
+	}
+
+	else if (is (cmd, "steps"))
+	{
+		code = cmd_steps (&o, out, err);
 	}
 
 	else if (is (cmd, "help") || is (cmd, "--help") || is (cmd, "-h"))

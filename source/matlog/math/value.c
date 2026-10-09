@@ -24,7 +24,9 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_INCLUDE_LOOP]   = "include cycle",
 	[ML_EVAL_SIZE]           = "matrix sizes do not fit",
 	[ML_EVAL_TYPE]           = "these operands cannot be combined",
-	[ML_EVAL_NOT_EXACT]      = "a matrix holds exact numbers only",
+	[ML_EVAL_NOT_EXACT]      = "an exact number is needed here",
+	[ML_EVAL_CANNOT_INTEGRATE] = "no closed form found",
+	[ML_EVAL_NOT_SYMBOLIC]   = "not a formula that can be worked on",
 	[ML_EVAL_SINGULAR]       = "matrix is singular",
 	[ML_EVAL_NO_MEMORY]      = "out of memory"
 };
@@ -58,6 +60,8 @@ static const char *const error_codes [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_SIZE]                  = "size",
 	[ML_EVAL_TYPE]                  = "type",
 	[ML_EVAL_NOT_EXACT]             = "not_exact",
+	[ML_EVAL_CANNOT_INTEGRATE]      = "cannot_integrate",
+	[ML_EVAL_NOT_SYMBOLIC]          = "not_symbolic",
 	[ML_EVAL_SINGULAR]              = "singular",
 	[ML_EVAL_NO_MEMORY]             = "no_memory"
 };
@@ -193,6 +197,37 @@ MlValue ml_value_matrix (MlMat m)
 	return v;
 }
 
+MlValue ml_value_expr (const MlSym *sym, MlResult status)
+{
+	MlValue v = ml_value_error (ML_EVAL_NONE, 0, 0);
+
+	if (status != ML_OK)
+	{
+		v = ml_value_error (
+			ml_choose (
+				status == ML_ERR_INVALID,
+				ML_EVAL_NOT_SYMBOLIC,
+				ml_error_from_result (status)
+			),
+			0,
+			0
+		);
+	}
+
+	else if (sym->kind == ML_SYM_NUM)
+	{
+		v = ml_value_exact (sym->num);
+	}
+
+	else
+	{
+		v.kind = ML_VALUE_EXPR;
+		v.sym  = sym;
+	}
+
+	return v;
+}
+
 MlValue ml_value_from_i64 (MlArena *arena, int64_t n)
 {
 	return ml_value_exact (ml_rat_from_i64 (arena, n));
@@ -229,6 +264,11 @@ int32_t ml_value_is_exact (MlValue v)
 int32_t ml_value_is_matrix (MlValue v)
 {
 	return v.kind == ML_VALUE_MATRIX;
+}
+
+int32_t ml_value_is_expr (MlValue v)
+{
+	return v.kind == ML_VALUE_EXPR;
 }
 
 MlI64Result ml_value_to_i64 (MlValue v)
@@ -320,6 +360,87 @@ static MlValue first_error (MlValue a, MlValue b)
 	return found;
 }
 
+/* The expression tree of a value, or NULL when it has none (a matrix). */
+static const MlSym *sym_of (MlSymCtx *ctx, MlValue v)
+{
+	const MlSym *s = NULL;
+
+	if (v.kind == ML_VALUE_EXACT)
+	{
+		s = ml_sym_num (ctx, v.exact);
+	}
+
+	else if (v.kind == ML_VALUE_EXPR)
+	{
+		s = v.sym;
+	}
+
+	return s;
+}
+
+typedef enum SymOp
+{
+	SYM_OP_ADD = 0,
+	SYM_OP_MUL,
+	SYM_OP_DIV,
+	SYM_OP_POW
+} SymOp;
+
+/*
+ * a op b when one of them is an expression. Errors first, then a matrix or an
+ * approximate number is no operand of a formula.
+ */
+static MlValue expr_op (MlArena *arena, SymOp op, MlValue a, MlValue b)
+{
+	MlValue  result = ml_value_none ();
+	MlSymCtx ctx;
+
+	ml_symctx_init (&ctx, arena);
+
+	if (a.kind == ML_VALUE_ERROR || b.kind == ML_VALUE_ERROR)
+	{
+		result = ml_choose (a.kind == ML_VALUE_ERROR, a, b);
+	}
+
+	else if (a.kind == ML_VALUE_APPROX || b.kind == ML_VALUE_APPROX)
+	{
+		result = ml_value_error (ML_EVAL_NOT_EXACT, 0, 0);
+	}
+
+	else if (sym_of (&ctx, a) == NULL || sym_of (&ctx, b) == NULL)
+	{
+		result = ml_value_error (ML_EVAL_TYPE, 0, 0);
+	}
+
+	else
+	{
+		const MlSym *x = sym_of (&ctx, a);
+		const MlSym *y = sym_of (&ctx, b);
+		const MlSym *z = ml_choose (
+			op == SYM_OP_ADD,
+			ml_sym_add (&ctx, x, y),
+			ml_choose (
+				op == SYM_OP_MUL,
+				ml_sym_mul (&ctx, x, y),
+				ml_choose (
+					op == SYM_OP_DIV,
+					ml_sym_div (&ctx, x, y),
+					ml_sym_pow (&ctx, x, y)
+				)
+			)
+		);
+
+		result = ml_value_expr (z, ctx.status);
+	}
+
+	return result;
+}
+
+static int32_t involves_expr (MlValue a, MlValue b)
+{
+	return a.kind == ML_VALUE_EXPR || b.kind == ML_VALUE_EXPR;
+}
+
 MlValue ml_value_neg (MlArena *arena, MlValue a)
 {
 	MlValue result = a;
@@ -337,6 +458,11 @@ MlValue ml_value_neg (MlArena *arena, MlValue a)
 	else if (a.kind == ML_VALUE_MATRIX)
 	{
 		result = ml_value_matrix (ml_mat_neg (arena, a.matrix));
+	}
+
+	else if (a.kind == ML_VALUE_EXPR)
+	{
+		result = expr_op (arena, SYM_OP_MUL, ml_value_from_i64 (arena, -1), a);
 	}
 
 	else if (a.kind != ML_VALUE_ERROR)
@@ -382,7 +508,12 @@ MlValue ml_value_add (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_MATRIX)
+	if (involves_expr (a, b))
+	{
+		result = expr_op (arena, SYM_OP_ADD, a, b);
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_MATRIX)
 	{
 		result = ml_value_matrix (ml_mat_add (arena, a.matrix, b.matrix));
 	}
@@ -420,7 +551,12 @@ MlValue ml_value_mul (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_MATRIX)
+	if (involves_expr (a, b))
+	{
+		result = expr_op (arena, SYM_OP_MUL, a, b);
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_MATRIX)
 	{
 		result = ml_value_matrix (ml_mat_mul (arena, a.matrix, b.matrix));
 	}
@@ -463,7 +599,12 @@ MlValue ml_value_div (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_EXACT)
+	if (involves_expr (a, b))
+	{
+		result = expr_op (arena, SYM_OP_DIV, a, b);
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_EXACT)
 	{
 		result = ml_choose (
 			ml_rat_is_zero (b.exact),
@@ -599,7 +740,12 @@ MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_EXACT)
+	if (involves_expr (a, b))
+	{
+		result = expr_op (arena, SYM_OP_POW, a, b);
+	}
+
+	else if (a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_EXACT)
 	{
 		MlI64Result n = ml_value_to_i64 (b);
 
@@ -657,6 +803,11 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 	else if (v.kind == ML_VALUE_MATRIX)
 	{
 		r = ml_mat_format (out, v.matrix);
+	}
+
+	else if (v.kind == ML_VALUE_EXPR)
+	{
+		r = ml_sym_format (out, v.sym);
 	}
 
 	return r;

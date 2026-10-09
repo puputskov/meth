@@ -348,7 +348,11 @@ const MlSym *ml_sym_sum (MlSymCtx *ctx, const MlSym *const *terms, uint64_t n)
 			{
 				if (ml_sym_compare (ctx, rests.data [g], rest) == 0)
 				{
-					coeffs.data [g] = ml_rat_add (ctx->arena, coeffs.data [g], c);
+					coeffs.data [g] = ml_rat_add (
+						ctx->arena,
+						coeffs.data [g],
+						c
+					);
 					found           = 1;
 				}
 			}
@@ -391,7 +395,10 @@ const MlSym *ml_sym_sum (MlSymCtx *ctx, const MlSym *const *terms, uint64_t n)
 
 	for (uint64_t g = 0; g < rests.len && r == ML_OK; g++)
 	{
-		r = SymPtrVec_push (&out, with_coeff (ctx, coeffs.data [g], rests.data [g]));
+		r = SymPtrVec_push (
+			&out,
+			with_coeff (ctx, coeffs.data [g], rests.data [g])
+		);
 	}
 
 	if (r == ML_OK && !ml_rat_is_zero (constant))
@@ -439,7 +446,11 @@ static int32_t small_int (const MlSym *s, int64_t *value)
  * base to the power exp for a base that is not a product or a power (or, for
  * a fractional exponent, anything). No other constructor is used.
  */
-static const MlSym *pow_core (MlSymCtx *ctx, const MlSym *base, const MlSym *exp)
+static const MlSym *pow_core (
+	MlSymCtx    *ctx,
+	const MlSym *base,
+	const MlSym *exp
+)
 {
 	const MlSym *result = NULL;
 	int64_t     n       = 0;
@@ -576,7 +587,11 @@ const MlSym *ml_sym_product (
 					{
 						if (ml_sym_compare (ctx, bases.data [g], base) == 0)
 						{
-							exps.data [g] = ml_sym_add (ctx, exps.data [g], exp);
+							exps.data [g] = ml_sym_add (
+								ctx,
+								exps.data [g],
+								exp
+							);
 							found         = 1;
 						}
 					}
@@ -584,7 +599,11 @@ const MlSym *ml_sym_product (
 					if (!found)
 					{
 						r = SymPtrVec_push (&bases, base);
-						r = ml_choose (r == ML_OK, SymPtrVec_push (&exps, exp), r);
+						r = ml_choose (
+							r == ML_OK,
+							SymPtrVec_push (&exps, exp),
+							r
+						);
 					}
 				}
 			}
@@ -627,7 +646,47 @@ const MlSym *ml_sym_product (
 
 	if (ml_rat_is_zero (coeff) || work.len == 0)
 	{
-		result = ml_sym_num (ctx, ml_choose (work.len == 0, coeff, ml_rat_zero (ctx->arena)));
+		result = ml_sym_num (
+			ctx,
+			ml_choose (work.len == 0, coeff, ml_rat_zero (ctx->arena))
+		);
+	}
+
+	else if (
+		   work.len == 1
+		&& work.data [0]->kind == ML_SYM_ADD
+		&& !ml_sym_is_one (ml_sym_num (ctx, coeff))
+	)
+	{
+		/* a number times a sum goes into the terms: 2(x + 1) = 2x + 2 */
+		SymPtrVec terms;
+		const MlSym *sum = work.data [0];
+
+		SymPtrVec_init (&terms);
+
+		for (uint64_t i = 0; i < sum->count; i++)
+		{
+			MlRat        c;
+			const MlSym *rest = split_term (ctx, sum->kids [i], &c);
+			MlRat        k    = ml_rat_mul (ctx->arena, c, coeff);
+
+			if (
+				SymPtrVec_push (
+					&terms,
+					ml_choose (
+						rest == NULL,
+						ml_sym_num (ctx, k),
+						with_coeff (ctx, k, rest)
+					)
+				) != ML_OK
+			)
+			{
+				ctx->status = ML_ERR_NOMEM;
+			}
+		}
+
+		result = ml_sym_sum (ctx, terms.data, terms.len);
+		SymPtrVec_free (&terms);
 	}
 
 	else
@@ -704,7 +763,12 @@ const MlSym *ml_sym_pow (MlSymCtx *ctx, const MlSym *a, const MlSym *b)
 
 		for (uint64_t i = 0; i < base->count; i++)
 		{
-			if (SymPtrVec_push (&parts, pow_core (ctx, base->kids [i], exp)) != ML_OK)
+			if (
+				SymPtrVec_push (
+					&parts,
+					pow_core (ctx, base->kids [i], exp)
+				) != ML_OK
+			)
 			{
 				ctx->status = ML_ERR_NOMEM;
 			}
@@ -897,7 +961,11 @@ static const MlSym *pow_expand (MlSymCtx *ctx, const MlSym *base, uint64_t n)
 
 /* ---- the rewrite at one node ---- */
 
-static const char *rule_name (const MlSym *orig, const MlSym *out)
+static const char *rule_name (
+	MlSymMode   mode,
+	const MlSym *orig,
+	const MlSym *out
+)
 {
 	const char *name = "simplify";
 
@@ -915,13 +983,21 @@ static const char *rule_name (const MlSym *orig, const MlSym *out)
 		name = ml_choose (
 			out->kind == ML_SYM_NUM,
 			"multiply the numbers",
-			"combine the factors"
+			ml_choose (
+				mode == ML_SYM_EXPAND,
+				"multiply out",
+				"combine the factors"
+			)
 		);
 	}
 
 	else if (orig->kind == ML_SYM_POW)
 	{
-		name = "simplify the power";
+		name = ml_choose (
+			mode == ML_SYM_EXPAND,
+			"expand the power",
+			"simplify the power"
+		);
 	}
 
 	else if (orig->kind == ML_SYM_FUNC)
@@ -945,7 +1021,11 @@ static void log_rewrite (
 		MlStr text;
 
 		ml_str_init (&text);
-		ctx->log->status = ml_str_appendf (&text, "%s: ", rule_name (orig, after));
+		ctx->log->status = ml_str_appendf (
+			&text,
+			"%s: ",
+			rule_name (ctx->mode, orig, after)
+		);
 
 		if (ctx->log->status == ML_OK)
 		{
@@ -1042,7 +1122,11 @@ const MlSym *ml_sym_rewrite (
 	}
 
 	/* the step: this node changed given what its kids became */
-	if (ctx->log != NULL && orig->kind != ML_SYM_NUM && orig->kind != ML_SYM_VAR)
+	if (
+		   ctx->log != NULL
+		&& orig->kind != ML_SYM_NUM
+		&& orig->kind != ML_SYM_VAR
+	)
 	{
 		const MlSym *before = ml_choose (
 			orig->kind == ML_SYM_FUNC,

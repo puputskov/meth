@@ -47,7 +47,10 @@ typedef enum MlErrorKind
 	ML_EVAL_INCLUDE_LOOP,   /* a file includes itself, directly or not */
 	ML_EVAL_SIZE,           /* matrix sizes that do not fit the operation */
 	ML_EVAL_TYPE,           /* operands of a kind the operation cannot use */
-	ML_EVAL_NOT_EXACT,      /* a matrix holds exact numbers only */
+	/* an exact number is needed, not an approximation */
+	ML_EVAL_NOT_EXACT,
+	ML_EVAL_CANNOT_INTEGRATE, /* no closed form found */
+	ML_EVAL_NOT_SYMBOLIC,   /* not a formula the symbolic engine can use */
 	ML_EVAL_SINGULAR,       /* a singular matrix has no inverse */
 	ML_EVAL_NO_MEMORY,
 	ML_EVAL_KIND_COUNT
@@ -82,6 +85,14 @@ MlValue ml_value_approx (double x);
  * sizes that do not fit are ML_EVAL_SIZE, a singular matrix ML_EVAL_SINGULAR.
  */
 MlValue ml_value_matrix (MlMat m);
+
+/*
+ * A symbolic expression as a value. A number stays an exact number; a
+ * failed context (see sym/expr.h) becomes the matching error: no room is
+ * ML_EVAL_TOO_LARGE, a division by zero ML_EVAL_DIV_ZERO.
+ */
+MlValue ml_value_expr (const MlSym *s, MlResult status);
+int32_t ml_value_is_expr (MlValue v);
 MlValue ml_value_from_i64 (MlArena *arena, int64_t n);
 MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len);
 

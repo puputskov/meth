@@ -491,8 +491,9 @@ static MlResult print_mul (
 		{
 			if (is_denominator (n->kids [i]))
 			{
+				/* no dot after the number of the denominator: 2\xE2\x88\x9Ax */
 				r = ml_choose (
-					k > 0,
+					k > 0 && seq.data [seq.len - 1].kind != TASK_NUM,
 					push_text (&seq, "\xC2\xB7"),
 					ML_OK
 				);

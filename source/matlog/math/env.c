@@ -108,6 +108,20 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 		out.matrix = copy_mat (arena, v.matrix);
 	}
 
+	else if (v.kind == ML_VALUE_EXPR)
+	{
+		/* rebuilt into the arena of the environment; already canonical */
+		MlSymCtx ctx;
+
+		ml_symctx_init (&ctx, arena);
+		out.sym = ml_sym_simplify (&ctx, v.sym);
+
+		if (ctx.status != ML_OK)
+		{
+			out = ml_value_error (ML_EVAL_NO_MEMORY, 0, 0);
+		}
+	}
+
 	return out;
 }
 
@@ -123,6 +137,7 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		   value.kind != ML_VALUE_EXACT
 		&& value.kind != ML_VALUE_APPROX
 		&& value.kind != ML_VALUE_MATRIX
+		&& value.kind != ML_VALUE_EXPR
 	)
 	{
 		r = ML_ERR_INVALID;
@@ -144,6 +159,11 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		}
 
 		if (b.value.kind == ML_VALUE_MATRIX && !ml_mat_ok (b.value.matrix))
+		{
+			r = ML_ERR_NOMEM;
+		}
+
+		if (b.value.kind == ML_VALUE_ERROR)
 		{
 			r = ML_ERR_NOMEM;
 		}

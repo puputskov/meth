@@ -62,7 +62,11 @@ static int32_t shows (Session *s, const char *text, const char *expected)
 
 	ml_str_init (&out);
 
-	if (ml_value_is_number (v) || ml_value_is_matrix (v))
+	if (
+		   ml_value_is_number (v)
+		|| ml_value_is_matrix (v)
+		|| ml_value_is_expr (v)
+	)
 	{
 		same = (
 			   ml_value_format (&out, &s->arena, v) == ML_OK
@@ -789,6 +793,120 @@ static void test_matrix_errors (void)
 	session_free (&s);
 }
 
+static void test_symbolic (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* simplify and expand */
+	CHECK (shows (&s, "simplify(x + x)", "2x"));
+	CHECK (shows (&s, "simplify(2 + 3)", "5"));
+	CHECK (shows (&s, "simplify(x*y + y*x)", "2x\xC2\xB7y"));
+	CHECK (shows (&s, "expand((x + 1)^2)", "x\xC2\xB2 + 2x + 1"));
+	CHECK (shows (&s, "expand((x - 1)(x + 1))", "x\xC2\xB2 - 1"));
+	CHECK (shows (&s, "simplify(2*pi + pi)", "3\xCF\x80"));
+
+	/* derivatives */
+	CHECK (shows (&s, "diff(x^3, x)", "3x\xC2\xB2"));
+	CHECK (shows (&s, "diff(sin(x^2), x)", "2x\xC2\xB7" "cos(x\xC2\xB2)"));
+	CHECK (shows (&s, "diff(x^4, x, 2)", "12x\xC2\xB2"));
+	CHECK (shows (&s, "diff(x^4, x, 5)", "0"));
+	CHECK (shows (&s, "diff(a*x^2 + b*x + c, x)", "2a\xC2\xB7x + b"));
+	CHECK (shows (&s, "diff(3, x)", "0"));
+
+	/* integrals: indefinite, definite */
+	CHECK (shows (&s, "integrate(x^2, x)", "x\xC2\xB3/3"));
+	CHECK (shows (&s, "integrate(1/x, x)", "ln(abs(x))"));
+	CHECK (shows (&s, "integrate(x^2, x, 0, 3)", "9"));
+	CHECK (shows (&s, "integrate(2x + 1, x, 1, 2)", "4"));
+	CHECK (shows (&s, "integrate(cos(x), x, 0, 0)", "0"));
+	CHECK (shows (&s, "integrate(x^2, x, 0, b)", "b\xC2\xB3/3"));
+
+	/* substitution gives a number when nothing is left */
+	CHECK (shows (&s, "subs(x^2 + 1, x, 3)", "10"));
+	CHECK (shows (&s, "subs(x^2 + y, x, 2)", "y + 4"));
+	CHECK (shows (&s, "subs(x + y, x, y)", "2y"));
+
+	/* known numbers are used, except the symbol that is worked on */
+	CHECK (shows (&s, "a = 3", "3"));
+	CHECK (shows (&s, "simplify(a*x + x)", "4x"));
+	CHECK (shows (&s, "x = 5", "5"));
+	CHECK (shows (&s, "diff(x^2, x)", "2x"));
+	CHECK (shows (&s, "diff(x^2 + a, x)", "2x"));
+	CHECK (shows (&s, "simplify(x + x)", "10"));
+
+	/* results can be kept and used again */
+	CHECK (shows (&s, "p = expand((t + 1)^2)", "t\xC2\xB2 + 2t + 1"));
+	CHECK (shows (&s, "p", "t\xC2\xB2 + 2t + 1"));
+	CHECK (shows (&s, "p + 1", "t\xC2\xB2 + 2t + 2"));
+	CHECK (shows (&s, "2p", "2t\xC2\xB2 + 4t + 2"));
+	CHECK (shows (&s, "diff(p, t)", "2t + 2"));
+	CHECK (shows (&s, "subs(p, t, 2)", "9"));
+	CHECK (shows (&s, "-p + p", "0"));
+	CHECK (shows (&s, "p^2 - p*p", "0"));
+
+	/* user functions are inlined */
+	CHECK (run (&s, "f(u) = u^2 + 1").kind == ML_VALUE_NONE);
+	CHECK (shows (&s, "diff(f(z), z)", "2z"));
+	CHECK (run (&s, "g(u) = 2 f(u)").kind == ML_VALUE_NONE);
+	CHECK (shows (&s, "diff(g(z), z)", "4z"));
+	CHECK (shows (&s, "integrate(g(z), z)", "2z\xC2\xB3/3 + 2z"));
+	CHECK (shows (&s, "simplify(f(2))", "5"));
+
+	session_free (&s);
+}
+
+static void test_symbolic_errors (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	CHECK (fails (&s, "diff(x^2)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "simplify()", ML_EVAL_ARITY));
+	CHECK (fails (&s, "integrate(x, x, 1)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "subs(x, x)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "integrate(x*sin(x), x)", ML_EVAL_CANNOT_INTEGRATE));
+	CHECK (
+		fails (
+			&s,
+			"integrate(sin(x^2), x, 0, 1)",
+			ML_EVAL_CANNOT_INTEGRATE
+		)
+	);
+	CHECK (fails (&s, "diff(x^2, 3)", ML_EVAL_NOT_SYMBOLIC));
+	CHECK (fails (&s, "diff(unknown(x), x)", ML_EVAL_NOT_SYMBOLIC));
+	CHECK (fails (&s, "diff([1,2], x)", ML_EVAL_NOT_SYMBOLIC));
+	CHECK (fails (&s, "simplify(b = 2)", ML_EVAL_SYNTAX));
+	CHECK (fails (&s, "diff(x, x, 0)", ML_EVAL_NOT_INTEGER));
+	CHECK (fails (&s, "diff(x, x, y)", ML_EVAL_NOT_INTEGER));
+	CHECK (fails (&s, "simplify(1/0)", ML_EVAL_DIV_ZERO));
+
+	/* outside of the symbolic functions names stay unknown */
+	CHECK (fails (&s, "x + 1", ML_EVAL_UNDEFINED_NAME));
+	CHECK (fails (&s, "sin(x)", ML_EVAL_UNDEFINED_NAME));
+
+	/* expressions and approximations or matrices do not mix */
+	CHECK (run (&s, "q = simplify(x + x)").kind == ML_VALUE_EXPR);
+	CHECK (fails (&s, "q + 1.5*pi", ML_EVAL_NOT_EXACT));
+	CHECK (fails (&s, "q + [[1,2]]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "floor(q)", ML_EVAL_TYPE));
+	CHECK (shows (&s, "sqrt(q)", "\xE2\x88\x9A(2x)"));
+	CHECK (shows (&s, "sin(q)", "sin(2x)"));
+	CHECK (shows (&s, "exp(q - q)", "1"));
+
+	/* the error points at the call */
+	{
+		MlValue v = run (&s, "1 + integrate(x*sin(x), x)");
+
+		CHECK (v.kind == ML_VALUE_ERROR);
+		CHECK (v.error_start == 4 && v.error_len == 22);
+	}
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -805,4 +923,6 @@ void run_eval_tests (void)
 	test_matrices ();
 	test_matrix_functions ();
 	test_matrix_errors ();
+	test_symbolic ();
+	test_symbolic_errors ();
 }

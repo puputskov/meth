@@ -31,6 +31,7 @@ void ml_symctx_init (MlSymCtx *ctx, MlArena *arena)
 	ctx->subst_val  = NULL;
 	ctx->fail_start = 0;
 	ctx->fail_len   = 0;
+	ctx->raw        = 0;
 }
 
 int32_t ml_symctx_ok (const MlSymCtx *ctx)

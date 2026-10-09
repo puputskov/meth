@@ -383,10 +383,78 @@ static void test_codes_documented (void)
 	run_free (&r);
 }
 
+static void test_steps_command (void)
+{
+	MlSlice path = lit ("matlog_test_steps.tmp");
+	Run     r    = run ("steps", "diff(x^2, x)", NULL, NULL, NULL, NULL, "");
+
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (
+		strstr (ml_str_cstr (r.out), "Differentiate, rule by rule:") != NULL
+	);
+	CHECK (strstr (ml_str_cstr (r.out), "(power rule)") != NULL);
+	run_free (&r);
+
+	r = run ("steps", "--format", "json", "det([[1,2],[3,4]])", NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (
+		strstr (
+			ml_str_cstr (r.out),
+			"{\"line\":1,\"input\":\"det([[1,2],[3,4]])\""
+		) == ml_str_cstr (r.out)
+	);
+	CHECK (
+		strstr (
+			ml_str_cstr (r.out),
+			"\"steps\":[\"Eliminate below the diagonal:\""
+		) != NULL
+	);
+	run_free (&r);
+
+	/* a line without steps */
+	r = run ("steps", "1 + 1", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_ERROR);
+	CHECK (err_has (&r, "no steps for this line"));
+	run_free (&r);
+
+	/* a line of a file, the definitions above it are visible */
+	CHECK (
+		ml_fs_write_file_atomic (
+			path,
+			lit ("m:algebra a = 3\nm:algebra simplify(a*x + x)\nm:algebra 7\n")
+		) == ML_OK
+	);
+	r = run ("steps", "matlog_test_steps.tmp:2", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (strstr (ml_str_cstr (r.out), "Simplify:") != NULL);
+	run_free (&r);
+	r = run ("steps", "matlog_test_steps.tmp:3", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_ERROR);
+	run_free (&r);
+	r = run ("steps", "matlog_no_such.tmp:1", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_IO);
+	run_free (&r);
+	r = run ("steps", NULL, NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_USAGE);
+	run_free (&r);
+	CHECK (ml_fs_remove (path) == ML_OK);
+
+	/* a symbolic result has the type expr */
+	r = run ("eval", "--format", "json", "diff(x^3, x)", NULL, NULL, "");
+	CHECK (
+		strstr (
+			ml_str_cstr (r.out),
+			"\"type\":\"expr\",\"value\":\"3x\xC2\xB2\""
+		) != NULL
+	);
+	run_free (&r);
+}
+
 void run_cli_tests (void);
 
 void run_cli_tests (void)
 {
+	test_steps_command ();
 	test_eval_text ();
 	test_eval_json ();
 	test_session_files ();

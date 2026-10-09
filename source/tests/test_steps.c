@@ -120,9 +120,48 @@ static void test_line_steps (void)
 	ml_session_free (&s);
 }
 
+static void test_symbolic_steps (void)
+{
+	MlSession s;
+	MlResults r;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add (&s, "diff(x^3 + sin(2x), x)");
+	add (&s, "simplify(x + x + 1 + 2)");
+	add (&s, "expand((x + 1)^2)");
+	add (&s, "integrate(3x^2 + cos(x), x)");
+	add (&s, "integrate(x^2, x, 0, 1)");
+	add (&s, "subs(x + 1, x, 2)");
+	add (&s, "p = diff(x^2, x)");
+	add (&s, "diff(x*sin(x), x)");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+
+	CHECK (steps_contain (&r, &s, 0, "Differentiate, rule by rule:"));
+	CHECK (steps_contain (&r, &s, 0, "(power rule)"));
+	CHECK (steps_contain (&r, &s, 0, "(chain rule)"));
+	CHECK (steps_contain (&r, &s, 0, "(sum rule)"));
+	CHECK (steps_contain (&r, &s, 1, "Simplify:"));
+	CHECK (steps_contain (&r, &s, 1, "collect like terms: "));
+	CHECK (steps_contain (&r, &s, 2, "Multiply out:"));
+	CHECK (steps_contain (&r, &s, 3, "linearity: integrate term by term"));
+	CHECK (steps_contain (&r, &s, 3, "(power rule)"));
+	CHECK (steps_contain (&r, &s, 3, "(cosine)"));
+	CHECK (steps_contain (&r, &s, 4, "Integrate with the table:"));
+	CHECK (steps_contain (&r, &s, 6, "d/dx"));
+	CHECK (steps_contain (&r, &s, 7, "(product rule)"));
+
+	/* no steps for a substitution */
+	CHECK (no_steps (&r, &s, 5));
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
 void run_steps_tests (void);
 
 void run_steps_tests (void)
 {
+	test_symbolic_steps ();
 	test_line_steps ();
 }
