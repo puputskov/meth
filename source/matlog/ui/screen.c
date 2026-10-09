@@ -682,6 +682,71 @@ static MlTextWindow append_selected (
 }
 
 /*
+ * The part of a line the selection covers: bytes lo..hi, and whether it
+ * goes on past the end of the line.
+ */
+static int32_t selection_in_line (
+	const MlEditor *ed,
+	uint64_t       idx,
+	uint64_t       len,
+	uint64_t       *lo,
+	uint64_t       *hi,
+	int32_t        *eol
+)
+{
+	MlTextRange s = ml_editor_selection (ed);
+	int32_t     in = s.valid && idx >= s.first_line && idx <= s.last_line;
+
+	*lo  = ml_choose (in && idx == s.first_line, s.first_byte, 0);
+	*hi  = ml_choose (in && idx == s.last_line, s.last_byte, len);
+	*eol = in && idx < s.last_line;
+
+	return in;
+}
+
+/* A line of the session with a selection in it: the raw text, reversed. */
+static MlResult append_selected_line (
+	MlStr          *out,
+	const MlEditor *ed,
+	MlSlice        text,
+	uint64_t       idx,
+	uint64_t       num_width,
+	uint32_t       cols,
+	MlSlice        gutter
+)
+{
+	uint64_t lo;
+	uint64_t hi;
+	int32_t  eol;
+	Head     head = append_head (out, idx + 1, num_width, gutter, 0, 0, cols);
+	uint64_t avail = ml_choose (cols > head.used, cols - head.used, 0);
+	MlTextWindow w =
+	{
+		.result    = head.result,
+		.first_col = 0
+	};
+
+	selection_in_line (ed, idx, text.len, &lo, &hi, &eol);
+
+	if (w.result == ML_OK)
+	{
+		w = append_selected (out, text, 0, avail, lo, hi);
+	}
+
+	/* the line break is shown as one more reversed column */
+	if (
+		   w.result == ML_OK
+		&& eol
+		&& ml_utf8_width (text) < avail
+	)
+	{
+		w.result = append_cstr (out, STYLE_REVERSE " " STYLE_RESET);
+	}
+
+	return w.result;
+}
+
+/*
  * The text with the bytes a and b drawn in a style (the brackets that pair
  * up, or a lone one), from column start_col on, avail columns wide.
  */
@@ -768,17 +833,17 @@ static EditRow append_edit_row (
 		.first_col = 0
 	};
 
-	uint64_t lo = ml_choose (
-		ed->sel_anchor < ed->edit.cursor,
-		ed->sel_anchor,
-		ed->edit.cursor
+	uint64_t lo;
+	uint64_t hi;
+	int32_t  eol;
+	int32_t  selected = selection_in_line (
+		ed,
+		ed->edit_index,
+		ed->edit.text.len,
+		&lo,
+		&hi,
+		&eol
 	);
-	uint64_t hi = ml_choose (
-		ed->sel_anchor > ed->edit.cursor,
-		ed->sel_anchor,
-		ed->edit.cursor
-	);
-
 	MlBracketMatch bracket = ml_bracket_match (
 		ml_str_view (ed->edit.text),
 		ed->edit.cursor
@@ -786,7 +851,7 @@ static EditRow append_edit_row (
 
 	row.result = head.result;
 
-	if (row.result == ML_OK && ed->selecting && lo < hi)
+	if (row.result == ML_OK && selected)
 	{
 		w = append_selected (
 			out,
@@ -797,6 +862,16 @@ static EditRow append_edit_row (
 			hi
 		);
 		row.result = w.result;
+
+		/* the line break is shown as one more reversed column */
+		if (
+			   row.result == ML_OK
+			&& eol
+			&& ml_utf8_width (ml_str_view (ed->edit.text)) < w.first_col + avail
+		)
+		{
+			row.result = append_cstr (out, STYLE_REVERSE " " STYLE_RESET);
+		}
 	}
 
 	else if (
@@ -1520,6 +1595,32 @@ MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 			layout.result     = e.result;
 			layout.cursor.row = (uint32_t)(r + 1);
 			layout.cursor.col = e.cursor_col;
+		}
+
+		else if (
+			   line < total
+			&& sub == 0
+			&& !l.fresh
+			&& !l.folded
+			&& ml_editor_selection (ed).valid
+			&& line >= ml_editor_selection (ed).first_line
+			&& line <= ml_editor_selection (ed).last_line
+		)
+		{
+			layout.result = append_selected_line (
+				&row,
+				ed,
+				ml_session_get (&ed->session, l.src).text,
+				l.src,
+				num_width,
+				s->cols,
+				gutter_for (
+					l.kind,
+					l.domain,
+					line == l.first,
+					line == l.last
+				)
+			);
 		}
 
 		else if (line < total && sub > 0)

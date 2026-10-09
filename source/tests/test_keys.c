@@ -105,7 +105,7 @@ void test_normal (MlEditor *ed, const char *keys)
 		uint64_t used = 1;
 		uint32_t shift;
 
-		selecting = ed->state == ML_STATE_SELECT;
+		selecting = ed->selecting || ed->state == ML_STATE_SELECT;
 		shift     = ml_choose (selecting, ML_MOD_SHIFT, 0);
 
 		if (c >= '1' && c <= '9')
@@ -187,7 +187,7 @@ void test_normal (MlEditor *ed, const char *keys)
 
 			else if (c == 'v' && selecting)
 			{
-				test_key (ed, ML_KEY_ESCAPE, 0, 0);
+				test_key (ed, ML_KEY_LEFT, 0, 0);
 			}
 
 			else if (c == 'v')
@@ -203,7 +203,7 @@ void test_normal (MlEditor *ed, const char *keys)
 			else if (selecting && c == 'y')
 			{
 				ctrl (ed, 'c');
-				test_key (ed, ML_KEY_ESCAPE, 0, 0);
+				test_key (ed, ML_KEY_LEFT, 0, 0);
 			}
 
 			else if (c == 'p')

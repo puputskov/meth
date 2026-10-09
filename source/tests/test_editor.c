@@ -318,9 +318,15 @@ static void test_modeless (void)
 	ml_editor_free (&ed);
 }
 
+static void shift_key (MlEditor *ed, MlKeyCode code)
+{
+	test_key (ed, code, 0, ML_MOD_SHIFT);
+}
+
 static void test_selection (void)
 {
 	MlEditor ed;
+	MlTextRange s;
 
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin_note (&ed) == ML_OK);
@@ -329,7 +335,7 @@ static void test_selection (void)
 	/* Shift+Left selects text, Backspace deletes it */
 	for (uint32_t i = 0; i < 5; i++)
 	{
-		test_key (&ed, ML_KEY_LEFT, 0, ML_MOD_SHIFT);
+		shift_key (&ed, ML_KEY_LEFT);
 	}
 
 	CHECK (ed.selecting && ed.sel_anchor == 11 && ed.edit.cursor == 6);
@@ -337,17 +343,22 @@ static void test_selection (void)
 	CHECK (edit_is (&ed, "hello ") && !ed.selecting);
 
 	/* typing replaces the selection; Shift+Home selects to the start */
-	test_key (&ed, ML_KEY_HOME, 0, ML_MOD_SHIFT);
+	shift_key (&ed, ML_KEY_HOME);
 	CHECK (ed.selecting && ed.edit.cursor == 0);
 	type (&ed, "bye");
 	CHECK (edit_is (&ed, "bye") && !ed.selecting);
 
-	/* a key that moves clears the selection */
-	test_key (&ed, ML_KEY_LEFT, 0, ML_MOD_SHIFT);
+	/* a plain Left goes to the start of a selection and clears it */
+	shift_key (&ed, ML_KEY_LEFT);
+	shift_key (&ed, ML_KEY_LEFT);
+	press (&ed, ML_KEY_RIGHT);
+	CHECK (!ed.selecting && ed.edit.cursor == 3);
+	shift_key (&ed, ML_KEY_LEFT);
+	shift_key (&ed, ML_KEY_LEFT);
 	press (&ed, ML_KEY_LEFT);
-	CHECK (!ed.selecting && edit_is (&ed, "bye"));
+	CHECK (!ed.selecting && ed.edit.cursor == 1);
 
-	/* Shift+Down selects whole lines, Backspace removes them */
+	/* Shift+Up and Shift+Down select text across lines */
 	press (&ed, ML_KEY_END);
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "second");
@@ -355,17 +366,59 @@ static void test_selection (void)
 	type (&ed, "third");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "fourth");
-	press (&ed, ML_KEY_HOME);
-	test_key (&ed, ML_KEY_UP, 0, ML_MOD_SHIFT);
-	CHECK (ed.state == ML_STATE_SELECT);
-	CHECK (ed.anchor == 3 && ed.session.cursor == 2);
+	shift_key (&ed, ML_KEY_UP);
+	s = ml_editor_selection (&ed);
+	CHECK (s.valid && s.first_line == 2 && s.first_byte == 5);
+	CHECK (s.last_line == 3 && s.last_byte == 6);
+	shift_key (&ed, ML_KEY_UP);
+	s = ml_editor_selection (&ed);
+	CHECK (s.first_line == 1 && s.first_byte == 5 && s.last_line == 3);
 
-	/* Alt+Up moves the selected lines; Backspace removes them */
-	test_key (&ed, ML_KEY_UP, 0, ML_MOD_ALT);
-	CHECK (texts_are (&ed, "bye|third|fourth|second"));
-	press (&ed, ML_KEY_BACKSPACE);
-	CHECK (texts_are (&ed, "bye|second"));
-	CHECK (test_editing (&ed) && ed.edit_index == 1);
+	/* typing replaces it: the first and the last line become one */
+	type (&ed, "-");
+	CHECK (texts_are (&ed, "bye|secon"));
+	CHECK (ed.edit_index == 1 && edit_is (&ed, "secon-"));
+	CHECK (ed.edit.cursor == 6);
+
+	ml_editor_free (&ed);
+}
+
+static void test_selection_edit (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	type (&ed, "one");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "two");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "three");
+
+	/* Ctrl+C copies text across lines, Ctrl+V puts it in at the cursor */
+	test_key (&ed, ML_KEY_HOME, 0, ML_MOD_CTRL);
+	press (&ed, ML_KEY_LEFT);
+	press (&ed, ML_KEY_LEFT);
+	shift_key (&ed, ML_KEY_DOWN);
+	test_key (&ed, ML_KEY_CHAR, 'c', ML_MOD_CTRL);
+	CHECK (ed.yank_text && ed.yank.len == 2);
+	CHECK (ml_slice_equal (ml_str_view (ed.yank.data [0].text), lit ("ne")));
+	CHECK (ml_slice_equal (ml_str_view (ed.yank.data [1].text), lit ("t")));
+
+	/* Ctrl+X removes it, the two lines become one */
+	test_key (&ed, ML_KEY_CHAR, 'x', ML_MOD_CTRL);
+	CHECK (texts_are (&ed, "owo|three"));
+	CHECK (ed.edit_index == 0 && ed.edit.cursor == 1);
+
+	/* and Ctrl+V splits the line again */
+	test_key (&ed, ML_KEY_CHAR, 'v', ML_MOD_CTRL);
+	CHECK (texts_are (&ed, "one|two|three"));
+	CHECK (ed.edit_index == 1 && ed.edit.cursor == 1);
+
+	/* Ctrl+A and Delete remove all the text */
+	test_key (&ed, ML_KEY_CHAR, 'a', ML_MOD_CTRL);
+	press (&ed, ML_KEY_DELETE);
+	CHECK (ed.session.lines.len == 0);
 
 	ml_editor_free (&ed);
 }
@@ -1029,8 +1082,7 @@ static void test_visual (void)
 	/* v starts a selection, j extends it, d deletes it into the register */
 	test_normal (&ed, "j");
 	test_normal (&ed, "v");
-	CHECK (ed.state == ML_STATE_SELECT);
-	CHECK (status_is (&ed, "-- SELECT -- algebra>"));
+	CHECK (ed.selecting);
 	test_normal (&ed, "jj");
 	test_normal (&ed, "d");
 	CHECK (test_editing (&ed));
@@ -1109,7 +1161,7 @@ static void test_move_lines (void)
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "c|d|a|b|e"));
-	CHECK (ed.state == ML_STATE_SELECT);
+	CHECK (ed.selecting);
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
 	CHECK (texts_are (&ed, "c|d|e|a|b"));
 	press_mod (&ed, ML_KEY_DOWN, ML_MOD_ALT);
@@ -1536,6 +1588,7 @@ void run_editor_tests (void)
 	test_ctrl_z ();
 	test_modeless ();
 	test_selection ();
+	test_selection_edit ();
 	test_esc_leaves_block ();
 	test_pick_block ();
 	test_navigation ();

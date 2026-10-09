@@ -45,10 +45,14 @@ typing edits that line in place. There is no key to start or to leave editing. T
   the cursor; `Shift` with Left, Right, Home, End selects text, Backspace, Delete or typing replace the selection. A line is written into the session when
   the cursor leaves it and on every command, so there is nothing to commit by hand. `Esc` in a math block writes the line and leaves the block: a new
   note starts below it (an empty new line of the block becomes the note); in a note it only writes the line.
-- **Lines:** `Shift+Up` and `Shift+Down` select whole lines (`Ctrl+L` the cursor line); then Backspace or Delete remove them, `Ctrl+C` copies, `Ctrl+X`
-  cuts, `Ctrl+V` replaces them with the copied lines, `Alt+Up` and `Alt+Down` move them, and any arrow or `Esc` goes back to editing. Without a
-  selection `Ctrl+C`, `Ctrl+X` and `Ctrl+V` work on the line the cursor is in (paste goes below it) and `Alt+Up/Down` move that line. `Ctrl+Home` and
-  `Ctrl+End` go to the first and the last line, `Ctrl+Up` and `Ctrl+Down` to the previous and the next block.
+- **Selection, as in other editors:** `Shift` with Left, Right, Up, Down, Home, End selects text from the other end, also across lines (`Ctrl` too
+  moves by words); `Ctrl+A` selects all, `Ctrl+L` the cursor line with its line break. Backspace, Delete, Enter or typing replace the selection (the
+  lines it touches become one), a plain Left or Right goes to its start or end, `Ctrl+C`, `Ctrl+X`, `Ctrl+V` copy, cut and paste: text is pasted at
+  the cursor (a text of several lines splits the line), whole lines keep their kinds and domains and are pasted as lines. `Alt+Up` and `Alt+Down` move
+  the lines the selection covers (a selection that ends at the start of a line leaves that line out). Without a selection `Ctrl+C`, `Ctrl+X` and
+  `Ctrl+V` work on the line the cursor is in (paste goes below it) and `Alt+Up/Down` move that line. `Ctrl+P` with several lines selected starts the
+  command line with their range. Selected text is drawn reversed, and a reversed column marks a line break that is inside the selection.
+- **Lines:** `Ctrl+Home` and `Ctrl+End` go to the first and the last line, `Ctrl+Up` and `Ctrl+Down` to the previous and the next block.
 - **Notes are the default:** the tool starts on a note and Enter goes on with a note. `Ctrl+Enter` or `Shift+Enter` (or `Ctrl+B` where the terminal
   cannot tell Enter's modifiers) opens the block choice: the status line shows the domains (`-- BLOCK -- algebra  [matrix]  vector ...`), Left/Right/
   Up/Down/Tab move the choice, a letter jumps to the next domain starting with it, Enter starts the block (an empty line becomes its first line, else
@@ -62,7 +66,7 @@ typing edits that line in place. There is no key to start or to leave editing. T
   with its range filled in). The tool saves a file given on the command line after every change.
 - **Parentheses:** with the cursor on or right after a bracket the bracket and its partner are drawn bold and underlined, a bracket without a partner
   bold and red; the pairs are counted per kind: `( )`, `[ ]`, `{ }`.
-- Not done yet: mouse selection, Page Up and Page Down, selecting text across lines, copying selected text (only whole lines are copied), word wise
+- Not done yet: mouse selection, Page Up and Page Down, word wise
   movement across lines. The key table of section 4.15 makes all of these keys changeable.
 
 ### 3.1 Replaced vim keys (kept for the history of the design)

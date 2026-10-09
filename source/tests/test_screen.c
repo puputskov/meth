@@ -856,18 +856,16 @@ static void test_selected_rows (void)
 	type (&ed, "bb");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "cc");
+	press (&ed, ML_KEY_HOME);
 	test_key (&ed, ML_KEY_UP, 0, ML_MOD_SHIFT);
+	test_key (&ed, ML_KEY_RIGHT, 0, ML_MOD_SHIFT);
 
-	/* a selected row is reversed from its number to the right edge */
+	/* the text from the middle of a line to the middle of another */
 	l = ml_screen_layout (&s, &ed);
-	CHECK (
-		strstr (
-			ml_str_cstr (l.rows.data [1]),
-			" 2    \xE2\x94\x82 \x1b[0m\x1b[7mbb"
-		) != NULL
-	);
-	CHECK (strstr (ml_str_cstr (l.rows.data [2]), "\x1b[7mcc") != NULL);
 	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "\x1b[7m") == NULL);
+	CHECK (strstr (ml_str_cstr (l.rows.data [1]), "b\x1b[7mb\x1b[0m") != NULL);
+	CHECK (strstr (ml_str_cstr (l.rows.data [1]), "\x1b[7m \x1b[0m") != NULL);
+	CHECK (strstr (ml_str_cstr (l.rows.data [2]), "\x1b[7m") == NULL);
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);

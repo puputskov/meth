@@ -20,14 +20,15 @@
  *	         the next; Enter splits the line; Esc writes the line into the
  *	         session (also when the cursor leaves it) and, in a block,
  *	         starts a note below the block
- *	         Shift+Left Right Home End  select text; Backspace, Delete or
- *	         typing replace it
- *	Lines    Shift+Up Shift+Down  select whole lines, Ctrl+L the line;
- *	         there Backspace and Delete remove them, Ctrl+C copies, Ctrl+X cuts, Ctrl+V
- *	         replaces them by the copied lines, Alt+Up Alt+Down move them,
- *	         arrows and Esc go back to editing
- *	         without a selection Ctrl+C Ctrl+X Ctrl+V and Alt+Up Alt+Down
- *	         work on the line the cursor is in
+ *	Select   as in other editors: Shift with Left Right Up Down Home End
+ *	         (and Ctrl for words) selects text, also across lines; Ctrl+A
+ *	         all, Ctrl+L the line; Backspace, Delete, Enter or typing
+ *	         replace the selection; a plain Left or Right goes to its start
+ *	         or end; Ctrl+C copies, Ctrl+X cuts and Ctrl+V pastes text
+ *	         (whole lines keep their kinds); Alt+Up Alt+Down move the lines
+ *	         of the selection
+ *	         without a selection Ctrl+C Ctrl+X Ctrl+V work on the line the
+ *	         cursor is in (paste goes below it) and Alt+Up Alt+Down move it
  *	         Alt+Enter  fold or unfold the block (a folded block is selected)
  *	         Ctrl+Up Ctrl+Down  previous / next block;  Ctrl+Home Ctrl+End
  *	         Ctrl+Enter, Shift+Enter, Ctrl+B  choose the domain of a new
@@ -69,8 +70,15 @@ typedef struct MlEditor
 	MlLineVec    yank;    /* the line register: whole lines, with their kinds */
 	MlStr        message; /* shown in the status line until the next key */
 	uint64_t anchor;     /* the fixed end of the selected lines */
-	int32_t  selecting;  /* 1 while text of the line is selected */
-	uint64_t sel_anchor; /* the fixed end of it, a byte offset */
+	/*
+	 * 1 while text is selected: from (sel_line, sel_anchor), the fixed end,
+	 * to the cursor (edit_index, edit.cursor); bytes are offsets in a line
+	 */
+	int32_t  selecting;
+	uint64_t sel_line;
+	uint64_t sel_anchor;
+	/* 1 when the register holds text to paste inline, 0 for whole lines */
+	int32_t  yank_text;
 	/* where the line being typed lives, or will be inserted */
 	uint64_t edit_index;
 	/* 1 when editing a line that is already in the session */
@@ -82,6 +90,18 @@ typedef struct MlEditor
 	MlDomain   pick; /* the domain chosen so far */
 	int32_t    quit; /* a quit command was given */
 } MlEditor;
+
+/* The selected text in text order; valid is 0 when nothing is selected. */
+typedef struct MlTextRange
+{
+	int32_t  valid;
+	uint64_t first_line;
+	uint64_t first_byte;
+	uint64_t last_line;
+	uint64_t last_byte;
+} MlTextRange;
+
+MlTextRange ml_editor_selection (const MlEditor *ed);
 
 void ml_editor_init (MlEditor *ed);
 void ml_editor_free (MlEditor *ed);
