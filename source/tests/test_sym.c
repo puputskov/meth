@@ -336,11 +336,9 @@ static void test_integrate (void)
 	CHECK (integrates ("3 sin(x) - 2 cos(x)", "-3cos(x) - 2sin(x)"));
 
 	/* not found */
-	CHECK (integrates ("x*sin(x)", ""));
-	CHECK (integrates ("sin(x)*cos(x)", ""));
 	CHECK (integrates ("sin(x^2)", ""));
 	CHECK (integrates ("exp(x^2)", ""));
-	CHECK (integrates ("1/(x^2 + 2)", ""));
+	CHECK (integrates ("sin(x)/x", ""));
 }
 
 void run_sym_tests (void);

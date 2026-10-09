@@ -43,13 +43,13 @@ static const MlSym *function_rule (
 	MlSlice     name,
 	const MlSym *u,
 	const MlSym *du,
-	const char  **rule
+	MlRule      *rule
 )
 {
 	const MlSym *outer = NULL;
 	MlSlice     fn     = ml_slice_cstr ("");
 
-	*rule = "chain rule";
+	*rule = ML_RULE_DIFF_CHAIN;
 
 	if (is_name (name, "sin"))
 	{
@@ -126,12 +126,12 @@ static const MlSym *rule (
 	const MlSym        *n,
 	const MlSym *const *d,
 	const MlSym        *x,
-	const char         **name
+	MlRule             *name
 )
 {
 	const MlSym *out = int_node (ctx, 0);
 
-	*name = "constant";
+	*name = ML_RULE_DIFF_CONSTANT;
 
 	if (n->kind == ML_SYM_VAR)
 	{
@@ -144,7 +144,7 @@ static const MlSym *rule (
 
 	else if (n->kind == ML_SYM_ADD)
 	{
-		*name = "sum rule";
+		*name = ML_RULE_DIFF_SUM;
 		out   = ml_sym_sum (ctx, d, n->count);
 	}
 
@@ -154,8 +154,8 @@ static const MlSym *rule (
 
 		*name = ml_choose (
 			n->count == 2 && n->kids [0]->kind == ML_SYM_NUM,
-			"constant multiple rule",
-			"product rule"
+			ML_RULE_DIFF_CONSTANT_MULTIPLE,
+			ML_RULE_DIFF_PRODUCT
 		);
 		SymPtrVec_init (&terms);
 
@@ -205,7 +205,7 @@ static const MlSym *rule (
 		if (!in_e)
 		{
 			/* e b^(e-1) b' */
-			*name = "power rule";
+			*name = ML_RULE_DIFF_POWER;
 			out   = ml_sym_product (
 				ctx,
 				(const MlSym *[3]){
@@ -224,7 +224,7 @@ static const MlSym *rule (
 		else if (!in_b)
 		{
 			/* b^e ln(b) e' ; for e (the constant) ln(e) is 1 */
-			*name = "exponential rule";
+			*name = ML_RULE_DIFF_EXPONENTIAL;
 			out   = ml_sym_product (
 				ctx,
 				(const MlSym *[3]){
@@ -243,7 +243,7 @@ static const MlSym *rule (
 		else
 		{
 			/* b^e (e' ln(b) + e b' / b) */
-			*name = "general power rule";
+			*name = ML_RULE_DIFF_GENERAL_POWER;
 			out   = ml_sym_mul (
 				ctx,
 				n,
@@ -274,7 +274,7 @@ static void log_diff (
 	const MlSym *n,
 	const MlSym *x,
 	const MlSym *result,
-	const char  *name
+	MlRule      name
 )
 {
 	if (ctx->log != NULL && ctx->status == ML_OK && ctx->log->status == ML_OK)
@@ -311,7 +311,11 @@ static void log_diff (
 
 		if (ctx->log->status == ML_OK)
 		{
-			ctx->log->status = ml_str_appendf (&text, "   (%s)", name);
+			ctx->log->status = ml_str_appendf (
+				&text,
+				"   (%s)",
+				ml_rule_name (name)
+			);
 		}
 
 		if (ctx->log->status == ML_OK)
@@ -360,7 +364,7 @@ const MlSym *ml_sym_diff (MlSymCtx *ctx, const MlSym *s, const MlSym *x)
 		else
 		{
 			DiffFrame   done = *f;
-			const char  *name = "";
+			MlRule      name = ML_RULE_NONE;
 			const MlSym *d   = rule (
 				ctx,
 				done.node,

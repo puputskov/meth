@@ -115,18 +115,18 @@ static const MlSym *table (
 	MlSymCtx    *ctx,
 	const MlSym *g,
 	const MlSym *x,
-	const char  **rule
+	MlRule      *rule
 )
 {
 	const MlSym *out = NULL;
 	const MlSym *a;
 	const MlSym *b;
 
-	*rule = "";
+	*rule = ML_RULE_NONE;
 
 	if (ml_sym_compare (ctx, g, int_node (ctx, 1)) == 0)
 	{
-		*rule = "constant";
+		*rule = ML_RULE_INT_CONSTANT;
 		out   = x;
 	}
 
@@ -140,7 +140,7 @@ static const MlSym *table (
 
 		if (ml_sym_is_zero (ml_sym_add (ctx, n, int_node (ctx, 1))))
 		{
-			*rule = "reciprocal";
+			*rule = ML_RULE_INT_RECIPROCAL;
 			out   = ml_sym_div (
 				ctx,
 				ln_of (
@@ -155,7 +155,7 @@ static const MlSym *table (
 		{
 			const MlSym *n1 = ml_sym_add (ctx, n, int_node (ctx, 1));
 
-			*rule = "power rule";
+			*rule = ML_RULE_INT_POWER;
 			out   = ml_sym_div (
 				ctx,
 				ml_sym_pow (ctx, g->kids [0], n1),
@@ -164,9 +164,34 @@ static const MlSym *table (
 		}
 	}
 
+	else if (
+		   g->kind == ML_SYM_POW
+		&& g->kids [0]->kind == ML_SYM_FUNC
+		&& (
+			   is_name (g->kids [0]->name, "sin")
+			|| is_name (g->kids [0]->name, "cos")
+		)
+		&& ml_sym_compare (ctx, g->kids [1], int_node (ctx, 2)) == 0
+		&& linear_parts (ctx, g->kids [0]->kids [0], x, &a, &b)
+	)
+	{
+		/* sin^2 u = (1 - cos 2u) / 2 and cos^2 u = (1 + cos 2u) / 2 */
+		int32_t     is_sin = is_name (g->kids [0]->name, "sin");
+		const MlSym *u2    = ml_sym_mul (ctx, int_node (ctx, 2), g->kids [0]->kids [0]);
+		const MlSym *s2    = ml_sym_div (
+			ctx,
+			ml_sym_call (ctx, ml_slice_cstr ("sin"), u2),
+			ml_sym_mul (ctx, int_node (ctx, 4), a)
+		);
+
+		*rule = ML_RULE_INT_HALF_ANGLE;
+		out   = ml_sym_div (ctx, x, int_node (ctx, 2));
+		out   = ml_choose (is_sin, ml_sym_sub (ctx, out, s2), ml_sym_add (ctx, out, s2));
+	}
+
 	else if (ml_sym_compare (ctx, g, x) == 0)
 	{
-		*rule = "power rule";
+		*rule = ML_RULE_INT_POWER;
 		out   = ml_sym_div (
 			ctx,
 			ml_sym_pow (ctx, x, int_node (ctx, 2)),
@@ -183,7 +208,7 @@ static const MlSym *table (
 		/* b^u / (a ln b), and e^u / a */
 		int32_t is_e = ml_sym_is_var (g->kids [0], ml_slice_cstr ("e"));
 
-		*rule = "exponential";
+		*rule = ML_RULE_INT_EXPONENTIAL;
 		out   = ml_sym_div (
 			ctx,
 			g,
@@ -200,7 +225,7 @@ static const MlSym *table (
 
 		if (is_name (g->name, "sin"))
 		{
-			*rule = "sine";
+			*rule = ML_RULE_INT_SINE;
 			out   = ml_sym_div (
 				ctx,
 				ml_sym_neg (ctx, ml_sym_call (ctx, ml_slice_cstr ("cos"), u)),
@@ -210,7 +235,7 @@ static const MlSym *table (
 
 		else if (is_name (g->name, "cos"))
 		{
-			*rule = "cosine";
+			*rule = ML_RULE_INT_COSINE;
 			out   = ml_sym_div (
 				ctx,
 				ml_sym_call (ctx, ml_slice_cstr ("sin"), u),
@@ -220,7 +245,7 @@ static const MlSym *table (
 
 		else if (is_name (g->name, "tan"))
 		{
-			*rule = "tangent";
+			*rule = ML_RULE_INT_TANGENT;
 			out   = ml_sym_div (
 				ctx,
 				ml_sym_neg (
@@ -240,13 +265,13 @@ static const MlSym *table (
 
 		else if (is_name (g->name, "exp"))
 		{
-			*rule = "exponential";
+			*rule = ML_RULE_INT_EXPONENTIAL;
 			out   = ml_sym_div (ctx, g, a);
 		}
 
 		else if (is_name (g->name, "ln"))
 		{
-			*rule = "logarithm";
+			*rule = ML_RULE_INT_LOGARITHM;
 			out   = ml_sym_div (
 				ctx,
 				ml_sym_sub (ctx, ml_sym_mul (ctx, u, g), u),
@@ -256,7 +281,7 @@ static const MlSym *table (
 
 		else if (is_name (g->name, "atan"))
 		{
-			*rule = "arctangent";
+			*rule = ML_RULE_INT_ARCTANGENT;
 			out   = ml_sym_div (
 				ctx,
 				ml_sym_sub (
@@ -331,16 +356,16 @@ static const MlSym *inverse_quadratic (
 }
 
 /* The antiderivative of a product of factors that all depend on x. */
-static const MlSym *integrate_core (
+const MlSym *ml_int_table (
 	MlSymCtx    *ctx,
 	const MlSym *f,
 	const MlSym *x,
-	const char  **rule
+	MlRule      *rule
 )
 {
 	const MlSym *out = NULL;
 
-	*rule = "";
+	*rule = ML_RULE_NONE;
 
 	if (f->kind != ML_SYM_MUL)
 	{
@@ -349,7 +374,11 @@ static const MlSym *integrate_core (
 		if (out == NULL)
 		{
 			out = inverse_quadratic (ctx, f, x);
-			*rule = ml_choose (out != NULL, "arctangent", "");
+			*rule = ml_choose (
+				out != NULL,
+				ML_RULE_INT_ARCTANGENT,
+				ML_RULE_NONE
+			);
 		}
 	}
 
@@ -357,7 +386,7 @@ static const MlSym *integrate_core (
 }
 
 /* Splits a term into the factors without x and the product with x. */
-static void split_x (
+void ml_int_split (
 	MlSymCtx    *ctx,
 	const MlSym *t,
 	const MlSym *x,
@@ -402,7 +431,7 @@ static void log_integral (
 	const MlSym *f,
 	const MlSym *x,
 	const MlSym *result,
-	const char  *rule
+	MlRule      rule
 )
 {
 	if (ctx->log != NULL && ctx->status == ML_OK && ctx->log->status == ML_OK)
@@ -442,7 +471,11 @@ static void log_integral (
 
 		if (ctx->log->status == ML_OK)
 		{
-			ctx->log->status = ml_str_appendf (&text, "   (%s)", rule);
+			ctx->log->status = ml_str_appendf (
+				&text,
+				"   (%s)",
+				ml_rule_name (rule)
+			);
 		}
 
 		if (ctx->log->status == ML_OK)
@@ -452,6 +485,102 @@ static void log_integral (
 
 		ml_str_free (&text);
 	}
+}
+
+/*
+ * The antiderivative of any expression by the table and the partial
+ * fractions only, term by term; NULL when a term needs more.
+ */
+const MlSym *ml_int_simple (MlSymCtx *ctx, const MlSym *g, const MlSym *x)
+{
+	const MlSym *expanded = ml_sym_expand (ctx, g);
+	uint64_t    count     = ml_choose (
+		expanded->kind == ML_SYM_ADD,
+		expanded->count,
+		1
+	);
+	SymPtrVec   parts;
+	int32_t     all       = 1;
+	const MlSym *result   = NULL;
+
+	SymPtrVec_init (&parts);
+
+	for (uint64_t i = 0; i < count && all && ctx->status == ML_OK; i++)
+	{
+		const MlSym *t = ml_choose (
+			expanded->kind == ML_SYM_ADD,
+			expanded->kids [i],
+			expanded
+		);
+		const MlSym *c;
+		const MlSym *f;
+		MlRule      rule = ML_RULE_NONE;
+		const MlSym *big;
+
+		ml_int_split (ctx, t, x, &c, &f);
+		big = ml_int_table (ctx, f, x, &rule);
+
+		if (big == NULL)
+		{
+			big = ml_int_rational_sym (ctx, f, x);
+		}
+
+		if (big == NULL || SymPtrVec_push (&parts, ml_sym_mul (ctx, c, big)) != ML_OK)
+		{
+			all = 0;
+		}
+	}
+
+	if (all && ctx->status == ML_OK)
+	{
+		result = ml_sym_sum (ctx, parts.data, parts.len);
+	}
+
+	SymPtrVec_free (&parts);
+	return result;
+}
+
+/*
+ * The antiderivative of one product: the table, then partial fractions,
+ * substitution and integration by parts; each of the last three is checked by
+ * differentiating before it is believed.
+ */
+static const MlSym *ml_int_term (
+	MlSymCtx    *ctx,
+	const MlSym *f,
+	const MlSym *x,
+	MlRule      *rule
+)
+{
+	const MlSym *big = ml_int_table (ctx, f, x, rule);
+
+	if (big == NULL)
+	{
+		big = ml_int_rational_sym (ctx, f, x);
+
+		if (big != NULL && !ml_int_verify (ctx, big, f, x))
+		{
+			big = NULL;
+		}
+
+		*rule = ml_choose (
+			big != NULL,
+			ML_RULE_INT_PARTIAL_FRACTIONS,
+			ML_RULE_NONE
+		);
+	}
+
+	if (big == NULL && ctx->status == ML_OK)
+	{
+		big = ml_int_subst (ctx, f, x, rule);
+	}
+
+	if (big == NULL && ctx->status == ML_OK)
+	{
+		big = ml_int_parts (ctx, f, x, rule);
+	}
+
+	return big;
 }
 
 MlSymIntegral ml_sym_integrate (MlSymCtx *ctx, const MlSym *s, const MlSym *x)
@@ -489,11 +618,11 @@ MlSymIntegral ml_sym_integrate (MlSymCtx *ctx, const MlSym *s, const MlSym *x)
 		);
 		const MlSym *c;
 		const MlSym *f;
-		const char  *rule = "";
+		MlRule      rule = ML_RULE_NONE;
 		const MlSym *big;
 
-		split_x (ctx, t, x, &c, &f);
-		big = integrate_core (ctx, f, x, &rule);
+		ml_int_split (ctx, t, x, &c, &f);
+		big = ml_int_term (ctx, f, x, &rule);
 
 		if (big == NULL)
 		{

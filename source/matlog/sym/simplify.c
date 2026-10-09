@@ -965,20 +965,20 @@ static const MlSym *pow_expand (MlSymCtx *ctx, const MlSym *base, uint64_t n)
 
 /* ---- the rewrite at one node ---- */
 
-static const char *rule_name (
+static MlRule rule_name (
 	MlSymMode   mode,
 	const MlSym *orig,
 	const MlSym *out
 )
 {
-	const char *name = "simplify";
+	MlRule name = ML_RULE_SIMPLIFY;
 
 	if (orig->kind == ML_SYM_ADD)
 	{
 		name = ml_choose (
 			out->kind == ML_SYM_NUM,
-			"add the numbers",
-			"collect like terms"
+			ML_RULE_ADD_NUMBERS,
+			ML_RULE_COLLECT_TERMS
 		);
 	}
 
@@ -986,11 +986,11 @@ static const char *rule_name (
 	{
 		name = ml_choose (
 			out->kind == ML_SYM_NUM,
-			"multiply the numbers",
+			ML_RULE_MULTIPLY_NUMBERS,
 			ml_choose (
 				mode == ML_SYM_EXPAND,
-				"multiply out",
-				"combine the factors"
+				ML_RULE_MULTIPLY_OUT,
+				ML_RULE_COMBINE_FACTORS
 			)
 		);
 	}
@@ -999,14 +999,14 @@ static const char *rule_name (
 	{
 		name = ml_choose (
 			mode == ML_SYM_EXPAND,
-			"expand the power",
-			"simplify the power"
+			ML_RULE_EXPAND_POWER,
+			ML_RULE_SIMPLIFY_POWER
 		);
 	}
 
 	else if (orig->kind == ML_SYM_FUNC)
 	{
-		name = "evaluate the function";
+		name = ML_RULE_EVALUATE_FUNCTION;
 	}
 
 	return name;
@@ -1028,7 +1028,7 @@ static void log_rewrite (
 		ctx->log->status = ml_str_appendf (
 			&text,
 			"%s: ",
-			rule_name (ctx->mode, orig, after)
+			ml_rule_name (rule_name (ctx->mode, orig, after))
 		);
 
 		if (ctx->log->status == ML_OK)

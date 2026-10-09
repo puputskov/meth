@@ -34,6 +34,53 @@
  * is checked once at its end with ml_symctx_ok.
  */
 
+/*
+ * The rules a calculation names in its steps. The text for the screen, the
+ * documentation and the translations comes from ml_rule_name; the engine
+ * itself only passes the enum around.
+ */
+typedef enum MlRule
+{
+	ML_RULE_NONE = 0,
+	/* simplify and expand */
+	ML_RULE_SIMPLIFY,
+	ML_RULE_ADD_NUMBERS,
+	ML_RULE_COLLECT_TERMS,
+	ML_RULE_MULTIPLY_NUMBERS,
+	ML_RULE_MULTIPLY_OUT,
+	ML_RULE_COMBINE_FACTORS,
+	ML_RULE_EXPAND_POWER,
+	ML_RULE_SIMPLIFY_POWER,
+	ML_RULE_EVALUATE_FUNCTION,
+	/* derivatives */
+	ML_RULE_DIFF_CONSTANT,
+	ML_RULE_DIFF_SUM,
+	ML_RULE_DIFF_CONSTANT_MULTIPLE,
+	ML_RULE_DIFF_PRODUCT,
+	ML_RULE_DIFF_POWER,
+	ML_RULE_DIFF_EXPONENTIAL,
+	ML_RULE_DIFF_GENERAL_POWER,
+	ML_RULE_DIFF_CHAIN,
+	/* integrals */
+	ML_RULE_INT_CONSTANT,
+	ML_RULE_INT_RECIPROCAL,
+	ML_RULE_INT_POWER,
+	ML_RULE_INT_EXPONENTIAL,
+	ML_RULE_INT_SINE,
+	ML_RULE_INT_COSINE,
+	ML_RULE_INT_TANGENT,
+	ML_RULE_INT_LOGARITHM,
+	ML_RULE_INT_ARCTANGENT,
+	ML_RULE_INT_PARTIAL_FRACTIONS,
+	ML_RULE_INT_SUBSTITUTION,
+	ML_RULE_INT_PARTS,
+	ML_RULE_INT_HALF_ANGLE,
+	ML_RULE_COUNT
+} MlRule;
+
+/* The words for a rule ("power rule"); empty for ML_RULE_NONE. */
+const char *ml_rule_name (MlRule rule);
+
 typedef enum MlSymKind
 {
 	ML_SYM_NUM = 0,

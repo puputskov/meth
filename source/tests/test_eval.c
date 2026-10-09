@@ -868,7 +868,7 @@ static void test_symbolic_errors (void)
 	CHECK (fails (&s, "simplify()", ML_EVAL_ARITY));
 	CHECK (fails (&s, "integrate(x, x, 1)", ML_EVAL_ARITY));
 	CHECK (fails (&s, "subs(x, x)", ML_EVAL_ARITY));
-	CHECK (fails (&s, "integrate(x*sin(x), x)", ML_EVAL_CANNOT_INTEGRATE));
+	CHECK (fails (&s, "integrate(exp(x^2), x)", ML_EVAL_CANNOT_INTEGRATE));
 	CHECK (
 		fails (
 			&s,
@@ -899,7 +899,7 @@ static void test_symbolic_errors (void)
 
 	/* the error points at the call */
 	{
-		MlValue v = run (&s, "1 + integrate(x*sin(x), x)");
+		MlValue v = run (&s, "1 + integrate(exp(x^2), x)");
 
 		CHECK (v.kind == ML_VALUE_ERROR);
 		CHECK (v.error_start == 4 && v.error_len == 22);
