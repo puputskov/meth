@@ -684,6 +684,35 @@ with exact results and steps on request.
 6. **Values and evaluator**: the expression value kind, the symbolic functions in the evaluator, environment copies, results, JSON type `expr`.
 7. **Steps** for the symbolic functions (`s` on a line).
 
+## 9d. Milestone 5 tasks
+
+Goal: quantities with units in the algebra domain: `5 km + 300 m`, `12 N * 3 m` and `60 km / 1 h` are calculated with the dimensions checked,
+and a result can be shown in any unit of the same dimension (`to`), also reduced to a named unit (`N*m` to `J`).
+
+### Decisions this milestone is built on
+
+- A quantity is an exact value and a dimension (seven SI base exponents). Its value is kept in the coherent SI unit, so `5 km` is 5000 with the dimension
+  of a length, and a result is shown in the unit that was asked for (`to`), else in SI base units, reduced to a named unit when there is one (`kg·m²/s²` is `J`).
+- Units are looked up by whole name first, then as an SI prefix and a unit (`min` is a minute, not milli-inch; `kmin` is not a unit). Symbols (`km`, `µs`,
+  `Ω`) and singular long names (`kilometer`) are known; plural forms are not.
+- A name that is a variable shadows a unit of the same name, so `m = 3` still works (the unit is reachable as `1 m` only when it is not defined).
+- `+ -` and comparisons need equal dimensions (an error otherwise); `* /` multiply and divide dimensions; `^` takes an integer power (and `sqrt` an even one).
+  A number added to a quantity is an error, except 0. Dimensionless results are plain numbers again.
+- Offset units (degrees Celsius, Fahrenheit) need a separate absolute/difference type and are not in this milestone.
+- Dimensions also work in matrices later; for now matrices stay plain numbers.
+
+### Tasks
+
+1. **Dimensions and the unit table** (`math/unit.h`): the dimension vector and its algebra, formatting in SI base units, the table of units with exact
+   factors, SI prefixes, lookup, the name of a derived unit. Done when: tests check the algebra, the formatting, prefix rules and every factor. (done)
+2. **Quantity values** (`math/value.h`): a value kind with an exact number and a dimension; add, subtract, multiply, divide, power, compare with the
+   dimension rules; the error kinds `dimension_mismatch` and `unknown_unit`.
+3. **Syntax**: a unit name after a number or `)` is a unit (`5 km`, `(2+3) m/s`); `to` converts (`3 ft to m`), `in` as a synonym where it is not a unit.
+4. **Evaluator**: units resolve after variables and functions; `to` finds the factor; `sqrt`, `abs`, `min`, `max` on quantities.
+5. **Display**: `= 5000 m` and `= 5 km` after `to`; derived names (`J`); `ml_dim_format` for the rest; JSON type `quantity` with `value` and `unit`.
+6. **Completion, highlighting hooks and steps**: unit names in completion, the conversion shown as steps (`3 ft = 3 × 0.3048 m`).
+7. **Dimensional analysis**: `dim(x)` shows the dimension of a result.
+
 ## 10. Out of scope (for now)
 
 - Own GUI window, GUI toolkit, network features, plugins.
@@ -709,4 +738,4 @@ with exact results and steps on request.
 
 Defaults chosen in section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can be changed before the milestone 2 tasks are done.
 
-Milestones 1 to 4 are done (milestone 4: symbolic simplify, expand, subs, diff and integrate with steps; integration by parts and substitution, limits and solving equations are not built yet). Built beyond the milestones: the command line interface (eval, run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes. Next: the highlighting and themes, export, documentation, the tutorial, proofs (sections 4.9 to 4.14), or milestone 5 (units).
+Milestones 1 to 4 are done (milestone 5, units, is started: task 1 of section 9d, the dimensions and the unit table, is built) (milestone 4: symbolic simplify, expand, subs, diff and integrate with steps; integration by parts and substitution, limits and solving equations are not built yet). Built beyond the milestones: the command line interface (eval, run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes. Next: the highlighting and themes, export, documentation, the tutorial, proofs (sections 4.9 to 4.14), or milestone 5 (units).
