@@ -566,6 +566,44 @@ static MlResult line_join (MlEditor *ed, int32_t dir)
 		}
 	}
 
+	/*
+	 * An empty block at the very top has no line to go back into: it turns
+	 * into an empty note, the plain line a document starts with.
+	 */
+	if (
+		   r == ML_OK
+		&& !done
+		&& dir < 0
+		&& ed->edit_index == 0
+		&& ed->edit.text.len == 0
+		&& ed->edit_kind != ML_LINE_NOTE
+	)
+	{
+		if (ed->edit_existing)
+		{
+			r = ml_session_replace (
+				&ed->session,
+				0,
+				ML_LINE_NOTE,
+				ed->edit_domain,
+				ml_slice ("", 0)
+			);
+		}
+
+		if (r == ML_OK)
+		{
+			r = begin_line (
+				ed,
+				ML_STATE_NOTE,
+				ML_LINE_NOTE,
+				ed->edit_domain,
+				0,
+				ed->edit_existing,
+				ml_slice ("", 0)
+			);
+		}
+	}
+
 	if (r == ML_OK && done)
 	{
 		r = edit_line_at (ed, target, ml_str_view (joined));

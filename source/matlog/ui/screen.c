@@ -1698,6 +1698,29 @@ static MlResult vlines_build (
 			.folded = ml_choose (fresh, 0, lv.folded)
 		};
 
+		/*
+		 * an empty math line that starts a block of its own shows the label
+		 * of its domain; one that goes on a block stays blank
+		 */
+		if (
+			   fresh
+			&& ed->state == ML_STATE_MATH
+			&& ed->edit_kind == ML_LINE_MATH
+			&& ed->edit.text.len == 0
+			&& (
+				   v == 0
+				|| !ml_block_continues (
+					   vl->data [v - 1].kind,
+					   vl->data [v - 1].domain,
+					   ML_LINE_MATH,
+					   l.domain
+				   )
+			)
+		)
+		{
+			l.kind = ML_LINE_MATH;
+		}
+
 		r = VLineVec_push (vl, l);
 	}
 

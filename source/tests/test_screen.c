@@ -1106,6 +1106,32 @@ static void test_hint (void)
 	ml_editor_free (&ed);
 }
 
+static void test_empty_gutter (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_editor_begin (&ed);
+	ml_screen_init (&s, 40, 8);
+
+	/* an empty line that starts a block shows the label of its domain */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 0, " 1 alg> "));
+	ml_layout_free (&l);
+
+	/* one that goes on a block of its own has no label */
+	type (&ed, "1+2");
+	press (&ed, ML_KEY_ENTER);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 1, " 2    "));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_themed_rows (void)
 {
 	MlEditor ed;
@@ -1156,6 +1182,7 @@ static void test_themed_rows (void)
 void run_screen_tests (void)
 {
 	test_hint ();
+	test_empty_gutter ();
 	test_themed_rows ();
 	test_basic_layout ();
 	test_hit ();

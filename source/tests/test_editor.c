@@ -1486,6 +1486,54 @@ static void block_lines (MlEditor *ed)
 	test_normal (ed, "gg");
 }
 
+static void test_empty_block_backspace (void)
+{
+	MlEditor ed;
+
+	/* a block started under a note goes away with Backspace */
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	type (&ed, "intro");
+	press (&ed, ML_KEY_ENTER);
+	press_block (&ed);
+	CHECK (ed.state == ML_STATE_MATH && ed.edit_index == 1);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.state == ML_STATE_NOTE && ed.edit_index == 0);
+	CHECK (ed.edit.cursor == 5);
+
+	/* one at the very top turns into an empty note */
+	ml_editor_free (&ed);
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	press_block (&ed);
+	CHECK (ed.state == ML_STATE_MATH && ed.edit_index == 0);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.state == ML_STATE_NOTE && ed.edit_kind == ML_LINE_NOTE);
+	CHECK (ed.edit.text.len == 0);
+
+	/* an empty line in the middle of a block goes back into the line above */
+	ml_editor_free (&ed);
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin_note (&ed) == ML_OK);
+	press_block (&ed);
+	type (&ed, "a");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.state == ML_STATE_MATH && ed.edit_index == 1);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.state == ML_STATE_MATH && ed.edit_index == 0);
+	CHECK (ed.edit.cursor == 1);
+
+	/* the same for an empty block that is already in the session */
+	test_leave (&ed);
+	test_normal (&ed, "dd");
+	ml_editor_free (&ed);
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	press (&ed, ML_KEY_BACKSPACE);
+	CHECK (ed.state == ML_STATE_NOTE && ed.edit_kind == ML_LINE_NOTE);
+	ml_editor_free (&ed);
+}
+
 static void test_folds (void)
 {
 	MlEditor ed;
@@ -1791,6 +1839,7 @@ void run_editor_tests (void)
 	test_undo_keys ();
 	test_range_commands ();
 	test_note_rewrites ();
+	test_empty_block_backspace ();
 	test_folds ();
 	test_fold_operations ();
 	test_paging ();
