@@ -115,12 +115,12 @@ static void test_insert (void)
 	CHECK (status_is (&ed, "-- NORMAL -- algebra>"));
 
 	/* Esc on an empty new line adds nothing */
-	type (&ed, "i");
+	type (&ed, "o");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (ed.session.lines.len == 4);
 
 	/* backspace undoes a rewrite just made */
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "a<=");
 	press (&ed, ML_KEY_BACKSPACE);
 	press (&ed, ML_KEY_ESCAPE);
@@ -139,7 +139,7 @@ static void test_note (void)
 	press (&ed, ML_KEY_ESCAPE);
 
 	/* n starts a note below the cursor line; the rewrites work in it too */
-	type (&ed, "n");
+	type (&ed, "N");
 	CHECK (ed.state == ML_STATE_NOTE);
 	CHECK (status_is (&ed, "-- NOTE -- algebra>"));
 	type (&ed, "x^2 <= pi ");
@@ -159,6 +159,37 @@ static void test_note (void)
 		)
 	);
 	CHECK (line_is (&ed, 2, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "second"));
+
+	ml_editor_free (&ed);
+}
+
+static void test_first_note (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "N");
+	CHECK (ed.state == ML_STATE_NOTE);
+	type (&ed, "hello");
+	CHECK (ml_slice_equal (ml_str_view (ed.edit.text), ml_slice_cstr ("hello")));
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.session.lines.len == 1);
+	CHECK (line_is (&ed, 0, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "hello"));
+
+	/* n and i open a note and a math line at the cursor line, above it */
+	type (&ed, "n");
+	CHECK (ed.state == ML_STATE_NOTE);
+	type (&ed, "top");
+	press (&ed, ML_KEY_ESCAPE);
+	type (&ed, "i");
+	type (&ed, "1+1");
+	press (&ed, ML_KEY_ESCAPE);
+	CHECK (ed.session.lines.len == 3);
+	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "1+1"));
+	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "top"));
+	CHECK (line_is (&ed, 2, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "hello"));
 
 	ml_editor_free (&ed);
 }
@@ -277,7 +308,7 @@ static void test_edit_line (void)
 	type (&ed, "A = 1");
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, "gl");
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "x");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 1"));
@@ -297,7 +328,7 @@ static void test_edit_line (void)
 	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
 
 	/* an edited note stays a note */
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "memo");
 	press (&ed, ML_KEY_ESCAPE);
 	press (&ed, ML_KEY_ENTER);
@@ -359,7 +390,7 @@ static void test_domains (void)
 	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A\xC2\xB2 "));
 
 	type (&ed, "g3");
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "e1^2 ");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_PGA3, "e1^2 "));
@@ -428,7 +459,7 @@ static void test_domain_cycle (void)
 	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
 
 	/* notes have no domain to change */
-	type (&ed, "n");
+	type (&ed, "N");
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	CHECK (ed.edit_domain == ed.session.domain);
 	press (&ed, ML_KEY_ESCAPE);
@@ -540,7 +571,7 @@ static void test_files (void)
 	ed.quit = 0;
 
 	/* :wq writes and quits */
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "y");
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, ":wq");
@@ -549,7 +580,7 @@ static void test_files (void)
 	ed.quit = 0;
 
 	/* :q! discards */
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "z");
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, ":q!");
@@ -858,7 +889,7 @@ static void test_undo_keys (void)
 
 	/* typing a line and editing one are undone too */
 	type (&ed, "G");
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "new");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (texts_are (&ed, "c|d|e|new"));
@@ -1006,7 +1037,7 @@ static void test_note_rewrites (void)
 	ml_editor_init (&ed);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "n");
+	type (&ed, "N");
 
 	/* the rewrites of the math lines work in a note, Markdown is left alone */
 	type (&ed, "The area is pi r^2, **bold** and *it* and \\alpha <= 3 ");
@@ -1023,7 +1054,7 @@ static void test_note_rewrites (void)
 	);
 
 	/* backspace right after a rewrite brings the typed text back */
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "pi ");
 	press (&ed, ML_KEY_BACKSPACE);
 	press (&ed, ML_KEY_BACKSPACE);
@@ -1032,7 +1063,7 @@ static void test_note_rewrites (void)
 	CHECK (line_is (&ed, 1, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "pie"));
 
 	/* the logic symbols and lambda are for their domains only */
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "a && b || ~c lambda x. ");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (
@@ -1054,10 +1085,10 @@ static void block_lines (MlEditor *ed)
 	ml_editor_init (ed);
 	CHECK (ml_editor_begin (ed) == ML_OK);
 	press (ed, ML_KEY_ESCAPE);
-	type (ed, "n");
+	type (ed, "N");
 	type (ed, "intro");
 	press (ed, ML_KEY_ESCAPE);
-	type (ed, "i");
+	type (ed, "o");
 	type (ed, "a");
 	press (ed, ML_KEY_ENTER);
 	type (ed, "b");
@@ -1195,7 +1226,7 @@ static void test_fold_operations (void)
 	/* a new line below a folded block goes after the block */
 	type (&ed, "za");
 	CHECK (ml_session_block (&ed.session, 2).folded);
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "note");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (texts_are (&ed, "intro||a|b|c|d|e|note"));
@@ -1220,6 +1251,7 @@ void run_editor_tests (void)
 {
 	test_insert ();
 	test_note ();
+	test_first_note ();
 	test_navigation ();
 	test_yank_paste ();
 	test_edit_line ();

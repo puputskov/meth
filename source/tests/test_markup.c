@@ -182,10 +182,54 @@ static void test_append (void)
 	ml_markup_free (&m);
 }
 
+static void test_live (void)
+{
+	MlMarkup m;
+	MlStr    out;
+
+	ml_markup_init (&m);
+	ml_str_init (&out);
+
+	/* the text is kept as typed; marks dim, the words between them styled */
+	CHECK (ml_markup_parse_live (&m, lit ("a **bold** *it*")) == ML_OK);
+	CHECK (strcmp (ml_str_cstr (m.plain), "a **bold** *it*") == 0);
+	CHECK (m.styles.len == m.plain.len);
+	CHECK (m.styles.data [0] == 0);
+	CHECK (m.styles.data [2] == ML_STYLE_MARK && m.styles.data [3] == ML_STYLE_MARK);
+	CHECK (m.styles.data [4] == ML_STYLE_BOLD && m.styles.data [7] == ML_STYLE_BOLD);
+	CHECK (m.styles.data [8] == ML_STYLE_MARK);
+	CHECK (m.styles.data [12] == ML_STYLE_ITALIC);
+
+	/* a mark that has no partner yet stays plain until it gets one */
+	CHECK (ml_markup_parse_live (&m, lit ("a **bold")) == ML_OK);
+	CHECK (!ml_markup_has_styles (&m));
+	CHECK (ml_markup_parse_live (&m, lit ("a **bold*")) == ML_OK);
+	CHECK (m.styles.data [3] == 0 || m.styles.data [3] != ML_STYLE_BOLD);
+
+	/* the escape keeps both characters */
+	CHECK (ml_markup_parse_live (&m, lit ("\\*x")) == ML_OK);
+	CHECK (strcmp (ml_str_cstr (m.plain), "\\*x") == 0);
+	CHECK (!ml_markup_has_styles (&m));
+
+	/* drawn: dim marks, bold word */
+	CHECK (ml_markup_parse_live (&m, lit ("**b**")) == ML_OK);
+	CHECK (ml_markup_append (&out, &m, 0, m.plain.len) == ML_OK);
+	CHECK (
+		strcmp (
+			ml_str_cstr (out),
+			"\x1b[0m\x1b[2m**\x1b[0m\x1b[1mb\x1b[0m\x1b[2m**\x1b[0m"
+		) == 0
+	);
+
+	ml_str_free (&out);
+	ml_markup_free (&m);
+}
+
 void run_markup_tests (void);
 
 void run_markup_tests (void)
 {
+	test_live ();
 	test_marks ();
 	test_rules ();
 	test_append ();

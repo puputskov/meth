@@ -141,6 +141,18 @@ static uint64_t line_below_cursor (const MlEditor *ed)
 	);
 }
 
+/* The index a line opened above the cursor line gets. */
+static uint64_t line_above_cursor (const MlEditor *ed)
+{
+	MlBlock b = ml_session_block (&ed->session, ed->session.cursor);
+
+	return ml_choose (
+		ed->session.lines.len > 0,
+		ml_choose (b.folded, b.first, ed->session.cursor),
+		0
+	);
+}
+
 MlResult ml_editor_begin (MlEditor *ed)
 {
 	MlResult r = ml_editor_refresh (ed);
@@ -1224,27 +1236,27 @@ static MlResult normal_key (MlEditor *ed, MlKey key)
 		r = edit_cursor_line (ed);
 	}
 
-	else if (ch == 'i')
+	else if (ch == 'i' || ch == 'o')
 	{
 		r = begin_line (
 			ed,
 			ML_STATE_INSERT,
 			ML_LINE_MATH,
 			ed->session.domain,
-			line_below_cursor (ed),
+			ml_choose (ch == 'i', line_above_cursor (ed), line_below_cursor (ed)),
 			0,
 			ml_slice ("", 0)
 		);
 	}
 
-	else if (ch == 'n')
+	else if (ch == 'n' || ch == 'N')
 	{
 		r = begin_line (
 			ed,
 			ML_STATE_NOTE,
 			ML_LINE_NOTE,
 			ed->session.domain,
-			line_below_cursor (ed),
+			ml_choose (ch == 'n', line_above_cursor (ed), line_below_cursor (ed)),
 			0,
 			ml_slice ("", 0)
 		);

@@ -349,7 +349,7 @@ static uint32_t style_of (MarkKind kind)
 	return s;
 }
 
-MlResult ml_markup_parse (MlMarkup *m, MlSlice text)
+static MlResult parse (MlMarkup *m, MlSlice text, int32_t live)
 {
 	MlResult r = ML_OK;
 	MarkVec  marks;
@@ -383,7 +383,22 @@ MlResult ml_markup_parse (MlMarkup *m, MlSlice text)
 			{
 				/* the style is on between the opener and the closer */
 				active ^= style_of (mk.kind);
-				pos    += mk.len;
+
+				/* live: the mark stays in the text, drawn dim */
+				if (live)
+				{
+					r = ml_str_append (
+						&m->plain,
+						ml_slice_sub (text, pos, mk.len)
+					);
+
+					for (uint64_t k = 0; k < mk.len && r == ML_OK; k++)
+					{
+						r = MlByteVec_push (&m->styles, (uint8_t)ML_STYLE_MARK);
+					}
+				}
+
+				pos += mk.len;
 			}
 
 			else
@@ -414,10 +429,13 @@ MlResult ml_markup_parse (MlMarkup *m, MlSlice text)
 			)
 		)
 		{
-			/* the backslash is dropped, the character stays */
-			r = ml_str_append (&m->plain, ml_slice_sub (text, pos + 1, 1));
+			/* the backslash is dropped, the character stays (live: both) */
+			uint64_t from = ml_choose (live, pos, pos + 1);
+			uint64_t take = ml_choose (live, 2, 1);
 
-			if (r == ML_OK)
+			r = ml_str_append (&m->plain, ml_slice_sub (text, from, take));
+
+			for (uint64_t k = 0; k < take && r == ML_OK; k++)
 			{
 				r = MlByteVec_push (&m->styles, (uint8_t)active);
 			}
@@ -440,6 +458,16 @@ MlResult ml_markup_parse (MlMarkup *m, MlSlice text)
 
 	MarkVec_free (&marks);
 	return r;
+}
+
+MlResult ml_markup_parse (MlMarkup *m, MlSlice text)
+{
+	return parse (m, text, 0);
+}
+
+MlResult ml_markup_parse_live (MlMarkup *m, MlSlice text)
+{
+	return parse (m, text, 1);
 }
 
 /* The escape sequence that sets exactly the styles of mask. */
@@ -470,6 +498,11 @@ static MlResult set_style (MlStr *out, uint32_t mask)
 	if (r == ML_OK && (mask & ML_STYLE_CODE))
 	{
 		r = ml_str_append (out, ml_slice_cstr ("\x1b[36m"));
+	}
+
+	if (r == ML_OK && (mask & ML_STYLE_MARK))
+	{
+		r = ml_str_append (out, ml_slice_cstr ("\x1b[2m"));
 	}
 
 	return r;

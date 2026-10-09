@@ -440,6 +440,63 @@ static MlResult append_line_row (
 	return r;
 }
 
+/* The byte of text that starts at display column col. */
+static uint64_t byte_at_column (MlSlice text, uint64_t col)
+{
+	uint64_t pos   = 0;
+	uint64_t width = 0;
+
+	while (pos < text.len && width < col)
+	{
+		uint64_t next = ml_utf8_next (text, pos);
+
+		width += ml_utf8_width (ml_slice_sub (text, pos, next - pos));
+		pos    = next;
+	}
+
+	return pos;
+}
+
+/*
+ * The note being typed, as it will look: the text stays as typed, marks
+ * included, the marks are dim and the text between them bold, italic and so
+ * on right away.
+ */
+static MlTextWindow append_live_note (
+	MlStr    *out,
+	MlSlice  text,
+	uint64_t start_col,
+	uint64_t avail
+)
+{
+	MlMarkup     m;
+	MlStr        shown;
+	MlTextWindow w;
+
+	ml_markup_init (&m);
+	ml_str_init (&shown);
+	w = ml_text_window (&shown, text, start_col, avail);
+
+	if (w.result == ML_OK)
+	{
+		w.result = ml_markup_parse_live (&m, text);
+	}
+
+	if (w.result == ML_OK)
+	{
+		w.result = ml_markup_append (
+			out,
+			&m,
+			byte_at_column (text, w.first_col),
+			shown.len
+		);
+	}
+
+	ml_str_free (&shown);
+	ml_markup_free (&m);
+	return w;
+}
+
 typedef struct EditRow
 {
 	MlResult result;
@@ -483,7 +540,18 @@ static EditRow append_edit_row (
 
 	row.result = head.result;
 
-	if (row.result == ML_OK)
+	if (row.result == ML_OK && ed->state == ML_STATE_NOTE)
+	{
+		w = append_live_note (
+			out,
+			ml_str_view (ed->edit.text),
+			ml_lineedit_start_col (&ed->edit, avail),
+			avail
+		);
+		row.result = w.result;
+	}
+
+	else if (row.result == ML_OK)
 	{
 		w = ml_text_window (
 			out,

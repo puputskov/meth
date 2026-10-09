@@ -27,6 +27,7 @@
 #define ML_STYLE_UNDERLINE 4u
 #define ML_STYLE_STRIKE    8u
 #define ML_STYLE_CODE      16u
+#define ML_STYLE_MARK      32u /* a mark that is shown (live parse), dim */
 
 ML_VEC_DEFINE (MlByteVec, uint8_t)
 
@@ -41,6 +42,14 @@ void ml_markup_free (MlMarkup *m);
 
 /* Replaces the content of m with the formatted form of text. */
 MlResult ml_markup_parse (MlMarkup *m, MlSlice text);
+
+/*
+ * The live form, for the note being typed: the text is kept as typed, marks
+ * included, so the cursor column stays where it is; the marks that took
+ * effect are styled ML_STYLE_MARK (drawn dim) and the text between them is
+ * styled as it will be: **bold** shows its stars dim and its word bold.
+ */
+MlResult ml_markup_parse_live (MlMarkup *m, MlSlice text);
 
 /* 1 when any byte of the text has a style. */
 int32_t ml_markup_has_styles (const MlMarkup *m);

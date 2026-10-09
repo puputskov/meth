@@ -156,12 +156,12 @@ static void test_basic_layout (void)
 	type (&ed, "x");
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, "gm");
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "A = 1");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "");
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "a note");
 	press (&ed, ML_KEY_ESCAPE);
 
@@ -210,7 +210,7 @@ static void test_typing_row (void)
 	/* a new line typed in the middle of the session pushes the rest down */
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, "kk");
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "between");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 0, " 1 alg> ab"));
@@ -278,7 +278,7 @@ static void test_scrolling (void)
 	ml_layout_free (&l);
 
 	/* typing a new line at the end scrolls it into view */
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "new");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (s.top == 16);
@@ -378,7 +378,7 @@ static void test_small_sizes (void)
 	ml_layout_free (&l);
 
 	ml_screen_resize (&s, 1, 2);
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (l.result == ML_OK && l.rows.len == 2);
@@ -431,7 +431,7 @@ static void test_render (void)
 
 	/* typing a character changes the typed row and the status line only */
 	type (&ed, "j");
-	type (&ed, "i");
+	type (&ed, "o");
 	ml_str_clear (&out);
 	CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
 	type (&ed, "c");
@@ -475,7 +475,7 @@ static void test_line_numbers (void)
 	ml_layout_free (&l);
 
 	/* the line being typed has the next number */
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_is (&l, 3, "121    \xE2\x94\x94 x"));
@@ -536,7 +536,7 @@ static void test_results (void)
 	type (&ed, "f(x) = x");
 	press (&ed, ML_KEY_ENTER);
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "1 + 1");
 	press (&ed, ML_KEY_ESCAPE);
 
@@ -749,7 +749,7 @@ static void test_note_styles (void)
 	ml_screen_init (&s, 30, 5);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "a **bold** *it* <u>un</u> done");
 	press (&ed, ML_KEY_ESCAPE);
 
@@ -788,12 +788,12 @@ static void test_blocks_layout (void)
 	ml_screen_init (&s, 40, 12);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "n");
+	type (&ed, "N");
 	type (&ed, "A **note**");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "second line");
 	press (&ed, ML_KEY_ESCAPE);
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "a = 1");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "b = 2");
@@ -802,7 +802,7 @@ static void test_blocks_layout (void)
 	press (&ed, ML_KEY_ENTER);
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, "gm");
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "[1,2]");
 	press (&ed, ML_KEY_ESCAPE);
 	type (&ed, "gg");
@@ -842,7 +842,7 @@ static void test_blocks_layout (void)
 	type (&ed, "G");
 	type (&ed, "k");
 	type (&ed, "ga");
-	type (&ed, "i");
+	type (&ed, "o");
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 4, " 5    \xE2\x94\x82 a + b"));
