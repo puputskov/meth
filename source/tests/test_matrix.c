@@ -201,6 +201,139 @@ static void test_typeset (void)
 	ml_arena_free (&arena);
 }
 
+/* The text a step version records, or "" when recording failed. */
+static int32_t steps_are (MlStepLog *log, const char *expected)
+{
+	int32_t same;
+
+	ml_steplog_trim (log);
+	same = (
+		   log->status == ML_OK
+		&& ml_slice_equal (ml_str_view (log->text), lit (expected))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  steps are:\n%s\n  expected:\n%s\n",
+			ml_str_cstr (log->text),
+			expected
+		);
+	}
+
+	return same;
+}
+
+static void test_steps (void)
+{
+	MlArena   arena;
+	MlStepLog log;
+	MlMat     a;
+	MlMat     b;
+	MlMat     x;
+
+	ml_arena_init (&arena, 0);
+
+	/* the product, cell by cell */
+	ml_steplog_init (&log);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	b = make (&arena, 2, 2, (int64_t [4]){ 5, 6, 7, 8 });
+	x = ml_mat_mul_steps (&arena, a, b, &log);
+	CHECK (is_text (x, "[[19, 22], [43, 50]]"));
+	CHECK (
+		steps_are (
+			&log,
+			"c11 = 1\xC2\xB7" "5 + 2\xC2\xB7" "7 = 19\n"
+			"c12 = 1\xC2\xB7" "6 + 2\xC2\xB7" "8 = 22\n"
+			"c21 = 3\xC2\xB7" "5 + 4\xC2\xB7" "7 = 43\n"
+			"c22 = 3\xC2\xB7" "6 + 4\xC2\xB7" "8 = 50"
+		)
+	);
+	ml_steplog_free (&log);
+
+	/* the determinant: one elimination and the product of the pivots */
+	ml_steplog_init (&log);
+	CHECK (rat_is (ml_mat_det_steps (&arena, a, &log), "-2"));
+	CHECK (
+		steps_are (
+			&log,
+			"Eliminate below the diagonal:\n"
+			"\xE2\x8E\xA1 1 2 \xE2\x8E\xA4\n"
+			"\xE2\x8E\xA3 3 4 \xE2\x8E\xA6\n"
+			"R2 \xE2\x86\x90 R2 \xE2\x88\x92 3\xC2\xB7R1\n"
+			"\xE2\x8E\xA1 1  2 \xE2\x8E\xA4\n"
+			"\xE2\x8E\xA3 0 -2 \xE2\x8E\xA6\n"
+			"determinant = 1\xC2\xB7" "-2 = -2"
+		)
+	);
+	ml_steplog_free (&log);
+
+	/* a swap is named and changes the sign */
+	ml_steplog_init (&log);
+	a = make (&arena, 2, 2, (int64_t [4]){ 0, 1, 1, 0 });
+	CHECK (rat_is (ml_mat_det_steps (&arena, a, &log), "-1"));
+	CHECK (strstr (ml_str_cstr (log.text), "swap R2 and R1") != NULL);
+	CHECK (
+		strstr (ml_str_cstr (log.text), "determinant = -(1\xC2\xB7" "1) = -1")
+		!= NULL
+	);
+	ml_steplog_free (&log);
+
+	/* the reduction names every row operation */
+	ml_steplog_init (&log);
+	a = make (&arena, 2, 2, (int64_t [4]){ 2, 4, 1, 3 });
+	CHECK (
+		is_text (
+			ml_mat_rref_steps (&arena, a, &log).matrix,
+			"[[1, 0], [0, 1]]"
+		)
+	);
+	CHECK (strstr (ml_str_cstr (log.text), "R1 \xE2\x86\x90 R1 / 2") != NULL);
+	CHECK (
+		strstr (
+			ml_str_cstr (log.text),
+			"R2 \xE2\x86\x90 R2 \xE2\x88\x92 1\xC2\xB7R1"
+		) != NULL
+	);
+	ml_steplog_free (&log);
+
+	/* a negative factor is added */
+	ml_steplog_init (&log);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 0, -2, 1 });
+	CHECK (ml_mat_ok (ml_mat_rref_steps (&arena, a, &log).matrix));
+	CHECK (
+		strstr (ml_str_cstr (log.text), "R2 \xE2\x86\x90 R2 + 2\xC2\xB7R1")
+		!= NULL
+	);
+	ml_steplog_free (&log);
+
+	/* the inverse and the solution, and a singular matrix says why */
+	ml_steplog_init (&log);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	CHECK (ml_mat_ok (ml_mat_inverse_steps (&arena, a, &log)));
+	CHECK (strstr (ml_str_cstr (log.text), "identity beside it") != NULL);
+	CHECK (strstr (ml_str_cstr (log.text), "the answer") != NULL);
+	ml_steplog_free (&log);
+	ml_steplog_init (&log);
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 2, 4 });
+	CHECK (ml_mat_inverse_steps (&arena, a, &log).status == ML_ERR_DIVZERO);
+	CHECK (strstr (ml_str_cstr (log.text), "singular") != NULL);
+	ml_steplog_free (&log);
+
+	/* no log, no recording, same answer */
+	a = make (&arena, 2, 2, (int64_t [4]){ 1, 2, 3, 4 });
+	CHECK (
+		ml_mat_equal (
+			&arena,
+			ml_mat_inverse_steps (&arena, a, NULL),
+			ml_mat_inverse (&arena, a)
+		)
+	);
+	CHECK (rat_is (ml_mat_det_steps (&arena, a, NULL), "-2"));
+
+	ml_arena_free (&arena);
+}
+
 static void test_arithmetic (void)
 {
 	MlArena arena;
@@ -501,6 +634,7 @@ void run_matrix_tests (void)
 {
 	test_build ();
 	test_typeset ();
+	test_steps ();
 	test_arithmetic ();
 	test_det_trace ();
 	test_inverse ();

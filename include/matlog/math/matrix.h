@@ -2,6 +2,7 @@
 #define MATLOG_MATH_MATRIX_H
 
 #include <matlog/math/rational.h>
+#include <matlog/math/steplog.h>
 
 /*
  * Exact matrices: a rows x cols table of rationals stored row by row in an
@@ -86,6 +87,18 @@ MlRref ml_mat_rref (MlArena *arena, MlMat a);
  * many.
  */
 MlMat ml_mat_solve (MlArena *arena, MlMat a, MlMat b);
+
+/*
+ * The same calculations, explaining themselves into a step log (see
+ * steplog.h): every row operation of the elimination with the matrix after
+ * it, and for a product the sum of every cell. With a NULL log they are the
+ * functions above.
+ */
+MlMat ml_mat_mul_steps (MlArena *arena, MlMat a, MlMat b, MlStepLog *log);
+MlRatResult ml_mat_det_steps (MlArena *arena, MlMat a, MlStepLog *log);
+MlRref ml_mat_rref_steps (MlArena *arena, MlMat a, MlStepLog *log);
+MlMat ml_mat_solve_steps (MlArena *arena, MlMat a, MlMat b, MlStepLog *log);
+MlMat ml_mat_inverse_steps (MlArena *arena, MlMat a, MlStepLog *log);
 
 /* "[[1, 2], [3, 4]]", cells as rationals ("1/2"). */
 MlResult ml_mat_format (MlStr *out, MlMat m);
