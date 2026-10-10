@@ -56,7 +56,7 @@ rem --- the C test groups that need no files, as a second module ---
 set TFLAGS=%FLAGS% -Isource\tests -Wno-string-concatenation
 set TLIST=build\web\tests.rsp
 copy /y %LIST% %TLIST% >nul
-for %%g in (core session lineedit rewrite brackets bool lambda bigint rational value lexer parser eval stats plot hyper matrix steps markup sym unit integrate words proof pga) do (
+for %%g in (core session lineedit rewrite brackets bool lambda bigint rational value lexer parser eval stats plot hyper matrix steps markup sym unit integrate words proof pga webapi) do (
 	"!CLANG!" %TFLAGS% -c "source\tests\test_%%g.c" -o "%OBJ%\test_%%g.o"
 	if errorlevel 1 exit /b 1
 	echo build/web/obj/test_%%g.o>>%TLIST%

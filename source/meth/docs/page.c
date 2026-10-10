@@ -1,5 +1,7 @@
 #include <meth/docs/page.h>
 
+#include <meth/core/json.h>
+
 #include <meth/core/utf8.h>
 
 #include <string.h>
@@ -922,4 +924,65 @@ MlResult ml_doc_layout (
 	}
 
 	return r;
+}
+
+static MlResult json_add (MlStr *out, const char *text)
+{
+	return ml_str_append (out, ml_slice_cstr (text));
+}
+
+MlResult ml_doc_page_json (MlStr *out, const MlDocPage *p, int32_t full)
+{
+	MlResult r = json_add (out, "{\"id\":");
+
+	r = ml_choose (r == ML_OK, ml_json_string (out, ml_str_view (p->id)), r);
+	r = ml_choose (r == ML_OK, json_add (out, ",\"title\":"), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, ml_str_view (p->title)), r);
+	r = ml_choose (r == ML_OK, json_add (out, ",\"summary\":"), r);
+	r = ml_choose (
+		r == ML_OK,
+		ml_json_string (out, ml_str_view (p->summary)),
+		r
+	);
+
+	if (r == ML_OK && full)
+	{
+		r = json_add (out, ",\"keywords\":");
+		r = ml_choose (
+			r == ML_OK,
+			ml_json_string (out, ml_str_view (p->keywords)),
+			r
+		);
+		r = ml_choose (r == ML_OK, json_add (out, ",\"see\":"), r);
+		r = ml_choose (
+			r == ML_OK,
+			ml_json_string (out, ml_str_view (p->see)),
+			r
+		);
+		r = ml_choose (r == ML_OK, json_add (out, ",\"blocks\":["), r);
+
+		for (uint64_t i = 0; i < p->blocks.len && r == ML_OK; i++)
+		{
+			r = json_add (
+				out,
+				ml_choose (i > 0, ",{\"kind\":\"", "{\"kind\":\"")
+			);
+			r = ml_choose (
+				r == ML_OK,
+				json_add (out, ml_doc_block_name (p->blocks.data [i].kind)),
+				r
+			);
+			r = ml_choose (r == ML_OK, json_add (out, "\",\"text\":"), r);
+			r = ml_choose (
+				r == ML_OK,
+				ml_json_string (out, ml_str_view (p->blocks.data [i].text)),
+				r
+			);
+			r = ml_choose (r == ML_OK, json_add (out, "}"), r);
+		}
+
+		r = ml_choose (r == ML_OK, json_add (out, "]"), r);
+	}
+
+	return ml_choose (r == ML_OK, json_add (out, "}\n"), r);
 }

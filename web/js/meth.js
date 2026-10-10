@@ -113,28 +113,97 @@ export async function loadModule(url, write) {
 	return instance.exports;
 }
 
+// The library as the page uses it: one session, and the services of the editor
+// (see include/meth/web/web.h for what each answer holds). Every method that
+// can fail throws an Error with the number of the failure in `code` (1 is out
+// of memory, 2 an invalid index or name, 5 a file that cannot be read).
+const FAILURES = { 1: "out of memory", 2: "invalid argument", 5: "cannot read" };
+
+export const EDIT = { replace: 0, insert: 1, delete: 2, undo: 3, redo: 4 };
+
 export async function loadMeth(url) {
 	const api = await loadModule(url, () => {});
 	const bytes = () => new Uint8Array(api.memory.buffer);
 
-	return {
-		// `meth eval --format json EXPR`: the exit code and the output text.
-		evaluate(expression) {
-			const data = encoder.encode(expression);
-			const at = api.meth_alloc(Math.max(data.length, 1));
+	// Puts the texts in the memory of the module, calls `name` with them
+	// (each text is a pointer and a length) and the numbers around them, and
+	// reads the answer. `args` holds numbers and strings in call order.
+	function call(name, args, parse) {
+		const allocated = [];
+		const values = [];
 
-			bytes().set(data, at);
+		for (const arg of args) {
+			if (typeof arg === "string") {
+				const data = encoder.encode(arg);
+				const at = api.meth_alloc(data.length);
 
-			const code = api.meth_eval(at, data.length);
-			const text = decoder.decode(
-				bytes().subarray(
-					api.meth_result_ptr(),
-					api.meth_result_ptr() + api.meth_result_len(),
-				),
-			);
+				bytes().set(data, at);
+				allocated.push(at);
+				values.push(at, data.length);
+			} else {
+				values.push(arg);
+			}
+		}
 
+		const code = api[name](...values);
+
+		for (const at of allocated) {
 			api.meth_free(at);
-			return { code, text };
-		},
+		}
+
+		if (code !== 0 && !name.endsWith("eval")) {
+			const error = new Error(FAILURES[code] ?? `failure ${code}`);
+
+			error.code = code;
+			throw error;
+		}
+
+		const start = api.meth_result_ptr();
+		const text = decoder.decode(
+			bytes().subarray(start, start + api.meth_result_len()),
+		);
+
+		return parse ? JSON.parse(text) : { code, text };
+	}
+
+	const json = (name, ...args) => call(name, args, true);
+	const text = (name, ...args) => call(name, args, false).text;
+
+	return {
+		// `meth eval --format json EXPR` (a session of its own): the exit code
+		// and the output text.
+		evaluate: (expression) => call("meth_eval", [expression], false),
+
+		// Replaces the session by a .meth file; every method that changes
+		// the session answers { from, count, lines } like lines().
+		load: (file) => json("meth_load", file),
+		save: () => text("meth_save"),
+		lines: (from = 0) => json("meth_lines", from),
+		edit: (op, index, kind = "", domain = "", line = "") =>
+			json("meth_edit", op, index, kind, domain, line),
+		setSymbols: (on) => json("meth_set_symbols", on ? 1 : 0),
+
+		// The services of the editor.
+		highlight: (domain, index, line, errStart = 0, errLength = 0) =>
+			json("meth_highlight", domain, index, line, errStart, errLength),
+		ghost: (domain, index, line) => json("meth_ghost", domain, index, line),
+		complete: (domain, index, line) =>
+			json("meth_complete", domain, index, line),
+		steps: (index) => json("meth_steps", index),
+		hint: (index) => json("meth_hint", index),
+		exportAs: (format, words = "") => text("meth_export", format, words),
+		domains: () => json("meth_domains"),
+
+		// Help, examples, snippets, the tutorial and the themes.
+		docs: () => json("meth_docs"),
+		doc: (id) => json("meth_doc", id),
+		searchDocs: (query) => json("meth_docs_search", query),
+		examples: () => json("meth_examples"),
+		example: (name) => text("meth_example", name),
+		snippets: () => json("meth_snippets"),
+		snippet: (name) => text("meth_snippet", name),
+		lessons: () => json("meth_lessons"),
+		themes: () => json("meth_themes"),
+		themeFrom: (file) => json("meth_theme_text", file),
 	};
 }

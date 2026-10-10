@@ -142,4 +142,10 @@ MlResult ml_doc_layout (
 
 MlSlice ml_doc_line_target (const MlDocLine *line, uint64_t n);
 
+/*
+ * The page as one JSON object (no newline): id, title and summary, and with
+ * full also keywords, see and the blocks as { kind, text } objects.
+ */
+MlResult ml_doc_page_json (MlStr *out, const MlDocPage *p, int32_t full);
+
 #endif /* METH_DOCS_PAGE_H */

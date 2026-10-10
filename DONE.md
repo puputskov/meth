@@ -1111,4 +1111,24 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
 - What the groups found: `%llu` read a 32 bit argument (on wasm32 `long long` is 64 bits and `long` and `size_t` are 32; `libc.c` now knows `ll`), `%f` was
   missing (the import is now `format_double (value, conv, precision, ...)` for `f` and `g`), and the reservations were too small: the 100000 item lists of
   the evaluator need about 60 MB of 280 byte values, so the default arena is 256 MB there (`ML_ARENA_DEFAULT_RESERVE`), the trim slack 8 MB.
-- Not built: the notebook page, a session / results API (ghost, steps, completion, highlighting, typeset math, plots, export, help), `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.
+- **The API of the page (built 2026-10-10):** `meth/web/web.h` (`source/meth/web/web.c`, `content.c`) is a portable layer in the library: an `MlWeb` (a
+  session, its results, the documentation, and one string for the answer of the last call) and functions that answer in JSON, so the page reads no
+  structure and a native test can run it. Session: `ml_web_load` (a `.meth` text), `ml_web_save`, `ml_web_lines (from)`, `ml_web_edit` (replace, insert,
+  delete, undo, redo; each call is a step of the undo history, the results are computed again from the changed line, the answer is the lines from there),
+  `ml_web_set_symbols`. A line is `{ i, kind, domain, text, first, last, wants_steps, result }` with `first` and `last` the block (cell) of the line and
+  `result` a value (`text`, `type`, `block` rows of a typeset matrix, `steps`, `plot` data with the numbers), an error (`text`, `code`, `start`, `len`) or
+  none. Editor services: `ml_web_highlight` (runs `[start, length, class]`), `ml_web_ghost` (also the verdict of a proof line), `ml_web_complete`,
+  `ml_web_steps`, `ml_web_hint`, `ml_web_export` (latex, mathml, markdown), `ml_web_domains`. Content: `ml_web_docs`, `ml_web_doc`, `ml_web_docs_search`,
+  `ml_web_examples`, `ml_web_example`, `ml_web_snippets`, `ml_web_snippet`, `ml_web_lessons` (the steps as data, `check` is an `MlCheck`),
+  `ml_web_themes` and `ml_web_theme_text` (a `.theme` file as colours per class, `#rrggbb` or null). `core/json.h` (`ml_json_string`, `ml_json_rows`,
+  `ml_json_number`) holds the pieces of JSON, now shared with the command line interface, which also gave `ml_value_type_name` (`math/value.h`) and
+  `ml_doc_page_json` (`docs/page.h`).
+- The module exports these as `meth_load`, `meth_lines`, `meth_edit`, ... (`source/web/api.c`: text goes in through `meth_alloc`, each call returns 0 or the
+  `MlResult`, the answer is read with `meth_result_ptr` and `meth_result_len`) and `web/js/meth.js` wraps them: `const meth = await loadMeth ("meth.wasm")`,
+  then `meth.load (file)`, `meth.edit (EDIT.replace, 3, "math", "algebra", "a * 2")`, `meth.highlight (domain, index, text)`, `meth.ghost`, `meth.complete`,
+  `meth.steps`, `meth.hint`, `meth.exportAs`, `meth.docs`, `meth.doc (id)`, `meth.searchDocs`, `meth.examples`, `meth.example (name)`, `meth.snippets`,
+  `meth.lessons`, `meth.themes ()`, `meth.themeFrom (text)`; a failure throws an `Error` with `code` (2 is an invalid index or name).
+- Tests: the native group `webapi` (109 checks, also in the module), and `web/apitest.html` / `web/js/apitest.js`, 40 checks of the page API (strings across
+  the border, unicode, errors) run by `tools/test_web.py`.
+- Not built: the notebook page; the tutorial on the page (the checks of the lessons are about keys of the editor: the page needs its own kind of check from
+  the results); user themes and settings in the browser storage; `:why` and the plot panel as a drawing (the data is there); `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.

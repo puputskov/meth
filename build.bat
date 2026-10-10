@@ -58,6 +58,9 @@ if "%CONFIG%"=="release" (
 
 rem --- the library: one cl call per folder, objects in a folder of their own
 rem (platform\config.c and platform\win32\config.c have the same name) ---
+rem every file is compiled each time, and a folder that came or went would leave
+rem the objects of another folder under its number
+if exist "%OBJ%" rmdir /s /q "%OBJ%"
 if not exist "%OBJ%" mkdir "%OBJ%"
 set N=0
 for /r "source\meth" /d %%d in (*) do (

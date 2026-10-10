@@ -147,6 +147,13 @@ typedef struct MlI64Result
 	int64_t value;
 } MlI64Result;
 
+/*
+ * The name of the kind of a value for machine readable output: "exact",
+ * "approx", "matrix", "expr", "quantity", "complex", "quaternion", "plot",
+ * "bool", "multivector" or "list".
+ */
+const char *ml_value_type_name (MlValueKind kind);
+
 /* Construction. */
 MlValue ml_value_none (void);
 MlValue ml_value_exact (MlRat x);

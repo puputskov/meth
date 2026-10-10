@@ -139,6 +139,16 @@ def same_result(native, wasm):
     return None
 
 
+def check_api(api):
+    """The page API (web/js/meth.js) against the module; returns the number
+    of checks that failed."""
+    failed = [c for c in api if not c["ok"]]
+    for c in failed:
+        print("FAIL api: %s %s" % (c["name"], c["detail"]))
+    print("%d api checks, %d failed" % (len(api), len(failed)))
+    return len(failed)
+
+
 def check_groups(groups):
     """The C test groups run inside the module (web/tests.wasm); returns the
     number of failures."""
@@ -192,6 +202,7 @@ def main():
     try:
         port = server.server_address[1]
         wasm = run_browser_retrying(browser, port, "test.html")
+        api = run_browser_retrying(browser, port, "apitest.html")
         groups = None
         if os.path.exists(os.path.join(WEB, "tests.wasm")):
             groups = run_browser_retrying(browser, port, "groups.html")
@@ -218,6 +229,7 @@ def main():
             failed += 1
             print("FAIL %s\n     %s" % (case, why))
     print("%d expressions, %d differ" % (len(cases), failed))
+    failed += check_api(api)
     failed += check_groups(groups)
     return 1 if failed else 0
 

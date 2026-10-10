@@ -83,6 +83,71 @@ MlErrorKind ml_error_from_result (MlResult status)
 	return kind;
 }
 
+const char *ml_value_type_name (MlValueKind kind)
+{
+	const char *name = "exact";
+
+	switch (kind)
+	{
+		case ML_VALUE_APPROX:
+		{
+			name = "approx";
+		} break;
+
+		case ML_VALUE_MATRIX:
+		{
+			name = "matrix";
+		} break;
+
+		case ML_VALUE_EXPR:
+		{
+			name = "expr";
+		} break;
+
+		case ML_VALUE_QUANTITY:
+		{
+			name = "quantity";
+		} break;
+
+		case ML_VALUE_COMPLEX:
+		{
+			name = "complex";
+		} break;
+
+		case ML_VALUE_QUAT:
+		{
+			name = "quaternion";
+		} break;
+
+		case ML_VALUE_PLOT:
+		{
+			name = "plot";
+		} break;
+
+		case ML_VALUE_BOOL:
+		{
+			name = "bool";
+		} break;
+
+		case ML_VALUE_LIST:
+		{
+			name = "list";
+		} break;
+
+		case ML_VALUE_MV:
+		{
+			name = "multivector";
+		} break;
+
+		default:
+		{
+			name = "exact";
+		} break;
+	}
+
+	return name;
+}
+
 MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len)
 {
 	/*

@@ -1,4 +1,6 @@
 #include <meth/cli/cli.h>
+
+#include <meth/core/json.h>
 #include <meth/docs/docs.h>
 #include <meth/export/export.h>
 #include <meth/platform/config.h>
@@ -87,54 +89,6 @@ int32_t ml_cli_needs_stdin (const MlSliceVec *args)
 	}
 
 	return needs;
-}
-
-/* A JSON string literal: quotes, escapes; UTF-8 passes through. */
-static MlResult json_string (MlStr *out, MlSlice text)
-{
-	MlResult r = add (out, "\"");
-
-	for (uint64_t i = 0; i < text.len && r == ML_OK; i++)
-	{
-		uint8_t c = (uint8_t)text.data [i];
-
-		if (c == '"' || c == '\\')
-		{
-			r = ml_str_appendf (out, "\\%c", (int32_t)c);
-		}
-
-		else if (c == '\n')
-		{
-			r = add (out, "\\n");
-		}
-
-		else if (c == '\r')
-		{
-			r = add (out, "\\r");
-		}
-
-		else if (c == '\t')
-		{
-			r = add (out, "\\t");
-		}
-
-		else if (c < 0x20)
-		{
-			r = ml_str_appendf (out, "\\u%04x", (uint32_t)c);
-		}
-
-		else
-		{
-			r = ml_str_append (out, ml_slice_sub (text, i, 1));
-		}
-	}
-
-	if (r == ML_OK)
-	{
-		r = add (out, "\"");
-	}
-
-	return r;
 }
 
 /* ---- options ---- */
@@ -346,83 +300,6 @@ static const char *const kind_names [] = {
 	[ML_LINE_UNKNOWN] = "unknown"
 };
 
-static const char *type_name (MlValueKind kind)
-{
-	return ml_choose (
-		kind == ML_VALUE_MATRIX,
-		"matrix",
-		ml_choose (
-			kind == ML_VALUE_EXPR,
-			"expr",
-			ml_choose (
-				kind == ML_VALUE_QUANTITY,
-				"quantity",
-				ml_choose (
-					kind == ML_VALUE_COMPLEX,
-					"complex",
-					ml_choose (
-						kind == ML_VALUE_QUAT,
-						"quaternion",
-						ml_choose (
-							kind == ML_VALUE_PLOT,
-							"plot",
-							ml_choose (
-								kind == ML_VALUE_BOOL,
-								"bool",
-								ml_choose (
-									kind == ML_VALUE_MV,
-									"multivector",
-								ml_choose (
-									kind == ML_VALUE_LIST,
-									"list",
-									ml_choose (
-										kind == ML_VALUE_APPROX,
-										"approx",
-										"exact"
-									)
-								)
-								)
-							)
-						)
-					)
-				)
-			)
-		)
-	);
-}
-
-/* The rows of a typeset block as a JSON array of strings. */
-static MlResult json_block (MlStr *out, MlSlice block)
-{
-	MlResult r     = add (out, "[");
-	uint64_t pos   = 0;
-	int32_t  first = 1;
-
-	while (r == ML_OK && pos < block.len)
-	{
-		MlSlice row = next_line (block, &pos);
-
-		if (!first)
-		{
-			r = add (out, ",");
-		}
-
-		first = 0;
-
-		if (r == ML_OK)
-		{
-			r = json_string (out, row);
-		}
-	}
-
-	if (r == ML_OK)
-	{
-		r = add (out, "]");
-	}
-
-	return r;
-}
-
 /* One line of a session, as one JSON object. */
 static MlResult json_line (
 	MlStr        *out,
@@ -454,7 +331,7 @@ static MlResult json_line (
 
 	if (r == ML_OK)
 	{
-		r = json_string (out, line.text);
+		r = ml_json_string (out, line.text);
 	}
 
 	if (r == ML_OK && res.kind == ML_RESULT_VALUE)
@@ -466,13 +343,13 @@ static MlResult json_line (
 				   line.domain == ML_DOMAIN_BOOLEAN
 				|| line.domain == ML_DOMAIN_LAMBDA,
 				ml_domain_name (line.domain),
-				type_name (res.value)
+				ml_value_type_name (res.value)
 			)
 		);
 
 		if (r == ML_OK)
 		{
-			r = json_string (out, res.text);
+			r = ml_json_string (out, res.text);
 		}
 
 		if (r == ML_OK && res.block.len > 0)
@@ -481,7 +358,7 @@ static MlResult json_line (
 
 			if (r == ML_OK)
 			{
-				r = json_block (out, res.block);
+				r = ml_json_rows (out, res.block);
 			}
 		}
 
@@ -491,7 +368,7 @@ static MlResult json_line (
 
 			if (r == ML_OK)
 			{
-				r = json_block (out, res.steps);
+				r = ml_json_rows (out, res.steps);
 			}
 		}
 	}
@@ -502,7 +379,7 @@ static MlResult json_line (
 
 		if (r == ML_OK)
 		{
-			r = json_string (out, res.code);
+			r = ml_json_string (out, res.code);
 		}
 
 		if (r == ML_OK)
@@ -512,7 +389,7 @@ static MlResult json_line (
 
 		if (r == ML_OK)
 		{
-			r = json_string (out, res.text);
+			r = ml_json_string (out, res.text);
 		}
 
 		if (r == ML_OK)
@@ -919,7 +796,7 @@ static int32_t cmd_lex (
 
 				if (r == ML_OK)
 				{
-					r = json_string (out, ml_token_text (text, t));
+					r = ml_json_string (out, ml_token_text (text, t));
 				}
 
 				if (r == ML_OK)
@@ -999,7 +876,7 @@ static int32_t cmd_parse (
 
 			if (r == ML_OK)
 			{
-				r = json_string (out, ml_str_view (tree));
+				r = ml_json_string (out, ml_str_view (tree));
 			}
 
 			if (r == ML_OK)
@@ -1193,7 +1070,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 				"{\"line\":%u,\"input\":",
 				(uint32_t)(idx + 1)
 			);
-			r = ml_choose (r == ML_OK, json_string (out, line.text), r);
+			r = ml_choose (r == ML_OK, ml_json_string (out, line.text), r);
 			r = ml_choose (r == ML_OK, add (out, ",\"steps\":["), r);
 
 			while (r == ML_OK && pos < text.len)
@@ -1202,7 +1079,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 
 				r = ml_choose (r == ML_OK && !first, add (out, ","), r);
 				first = 0;
-				r = ml_choose (r == ML_OK, json_string (out, row), r);
+				r = ml_choose (r == ML_OK, ml_json_string (out, row), r);
 			}
 
 			r = ml_choose (r == ML_OK, add (out, "]}\n"), r);
@@ -1277,47 +1154,9 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 
 static MlResult docs_json_page (MlStr *out, const MlDocPage *p, int32_t full)
 {
-	MlResult r = add (out, "{\"id\":");
+	MlResult r = ml_doc_page_json (out, p, full);
 
-	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->id)), r);
-	r = ml_choose (r == ML_OK, add (out, ",\"title\":"), r);
-	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->title)), r);
-	r = ml_choose (r == ML_OK, add (out, ",\"summary\":"), r);
-	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->summary)), r);
-
-	if (r == ML_OK && full)
-	{
-		r = add (out, ",\"keywords\":");
-		r = ml_choose (
-			r == ML_OK,
-			json_string (out, ml_str_view (p->keywords)),
-			r
-		);
-		r = ml_choose (r == ML_OK, add (out, ",\"see\":"), r);
-		r = ml_choose (r == ML_OK, json_string (out, ml_str_view (p->see)), r);
-		r = ml_choose (r == ML_OK, add (out, ",\"blocks\":["), r);
-
-		for (uint64_t i = 0; i < p->blocks.len && r == ML_OK; i++)
-		{
-			r = add (out, ml_choose (i > 0, ",{\"kind\":\"", "{\"kind\":\""));
-			r = ml_choose (
-				r == ML_OK,
-				add (out, ml_doc_block_name (p->blocks.data [i].kind)),
-				r
-			);
-			r = ml_choose (r == ML_OK, add (out, "\",\"text\":"), r);
-			r = ml_choose (
-				r == ML_OK,
-				json_string (out, ml_str_view (p->blocks.data [i].text)),
-				r
-			);
-			r = ml_choose (r == ML_OK, add (out, "}"), r);
-		}
-
-		r = ml_choose (r == ML_OK, add (out, "]"), r);
-	}
-
-	return ml_choose (r == ML_OK, add (out, "}\n"), r);
+	return ml_choose (r == ML_OK, add (out, "\n"), r);
 }
 
 /* One page as text: the laid out lines at 78 columns. */
@@ -1365,19 +1204,19 @@ static MlResult docs_search_out (
 			);
 			r = ml_choose (
 				r == ML_OK,
-				json_string (out, ml_str_view (p->id)),
+				ml_json_string (out, ml_str_view (p->id)),
 				r
 			);
 			r = ml_choose (r == ML_OK, add (out, ",\"title\":"), r);
 			r = ml_choose (
 				r == ML_OK,
-				json_string (out, ml_str_view (p->title)),
+				ml_json_string (out, ml_str_view (p->title)),
 				r
 			);
 			r = ml_choose (r == ML_OK, add (out, ",\"where\":"), r);
 			r = ml_choose (
 				r == ML_OK,
-				json_string (out, ml_str_view (hits.data [i].where)),
+				ml_json_string (out, ml_str_view (hits.data [i].where)),
 				r
 			);
 			r = ml_choose (r == ML_OK, add (out, "}\n"), r);
@@ -1704,7 +1543,7 @@ static MlResult config_entry (
 			o.name,
 			o.section
 		);
-		r = ml_choose (r == ML_OK, json_string (out, value), r);
+		r = ml_choose (r == ML_OK, ml_json_string (out, value), r);
 		r = ml_choose (
 			r == ML_OK,
 			ml_str_appendf (
@@ -1897,11 +1736,11 @@ static MlResult vars_json (MlStr *out, MlWatchRow w)
 {
 	MlResult r = add (out, "{\"name\":");
 
-	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (w.name)), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, ml_str_view (w.name)), r);
 	r = ml_choose (r == ML_OK, add (out, ",\"type\":"), r);
-	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (w.type)), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, ml_str_view (w.type)), r);
 	r = ml_choose (r == ML_OK, add (out, ",\"value\":"), r);
-	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (w.value)), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, ml_str_view (w.value)), r);
 	r = ml_choose (
 		r == ML_OK,
 		add (out, ml_choose (w.fresh, ",\"fresh\":true", ",\"fresh\":false")),
@@ -2004,13 +1843,13 @@ static MlResult example_json (
 {
 	MlResult r = add (out, "{\"name\":");
 
-	r = ml_choose (r == ML_OK, json_string (out, ml_example_name (i)), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, ml_example_name (i)), r);
 	r = ml_choose (r == ML_OK, add (out, ",\"area\":"), r);
-	r = ml_choose (r == ML_OK, json_string (out, ml_example_area (i)), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, ml_example_area (i)), r);
 	r = ml_choose (r == ML_OK, add (out, ",\"title\":"), r);
-	r = ml_choose (r == ML_OK, json_string (out, title), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, title), r);
 	r = ml_choose (r == ML_OK, add (out, ",\"summary\":"), r);
-	r = ml_choose (r == ML_OK, json_string (out, summary), r);
+	r = ml_choose (r == ML_OK, ml_json_string (out, summary), r);
 	r = ml_choose (r == ML_OK, add (out, "}\n"), r);
 	return r;
 }
