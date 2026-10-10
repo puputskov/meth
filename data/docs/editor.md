@@ -72,6 +72,8 @@ moves three lines.
 {ACTION_QUIT}          quit
 {ACTION_COMMAND}       the command line, see commands
 ```
+A matrix result is shown under the line while you type it, dim, as it will be once the line is entered.
+A line that calls `steps (...)` (see [functions](functions)) always shows its steps under it.
 Backspace at the start of a line joins it with the line before; Backspace
 on the first, empty line of a document turns a block into a note. The
 [commands](commands) page lists what {ACTION_COMMAND} accepts.

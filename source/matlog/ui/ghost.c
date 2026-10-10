@@ -46,6 +46,7 @@ static MlGhost ghost_logic (
 /* The preview of a line of the algebra domain. */
 static MlGhost ghost_algebra (
 	MlStr           *out,
+	MlStr           *block,
 	const MlResults *results,
 	uint64_t        idx,
 	MlSlice         text,
@@ -94,7 +95,13 @@ static MlGhost ghost_algebra (
 		)
 		{
 			g.result = ml_value_format (out, arena, v);
-			g.shown  = g.result == ML_OK;
+
+			if (g.result == ML_OK && block != NULL && v.kind == ML_VALUE_MATRIX)
+			{
+				g.result = ml_mat_typeset (block, v.matrix);
+			}
+
+			g.shown = g.result == ML_OK;
 		}
 	}
 
@@ -103,8 +110,9 @@ static MlGhost ghost_algebra (
 	return g;
 }
 
-MlGhost ml_ghost (
+MlGhost ml_ghost_block (
 	MlStr           *out,
+	MlStr           *block,
 	const MlResults *results,
 	MlDomain        domain,
 	uint64_t        idx,
@@ -123,8 +131,19 @@ MlGhost ml_ghost (
 
 	else
 	{
-		g = ghost_algebra (out, results, idx, text, domain);
+		g = ghost_algebra (out, block, results, idx, text, domain);
 	}
 
 	return g;
+}
+
+MlGhost ml_ghost (
+	MlStr           *out,
+	const MlResults *results,
+	MlDomain        domain,
+	uint64_t        idx,
+	MlSlice         text
+)
+{
+	return ml_ghost_block (out, NULL, results, domain, idx, text);
 }

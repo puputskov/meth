@@ -1057,7 +1057,9 @@ static EditRow append_edit_row (
 	uint64_t       number,
 	uint64_t       num_width,
 	uint32_t       cols,
-	MlSlice        gutter
+	MlSlice        gutter,
+	MlGhost        preview,
+	MlSlice        preview_value
 )
 {
 	EditRow row = {
@@ -1206,36 +1208,15 @@ static EditRow append_edit_row (
 	}
 
 	/* the preview of the result, dim, when the end of the text is visible */
-	if (
-		   row.result == ML_OK
-		&& ed->ghost
-		&& ed->state == ML_STATE_MATH
-		&& (
-			   ed->edit_domain == ML_DOMAIN_ALGEBRA
-			|| ed->edit_domain == ML_DOMAIN_BOOLEAN
-			|| ed->edit_domain == ML_DOMAIN_LAMBDA
-		)
-	)
+	if (row.result == ML_OK && preview.result == ML_OK && preview.shown)
 	{
-		MlStr    value;
-		MlGhost  g;
 		uint64_t used = ml_utf8_width (ml_str_view (ed->edit.text));
 
-		ml_str_init (&value);
-		g = ml_ghost (
-			&value,
-			&ed->results,
-			ed->edit_domain,
-			ed->edit_index,
-			ml_str_view (ed->edit.text)
-		);
-		row.result = g.result;
-
-		if (row.result == ML_OK && g.shown && used <= w.first_col + avail)
+		if (used <= w.first_col + avail)
 		{
 			MlResultView view = {
 				.kind = ML_RESULT_VALUE,
-				.text = ml_str_view (value)
+				.text = preview_value
 			};
 
 			row.result = append_result (
@@ -1245,9 +1226,13 @@ static EditRow append_edit_row (
 				cols - head.used - (used - w.first_col)
 			);
 		}
-
-		ml_str_free (&value);
 	}
+
+	row.result = ml_choose (
+		row.result == ML_OK,
+		preview.result,
+		row.result
+	);
 
 	row.head_used = head.used;
 	row.first_col = w.first_col;
@@ -1613,13 +1598,16 @@ static uint64_t selection_last (const MlEditor *ed)
 	);
 }
 
-/* The steps under a line that has them open. */
+/*
+ * The steps under a line: the ones opened with F3, else those of a line that
+ * asks for them with steps (...).
+ */
 static MlSlice steps_of (const MlEditor *ed, uint64_t src)
 {
 	return ml_choose (
 		ed->steps_open && ed->steps_line == src,
 		ml_str_view (ed->steps),
-		ml_slice ("", 0)
+		ml_results_get (&ed->results, src).steps
 	);
 }
 
@@ -1747,6 +1735,7 @@ typedef struct VLine
 	uint64_t   first;   /* the block of the line */
 	uint64_t   last;
 	int32_t    folded;  /* the block is one row */
+	uint64_t   ghost_rows; /* rows of the preview of a matrix under the line */
 } VLine;
 
 ML_VEC_DEFINE (VLineVec, VLine)
@@ -1760,7 +1749,8 @@ static const VLine no_line = {
 	.typing = 0,
 	.first  = 0,
 	.last   = 0,
-	.folded = 0
+	.folded = 0,
+	.ghost_rows = 0
 };
 
 /* The lines to draw, with their blocks and folds. */
@@ -1804,7 +1794,8 @@ static MlResult vlines_build (
 			.typing = editing && v == ed->edit_index,
 			.first  = v,
 			.last   = v,
-			.folded = ml_choose (fresh, 0, lv.folded)
+			.folded = ml_choose (fresh, 0, lv.folded),
+			.ghost_rows = 0
 		};
 
 		/*
@@ -1921,6 +1912,11 @@ static uint64_t line_height (
 		);
 	}
 
+	else if (!hidden && !l.folded)
+	{
+		extra = l.ghost_rows;
+	}
+
 	return ml_choose (hidden, 0, 1 + extra);
 }
 
@@ -2009,10 +2005,55 @@ static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 	uint64_t     line = 0;
 	uint64_t     sub  = 0; /* the row of the line being drawn, 0 for its own */
 
+	MlStr        gvalue;
+	MlStr        gblock;
+	MlGhost      preview = {
+		.result = ML_OK,
+		.shown  = 0
+	};
+
+	ml_str_init (&gvalue);
+	ml_str_init (&gblock);
 	VLineVec_init (&vl);
 	MlRowVec_init (&layout.rows);
 	MlRowInfoVec_init (&layout.info);
 	layout.result = vlines_build (&vl, ed, editing, editing_new, total);
+
+	/* the preview of the line being typed, once for all the rows it needs */
+	if (
+		   layout.result == ML_OK
+		&& ed->ghost
+		&& ed->state == ML_STATE_MATH
+		&& (
+			   ed->edit_domain == ML_DOMAIN_ALGEBRA
+			|| ed->edit_domain == ML_DOMAIN_BOOLEAN
+			|| ed->edit_domain == ML_DOMAIN_LAMBDA
+		)
+	)
+	{
+		preview = ml_ghost_block (
+			&gvalue,
+			&gblock,
+			&ed->results,
+			ed->edit_domain,
+			ed->edit_index,
+			ml_str_view (ed->edit.text)
+		);
+		layout.result = preview.result;
+
+		for (uint64_t v = 0; v < vl.len && layout.result == ML_OK; v++)
+		{
+			if (vl.data [v].typing)
+			{
+				vl.data [v].ghost_rows = ml_choose (
+					preview.shown,
+					block_rows (ml_str_view (gblock)),
+					0
+				);
+			}
+		}
+	}
+
 	s->top        = scroll_top (ed, &vl, s->top, focus, area);
 	line          = s->top;
 
@@ -2065,6 +2106,18 @@ static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 			);
 		}
 
+		else if (line < total && l.typing && sub > 0)
+		{
+			/* the matrix of the preview, under the line being typed */
+			layout.result = append_block_row (
+				&row,
+				block_row (ml_str_view (gblock), sub - 1),
+				num_width + 1 + ML_GUTTER_WIDTH,
+				s->cols,
+				STYLE_DIM
+			);
+		}
+
 		else if (line < total && l.typing)
 		{
 			EditRow e = append_edit_row (
@@ -2078,7 +2131,9 @@ static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 					l.domain,
 					line == l.first,
 					line == l.last
-				)
+				),
+				preview,
+				ml_str_view (gvalue)
 			);
 
 			layout.result     = e.result;
@@ -2242,6 +2297,8 @@ static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 	}
 
 	VLineVec_free (&vl);
+	ml_str_free (&gvalue);
+	ml_str_free (&gblock);
 
 	/* the hint needs room under the line being typed */
 	if (

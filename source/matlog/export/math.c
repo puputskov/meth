@@ -933,6 +933,16 @@ static MlResult expand (
 		}
 	}
 
+	else if (
+		   node.kind == ML_NODE_CALL
+		&& ml_ast_child_count (ast, at) == 2
+		&& ml_slice_equal (ml_ast_text (ast, source, a), ML_WORD_NAME (STEPS))
+	)
+	{
+		/* steps (e) is e: the call only asks for the steps of the line */
+		r = OpVec_push (seq, op_node (b, 0));
+	}
+
 	else if (node.kind == ML_NODE_CALL && ml_ast_child_count (ast, at) == 2
 			 && (ml_slice_equal (
 					 ml_ast_text (ast, source, a),

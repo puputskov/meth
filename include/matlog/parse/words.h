@@ -68,6 +68,7 @@ typedef enum MlWordId
 	ML_WORD_ID_LIMIT,
 	ML_WORD_ID_TABLE,
 	ML_WORD_ID_TRACE,
+	ML_WORD_ID_STEPS,
 	ML_WORD_ID_COUNT
 } MlWordId;
 

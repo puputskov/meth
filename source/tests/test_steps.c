@@ -235,10 +235,55 @@ static void test_logic_steps (void)
 	ml_session_free (&s);
 }
 
+/* A line of steps (...) asks for its steps, wherever the operation is. */
+static void test_steps_function (void)
+{
+	MlSession s;
+	MlResults r;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add (&s, "A = [[1, 2], [3, 4]]");
+	add (&s, "det(A)");
+	add (&s, "steps(det(A))");
+	add (&s, "steps(2 * det(A))");
+	add (&s, "d = steps(inv(A))");
+	add (&s, "steps(1 + 1)");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+
+	/* the value is the value of the argument */
+	CHECK (ml_slice_equal (ml_results_get (&r, 2).text, lit ("-2")));
+	CHECK (ml_slice_equal (ml_results_get (&r, 3).text, lit ("-4")));
+
+	/* only the lines that call steps ask for steps, and keep them */
+	CHECK (!ml_line_wants_steps (&s, 0));
+	CHECK (!ml_line_wants_steps (&s, 1));
+	CHECK (ml_line_wants_steps (&s, 2));
+	CHECK (ml_line_wants_steps (&s, 3));
+	CHECK (ml_line_wants_steps (&s, 4));
+	CHECK (ml_results_get (&r, 1).steps.len == 0);
+	CHECK (ml_results_get (&r, 2).steps.len > 0);
+	CHECK (ml_results_get (&r, 3).steps.len > 0);
+	CHECK (ml_results_get (&r, 4).steps.len > 0);
+
+	/* the same steps as the call inside gives */
+	CHECK (steps_contain (&r, &s, 2, "determinant = 1\xC2\xB7-2 = -2"));
+	CHECK (steps_contain (&r, &s, 3, "determinant = 1\xC2\xB7-2 = -2"));
+	CHECK (steps_contain (&r, &s, 4, "Row reduce the matrix"));
+
+	/* nothing to explain: the value, and no steps */
+	CHECK (ml_slice_equal (ml_results_get (&r, 5).text, lit ("2")));
+	CHECK (ml_results_get (&r, 5).steps.len == 0);
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
 void run_steps_tests (void);
 
 void run_steps_tests (void)
 {
+	test_steps_function ();
 	test_symbolic_steps ();
 	test_line_steps ();
 	test_logic_steps ();

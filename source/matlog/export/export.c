@@ -516,6 +516,17 @@ static MlResult build_blocks (
 				o.errors,
 				v.domain
 			);
+
+			/* a line of steps (...) is followed by its steps, as code */
+			if (r == ML_OK && ml_results_get (results, i).steps.len > 0)
+			{
+				r = add_block (
+					blocks,
+					block_new (B_CODE),
+					ml_results_get (results, i).steps
+				);
+			}
+
 			can_join = 0;
 		}
 

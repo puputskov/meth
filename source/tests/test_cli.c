@@ -116,6 +116,42 @@ static void test_eval_text (void)
 	run_free (&r);
 }
 
+static void test_eval_steps (void)
+{
+	Run r = run (
+		"eval",
+		"steps(det([[1,2],[3,4]]))",
+		"1 + 1",
+		NULL,
+		NULL,
+		NULL,
+		""
+	);
+
+	/* a call of steps (...) prints the steps under its result */
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (strncmp (r.out.data, "-2\n    Eliminate below", 22) == 0);
+	CHECK (
+		strstr (
+			ml_str_cstr (r.out),
+			"    determinant = 1\xC2\xB7-2 = -2\n2\n"
+		) != NULL
+	);
+	run_free (&r);
+
+	r = run (
+		"eval",
+		"--format",
+		"json",
+		"steps(det([[1,2],[3,4]]))",
+		NULL,
+		NULL,
+		""
+	);
+	CHECK (strstr (ml_str_cstr (r.out), "\"steps\":[") != NULL);
+	run_free (&r);
+}
+
 static void test_eval_json (void)
 {
 	Run r = run (
@@ -643,6 +679,7 @@ void run_cli_tests (void)
 	test_steps_command ();
 	test_eval_text ();
 	test_eval_json ();
+	test_eval_steps ();
 	test_domains ();
 	test_vars ();
 	test_session_files ();

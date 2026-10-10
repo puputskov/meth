@@ -1,4 +1,5 @@
 #include <matlog/session/results.h>
+#include <matlog/session/steps.h>
 
 #include <matlog/docs/stdlib.h>
 
@@ -37,6 +38,7 @@ static void drop_from (MlResults *r, uint64_t idx)
 	{
 		ml_str_free (&r->lines.data [i].text);
 		ml_str_free (&r->lines.data [i].block);
+		ml_str_free (&r->lines.data [i].steps);
 		ml_plot_owned_free (&r->lines.data [i].plot);
 	}
 
@@ -66,6 +68,10 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 			.data = "",
 			.len  = 0
 		},
+		.steps = {
+			.data = "",
+			.len  = 0
+		},
 		.code = {
 			.data = "",
 			.len  = 0
@@ -84,6 +90,7 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 		view.kind      = lr.kind;
 		view.text      = ml_str_view (lr.text);
 		view.block     = ml_str_view (lr.block);
+		view.steps     = ml_str_view (lr.steps);
 		view.plot      = ml_choose (
 			lr.plot.kind != ML_PLOT_NONE,
 			&r->lines.data [idx].plot,
@@ -119,6 +126,11 @@ static MlLineResult result_make (uint64_t snapshot, uint64_t logic)
 			.cap  = 0
 		},
 		.block = {
+			.data = NULL,
+			.len  = 0,
+			.cap  = 0
+		},
+		.steps = {
 			.data = NULL,
 			.len  = 0,
 			.cap  = 0
@@ -618,6 +630,7 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 
 MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from)
 {
+	MlResult res;
 	uint64_t keep = ml_choose (
 		from < r->lines.len,
 		from,
@@ -641,5 +654,16 @@ MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from)
 	}
 
 	drop_from (r, keep);
-	return run_all (r, s, keep);
+	res = run_all (r, s, keep);
+
+	/* a line of steps (...) keeps its steps with its result */
+	for (uint64_t i = keep; i < r->lines.len && res == ML_OK; i++)
+	{
+		if (ml_line_wants_steps (s, i))
+		{
+			res = ml_line_steps (&r->lines.data [i].steps, r, s, i).result;
+		}
+	}
+
+	return res;
 }

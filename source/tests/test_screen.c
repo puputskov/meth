@@ -712,6 +712,83 @@ static void test_matrix_rows (void)
 	ml_editor_free (&ed);
 }
 
+static void test_ghost_block_rows (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 50, 16);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "A = [[2, 0], [0, 3]]");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "B = [[1, 4], [-3, 4]]");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "C = A * B");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "D = inv(C)");
+	press (&ed, ML_KEY_ENTER);
+
+	/* the product being typed shows its matrix under the line, dim */
+	type (&ed, "D * C");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 12, " 5    \xE2\x94\x94 D * C"));
+	CHECK (row_is (&l, 13, "          \xE2\x8E\xA1 1 0 \xE2\x8E\xA4"));
+	CHECK (row_is (&l, 14, "          \xE2\x8E\xA3 0 1 \xE2\x8E\xA6"));
+	ml_layout_free (&l);
+
+	/* the preview follows the typing: another matrix, then no matrix */
+	press (&ed, ML_KEY_BACKSPACE);
+	type (&ed, "1");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 12, " 5    \xE2\x94\x94 D * 1"));
+	CHECK (row_has (&l, 13, "          \xE2\x8E\xA1  1/8 -1/12"));
+	ml_layout_free (&l);
+
+	for (uint64_t i = 0; i < 5; i++)
+	{
+		press (&ed, ML_KEY_BACKSPACE);
+	}
+
+	type (&ed, "2 + 2");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 12, " 5    \xE2\x94\x94 2 + 2  = 4"));
+	CHECK (row_is (&l, 13, ""));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
+static void test_steps_call_rows (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 50, 14);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "A = [[1,2],[3,4]]");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "steps(det(A))");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "1 + 1");
+	press (&ed, ML_KEY_ENTER);
+
+	/* the steps are under the line without F3, the next line follows them */
+	CHECK (!ed.steps_open);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_has (&l, 3, " 2    \xE2\x94\x82 steps(det(A))"));
+	CHECK (row_has (&l, 4, "          Eliminate below the diagonal:"));
+	CHECK (row_has (&l, 11, " 3    \xE2\x94\x94 1 + 1"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 static void test_steps_rows (void)
 {
 	MlEditor ed;
@@ -1638,6 +1715,8 @@ static void test_plot_panel (void)
 
 void run_screen_tests (void)
 {
+	test_ghost_block_rows ();
+	test_steps_call_rows ();
 	test_hint ();
 	test_watch_panel ();
 	test_plot_panel ();

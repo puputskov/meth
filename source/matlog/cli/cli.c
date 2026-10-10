@@ -482,6 +482,16 @@ static MlResult json_line (
 				r = json_block (out, res.block);
 			}
 		}
+
+		if (r == ML_OK && res.steps.len > 0)
+		{
+			r = add (out, ",\"steps\":");
+
+			if (r == ML_OK)
+			{
+				r = json_block (out, res.steps);
+			}
+		}
 	}
 
 	else if (r == ML_OK && res.kind == ML_RESULT_ERROR)
@@ -522,6 +532,24 @@ static MlResult json_line (
 	if (r == ML_OK)
 	{
 		r = add (out, "}\n");
+	}
+
+	return r;
+}
+
+/* The steps of a line that asks for them, indented under it. */
+static MlResult add_steps_rows (MlStr *out, MlSlice steps)
+{
+	MlResult r   = ML_OK;
+	uint64_t pos = 0;
+
+	while (r == ML_OK && pos < steps.len)
+	{
+		MlSlice row = next_line (steps, &pos);
+
+		r = add (out, "    ");
+		r = ml_choose (r == ML_OK, ml_str_append (out, row), r);
+		r = ml_choose (r == ML_OK, add (out, "\n"), r);
 	}
 
 	return r;
@@ -575,6 +603,11 @@ static MlResult text_line (
 	if (r == ML_OK)
 	{
 		r = add (out, "\n");
+	}
+
+	if (r == ML_OK)
+	{
+		r = add_steps_rows (out, res.steps);
 	}
 
 	return r;
@@ -656,6 +689,11 @@ static int32_t print_lines (
 			if (r == ML_OK)
 			{
 				r = add (out, "\n");
+			}
+
+			if (r == ML_OK)
+			{
+				r = add_steps_rows (out, rv.steps);
 			}
 		}
 

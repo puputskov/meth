@@ -1,7 +1,7 @@
 id: functions
 title: Functions and constants
 summary: The built in functions of the algebra domain.
-keywords: sqrt, abs, sin, cos, tan, ln, log, exp, floor, ceil, round, min, max, gcd, lcm, pi, if, not, true, false
+keywords: steps, sqrt, abs, sin, cos, tan, ln, log, exp, floor, ceil, round, min, max, gcd, lcm, pi, if, not, true, false
 see: syntax, symbolic, statistics, complex
 
 The built in functions take their arguments in parentheses:
@@ -28,6 +28,14 @@ A function you define can take a function: `apply(f, x) = f(x)` and then `apply(
 `x -> expression`; inside, the parameter is called like any function. It is not a value: it cannot
 be added, named or returned. `approx (x)` makes an exact number an approximation. See the
 [library](library) for `newton`, `simpson`, `rk4` and the others.
+
+# Steps
+`steps (e)` has the value of `e`, and marks its line: the steps of the first operation in `e` that
+has some (`det`, `inv`, `rref`, `solve`, a product of matrices, `simplify`, `expand`, `diff`,
+`integrate`, `limit`) are shown under the line without {ACTION_STEPS}, printed by `matlog eval` and
+`matlog run`, and written after the line by `:export`. The call is left out of the typeset math:
+`steps (det (A))` is exported as det A. Use it to make the lines of a tutorial or a document that
+should show their work.
 
 # Conditions
 - `if (c, a, b)` the value `a` when `c` is true, else `b`; only that branch is

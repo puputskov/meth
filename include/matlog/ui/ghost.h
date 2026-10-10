@@ -38,4 +38,18 @@ MlGhost ml_ghost (
 	MlSlice         text
 );
 
+/*
+ * Like ml_ghost, and when the value is a matrix its typeset rows (as a line
+ * with a matrix result has them under it) are appended to block, which may be
+ * NULL. The editor draws them under the line being typed.
+ */
+MlGhost ml_ghost_block (
+	MlStr           *out,
+	MlStr           *block,
+	const MlResults *results,
+	MlDomain        domain,
+	uint64_t        idx,
+	MlSlice         text
+);
+
 #endif /* MATLOG_UI_GHOST_H */

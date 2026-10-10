@@ -143,6 +143,7 @@ typedef enum MlBuiltin
 	BUILTIN_IF,
 	BUILTIN_NOT,
 	BUILTIN_APPROX,
+	BUILTIN_STEPS,
 	BUILTIN_MAP,
 	BUILTIN_FILTER,
 	BUILTIN_FOLD,
@@ -235,6 +236,7 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] = {
 	[BUILTIN_IF]    = { .name = "if",    .min = 3, .max = 3 },
 	[BUILTIN_NOT]   = { .name = "not",   .min = 1, .max = 1 },
 	[BUILTIN_APPROX] = { .name = "approx", .min = 1, .max = 1 },
+	[BUILTIN_STEPS]  = { .name = "steps",  .min = 1, .max = 1 },
 	[BUILTIN_MAP]    = { .name = "map",    .min = 2, .max = 2 },
 	[BUILTIN_FILTER] = { .name = "filter", .min = 2, .max = 2 },
 	[BUILTIN_FOLD]   = { .name = "fold",   .min = 3, .max = 3 },
@@ -1323,6 +1325,12 @@ static MlValue builtin_apply (
 			ml_value_bool (!args [0].flag),
 			error_at (ML_EVAL_TYPE)
 		);
+	}
+
+	else if (id == BUILTIN_STEPS)
+	{
+		/* its value is the value of its argument; the line asks for steps */
+		r = args [0];
 	}
 
 	else if (id == BUILTIN_APPROX)

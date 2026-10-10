@@ -244,6 +244,34 @@ static int32_t unstable (MlSlice expr, MlStr *a, MlStr *b, MlStr *call)
 	return bad;
 }
 
+/* Prints an input that failed, bytes outside printable ASCII escaped. */
+static void show_input (const char *what, MlSlice text)
+{
+	printf ("%s [", what);
+
+	for (uint64_t i = 0; i < text.len; i++)
+	{
+		uint8_t c = (uint8_t)text.data [i];
+
+		if (c == '\n')
+		{
+			printf ("\\n");
+		}
+
+		else if (c < 32 || c > 126)
+		{
+			printf ("\\x%02X", c);
+		}
+
+		else
+		{
+			printf ("%c", c);
+		}
+	}
+
+	printf ("]\n");
+}
+
 /* ---- the file readers ---- */
 
 static const char *mlog_corpus [] = {
@@ -529,7 +557,11 @@ void run_fuzz_tests (void)
 			);
 
 			file [len] = 0;
-			bad_mlog += !mlog_round_trip (ml_slice (file, len));
+			if (!mlog_round_trip (ml_slice (file, len)))
+			{
+				bad_mlog++;
+				show_input ("mlog", ml_slice (file, len));
+			}
 
 			len = mutate_text (
 				&rng,
@@ -551,7 +583,16 @@ void run_fuzz_tests (void)
 
 		for (uint64_t i = 0; i < FUZZ_RUNS / 100; i++)
 		{
-			bad_editor += !editor_run (&rng, 400);
+			Rng again = rng;
+
+			if (!editor_run (&rng, 400))
+			{
+				bad_editor++;
+				printf (
+					"editor run from state %llu\n",
+					(unsigned long long)again.state
+				);
+			}
 		}
 
 		CHECK (bad_mlog == 0);

@@ -309,6 +309,23 @@ static void test_markdown (void)
 	));
 }
 
+static void test_steps_call (void)
+{
+	/* steps (e) typesets as e, and its steps follow the line as code */
+	CHECK (export_is (
+		"m:algebra A = [[1,2],[3,4]]\nm:algebra steps(det(A))\n",
+		ML_EXPORT_MARKDOWN,
+		"",
+		"$$\nA=\\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}\n$$\n\n"
+		"$$\n\\operatorname{det}\\left(A\\right)=-2\n$$\n\n"
+		"```\nEliminate below the diagonal:\n"
+		"\xE2\x8E\xA1 1 2 \xE2\x8E\xA4\n\xE2\x8E\xA3 3 4 \xE2\x8E\xA6\n"
+		"R2 \xE2\x86\x90 R2 \xE2\x88\x92 3\xC2\xB7R1\n"
+		"\xE2\x8E\xA1 1  2 \xE2\x8E\xA4\n\xE2\x8E\xA3 0 -2 \xE2\x8E\xA6\n"
+		"determinant = 1\xC2\xB7-2 = -2\n```\n\n"
+	));
+}
+
 static void test_latex (void)
 {
 	CHECK (export_is (
@@ -765,6 +782,7 @@ void run_export_tests (void)
 	test_typeset_errors ();
 	test_escape ();
 	test_markdown ();
+	test_steps_call ();
 	test_latex ();
 	test_html ();
 	test_options ();

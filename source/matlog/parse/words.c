@@ -54,6 +54,7 @@ static const WordRow rows [] = {
 	{ .spelling = "rref", .kind = FN, .id = ML_WORD_ID_RREF },
 	{ .spelling = "rank", .kind = FN, .id = ML_WORD_ID_RANK },
 	{ .spelling = "solve", .kind = FN, .id = ML_WORD_ID_SOLVE },
+	{ .spelling = "steps", .kind = FN, .id = ML_WORD_ID_STEPS },
 	{ .spelling = "simplify", .kind = SB, .id = ML_WORD_ID_SIMPLIFY },
 	{ .spelling = "expand", .kind = SB, .id = ML_WORD_ID_EXPAND },
 	{ .spelling = "subs", .kind = SB, .id = ML_WORD_ID_SUBS },

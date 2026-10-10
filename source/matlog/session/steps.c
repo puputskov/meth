@@ -319,6 +319,116 @@ static MlLineSteps logic_steps (
 	return st;
 }
 
+ML_VEC_DEFINE (StepNodeVec, uint64_t)
+
+/* 1 when node is a call of steps (...) with one argument. */
+static int32_t is_steps_call (
+	const MlAst *ast,
+	MlSlice     source,
+	uint64_t    node
+)
+{
+	return (
+		   ml_ast_node (ast, node).kind == ML_NODE_CALL
+		&& ml_ast_child_count (ast, node) == 2
+		&& ML_WORD_IS (
+			ml_ast_text (ast, source, ml_ast_child (ast, node, 0)),
+			STEPS
+		)
+	);
+}
+
+/* The statement without its assignment: `y = steps (det (A))` is the call. */
+static uint64_t statement_core (const MlAst *ast)
+{
+	return ml_choose (
+		ml_ast_node (ast, ast->root).kind == ML_NODE_ASSIGN,
+		ml_ast_child (ast, ast->root, 1),
+		ast->root
+	);
+}
+
+/*
+ * The steps of the first operation under the node (the node itself first,
+ * then the operands from the left) that has some. Used for a line marked with
+ * steps (...), where the call may wrap any expression: steps (2 * det (A)).
+ * Explained with a stack of nodes, not by recursion.
+ */
+static void explain_first (
+	MlArena         *arena,
+	const MlResults *results,
+	uint64_t        snapshot,
+	MlSlice         source,
+	const MlAst     *ast,
+	uint64_t        start,
+	MlStepLog       *log
+)
+{
+	StepNodeVec todo;
+	MlResult    r = ML_OK;
+
+	StepNodeVec_init (&todo);
+	r = StepNodeVec_push (&todo, start);
+
+	while (r == ML_OK && todo.len > 0 && log->text.len == 0)
+	{
+		uint64_t node  = todo.data [todo.len - 1];
+		uint64_t count = ml_ast_child_count (ast, node);
+
+		todo.len--;
+		explain (arena, results, snapshot, source, ast, node, log);
+
+		/* the operands go on the stack last first: the leftmost is next */
+		for (uint64_t i = count; i > 0 && r == ML_OK; i--)
+		{
+			r = StepNodeVec_push (&todo, ml_ast_child (ast, node, i - 1));
+		}
+	}
+
+	StepNodeVec_free (&todo);
+}
+
+/* 1 when text holds the word as a part of it (a cheap test before parsing). */
+static int32_t contains (MlSlice text, MlSlice word)
+{
+	int32_t found = 0;
+
+	for (uint64_t i = 0; i + word.len <= text.len && !found; i++)
+	{
+		found = ml_slice_equal (ml_slice_sub (text, i, word.len), word);
+	}
+
+	return found;
+}
+
+int32_t ml_line_wants_steps (const MlSession *s, uint64_t idx)
+{
+	MlLineView view = ml_session_get (s, idx);
+	int32_t    want = 0;
+
+	if (
+		   view.kind == ML_LINE_MATH
+		&& ml_domain_is_math (view.domain)
+		&& contains (view.text, ML_WORD_NAME (STEPS))
+	)
+	{
+		MlParseResult p = ml_parse_mode (
+			view.text,
+			ml_domain_units (view.domain),
+			ml_domain_pga (view.domain)
+		);
+
+		want = (
+			   p.error.code == ML_PARSE_OK
+			&& p.ast.root != ML_NODE_NIL_INDEX
+			&& is_steps_call (&p.ast, view.text, statement_core (&p.ast))
+		);
+		ml_ast_free (&p.ast);
+	}
+
+	return want;
+}
+
 MlLineSteps ml_line_steps (
 	MlStr           *out,
 	const MlResults *results,
@@ -350,22 +460,38 @@ MlLineSteps ml_line_steps (
 			MlArena     *arena = ml_arena_app ();
 			MlArenaMark mark  = ml_arena_mark (arena);
 			MlStepLog   log;
-			uint64_t  core = ml_choose (
-				ml_ast_node (&p.ast, p.ast.root).kind == ML_NODE_ASSIGN,
-				ml_ast_child (&p.ast, p.ast.root, 1),
-				p.ast.root
-			);
+			uint64_t  core   = statement_core (&p.ast);
+			int32_t   marked = is_steps_call (&p.ast, view.text, core);
 
 			ml_steplog_init (&log);
-			explain (
-				arena,
-				results,
-				results->lines.data [idx].snapshot,
-				view.text,
-				&p.ast,
-				core,
-				&log
-			);
+
+			if (marked)
+			{
+				/* steps (e): the steps of e, wherever its first operation is */
+				explain_first (
+					arena,
+					results,
+					results->lines.data [idx].snapshot,
+					view.text,
+					&p.ast,
+					ml_ast_child (&p.ast, core, 1),
+					&log
+				);
+			}
+
+			else
+			{
+				explain (
+					arena,
+					results,
+					results->lines.data [idx].snapshot,
+					view.text,
+					&p.ast,
+					core,
+					&log
+				);
+			}
+
 			ml_steplog_trim (&log);
 			result.result = log.status;
 

@@ -53,6 +53,7 @@ typedef struct MlLineResult
 	MlResultKind kind;
 	MlStr        text;      /* the value or the message */
 	MlStr        block;     /* typeset rows of a matrix, else empty */
+	MlStr        steps;     /* a line of steps (...): its steps, else empty */
 	MlPlotOwned  plot;     /* the numbers of a plot, else ML_PLOT_NONE */
 	const char   *code;     /* ML_RESULT_ERROR: ml_error_code, "parse_..." */
 	MlValueKind  value;     /* ML_RESULT_VALUE: exact, approx or matrix */
@@ -69,6 +70,7 @@ typedef struct MlResultView
 	MlResultKind kind; /* ML_RESULT_NONE for a line that does not exist */
 	MlSlice      text;
 	MlSlice      block;
+	MlSlice      steps; /* the steps of a line that asks for them, else empty */
 	const MlPlotOwned *plot; /* the picture to draw, NULL for none */
 	MlSlice      code;      /* the machine readable error name, else empty */
 	MlValueKind  value;     /* the kind of a value: exact, approx or matrix */

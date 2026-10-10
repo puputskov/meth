@@ -32,6 +32,16 @@ typedef struct MlLineSteps
 } MlLineSteps;
 
 /*
+ * 1 when the line asks for its steps whatever is done: its statement is a
+ * call of steps (...), the built in function that is its argument and nothing
+ * else (`steps (det (A))`, `x = steps (simplify (...))`). The editor shows the
+ * steps under such a line, `matlog eval` and `matlog run` print them, and the
+ * export writes them without the word `steps`. ml_line_steps finds the steps
+ * of the first operation inside the call that has some.
+ */
+int32_t ml_line_wants_steps (const MlSession *s, uint64_t idx);
+
+/*
  * Appends the steps of line idx to out, as text rows separated by newlines
  * (typeset matrices included, no newline at the end).
  */
