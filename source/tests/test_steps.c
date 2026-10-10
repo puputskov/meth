@@ -1,5 +1,6 @@
 #include "test.h"
 
+#include <meth/core/utf8.h>
 #include <meth/session/steps.h>
 
 #include <string.h>
@@ -66,6 +67,81 @@ static int32_t steps_contain (
 
 	ml_str_free (&out);
 	return same;
+}
+
+/*
+ * 1 when the lines of the steps of line idx that end in a rule name in
+ * brackets, "(power rule)", have the bracket in one column (counted in code
+ * points), and there are at least `count` of them.
+ */
+static int32_t notes_aligned (
+	const MlResults *r,
+	const MlSession *s,
+	uint64_t        idx,
+	uint64_t        count
+)
+{
+	MlStr       out;
+	MlLineSteps st;
+	uint64_t    found = 0;
+	uint64_t    col   = 0;
+	uint64_t    pos   = 0;
+	int32_t     same;
+
+	ml_str_init (&out);
+	st   = ml_line_steps (&out, r, s, idx);
+	same = st.result == ML_OK && st.found;
+
+	while (same && pos < out.len)
+	{
+		uint64_t end = pos;
+		MlSlice  line;
+		uint64_t open;
+
+		while (end < out.len && out.data [end] != '\n')
+		{
+			end++;
+		}
+
+		line = ml_slice_sub (ml_str_view (out), pos, end - pos);
+		open = line.len;
+		pos  = end + 1;
+
+		for (uint64_t k = line.len; k > 0 && open == line.len; k--)
+		{
+			open = ml_choose (line.data [k - 1] == '(', k - 1, open);
+		}
+
+		if (
+			   open < line.len
+			&& line.data [line.len - 1] == ')'
+			&& line.len - open > 6
+			&& ml_slice_equal (
+				ml_slice_sub (line, line.len - 6, 6),
+				lit (" rule)")
+			)
+		)
+		{
+			uint64_t where = ml_utf8_count (ml_slice_sub (line, 0, open));
+
+			same = same && (found == 0 || where == col);
+			col  = where;
+			found++;
+		}
+	}
+
+	if (!(same && found >= count))
+	{
+		printf (
+			"  line %d: %d notes, not in one column:\n%s\n",
+			(int32_t)idx,
+			(int32_t)found,
+			ml_str_cstr (out)
+		);
+	}
+
+	ml_str_free (&out);
+	return same && found >= count;
 }
 
 static int32_t no_steps (const MlResults *r, const MlSession *s, uint64_t idx)
@@ -166,6 +242,11 @@ static void test_symbolic_steps (void)
 	CHECK (steps_contain (&r, &s, 4, "Integrate with the table:"));
 	CHECK (steps_contain (&r, &s, 6, "d/dx"));
 	CHECK (steps_contain (&r, &s, 7, "(product rule)"));
+
+	/* the rule names stand in one column, however long the steps are */
+	CHECK (notes_aligned (&r, &s, 0, 3));
+	CHECK (notes_aligned (&r, &s, 7, 2));
+	CHECK (steps_contain (&r, &s, 0, "(power rule)"));
 
 	/* no steps for a substitution */
 	CHECK (no_steps (&r, &s, 5));

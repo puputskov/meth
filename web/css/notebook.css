@@ -400,13 +400,26 @@ svg.plot .path {
 	padding: 0 0.4rem;
 }
 
-.cell.text .view {
-	padding: 0.3rem 0.5rem;
-	cursor: text;
-	min-height: 2rem;
+.cell.text .nline {
+	position: relative;
 }
 
-.cell.text .view:empty::before {
+.cell.text .view {
+	padding: 0.15rem 0.5rem;
+	min-height: 1.75rem;
+	cursor: text;
+}
+
+.cell.text .view p,
+.cell.text .view ul {
+	margin: 0;
+}
+
+.cell.text .view ul {
+	padding-left: 1.3rem;
+}
+
+.cell.text .nline.only .view:empty::before {
 	content: "Write a note…";
 	color: var(--dim);
 }
@@ -414,22 +427,22 @@ svg.plot .path {
 .cell.text textarea {
 	display: none;
 	width: 100%;
-	padding: 0.3rem 0.5rem;
+	padding: 0.15rem 0.5rem;
 	border: 0;
 	border-radius: 6px;
 	background: var(--code-bg);
 	color: var(--fg);
-	font: 0.95rem/1.55 var(--mono);
+	font: 0.95rem/1.6 var(--mono);
 	resize: none;
 	overflow: hidden;
 	outline: none;
 }
 
-.cell.text.editing .view {
+.cell.text .nline.editing .view {
 	display: none;
 }
 
-.cell.text.editing textarea {
+.cell.text .nline.editing textarea {
 	display: block;
 }
 

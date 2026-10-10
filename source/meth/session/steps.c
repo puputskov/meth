@@ -492,6 +492,7 @@ MlLineSteps ml_line_steps (
 				);
 			}
 
+			ml_steplog_align (&log);
 			ml_steplog_trim (&log);
 			result.result = log.status;
 

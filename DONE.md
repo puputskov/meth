@@ -677,6 +677,10 @@ no recompile, and the code only holds the stable code name of a text.
   `len (primes (300))` went from 265 to 230 million instructions and `len (primes (1000))` from 0.29 s to 0.26 s; a start of the program (`eval 1 + 1`) costs
   about 7 million instructions.
 
+- The notes on the steps of a rule (`(power rule)`, `(chain rule)`, `(cosine)`) stand in one column (built 2026-10-10): `diff.c` and `integrate.c` write a tab
+  in front of the note, and `ml_steplog_align` (`math/steplog.h`, called by `ml_line_steps`) turns the tabs into the spaces that put all the notes of a log three
+  spaces behind the longest step (counted in code points). The test `notes_aligned` in `test_steps.c` checks the column for a derivative and a product.
+
 ### Memory (built 2026-10-10)
 
 - `core/mem.h`: an arena is reserved address space (`platform/vm.h`: `VirtualAlloc` on Windows, `mmap` and `mprotect` on POSIX) with pages committed by

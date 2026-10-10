@@ -304,7 +304,7 @@ static void log_diff (
 		{
 			ctx->log->status = ml_str_appendf (
 				&text,
-				"   (%s)",
+				"\t(%s)",
 				ml_rule_name (name)
 			);
 		}

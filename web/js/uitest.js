@@ -119,21 +119,26 @@ try {
 	notebook.load("m:algebra hist ([1, 2, 2, 3, 3, 3], 3)\nm:algebra plot (x^2, 0, 3)\n");
 	check("plot: svg", out(0).querySelector("svg.plot") !== null);
 
-	// a text cell
+	// a text cell: lines shown rendered, the line being edited shows its source
 	notebook.load("# # Title\n# some *text*\n\nm:algebra 1 + 1\n");
-	const view = root.querySelector("section.cell.text .view");
 
-	check("note: rendered", view.querySelector("h1") !== null && view.querySelector("em") !== null);
-	view.click();
+	const noteView = (i) => root.querySelector(`.nline[data-i="${i}"] .view`);
+	const noteRow = (i) => root.querySelector(`.nline[data-i="${i}"]`);
 
-	const note = root.querySelector("section.cell.text textarea");
-
-	check("note: editing", root.querySelector("section.cell.text.editing") !== null);
-	note.value = "# Title\nmore\nlines";
-	note.dispatchEvent(new Event("input", { bubbles: true }));
-	check("note: lines follow", meth.lines(0).lines.slice(0, 3).map((l) => l.text).join("|") === "# Title|more|lines", meth.lines(0).lines.map((l) => l.text));
-	note.blur();
-	check("note: view again", root.querySelector("section.cell.text .view h1") !== null);
+	check("note: rendered", noteView(0).querySelector("h1") !== null && noteView(1).querySelector("em") !== null);
+	check("note: none is editing", root.querySelector(".nline.editing") === null);
+	noteView(1).click();
+	check("note: line editing", noteRow(1).classList.contains("editing") && !noteRow(0).classList.contains("editing"));
+	check("note: others stay rendered", getComputedStyle(noteView(0)).display !== "none" && getComputedStyle(noteView(1)).display === "none");
+	type(1, "some *text* and **more**");
+	check("note: library has it", text(1) === "some *text* and **more**", text(1));
+	press(1, "Enter");
+	check("note: enter splits", notebook.count === 5 && notebook.lines[2].kind === "note", notebook.count);
+	type(2, "- a list item");
+	area(2).blur();
+	check("note: list rendered", noteView(2).querySelector("li") !== null);
+	check("note: edited line rendered again", noteView(1).querySelector("strong") !== null);
+	check("note: stays one cell", root.querySelectorAll("section.cell.text").length === 1);
 
 	// new cells from the bars
 	const count = cells();

@@ -473,7 +473,7 @@ static void log_integral (
 		{
 			ctx->log->status = ml_str_appendf (
 				&text,
-				"   (%s)",
+				"\t(%s)",
 				ml_rule_name (rule)
 			);
 		}

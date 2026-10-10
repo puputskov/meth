@@ -45,6 +45,11 @@ function merges(a, b) {
 	);
 }
 
+// The domain a new code cell gets after line `line`: its own, or the default.
+function ml_domain(line, fallback) {
+	return line.kind === "math" ? line.domain : fallback;
+}
+
 export class Notebook {
 	constructor(meth, root, { domains, onChange, say }) {
 		this.meth = meth;
@@ -286,45 +291,61 @@ export class Notebook {
 		return row;
 	}
 
+	// A note line is shown rendered, except the one being edited, which shows
+	// its Markdown: so the text reads as the page it will be, and the marks are
+	// there to change when the caret is in the line.
 	textCell(first, last) {
 		const cell = el("section", "cell text", { "data-first": first });
+
+		cell.append(this.head(first, last, false));
+
+		for (let i = first; i <= last; i++) {
+			const row = this.noteLine(i);
+
+			row.classList.toggle("only", first === last);
+			cell.append(row);
+		}
+
+		return cell;
+	}
+
+	noteLine(i) {
+		const row = el("div", "nline", { "data-i": i });
 		const view = el("div", "view");
 		const area = el("textarea", "", {
 			rows: 1,
 			spellcheck: "true",
-			"aria-label": "Text cell",
-			"data-first": first,
+			"aria-label": `Note line ${i + 1}`,
+			"data-i": i,
 		});
-		const texts = () => this.lines.slice(first, last + 1).map((l) => l.text);
 		const grow = () => {
 			area.style.height = "auto";
 			area.style.height = `${area.scrollHeight}px`;
 		};
 
-		area.value = texts().join("\n");
-		renderNote(view, texts());
-		view.addEventListener("click", () => {
-			cell.classList.add("editing");
-			area.focus();
+		area.value = this.lines[i].text;
+		renderNote(view, [this.lines[i].text]);
+		view.addEventListener("click", () => this.focusLine(i, "end"));
+		area.addEventListener("focus", () => {
+			row.classList.add("editing");
 			grow();
 		});
-		area.addEventListener("focus", grow);
 		area.addEventListener("input", () => {
 			grow();
-			this.noteTyped(first, area);
+			this.typed(i, area);
 		});
-		area.addEventListener("keydown", (event) => this.noteKeydown(event, first, area));
+		area.addEventListener("keydown", (event) => this.keydown(event, i, area));
 		area.addEventListener("blur", () => {
-			cell.classList.remove("editing");
+			row.classList.remove("editing");
 
-			const current = this.lines[first];
+			const current = this.lines[i];
 
 			if (current && current.kind === "note") {
-				renderNote(view, this.lines.slice(current.first, current.last + 1).map((l) => l.text));
+				renderNote(view, [current.text]);
 			}
 		});
-		cell.append(this.head(first, last, false), view, area);
-		return cell;
+		row.append(view, area);
+		return row;
 	}
 
 	rawCell(first, last) {
@@ -532,8 +553,7 @@ export class Notebook {
 		if (line && line.kind === "math") {
 			area = this.root.querySelector(`textarea[data-i="${index}"]`);
 		} else if (line && line.kind === "note") {
-			area = this.root.querySelector(`textarea[data-first="${line.first}"]`);
-			area?.closest(".cell").classList.add("editing");
+			area = this.root.querySelector(`textarea[data-i="${index}"]`);
 		}
 
 		if (area) {
@@ -553,58 +573,14 @@ export class Notebook {
 
 		this.typedLine = i;
 
-		const from = this.change(EDIT.type, i, "math", line.domain, area.value, { typing: true });
+		const from = this.change(EDIT.type, i, line.kind, line.domain ?? "", area.value, { typing: true });
 
 		this.refresh(Math.min(from, i));
-		this.refreshCompletion(i, area);
+
+		if (line.kind === "math") {
+			this.refreshCompletion(i, area);
+		}
 		this.typedLine = -1;
-	}
-
-	// The text of a note cell is the text of its lines: change the lines that
-	// differ, add or remove at the end.
-	noteTyped(first, area) {
-		const cell = this.lines[first];
-		const old = this.lines.slice(cell.first, cell.last + 1).map((l) => l.text);
-		const next = area.value.split("\n");
-		let from = this.count;
-		let structural = false;
-
-		for (let k = 0; k < Math.min(old.length, next.length); k++) {
-			if (old[k] !== next[k]) {
-				from = Math.min(from, this.change(EDIT.type, cell.first + k, "note", "", next[k], { typing: true }));
-			}
-		}
-
-		for (let k = old.length; k < next.length; k++) {
-			from = Math.min(from, this.change(EDIT.insert, cell.first + k, "note", "", next[k]));
-			structural = true;
-		}
-
-		for (let k = old.length - 1; k >= next.length; k--) {
-			from = Math.min(from, this.change(EDIT.delete, cell.first + k));
-			structural = true;
-		}
-
-		if (structural || this.structure() !== this.signature) {
-			this.render({ line: cell.first, start: area.selectionStart, end: area.selectionEnd });
-			this.onChange();
-		} else {
-			this.refresh(from);
-		}
-	}
-
-	noteKeydown(event, first, area) {
-		if (event.key === "Escape") {
-			area.blur();
-		} else if (event.key === "Enter" && event.shiftKey) {
-			event.preventDefault();
-
-			const cell = this.lines[first];
-
-			this.insertCell(cell.last + 1, "math");
-		} else if (this.history(event)) {
-			event.preventDefault();
-		}
 	}
 
 	history(event) {
@@ -643,8 +619,9 @@ export class Notebook {
 	}
 
 	keydown(event, i, area) {
-		const popup = this.completion && this.completion.index === i && this.completion.items.length > 0;
 		const line = this.lines[i];
+		const popup =
+			line.kind === "math" && this.completion && this.completion.index === i && this.completion.items.length > 0;
 		const atStart = area.selectionStart === 0 && area.selectionEnd === 0;
 		const atEnd = area.selectionStart === area.value.length && area.selectionEnd === area.value.length;
 		const single = area.scrollHeight <= area.clientHeight + 4;
@@ -672,10 +649,15 @@ export class Notebook {
 			this.accept(i, area, this.completion.selected);
 		} else if (event.key === "Escape") {
 			this.hideCompletion();
-			this.paintLine(i);
+
+			if (line.kind === "math") {
+				this.paintLine(i);
+			} else {
+				area.blur();
+			}
 		} else if (event.key === "Enter" && event.shiftKey) {
 			event.preventDefault();
-			this.insertCell(line.last + 1, "math", line.domain);
+			this.insertCell(line.last + 1, "math", ml_domain(line, this.domain));
 		} else if (event.key === "Enter" && !event.ctrlKey && !event.altKey) {
 			event.preventDefault();
 			this.splitLine(i, area);
@@ -714,9 +696,9 @@ export class Notebook {
 		const before = area.value.slice(0, area.selectionStart);
 		const after = area.value.slice(area.selectionEnd);
 
-		this.change(EDIT.replace, i, "math", line.domain, before);
+		this.change(EDIT.replace, i, line.kind, line.domain ?? "", before);
 
-		const from = this.change(EDIT.insert, i + 1, "math", line.domain, after);
+		const from = this.change(EDIT.insert, i + 1, line.kind, line.domain ?? "", after);
 
 		this.render({ line: i + 1, start: 0, end: 0 });
 		this.onChange();
@@ -733,7 +715,7 @@ export class Notebook {
 		if (i > line.first) {
 			const above = this.lines[i - 1].text;
 
-			this.change(EDIT.replace, i - 1, "math", line.domain, above + text);
+			this.change(EDIT.replace, i - 1, line.kind, line.domain ?? "", above + text);
 			this.change(EDIT.delete, i);
 			this.render({ line: i - 1, start: above.length, end: above.length });
 			this.onChange();
