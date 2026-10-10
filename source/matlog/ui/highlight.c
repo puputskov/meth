@@ -241,6 +241,174 @@ static uint64_t name_end (MlSlice text, uint64_t pos, int32_t stop_at_symbol)
 	return end;
 }
 
+/* 1 when the word w stands at pos, between blanks or the ends of text. */
+static int32_t proof_word_at (MlSlice text, uint64_t pos, const char *w)
+{
+	uint64_t n  = strlen (w);
+	int32_t  ok = 0;
+
+	if (pos + n <= text.len && memcmp (text.data + pos, w, n) == 0)
+	{
+		ok = (
+			   (pos == 0 || is_blank_byte (text.data [pos - 1]))
+			&& (pos + n == text.len || is_blank_byte (text.data [pos + n]))
+		);
+	}
+
+	return ok;
+}
+
+/* The place of "by" or "given" outside brackets, text.len if there is none. */
+static uint64_t proof_split (MlSlice text, uint64_t from)
+{
+	uint64_t found = text.len;
+	int64_t  depth = 0;
+
+	for (uint64_t i = from; i < text.len && found == text.len; i++)
+	{
+		char c = text.data [i];
+
+		depth += ml_choose (c == '(' || c == '[', 1, 0);
+		depth -= ml_choose (c == ')' || c == ']', 1, 0);
+
+		if (
+			   depth == 0
+			&& (
+				   proof_word_at (text, i, "by")
+				|| proof_word_at (text, i, "given")
+			)
+		)
+		{
+			found = i;
+		}
+	}
+
+	return found;
+}
+
+/*
+ * The classes of a line of the proof domain: the words theorem, given, by and
+ * qed and the reason are keywords, the rest is formulas of the algebra.
+ */
+static MlResult classify_proof (
+	uint8_t     *cls,
+	MlSlice     text,
+	const MlEnv *env,
+	uint64_t    snapshot
+)
+{
+	MlResult r   = ML_OK;
+	uint64_t pos = 0;
+
+	while (pos < text.len && is_blank_byte (text.data [pos]))
+	{
+		pos++;
+	}
+
+	if (proof_word_at (text, pos, "theorem"))
+	{
+		uint64_t end = pos + 7;
+
+		paint (cls, pos, 7, ML_CLASS_KEYWORD);
+
+		while (end < text.len && text.data [end] != ':')
+		{
+			end++;
+		}
+
+		paint (cls, pos + 7, end - pos - 7, ML_CLASS_NAME);
+		pos = end;
+
+		if (end < text.len)
+		{
+			paint (cls, end, 1, ML_CLASS_OPERATOR);
+			pos = end + 1;
+		}
+	}
+
+	else if (proof_word_at (text, pos, "qed"))
+	{
+		paint (cls, pos, 3, ML_CLASS_KEYWORD);
+		pos += 3;
+	}
+
+	else if (proof_word_at (text, pos, "given"))
+	{
+		paint (cls, pos, 5, ML_CLASS_KEYWORD);
+		pos += 5;
+	}
+
+	else if (pos + 3 <= text.len && memcmp (text.data + pos, "...", 3) == 0)
+	{
+		paint (cls, pos, 3, ML_CLASS_OPERATOR);
+		pos += 3;
+	}
+
+	while (pos < text.len && r == ML_OK)
+	{
+		uint64_t end = proof_split (text, pos);
+
+		if (end > pos)
+		{
+			r = classify_algebra (
+				cls + pos,
+				ml_slice_sub (text, pos, end - pos),
+				env,
+				snapshot,
+				0,
+				0
+			);
+		}
+
+		pos = end;
+
+		if (end < text.len)
+		{
+			uint64_t n = ml_choose (proof_word_at (text, end, "by"), 2, 5);
+
+			paint (cls, end, n, ML_CLASS_KEYWORD);
+			pos = end + n;
+
+			if (n == 2)
+			{
+				/* the reason: a word, then a step number or a theorem name */
+				uint64_t w = pos;
+
+				while (w < text.len && is_blank_byte (text.data [w]))
+				{
+					w++;
+				}
+
+				pos = w;
+
+				while (pos < text.len && !is_blank_byte (text.data [pos]))
+				{
+					pos++;
+				}
+
+				paint (cls, w, pos - w, ML_CLASS_KEYWORD);
+
+				for (uint64_t k = pos; k < text.len; k++)
+				{
+					cls [k] = (uint8_t)ml_choose (
+						is_digit_byte (text.data [k]),
+						ML_CLASS_NUMBER,
+						ml_choose (
+							is_blank_byte (text.data [k]),
+							ML_CLASS_TEXT,
+							ML_CLASS_NAME
+						)
+					);
+				}
+
+				pos = text.len;
+			}
+		}
+	}
+
+	return r;
+}
+
 /* The classes of a line of the boolean domain. */
 static void classify_boolean (uint8_t *cls, MlSlice text)
 {
@@ -394,6 +562,11 @@ MlResult ml_highlight (
 	else if (r == ML_OK && domain == ML_DOMAIN_LAMBDA)
 	{
 		classify_lambda (cls, text);
+	}
+
+	else if (r == ML_OK && domain == ML_DOMAIN_PROOF)
+	{
+		r = classify_proof (cls, text, env, snapshot);
 	}
 
 	else if (r == ML_OK)

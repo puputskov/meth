@@ -236,6 +236,26 @@ static MlClass class_in (const char *text, uint64_t pos)
 	return class_of (ML_DOMAIN_ALGEBRA, text, pos);
 }
 
+static void test_highlight_proof (void)
+{
+	const char *step = "x + x = 2x  by simplify";
+	const char *thm  = "theorem t: x = 1";
+	const char *num  = "x = 1  by step 2";
+	const char *cont = "... = 2x  by expand";
+
+	CHECK (class_of (ML_DOMAIN_PROOF, thm, 0) == ML_CLASS_KEYWORD);
+	CHECK (class_of (ML_DOMAIN_PROOF, thm, 8) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_PROOF, thm, 9) == ML_CLASS_OPERATOR);
+	CHECK (class_of (ML_DOMAIN_PROOF, thm, 15) == ML_CLASS_NUMBER);
+	CHECK (class_of (ML_DOMAIN_PROOF, step, 0) == ML_CLASS_NAME);
+	CHECK (class_of (ML_DOMAIN_PROOF, step, 6) == ML_CLASS_OPERATOR);
+	CHECK (class_of (ML_DOMAIN_PROOF, step, 12) == ML_CLASS_KEYWORD);
+	CHECK (class_of (ML_DOMAIN_PROOF, step, 16) == ML_CLASS_KEYWORD);
+	CHECK (class_of (ML_DOMAIN_PROOF, num, 15) == ML_CLASS_NUMBER);
+	CHECK (class_of (ML_DOMAIN_PROOF, "qed", 1) == ML_CLASS_KEYWORD);
+	CHECK (class_of (ML_DOMAIN_PROOF, cont, 0) == ML_CLASS_OPERATOR);
+}
+
 static void test_highlight_logic (void)
 {
 	/* boolean: words and symbols of the operators, constants, names */
@@ -481,4 +501,5 @@ void run_theme_tests (void)
 	test_theme_file ();
 	test_highlight ();
 	test_highlight_logic ();
+	test_highlight_proof ();
 }
