@@ -24,6 +24,17 @@
  * The page `examples` is the table of contents. ml_docs_load adds them.
  */
 
+/*
+ * The areas, in the order they are shown, shared by the examples and the
+ * snippets: the word before the first dash of a name is the prefix of its
+ * area. ml_area_find gives the index of the area of a name, ml_area_count ()
+ * when its prefix is none of them.
+ */
+uint64_t ml_area_count (void);
+MlSlice ml_area_prefix (uint64_t k);
+MlSlice ml_area_title (uint64_t k);
+uint64_t ml_area_find (MlSlice name);
+
 extern const MlDocSource ml_example_sources [];
 extern const uint64_t    ml_example_source_count;
 

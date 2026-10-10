@@ -124,7 +124,7 @@ MlResult ml_mlog_parse (MlSession *s, MlSlice text)
 
 		line = ml_slice_sub (text, pos, end - pos);
 
-		if (line.len > 0 && line.data [line.len - 1] == '\r')
+		while (line.len > 0 && line.data [line.len - 1] == '\r')
 		{
 			line.len--;
 		}

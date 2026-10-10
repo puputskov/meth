@@ -25,6 +25,25 @@ static const Area areas [] = {
 	{ .prefix = "robotics", .title = "Robotics" }
 };
 
+uint64_t ml_area_count (void)
+{
+	return ml_count (areas);
+}
+
+MlSlice ml_area_prefix (uint64_t k)
+{
+	return ml_slice_cstr (
+		ml_choose (k < ml_count (areas), areas [k].prefix, "")
+	);
+}
+
+MlSlice ml_area_title (uint64_t k)
+{
+	return ml_slice_cstr (
+		ml_choose (k < ml_count (areas), areas [k].title, "")
+	);
+}
+
 uint64_t ml_example_count (void)
 {
 	return ml_example_source_count;
@@ -74,6 +93,22 @@ static MlSlice prefix_of (MlSlice name)
 	}
 
 	return ml_slice_sub (name, 0, n);
+}
+
+uint64_t ml_area_find (MlSlice name)
+{
+	MlSlice  prefix = prefix_of (name);
+	uint64_t found  = ml_count (areas);
+
+	for (uint64_t k = 0; k < ml_count (areas); k++)
+	{
+		if (ml_slice_equal (prefix, ml_slice_cstr (areas [k].prefix)))
+		{
+			found = k;
+		}
+	}
+
+	return found;
 }
 
 MlSlice ml_example_area (uint64_t i)

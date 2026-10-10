@@ -13,7 +13,9 @@
  *
  * Anything else, including a line that is not valid UTF-8, is kept as an
  * ML_LINE_UNKNOWN line holding the raw text, so loading and saving never
- * loses data. Lines end with LF or CRLF when reading and with LF when writing.
+ * loses data. Lines end with LF or CRLF when reading and with LF when writing
+ * (a carriage return left at the end of a line is dropped, so that reading
+ * what was written gives the same lines).
  * A leading UTF-8 byte order mark is ignored.
  */
 

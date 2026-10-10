@@ -1,12 +1,17 @@
 # The standard library: physics, in the physics domain (units)
+
 # kinetic (m, v): the kinetic energy, m v^2 / 2
 m:physics kinetic(m, v) = m * v^2 / 2
+
 # momentum (m, v): the momentum, m v
 m:physics momentum(m, v) = m * v
+
 # weight (m): the force of gravity on a mass m, with g = 9.80665 m/s^2
 m:physics weight(m) = m * 9.80665 m/s^2
+
 # speed (d, t): the speed of covering a distance d in a time t
 m:physics speed(d, t) = d / t
+
 # Asserts
 a:physics kinetic(2 kg, 3 m/s) to J => 9 J
 a:physics momentum(2 kg, 3 m/s) => 6 kg·m/s

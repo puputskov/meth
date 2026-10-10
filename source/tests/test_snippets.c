@@ -11,7 +11,8 @@
 #define CONFIG_DIR  "matlog_test_config/snippets"
 #define SNIPPET_DIR "matlog_test_config/snippets/snippets"
 #define MINE_FILE   "matlog_test_config/snippets/snippets/mine.mlog"
-#define QUAD_FILE   "matlog_test_config/snippets/snippets/quadratic.mlog"
+#define QUAD_FILE \
+	"matlog_test_config/snippets/snippets/algebra-quadratic.mlog"
 
 static MlSlice lit (const char *s)
 {
@@ -78,7 +79,7 @@ static void test_builtin (void)
 
 static void test_names (void)
 {
-	CHECK (ml_snippet_name_ok (lit ("linear-system")));
+	CHECK (ml_snippet_name_ok (lit ("linalg-linear-system")));
 	CHECK (ml_snippet_name_ok (lit ("a_1")));
 	CHECK (!ml_snippet_name_ok (lit ("")));
 	CHECK (!ml_snippet_name_ok (lit ("Upper")));
@@ -95,7 +96,7 @@ static void test_find (void)
 	use_test_config ();
 	ml_str_init (&text);
 
-	f = ml_snippet_find (&text, lit ("quadratic"));
+	f = ml_snippet_find (&text, lit ("algebra-quadratic"));
 	CHECK (f.result == ML_OK && f.found);
 	CHECK (strstr (ml_str_cstr (text), "discriminant") != NULL);
 
@@ -125,14 +126,19 @@ static void test_find (void)
 	CHECK (f.result == ML_OK && f.found);
 	CHECK (strstr (ml_str_cstr (text), "My own") != NULL);
 	ml_str_clear (&text);
-	f = ml_snippet_find (&text, lit ("quadratic"));
+	f = ml_snippet_find (&text, lit ("algebra-quadratic"));
 	CHECK (strstr (ml_str_cstr (text), "My quadratic") != NULL);
 
 	/* the page lists both */
 	ml_str_clear (&text);
 	CHECK (ml_snippets_page (&text) == ML_OK);
 	CHECK (strstr (ml_str_cstr (text), "# Yours\n- `mine`: My own\n") != NULL);
-	CHECK (strstr (ml_str_cstr (text), "- `linear-system`: ") != NULL);
+	CHECK (
+		strstr (
+			ml_str_cstr (text),
+			"# Linear algebra\n- `linalg-linear-system`: "
+		) != NULL
+	);
 
 	ml_fs_remove (lit (MINE_FILE));
 	ml_fs_remove (lit (QUAD_FILE));
@@ -159,7 +165,7 @@ static void test_editor (void)
 	CHECK (ed.session.lines.len == 0);
 
 	/* the lines after the summary come into the session */
-	command (&ed, ":snippet derivative");
+	command (&ed, ":snippet calculus-derivative");
 	CHECK (ed.session.lines.len == 3);
 	CHECK (ml_session_get (&ed.session, 0).kind == ML_LINE_MATH);
 	CHECK (ml_session_get (&ed.session, 0).domain == ML_DOMAIN_ALGEBRA);

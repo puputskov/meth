@@ -3857,10 +3857,60 @@ static MlResult goto_pos (MlEditor *ed, uint64_t idx, uint64_t byte)
 }
 
 /* Removes the selected text; the cursor is where it was. */
+/*
+ * The selection is inside the line being typed: the selected text goes first,
+ * from the line as it is typed. Writing the line (settle) completes the
+ * rewrite of the word before the cursor, which would move the bytes the range
+ * counts from.
+ */
+static MlResult delete_in_edit (MlEditor *ed, MlTextRange s)
+{
+	MlResult r = ml_str_erase (
+		&ed->edit.text,
+		s.first_byte,
+		s.last_byte - s.first_byte
+	);
+
+	if (r == ML_OK)
+	{
+		ed->edit.cursor = s.first_byte;
+		r               = ml_rewriter_flush (&ed->rewriter, &ed->edit);
+	}
+
+	if (r == ML_OK)
+	{
+		r = settle (ed);
+	}
+
+	return r;
+}
+
 static MlResult delete_selection (MlEditor *ed)
 {
-	MlResult    r = settle (ed);
+	MlResult    r = ML_OK;
 	MlTextRange s = ml_editor_selection (ed);
+
+	if (
+		   s.valid
+		&& s.first_line == s.last_line
+		&& s.last_byte <= ed->edit.text.len
+		&& (ed->state == ML_STATE_MATH || ed->state == ML_STATE_NOTE)
+		&& s.first_line == ml_choose (
+			ed->edit_existing,
+			ed->session.cursor,
+			ed->edit_index
+		)
+	)
+	{
+		r       = delete_in_edit (ed, s);
+		s.valid = 0;
+	}
+
+	else
+	{
+		r = settle (ed);
+		s = ml_editor_selection (ed);
+	}
 
 	if (r == ML_OK && s.valid && s.first_line == s.last_line)
 	{

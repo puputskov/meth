@@ -1,6 +1,11 @@
 #include "test.h"
 
+#include <matlog/core/utf8.h>
 #include <matlog/math/eval.h>
+#include <matlog/session/mlog.h>
+#include <matlog/session/settings.h>
+#include <matlog/ui/editor.h>
+#include <matlog/ui/theme.h>
 
 #include <string.h>
 
@@ -56,7 +61,11 @@ static const char *sym_corpus [] = {
 	"ln (x^2) - 2 ln (x)"
 };
 
-static const char alphabet [] = "0123456789+-*/^()[];, .=xyzabe!<>%_ij";
+static const char alphabet [] = (
+	"0123456789+-*/^()[];, .=xyzabe!<>%_ij"
+	"\n#:\"{}|\\$'"
+	"\xC3\xA9\x80"
+);
 
 typedef struct Rng
 {
@@ -81,19 +90,18 @@ static uint64_t rng_below (Rng *r, uint64_t n)
 	return (rng_next (r) >> 11) % n;
 }
 
-/* Copies a corpus entry and applies one to four random edits. */
-static uint64_t mutate (
-	Rng         *r,
-	const char **list,
-	uint64_t    count,
-	char        *buf,
-	uint64_t    cap
+/* Copies base (at most cap bytes) and applies one to four random edits. */
+static uint64_t mutate_text (
+	Rng        *r,
+	const char *base,
+	char       *buf,
+	uint64_t   cap
 )
 {
-	const char *base  = list [rng_below (r, count)];
-	uint64_t    len   = strlen (base);
-	uint64_t    edits = 1 + rng_below (r, 4);
+	uint64_t len   = strlen (base);
+	uint64_t edits = 1 + rng_below (r, 4);
 
+	len = ml_choose (len > cap, cap, len);
 	memcpy (buf, base, len);
 
 	for (uint64_t e = 0; e < edits; e++)
@@ -145,6 +153,18 @@ static uint64_t mutate (
 	}
 
 	return len;
+}
+
+/* A random entry of a corpus, mutated. */
+static uint64_t mutate (
+	Rng         *r,
+	const char **list,
+	uint64_t    count,
+	char        *buf,
+	uint64_t    cap
+)
+{
+	return mutate_text (r, list [rng_below (r, count)], buf, cap);
 }
 
 /* Parses and evaluates one input in a fresh environment, formats the result. */
@@ -224,6 +244,205 @@ static int32_t unstable (MlSlice expr, MlStr *a, MlStr *b, MlStr *call)
 	return bad;
 }
 
+/* ---- the file readers ---- */
+
+static const char *mlog_corpus [] = {
+	"# a note\nm:algebra 1 + 2\nm:algebra f(x) = x^2\n\n"
+	"include \"lib.mlog\"\nm:lambda (x. x) y\nm:boolean a and b\n",
+	"\xEF\xBB\xBF# bom\r\nm:physics 5 m / 2 s\r\nm:pga2 e1 + e2\r\n",
+	"m:algebra 1\nm:algebra\nm:nodomain 3\nstray text\n\n\n# end"
+};
+
+static const char *settings_corpus [] = {
+	"[theme]\nname = dark\n\n[keys]\nsave = ctrl+s\nquit = ctrl+q\n",
+	"# comment\n[s]\nk = old\n[t]\nk = other\n",
+	"k = 1\n[s]\n  k  =  spaced  \n"
+};
+
+/*
+ * Parses a text as a session file and formats it; the format is a fixed point,
+ * and valid text stays valid (a line that is not UTF-8 is kept as it is).
+ */
+static int32_t mlog_round_trip (MlSlice text)
+{
+	MlSession a;
+	MlSession b;
+	MlStr     first;
+	MlStr     second;
+	int32_t   ok = 1;
+
+	ml_session_init (&a);
+	ml_session_init (&b);
+	ml_str_init (&first);
+	ml_str_init (&second);
+
+	ok = (
+		   ok
+		&& ml_mlog_parse (&a, text) == ML_OK
+		&& ml_mlog_format (&first, &a) == ML_OK
+		&& (!ml_utf8_valid (text) || ml_utf8_valid (ml_str_view (first)))
+		&& ml_mlog_parse (&b, ml_str_view (first)) == ML_OK
+		&& ml_mlog_format (&second, &b) == ML_OK
+		&& ml_slice_equal (ml_str_view (first), ml_str_view (second))
+	);
+
+	ml_str_free (&first);
+	ml_str_free (&second);
+	ml_session_free (&a);
+	ml_session_free (&b);
+
+	return ok;
+}
+
+/* A theme file: applying what a theme prints gives that theme back. */
+static int32_t theme_round_trip (MlSlice text)
+{
+	MlTheme  a      = ml_theme_default ();
+	MlTheme  b      = ml_theme_default ();
+	MlStr    report;
+	MlStr    first;
+	MlStr    second;
+	uint64_t bad    = 0;
+	int32_t  ok     = 1;
+
+	ml_str_init (&report);
+	ml_str_init (&first);
+	ml_str_init (&second);
+
+	ok = (
+		   ok
+		&& ml_theme_apply_text (&a, text, &report, &bad) == ML_OK
+		&& ml_theme_format (&first, &a) == ML_OK
+		&& ml_theme_apply_text (&b, ml_str_view (first), NULL, &bad) == ML_OK
+		&& ml_theme_format (&second, &b) == ML_OK
+		&& ml_slice_equal (ml_str_view (first), ml_str_view (second))
+	);
+
+	ml_str_free (&report);
+	ml_str_free (&first);
+	ml_str_free (&second);
+
+	return ok;
+}
+
+/* set then get gives the value, remove then get finds nothing. */
+static int32_t settings_round_trip (MlSlice text)
+{
+	MlStr     set;
+	MlStr     gone;
+	MlSetting got;
+	int32_t   ok = 1;
+
+	ml_str_init (&set);
+	ml_str_init (&gone);
+
+	ml_settings_text_entry (text, ml_slice_cstr ("s"), 0);
+	ml_settings_text_get (text, ml_slice_cstr ("s"), ml_slice_cstr ("k"));
+
+	ok = ok && ml_settings_text_set (
+		&set,
+		text,
+		ml_slice_cstr ("s"),
+		ml_slice_cstr ("k"),
+		ml_slice_cstr ("v")
+	) == ML_OK;
+	got = ml_settings_text_get (
+		ml_str_view (set),
+		ml_slice_cstr ("s"),
+		ml_slice_cstr ("k")
+	);
+	ok = ok && got.found && ml_slice_equal (got.value, ml_slice_cstr ("v"));
+	ok = ok && ml_settings_text_remove (
+		&gone,
+		ml_str_view (set),
+		ml_slice_cstr ("s"),
+		ml_slice_cstr ("k")
+	) == ML_OK;
+	got = ml_settings_text_get (
+		ml_str_view (gone),
+		ml_slice_cstr ("s"),
+		ml_slice_cstr ("k")
+	);
+	ok = ok && !got.found;
+
+	ml_str_free (&set);
+	ml_str_free (&gone);
+
+	return ok;
+}
+
+/* ---- the editor ---- */
+
+static const MlKeyCode special_keys [] = {
+	ML_KEY_ENTER, ML_KEY_ESCAPE, ML_KEY_BACKSPACE, ML_KEY_TAB, ML_KEY_DELETE,
+	ML_KEY_LEFT, ML_KEY_RIGHT, ML_KEY_UP, ML_KEY_DOWN, ML_KEY_HOME,
+	ML_KEY_END, ML_KEY_PAGE_UP, ML_KEY_PAGE_DOWN
+};
+
+/* A random key: mostly typing, some movement, some control letters. ':' is
+ * left out so a random run never reaches the command line (:w, :open). */
+static MlKey random_key (Rng *r)
+{
+	MlKey   k    = { .code = ML_KEY_CHAR, .cp = 0, .mods = 0 };
+	uint64_t pick = rng_below (r, 10);
+
+	if (pick < 6)
+	{
+		k.cp = (uint32_t)(uint8_t)alphabet [rng_below (r, 37)];
+	}
+
+	else if (pick < 9)
+	{
+		k.code = special_keys [rng_below (r, ml_count (special_keys))];
+		k.mods = (uint32_t)rng_below (r, 8);
+	}
+
+	else
+	{
+		k.cp   = (uint32_t)('a' + rng_below (r, 26));
+		k.mods = ML_MOD_CTRL;
+	}
+
+	return k;
+}
+
+/* Random keys into an editor; the session must stay sound. */
+static int32_t editor_run (Rng *r, uint64_t keys)
+{
+	MlEditor ed;
+	MlStr    text;
+	int32_t  ok = 1;
+
+	ml_editor_init (&ed);
+	ml_str_init (&text);
+	ok = (ml_editor_begin (&ed) == ML_OK);
+
+	for (uint64_t i = 0; i < keys && ok; i++)
+	{
+		MlResult res = ml_editor_handle_key (&ed, random_key (r));
+
+		ok = (
+			   (res == ML_OK || res == ML_ERR_NOMEM || res == ML_ERR_PARSE)
+			&& ml_utf8_valid (ml_str_view (ed.edit.text))
+			&& (
+				   ed.session.cursor < ed.session.lines.len
+				|| ed.session.cursor == 0
+			)
+		);
+	}
+
+	ok = (
+		   ok
+		&& ml_mlog_format (&text, &ed.session) == ML_OK
+		&& ml_utf8_valid (ml_str_view (text))
+	);
+
+	ml_str_free (&text);
+	ml_editor_free (&ed);
+
+	return ok;
+}
+
 void run_fuzz_tests (void)
 {
 	Rng     rng = { .state = 0x9E3779B97F4A7C15ULL };
@@ -285,4 +504,60 @@ void run_fuzz_tests (void)
 
 	ml_str_free (&first);
 	ml_str_free (&second);
+
+	{
+		char     file [512];
+		MlStr    theme_text;
+		MlTheme  base;
+		uint64_t bad_mlog     = 0;
+		uint64_t bad_theme    = 0;
+		uint64_t bad_settings = 0;
+		uint64_t bad_editor   = 0;
+
+		ml_str_init (&theme_text);
+		ml_theme_builtin (&base, ml_slice_cstr ("dark"));
+		ml_theme_format (&theme_text, &base);
+
+		for (uint64_t i = 0; i < FUZZ_RUNS / 4; i++)
+		{
+			uint64_t len = mutate (
+				&rng,
+				mlog_corpus,
+				ml_count (mlog_corpus),
+				file,
+				sizeof file - 1
+			);
+
+			file [len] = 0;
+			bad_mlog += !mlog_round_trip (ml_slice (file, len));
+
+			len = mutate_text (
+				&rng,
+				theme_text.data,
+				file,
+				sizeof file - 1
+			);
+			bad_theme += !theme_round_trip (ml_slice (file, len));
+
+			len = mutate (
+				&rng,
+				settings_corpus,
+				ml_count (settings_corpus),
+				file,
+				sizeof file - 1
+			);
+			bad_settings += !settings_round_trip (ml_slice (file, len));
+		}
+
+		for (uint64_t i = 0; i < FUZZ_RUNS / 100; i++)
+		{
+			bad_editor += !editor_run (&rng, 400);
+		}
+
+		CHECK (bad_mlog == 0);
+		CHECK (bad_theme == 0);
+		CHECK (bad_settings == 0);
+		CHECK (bad_editor == 0);
+		ml_str_free (&theme_text);
+	}
 }

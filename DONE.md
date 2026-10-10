@@ -483,6 +483,8 @@ generated static website.
   with placeholders; Tab moves to the next one). Built in snippets (a matrix template, a loop style sum, a rotation) plus the user's own in a
   `snippets` file in the settings folder; they appear in autocompletion (section 4.3) and in the help.
 
+**Snippets are grouped (2026-10-10):** the names start with the area, as those of the examples (`algebra-quadratic`, `calculus-derivative`, `linalg-linear-system`, `units-conversion`, `logic-truth-table`, `lambda-church-numerals`), and the page `snippets` has a heading per area (`ml_area_*` in `docs/examples.h` is the one table of areas). The files of `data/stdlib` have an empty line between the groups of definitions, each group under its comment.
+
 **Built so far (2026-10-10):** `examples/*.mlog` (eleven examples, compiled in, one help page each with the live results, the contents page `examples`,
 `:examples`, `:example NAME` which inserts the lines after the cursor, `matlog examples [NAME]`), `snippets/*.mlog` (nine, plus the user's files in the
 `snippets` folder of the settings folder; `:snippet [NAME]`, the page `snippets`). Every example is run by a test and must not have an error. Not built:

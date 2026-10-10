@@ -1,6 +1,7 @@
 #include "test.h"
 #include "test_keys.h"
 
+#include <matlog/core/utf8.h>
 #include <matlog/platform/fs.h>
 #include <matlog/ui/editor.h>
 
@@ -1883,8 +1884,31 @@ static void test_fix_units (void)
 	ml_editor_free (&ed);
 }
 
+/*
+ * Typing over a selection that ends at the cursor: the word before the
+ * selection is completed after the selected text is gone (found by the
+ * fuzzer: "^7" with the 7 selected, then "<", left half a character).
+ */
+static void test_type_over_selection (void)
+{
+	MlEditor ed;
+	MlKey    sel = { .code = ML_KEY_RIGHT, .cp = 0, .mods = ML_MOD_SHIFT };
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "7");
+	press (&ed, ML_KEY_HOME);
+	type (&ed, "^");
+	CHECK (ml_editor_handle_key (&ed, sel) == ML_OK);
+	type (&ed, "<");
+	CHECK (ml_utf8_valid (ml_str_view (ed.edit.text)));
+	CHECK (edit_is (&ed, "^<"));
+	ml_editor_free (&ed);
+}
+
 void run_editor_tests (void)
 {
+	test_type_over_selection ();
 	test_fix_units ();
 	test_insert ();
 	test_note ();

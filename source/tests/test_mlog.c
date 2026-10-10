@@ -80,6 +80,14 @@ static void test_line_endings (void)
 	CHECK (ml_slice_equal (ml_session_get (&s, 2).text, lit ("x")));
 	ml_session_free (&s);
 
+	/* a carriage return left over before the CRLF is dropped too */
+	ml_session_init (&s);
+	CHECK (ml_mlog_parse (&s, lit ("# a\r\r\n# b\r")) == ML_OK);
+	CHECK (s.lines.len == 2);
+	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("a")));
+	CHECK (ml_slice_equal (ml_session_get (&s, 1).text, lit ("b")));
+	ml_session_free (&s);
+
 	ml_session_init (&s);
 	CHECK (ml_mlog_parse (&s, lit ("")) == ML_OK);
 	CHECK (s.lines.len == 0);

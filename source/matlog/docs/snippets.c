@@ -1,5 +1,6 @@
 #include <matlog/docs/snippets.h>
 
+#include <matlog/docs/examples.h>
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
@@ -307,15 +308,50 @@ static MlResult page_text (MlStr *out, int32_t with_user)
 			"snippets are session files named `NAME.mlog` in the folder "
 			"`snippets` of the settings folder (see [settings](settings)); "
 			"the first note of the file is its summary, and a file hides "
-			"the built in snippet of the same name.\n"
-			"\n"
-			"# Built in\n"
+			"the built in snippet of the same name. The names start with the "
+			"area they belong to, as the names of the "
+			"[examples](examples) do.\n"
 		)
 	);
 
-	for (uint64_t i = 0; i < ml_snippet_count () && r == ML_OK; i++)
+	/* the built in ones, a heading for each area (the last one: no area) */
+	for (uint64_t k = 0; k <= ml_area_count () && r == ML_OK; k++)
 	{
-		r = page_item (out, ml_snippet_name (i), ml_snippet_text (i));
+		int32_t any = 0;
+
+		for (uint64_t i = 0; i < ml_snippet_count () && r == ML_OK; i++)
+		{
+			if (ml_area_find (ml_snippet_name (i)) == k)
+			{
+				if (!any)
+				{
+					r = ml_str_appendf (
+						out,
+						"\n# %.*s\n",
+						(int)ml_choose (
+							k < ml_area_count (),
+							ml_area_title (k).len,
+							5
+						),
+						ml_choose (
+							k < ml_area_count (),
+							ml_area_title (k).data,
+							"Other"
+						)
+					);
+					any = 1;
+				}
+
+				if (r == ML_OK)
+				{
+					r = page_item (
+						out,
+						ml_snippet_name (i),
+						ml_snippet_text (i)
+					);
+				}
+			}
+		}
 	}
 
 	if (r == ML_OK && with_user)
