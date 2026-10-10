@@ -521,5 +521,16 @@ place_extra = {key}: the place {place} is not in the English text
 bad_lines = {count} lines are no entry
 ok = no problems
 
+# The report of matlog docs check; {id} is the page, {detail} what is wrong.
+[docs_check]
+see_missing = {id}: see: no such page {detail}
+link_missing = {id}: link: no such page {detail}
+id_file = {id}: id is not the name of the file {detail}
+id_twice = {id}: id is used twice
+unreachable = {id}: cannot be reached from the index
+example_bad = {id}: {detail}
+example_differs = example `{text}` gives `{got}`, the page says `{want}`
+no_index = there is no page `index`
+
 # The lessons of the tutorial are in the files lessons/en/*.mltext, one lesson per
 # file, built into the program in the same way and read in the order of their names.

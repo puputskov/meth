@@ -2,6 +2,7 @@
 #include <matlog/docs/examples.h>
 #include <matlog/docs/snippets.h>
 
+#include <matlog/texts/texts.h>
 #include <matlog/session/results.h>
 #include <matlog/session/session.h>
 
@@ -352,26 +353,30 @@ ML_VEC_DEFINE (U64Vec, uint64_t)
 ML_VEC_DEFINE (SliceVec, MlSlice)
 ML_VEC_DEFINE (ByteVec, uint8_t)
 
-/* A problem of a page, as a line of the report. */
+/*
+ * A line of the report, from the docs_check section of the texts; counts a
+ * problem. The places are {id} (the page) and {detail}.
+ */
 static MlResult problem (
 	MlStr           *report,
 	uint64_t        *problems,
 	const MlDocPage *p,
-	const char      *what,
+	const char      *code,
 	MlSlice         detail
 )
 {
-	MlResult r = ml_str_appendf (
-		report,
-		"%.*s: %s%s%.*s\n",
-		(int)p->id.len,
-		p->id.data,
-		what,
-		ml_choose (detail.len > 0, " ", ""),
-		(int)detail.len,
-		detail.data
-	);
+	MlTextArg args [2] = {
+		{ .name = "id",     .value = ml_str_view (p->id) },
+		{ .name = "detail", .value = detail }
+	};
 
+	MlResult  r = ml_text_fill (report, ml_text (code), args, 2);
+
+	r = ml_choose (
+		r == ML_OK,
+		ml_str_append (report, ml_slice_cstr ("\n")),
+		r
+	);
 	(*problems)++;
 	return r;
 }
@@ -434,7 +439,7 @@ static MlResult page_links (
 
 		else if (id.len > 0 && report != NULL)
 		{
-			r = problem (report, problems, p, "see: no such page", id);
+			r = problem (report, problems, p, "docs_check.see_missing", id);
 		}
 	}
 
@@ -467,7 +472,7 @@ static MlResult page_links (
 						report,
 						problems,
 						p,
-						"link: no such page",
+						"docs_check.link_missing",
 						links.data [k].target
 					);
 				}
@@ -597,15 +602,22 @@ MlResult ml_docs_check_example (
 
 		if (r == ML_OK && !ml_slice_equal (ml_str_view (got), want.data [i]))
 		{
-			r = ml_str_appendf (
+			MlTextArg args [3] = {
+				{ .name = "text", .value = in.text },
+				{ .name = "got",  .value = ml_str_view (got) },
+				{ .name = "want", .value = want.data [i] }
+			};
+
+			r = ml_text_fill (
 				report,
-				"example `%.*s` gives `%.*s`, the page says `%.*s`\n",
-				(int)in.text.len,
-				in.text.data,
-				(int)got.len,
-				got.data,
-				(int)want.data [i].len,
-				want.data [i].data
+				ml_text ("docs_check.example_differs"),
+				args,
+				3
+			);
+			r = ml_choose (
+				r == ML_OK,
+				ml_str_append (report, ml_slice_cstr ("\n")),
+				r
 			);
 			(*problems)++;
 		}
@@ -644,7 +656,7 @@ MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems)
 				report,
 				problems,
 				p,
-				"id is not the name of the file",
+				"docs_check.id_file",
 				ml_slice_cstr (ml_doc_sources [i].name)
 			);
 		}
@@ -655,7 +667,7 @@ MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems)
 				report,
 				problems,
 				p,
-				"id is used twice",
+				"docs_check.id_twice",
 				ml_slice ("", 0)
 			);
 		}
@@ -683,7 +695,13 @@ MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems)
 
 				if (r == ML_OK && n > 0)
 				{
-					r = problem (report, problems, p, "", ml_str_view (bad));
+					r = problem (
+						report,
+						problems,
+						p,
+						"docs_check.example_bad",
+						ml_str_view (bad)
+					);
 					(*problems) += n - 1;
 				}
 
@@ -699,7 +717,17 @@ MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems)
 
 		if (home >= d->pages.len)
 		{
-			r = ml_str_appendf (report, "there is no page `index`\n");
+			r = ml_text_fill (
+				report,
+				ml_text ("docs_check.no_index"),
+				NULL,
+				0
+			);
+			r = ml_choose (
+				r == ML_OK,
+				ml_str_append (report, ml_slice_cstr ("\n")),
+				r
+			);
 			(*problems)++;
 		}
 
@@ -748,7 +776,7 @@ MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems)
 						report,
 						problems,
 						&d->pages.data [i],
-						"cannot be reached from the index",
+						"docs_check.unreachable",
 						ml_slice ("", 0)
 					);
 				}

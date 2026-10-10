@@ -7,13 +7,11 @@ When a task is finished: delete it here, and write what was built into its secti
 
 ## 1. Next candidates, in a sensible order
 
-1. **Texts in files, the rest** (4.24): the texts inside the export writers and the docs build (names of the page kinds, `matlog docs` output), and the
-   placeholders of the website build (waits for the website build).
-2. **Faster evaluation, still**: `MlValue` (280 bytes) is passed and returned by value at every step (`eval_with`, `finish`, `step_call`) and `MlBinding` (about
+1. **Faster evaluation, still**: `MlValue` (280 bytes) is passed and returned by value at every step (`eval_with`, `finish`, `step_call`) and `MlBinding` (about
    450 bytes) is copied by `call_target` and `MlScope.func`; the zero fill of the limbs of small big numbers (`limbs_new`, 260 thousand calls for `primes (300)`)
    and `ml_value_none` (a 280 byte clear, 90 thousand calls) are the next costs in the profile. Writing results in place, a smaller value (the kinds that
    exclude each other in a union, after checking that nothing reads a field of another kind) or passing values by index into the value stack would help.
-3. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 4); **PGA rest** (section 5).
+2. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 4); **PGA rest** (section 5).
 
 ## 2. Not built, per section of DONE.md
 
@@ -40,7 +38,7 @@ Short list of what each built section says it still lacks. The details are in th
 - **4.21 Watch window**: moving into the panel, Enter to expand, `d` to jump to the definition, sorting and filtering, the theme classes
   `watch-name`, `watch-type`, `watch-value`, a panel under the editor for narrow terminals.
 - **4.22 Statistics**: `load_csv`, a seeded random generator, `t` and `chi2` quantiles and tests, lists longer than 64 numbers, data with units.
-- **4.24 Texts**, **4.25 Words**: see section 1.
+- **4.24 Texts**: the placeholders of the website build. **4.25 Words**: the long tables of built in functions, the names `i j k` of `hyper`, the Greek letters of the export table.
 - **9b Matrices**: nothing open except what 4.17 lists.
 - **9c Symbolic**: limits of infinity minus infinity and series; integrals with a squared quadratic factor in the denominator, cubics and quartics
   without rational roots, trigonometric substitution; `solve` of systems of equations in the algebra domain, complex roots, cubic and quartic formulas,
