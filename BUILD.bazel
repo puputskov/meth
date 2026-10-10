@@ -1,0 +1,88 @@
+# The same build as premake5.lua, the Makefile and CMakeLists.txt, for Bazel:
+#
+#	bazel build //:matlog
+#	bazel test //:tests
+#	bazel run //:matlog
+#
+# Outputs go to bazel-bin. The Windows files and the POSIX files of the
+# platform layer are picked by the target platform.
+
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+# A warning is an error (/WX, and -Werror in the Makefile).
+COPTS = select({
+    "@platforms//os:windows": [
+        "/W4",
+        "/WX",
+        "/std:c11",
+        "/D_CRT_SECURE_NO_WARNINGS",
+    ],
+    "//conditions:default": [
+        "-std=gnu11",
+        "-Wall",
+        "-Wextra",
+        "-Wno-comment",
+        "-Werror",
+    ],
+})
+
+# The math functions are in libm outside of Windows.
+LINKOPTS = select({
+    "@platforms//os:windows": [],
+    "//conditions:default": ["-lm"],
+})
+
+cc_library(
+    name = "matlog_lib",
+    srcs = glob(
+        [
+            "source/matlog/**/*.c",
+            "source/matlog/**/*.h",
+        ],
+        exclude = [
+            "source/matlog/platform/posix/**",
+            "source/matlog/platform/win32/**",
+        ],
+    ) + select({
+        "@platforms//os:windows": glob(["source/matlog/platform/win32/**/*.c"]),
+        "//conditions:default": glob(["source/matlog/platform/posix/**/*.c"]),
+    }),
+    hdrs = glob(["include/**/*.h"]),
+    copts = COPTS,
+    includes = ["include"],
+    linkopts = LINKOPTS,
+)
+
+# The interactive shell
+cc_binary(
+    name = "matlog",
+    srcs = glob(["source/app/**/*.c"]),
+    copts = COPTS,
+    deps = [":matlog_lib"],
+)
+
+# Unit tests. They read the sources and the data (the documentation build is
+# checked against data/), so those files are part of the test's runfiles.
+cc_test(
+    name = "tests",
+    srcs = glob([
+        "source/tests/**/*.c",
+        "source/tests/**/*.h",
+    ]),
+    copts = COPTS,
+    data = glob([
+        "source/**",
+        "include/**",
+        "data/**",
+        "tools/**",
+    ]),
+    deps = [":matlog_lib"],
+)
+
+# Prints decoded key events, for trying out the console layer by hand
+cc_binary(
+    name = "keydemo",
+    srcs = glob(["source/demo/**/*.c"]),
+    copts = COPTS,
+    deps = [":matlog_lib"],
+)

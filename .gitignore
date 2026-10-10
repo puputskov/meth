@@ -17,3 +17,7 @@ scratch.mlog
 *.a
 *.tmp
 matlog_test_config/
+
+# Bazel
+bazel-*
+MODULE.bazel.lock

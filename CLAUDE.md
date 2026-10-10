@@ -19,6 +19,14 @@ whole, find the section with `grep -n '^### ' DONE.md` and read only that one. `
 `make test` builds with gcc into `build/make/` and runs the tests, `make test T=eval` only the group `eval` (`make groups` lists them). Every group
 prints its name and its check count, so the last name on the screen is the group that hangs.
 
+## Other ways to build
+
+All of them build the same three programs (`matlog`, `tests`, `keydemo`) from the same files, warnings as errors, and none of them needs the others:
+`premake5 vs2022` (the Visual Studio solution), `make test` (gcc or clang), `cmake -S . -B build/cmake && cmake --build build/cmake && ctest --test-dir build/cmake`
+(`-DML_SANITIZE=ON` for the sanitizers), `bazel build //:matlog` / `bazel test //:tests`, and the scripts that call the compiler directly,
+`./build.sh [matlog|tests|keydemo|all] [debug|release] [run]` and `build.bat` (same arguments, finds Visual Studio with vswhere) into `build/direct/`.
+A new source file is found by all of them without a change (they glob the folders); a new OS specific folder needs a change in each.
+
 ## Warnings
 
 Warnings are errors: `warnings "Extra"` with `fatalwarnings { "All" }` in `premake5.lua` (`/WX`) and `-Wall -Wextra -Werror` in the `Makefile`. Fix the cause of a warning,
