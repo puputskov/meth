@@ -424,3 +424,75 @@ input.rename {
 		overflow-x: auto;
 	}
 }
+
+/* ---- the tutorial panel ---- */
+
+.tutorial {
+	flex: none;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem 1rem;
+	padding: 0.55rem 0.9rem;
+	background: var(--accent-soft);
+	border-bottom: 1px solid var(--line-strong);
+}
+
+.tutorial[hidden] {
+	display: none;
+}
+
+.tutorial .head {
+	display: flex;
+	align-items: center;
+	gap: 0.7rem;
+	flex: none;
+}
+
+.tutorial .count {
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+.tutorial .dots i {
+	display: inline-block;
+	width: 0.55rem;
+	height: 0.55rem;
+	margin-right: 0.25rem;
+	border: 1px solid var(--accent);
+	border-radius: 50%;
+}
+
+.tutorial .dots i.on {
+	background: var(--accent);
+}
+
+.tutorial .body {
+	flex: 1 1 18rem;
+	min-width: 0;
+}
+
+.tutorial .body p {
+	margin: 0.1rem 0;
+}
+
+.tutorial .hint {
+	font-style: italic;
+}
+
+.tutorial .ok {
+	color: var(--accent);
+	font-weight: 600;
+}
+
+.tutorial .keys {
+	display: flex;
+	gap: 0.4rem;
+}
+
+.tutorial .keys button {
+	padding: 0.25rem 0.7rem;
+	border: 1px solid var(--line-strong);
+	border-radius: 6px;
+	background: var(--panel);
+}

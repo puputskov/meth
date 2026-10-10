@@ -4,6 +4,7 @@
 
 import { App } from "./app.js";
 import { Help } from "./help.js";
+import { Tutorial } from "./tutorial.js";
 import { loadMeth } from "./meth.js";
 import { cycleMode, initTheme } from "./theme.js";
 import { MemoryStorage, Workspace, baseName } from "./workspace.js";
@@ -121,6 +122,8 @@ async function main() {
 			}
 		},
 	});
+
+	const tutorial = new Tutorial(meth, document.getElementById("tutorial"), { app, ws, say, store: storage() });
 
 	// ---- the side bar ------------------------------------------------------
 
@@ -295,6 +298,7 @@ async function main() {
 		},
 		theme: () => say(`Theme: ${cycleMode()}`),
 		help: () => help.toggle(),
+		tutorial: () => (tutorial.active ? tutorial.end() : tutorial.begin()),
 	};
 
 	for (const button of document.querySelectorAll("[data-act]")) {
@@ -342,7 +346,11 @@ async function main() {
 		help.open(location.hash.slice(6) || "index");
 	}
 
-	window.meth = { app, ws }; // for looking around in the console
+	if (location.hash === "#tutorial") {
+		tutorial.begin();
+	}
+
+	window.meth = { app, ws, tutorial }; // for looking around in the console
 }
 
 main().catch((error) => {

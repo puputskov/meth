@@ -117,6 +117,7 @@ try {
 	check("snippet: text", meth.snippet(snippets[0].name).includes("m:"));
 	const lessons = meth.lessons();
 	check("lessons", lessons.length > 3 && lessons[0].steps.length > 0, lessons.length);
+	check("lessons: a step with a text for the page", lessons.some((l) => l.steps.some((s) => s.web !== "")));
 
 	const themes = meth.themes();
 	check("themes: builtin", themes.length >= 4 && themes[0].name === "dark");

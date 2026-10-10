@@ -201,6 +201,7 @@ export class App {
 			onChange: () => {
 				clearTimeout(doc.timer);
 				doc.timer = setTimeout(() => this.save(doc.path), SAVE_MS);
+				this.emit("change");
 			},
 		});
 		this.docs.set(path, doc);

@@ -1193,7 +1193,13 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   with the real elements and drag and drop, 63 checks), `web/uitest.html` (the notebook, 64 checks) and `web/apitest.html` (50 checks), `tools/test_web.py` runs all.
 - Tests of the page: `web/uitest.html` / `web/js/uitest.js` drive the notebook as a user does (typing, keys, clicks on the buttons, the completion, steps,
   plots, a text cell, the help, an empty notebook), 33 checks, and `tools/test_web.py` also loads `index.html` and checks that the welcome notebook is shown.
-- Not built: the tutorial on the page (the checks of the lessons are about keys of the editor: the page needs its own kind of check from
-  the results); user themes and settings in the browser storage; moving cells and selecting several lines; the
+- **Tutorial on the page (built 2026-10-10):** `web/js/tutorial.js` plays the lessons of stage 2 (the ones whose checks are results: `result`, `error`,
+  `value`) in a scratch file `Tutorial.meth` of the workspace, with a panel above the tabs (title, dots for the steps, the task, a hint after five changes
+  that did not do it, back, skip, leave). It watches the `change` event of the app: a step is done when a line written since the step began has the
+  result (the start moves past the line that did the step, so an earlier line does not count twice). A step may have a `web` entry in the lesson file, the
+  text for the page when the terminal text names a key (`ml_web_lessons` gives it as `web`). Progress (the last finished lesson id) is in
+  `localStorage` `meth.tutorial`. Started by the `tutorial` button of the bar or `#tutorial`. Not built: lessons about the page itself (cells, steps,
+  files), stage 1.
+- Not built: user themes and settings in the browser storage; moving cells and selecting several lines; the
   ghost preview of a new line (the results are live, so only the completion text is shown); the page on a real phone (the headless browser has a minimum
   width); `:why`; `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.

@@ -6,6 +6,7 @@
 
 import { App } from "./app.js";
 import { loadMeth } from "./meth.js";
+import { Tutorial } from "./tutorial.js";
 import { MemoryStorage, Workspace } from "./workspace.js";
 
 const status = document.getElementById("status");
@@ -260,6 +261,50 @@ try {
 	check("empty: no notebook, a message", app.docs.size === 0 && panes.querySelector(".empty-state") !== null && shown().length === 0);
 	ws.open("Welcome.meth");
 	check("empty: gone again", panes.querySelector(".empty-state") === null && shown().join() === "Welcome.meth");
+
+	// the tutorial: lessons played in a scratch file
+	{
+		const panel = document.getElementById("tutorial");
+		const tut = new Tutorial(meth, panel, { app, ws, say: () => {}, store: new MemoryStorage() });
+		const before = [...ws.files.keys()];
+
+		check("tutorial: lessons of the result kind", tut.lessons.length >= 5 && tut.lessons[0].id === "numbers", tut.lessons.length);
+		tut.begin();
+		check("tutorial: a scratch file and the first task", tut.active && !panel.hidden && ws.files.has(tut.path) && !before.includes(tut.path) && panel.querySelector(".task").textContent.startsWith("Write a line whose result is 1/2"), panel.textContent);
+
+		const notebook = () => app.docs.get(tut.path).notebook;
+		const write = (text) => notebook().insertText(notebook().count - 1, `m:algebra ${text}`);
+
+		write("2/3");
+		check("tutorial: a wrong result keeps the step", tut.step === 0 && tut.misses > 0, [tut.step, tut.misses]);
+		write("2/4");
+		check("tutorial: the right result moves on", tut.step === 1 && panel.querySelector(".task").textContent.includes("-4"), [tut.step, panel.textContent]);
+		write("2/4");
+		check("tutorial: an earlier line does not count again", tut.step === 1, tut.step);
+		write("-2^2");
+		check("tutorial: the next step", tut.step === 2, tut.step);
+
+		tut.skip();
+		tut.skip();
+		tut.back();
+		check("tutorial: skip and back", tut.step >= 2 && !tut.done, tut.step);
+
+		while (!tut.done) {
+			tut.skip();
+		}
+
+		check("tutorial: lesson done, remembered", panel.querySelector(".ok") !== null && tut.finished() === "numbers", tut.finished());
+		tut.enter(tut.lesson + 1);
+		check("tutorial: next lesson", tut.lesson === 1 && !tut.done && panel.querySelector(".dots") !== null, tut.lesson);
+		tut.end();
+		check("tutorial: leaving hides the panel", !tut.active && panel.hidden);
+
+		const again = new Tutorial(meth, panel, { app, ws, say: () => {}, store: tut.store });
+
+		again.begin();
+		check("tutorial: resumes after the last finished lesson", again.lesson === 1, again.lesson);
+		again.end();
+	}
 
 	// the explorer with nothing in it
 	for (const path of [...ws.files.keys()]) {
