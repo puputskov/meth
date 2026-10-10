@@ -39,19 +39,24 @@ void ml_texts_clear (void)
 	started = 1;
 }
 
-static uint64_t find (MlSlice key)
+static uint64_t find_in (const EntryVec *v, MlSlice key)
 {
-	uint64_t found = entries.len;
+	uint64_t found = v->len;
 
-	for (uint64_t i = 0; i < entries.len && found == entries.len; i++)
+	for (uint64_t i = 0; i < v->len && found == v->len; i++)
 	{
-		if (ml_slice_equal (ml_str_view (entries.data [i].key), key))
+		if (ml_slice_equal (ml_str_view (v->data [i].key), key))
 		{
 			found = i;
 		}
 	}
 
 	return found;
+}
+
+static uint64_t find (MlSlice key)
+{
+	return find_in (&entries, key);
 }
 
 /* Sets the text of a key: replaces the one there, or adds the entry. */
@@ -752,5 +757,239 @@ MlResult ml_text_fill (
 		}
 	}
 
+	return r;
+}
+
+/* ---- checking a translation ---- */
+
+static void free_vec (EntryVec *v)
+{
+	for (uint64_t i = 0; i < v->len; i++)
+	{
+		ml_str_free (&v->data [i].key);
+		ml_str_free (&v->data [i].text);
+	}
+
+	EntryVec_free (v);
+}
+
+/* 1 when the text has a place {name}. */
+static int32_t has_place (MlSlice text, MlSlice name)
+{
+	int32_t found = 0;
+
+	for (uint64_t i = 0; i + name.len + 2 <= text.len && !found; i++)
+	{
+		found = (
+			   text.data [i] == '{'
+			&& ml_slice_equal (ml_slice_sub (text, i + 1, name.len), name)
+			&& text.data [i + 1 + name.len] == '}'
+		);
+	}
+
+	return found;
+}
+
+/* One line of the report, from the texts_check section; counts a problem. */
+static MlResult report_line (
+	MlStr           *report,
+	uint64_t        *problems,
+	const char      *code,
+	const MlTextArg *args,
+	uint64_t        count
+)
+{
+	MlResult r = ml_text_fill (report, ml_text (code), args, count);
+
+	r = ml_choose (r == ML_OK, ml_str_append (report, ml_slice_cstr ("\n")), r);
+	(*problems)++;
+	return r;
+}
+
+/* Adds a line of the report for every place of `from` that `to` lacks. */
+static MlResult compare_places (
+	MlStr    *report,
+	uint64_t *problems,
+	MlSlice  key,
+	MlSlice  from,
+	MlSlice  to,
+	const char *code
+)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t i = 0; i < from.len && r == ML_OK; i++)
+	{
+		uint64_t end = i + 1;
+
+		while (
+			   from.data [i] == '{'
+			&& end < from.len
+			&& (
+				   (from.data [end] >= 'a' && from.data [end] <= 'z')
+				|| (from.data [end] >= 'A' && from.data [end] <= 'Z')
+				|| (from.data [end] >= '0' && from.data [end] <= '9')
+				|| from.data [end] == '_'
+			)
+		)
+		{
+			end++;
+		}
+
+		if (
+			   from.data [i] == '{'
+			&& end > i + 1
+			&& end < from.len
+			&& from.data [end] == '}'
+			&& !has_place (to, ml_slice_sub (from, i + 1, end - i - 1))
+		)
+		{
+			MlSlice   place = ml_slice_sub (from, i, end - i + 1);
+			MlTextArg a [2] = {
+				{ .name = "key",   .value = key },
+				{ .name = "place", .value = place }
+			};
+
+			r = report_line (report, problems, code, a, 2);
+		}
+	}
+
+	return r;
+}
+
+/* 1 when the translation has an entry of the same section and group as key. */
+static int32_t group_present (const EntryVec *trans, MlSlice key)
+{
+	uint64_t dot   = 0;
+	uint64_t group = 0;
+	int32_t  found = 0;
+
+	while (dot < key.len && key.data [dot] != '.')
+	{
+		dot++;
+	}
+
+	group = dot + 1;
+
+	/* the entries of a lesson are lessons.<id>.<what>: the group is the id */
+	if (dot == 7 && memcmp (key.data, "lessons", 7) == 0)
+	{
+		while (group < key.len && key.data [group] != '.')
+		{
+			group++;
+		}
+	}
+
+	else
+	{
+		group = dot;
+	}
+
+	for (uint64_t i = 0; i < trans->len && !found; i++)
+	{
+		MlSlice other = ml_str_view (trans->data [i].key);
+
+		found = (
+			   other.len >= group
+			&& ml_slice_equal (
+				ml_slice_sub (other, 0, group),
+				ml_slice_sub (key, 0, group)
+			)
+		);
+	}
+
+	return found;
+}
+
+MlResult ml_texts_check (MlStr *report, MlSlice text, uint64_t *problems)
+{
+	EntryVec saved   = entries;
+	uint64_t gen     = generation;
+	int32_t  was     = started;
+	EntryVec english;
+	EntryVec trans;
+	uint64_t bad     = 0;
+	uint64_t none    = 0;
+	MlResult r;
+
+	if (problems == NULL)
+	{
+		problems = &none;
+	}
+
+	*problems = 0;
+	EntryVec_init (&entries);
+	r       = add_built_in ();
+	english = entries;
+	EntryVec_init (&entries);
+	r       = ml_choose (r == ML_OK, ml_texts_add (text, &bad), r);
+	trans   = entries;
+	entries = saved;
+	generation = gen;
+	started    = was;
+
+	for (uint64_t i = 0; i < english.len && r == ML_OK; i++)
+	{
+		MlSlice key = ml_str_view (english.data [i].key);
+		uint64_t at = find_in (&trans, key);
+
+		if (at == trans.len && group_present (&trans, key))
+		{
+			MlTextArg a = { .name = "key", .value = key };
+
+			r = report_line (report, problems, "texts_check.missing", &a, 1);
+		}
+
+		else if (at < trans.len)
+		{
+			MlSlice e = ml_str_view (english.data [i].text);
+			MlSlice t = ml_str_view (trans.data [at].text);
+
+			r = compare_places (
+				report,
+				problems,
+				key,
+				e,
+				t,
+				"texts_check.place_missing"
+			);
+			r = ml_choose (
+				r == ML_OK,
+				compare_places (
+					report,
+					problems,
+					key,
+					t,
+					e,
+					"texts_check.place_extra"
+				),
+				r
+			);
+		}
+	}
+
+	for (uint64_t i = 0; i < trans.len && r == ML_OK; i++)
+	{
+		MlSlice key = ml_str_view (trans.data [i].key);
+
+		if (find_in (&english, key) == english.len)
+		{
+			MlTextArg a = { .name = "key", .value = key };
+
+			r = report_line (report, problems, "texts_check.unknown", &a, 1);
+		}
+	}
+
+	if (r == ML_OK && bad > 0)
+	{
+		char      n [ML_TEXT_NUMBER];
+		MlTextArg a = { .name = "count", .value = ml_text_number (n, bad) };
+
+		r = report_line (report, problems, "texts_check.bad_lines", &a, 1);
+		*problems += bad - 1;
+	}
+
+	free_vec (&english);
+	free_vec (&trans);
 	return r;
 }

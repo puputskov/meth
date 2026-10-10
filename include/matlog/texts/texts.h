@@ -115,6 +115,17 @@ const char *ml_texts_language (void);
 /* Puts the entries of a catalog text over the ones there (bad: see above). */
 MlResult ml_texts_add (MlSlice text, uint64_t *bad);
 
+/*
+ * Compares a catalog text (a translation) with the built in English one and
+ * appends a line to the report for each problem: an entry of the English
+ * texts that the translation lacks (only in the sections and the lessons it
+ * has some entries of, so a file with one lesson is not blamed for the
+ * others), an entry the English texts do not have, a {place} that the
+ * translation lost or added, and lines that are no entry. problems gets
+ * their number. The texts in use are not changed.
+ */
+MlResult ml_texts_check (MlStr *report, MlSlice text, uint64_t *problems);
+
 /* Forgets everything, including the built in texts (for the tests). */
 void ml_texts_clear (void);
 

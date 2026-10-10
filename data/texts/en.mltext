@@ -189,6 +189,15 @@ ghost = the preview of the result while typing
 # The help of the command line (matlog help, matlog syntax, matlog schema):
 # blocks, the lines as they are.
 [help]
+texts = <<
+matlog texts check [FILE]
+
+Compares a translation with the built in English texts: the entries it
+lacks, the entries the program does not know, and the places like {name}
+that were lost or added. Without FILE it reads texts/LANGUAGE.mltext of the
+settings folder (the setting language). A file of one lesson is only blamed
+for the entries of that lesson. Exit code 1 when anything is found.
+>>
 overview = <<
 matlog: an exact math shell. Without a command it opens the interactive editor.
 
@@ -210,6 +219,7 @@ commands:
   examples [NAME]   the worked examples, or one as a .mlog file
   vars FILE[:LINE]  the names defined at a line, with type and value
   schema         the shape of the JSON output
+  texts check [FILE]   the gaps and mistakes of a translation
   commands       the list of commands (--format json for tools)
   version        the version
 
@@ -380,6 +390,7 @@ config = read and change the settings
 examples = worked examples as session files
 vars = the names defined at a line of a file
 schema = shape of the JSON output
+texts = check the texts of a translation
 commands = list of commands
 version = the version
 
@@ -423,6 +434,7 @@ session_needs_a_file = --session needs a file
 domain_needs_a_domain_name = --domain needs a domain name
 unknown_option = unknown option
 try_help = try: matlog help
+texts_needs_check = texts needs check [FILE]
 
 # Labels of the screen. {title} is the title of the help page.
 [ui]
@@ -449,6 +461,16 @@ The action, its keys and what it does. `:map KEY ACTION` binds a key,
 ```keys
 {table}```
 >>
+
+# The report of matlog texts check; {key} is the code of an entry, {place}
+# a place like {name} of a text.
+[texts_check]
+missing = missing: {key}
+unknown = not a known text: {key}
+place_missing = {key}: the place {place} of the English text is not in the translation
+place_extra = {key}: the place {place} is not in the English text
+bad_lines = {count} lines are no entry
+ok = no problems
 
 # The lessons of the tutorial are in the files lessons/en/*.mltext, one lesson per
 # file, built into the program in the same way and read in the order of their names.

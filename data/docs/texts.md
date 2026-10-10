@@ -59,6 +59,18 @@ number in `[hints]`). What your file does not have stays English, and a code
 that no file has is shown as the code itself, so a missing text is easy to
 find. A line in your file that is not an entry is ignored.
 
+# Checking a translation
+`matlog texts check FILE` compares a catalog file with the English texts and
+lists what is wrong: entries the file lacks (only in the sections it has some
+entries of, and for the lessons only the ones it has), entries the program does
+not know, places like `{name}` that the translation lost or added, and lines
+that are no entry. Without FILE it checks `texts/LANGUAGE.mltext` of the
+settings folder. The exit code is 1 when anything is found.
+
+```code
+matlog texts check de.mltext
+```
+
 # The lessons
 The lessons of the [tutorial](tutorial) are catalog files too, one lesson per
 file: `lessons/en/01-notes.mltext`, `02-math.mltext` and so on in the sources.

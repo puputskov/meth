@@ -161,6 +161,107 @@ static void test_block (void)
 	CHECK (ml_text_count ("help") == 4);
 }
 
+static int32_t has_line (const MlStr *report, const char *line)
+{
+	MlSlice r    = ml_str_view (*report);
+	MlSlice want = lit (line);
+	int32_t found = 0;
+
+	for (uint64_t i = 0; i + want.len <= r.len && !found; i++)
+	{
+		found = (
+			   ml_slice_equal (ml_slice_sub (r, i, want.len), want)
+			&& (i == 0 || r.data [i - 1] == '\n')
+			&& (i + want.len == r.len || r.data [i + want.len] == '\n')
+		);
+	}
+
+	return found;
+}
+
+static void test_check (void)
+{
+	MlStr    report;
+	uint64_t problems = 99;
+
+	ml_str_init (&report);
+	CHECK (ml_texts_reload ("en", NULL) == ML_OK);
+
+	/* the English texts themselves are fine */
+	CHECK (
+		ml_texts_check (
+			&report,
+			lit (
+				"[errors]\n"
+				"div_zero = division by zero\n"
+				"[messages]\n"
+				"exported = exported to {path}\n"
+			),
+			&problems
+		) == ML_OK
+	);
+	CHECK (problems > 0);
+	CHECK (!has_line (&report, "not a known text: errors.div_zero"));
+	CHECK (!has_line (&report, "missing: errors.div_zero"));
+	CHECK (has_line (&report, "missing: errors.syntax"));
+	CHECK (!has_line (&report, "missing: messages.exported"));
+
+	/* mistakes: a place lost, a place added, an unknown entry, a bad line */
+	ml_str_clear (&report);
+	CHECK (
+		ml_texts_check (
+			&report,
+			lit (
+				"[messages]\n"
+				"exported = exportiert nach {pfad}\n"
+				"theme_ignored = ({count} ignoriert)\n"
+				"nothing_like_this = x\n"
+				"this is no entry\n"
+			),
+			&problems
+		) == ML_OK
+	);
+	CHECK (
+		has_line (
+			&report,
+			"messages.exported: the place {path} of the English text is not "
+			"in the translation"
+		)
+	);
+	CHECK (
+		has_line (
+			&report,
+			"messages.exported: the place {pfad} is not in the English text"
+		)
+	);
+	CHECK (
+		has_line (
+			&report,
+			"messages.theme_ignored: the place {report} of the English text "
+			"is not in the translation"
+		)
+	);
+	CHECK (has_line (&report, "not a known text: messages.nothing_like_this"));
+	CHECK (has_line (&report, "1 lines are no entry"));
+	CHECK (!has_line (&report, "missing: errors.syntax"));
+
+	/* a file of one lesson is only blamed for the entries of that lesson */
+	ml_str_clear (&report);
+	CHECK (
+		ml_texts_check (
+			&report,
+			lit ("[lessons]\nnotes.title = Notizen\n"),
+			&problems
+		) == ML_OK
+	);
+	CHECK (has_line (&report, "missing: lessons.notes.stage"));
+	CHECK (!has_line (&report, "missing: lessons.math.title"));
+
+	/* the texts in use are the same as before */
+	CHECK (is (ml_text ("errors.div_zero"), "division by zero"));
+	ml_str_free (&report);
+}
+
 static void test_override_and_add (void)
 {
 	ml_texts_reload ("en", NULL);
@@ -452,6 +553,7 @@ void run_texts_tests (void)
 {
 	test_format ();
 	test_block ();
+	test_check ();
 	test_override_and_add ();
 	test_fill ();
 	test_language_file ();

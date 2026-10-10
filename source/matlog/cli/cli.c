@@ -1,6 +1,7 @@
 #include <matlog/cli/cli.h>
 #include <matlog/docs/docs.h>
 #include <matlog/export/export.h>
+#include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
 
 #include <matlog/parse/parser.h>
@@ -34,6 +35,7 @@ static const char *const commands [] = {
 	"examples",
 	"vars",
 	"schema",
+	"texts",
 	"commands",
 	"version"
 };
@@ -1965,6 +1967,87 @@ static MlResult example_json (
 	return r;
 }
 
+/* matlog texts check [FILE]: the gaps and mistakes of a translation. */
+static int32_t cmd_texts (const Options *o, MlStr *out, MlStr *err)
+{
+	int32_t  code = ML_EXIT_OK;
+	MlStr    path;
+	MlStr    text;
+	uint64_t problems = 0;
+	MlResult r        = ML_OK;
+
+	ml_str_init (&path);
+	ml_str_init (&text);
+
+	if (o->rest.len < 1 || o->rest.len > 2 || !is (o->rest.data [0], "check"))
+	{
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.texts_needs_check"),
+			ml_slice ("", 0)
+		);
+	}
+
+	else if (o->rest.len == 2)
+	{
+		r = ml_str_append (&path, o->rest.data [1]);
+	}
+
+	else
+	{
+		MlStr dir;
+
+		ml_str_init (&dir);
+		ml_texts_use_settings (NULL);
+		r = ml_config_dir (&dir);
+		r = ml_choose (
+			r == ML_OK,
+			ml_str_appendf (
+				&path,
+				"%s/texts/%s.mltext",
+				ml_str_cstr (dir),
+				ml_texts_language ()
+			),
+			r
+		);
+		ml_str_free (&dir);
+	}
+
+	if (code == ML_EXIT_OK && r == ML_OK)
+	{
+		r = ml_fs_read_file (&text, ml_str_view (path));
+
+		if (r != ML_OK)
+		{
+			code = ML_EXIT_IO;
+			file_error (err, "cli_msg.cannot_read_path", ml_str_view (path));
+		}
+	}
+
+	if (code == ML_EXIT_OK && r == ML_OK)
+	{
+		r = ml_texts_check (out, ml_str_view (text), &problems);
+
+		if (r == ML_OK && problems == 0)
+		{
+			r = add (out, ml_text ("texts_check.ok"));
+			r = ml_choose (r == ML_OK, add (out, "\n"), r);
+		}
+
+		code = ml_choose (problems > 0, ML_EXIT_ERROR, ML_EXIT_OK);
+	}
+
+	if (r != ML_OK && code == ML_EXIT_OK)
+	{
+		code = ML_EXIT_IO;
+		err_line (err, "cli_msg.out_of_memory");
+	}
+
+	ml_str_free (&path);
+	ml_str_free (&text);
+	return code;
+}
+
 static int32_t cmd_examples (const Options *o, MlStr *out, MlStr *err)
 {
 	MlResult r    = ML_OK;
@@ -2163,6 +2246,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "schema"))
 	{
 		add (out, ml_text ("help.schema"));
+	}
+
+	else if (is (cmd, "texts"))
+	{
+		code = cmd_texts (&o, out, err);
 	}
 
 	else if (is (cmd, "commands"))

@@ -564,6 +564,46 @@ static void test_vars (void)
 	run_free (&r);
 }
 
+static void test_texts_check (void)
+{
+	const char *file = "matlog_test_texts.tmp";
+	Run         r;
+
+	CHECK (
+		ml_fs_write_file_atomic (
+			lit (file),
+			lit ("[errors]\ndiv_zero = Division durch null\n")
+		) == ML_OK
+	);
+
+	r = run ("texts", "check", file, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_ERROR);
+	CHECK (strstr (ml_str_cstr (r.out), "missing: errors.syntax") != NULL);
+	CHECK (strstr (ml_str_cstr (r.out), "errors.div_zero") == NULL);
+	run_free (&r);
+
+	r = run ("texts", "check", "data/texts/en.mltext", NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (out_is (&r, "no problems\n"));
+	run_free (&r);
+
+	r = run ("texts", "check", "no_such_file.mltext", NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_IO);
+	CHECK (err_has (&r, "cannot read no_such_file.mltext"));
+	run_free (&r);
+
+	r = run ("texts", NULL, NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_USAGE);
+	run_free (&r);
+
+	r = run ("help", "texts", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (strstr (ml_str_cstr (r.out), "matlog texts check") != NULL);
+	run_free (&r);
+
+	ml_fs_remove (lit (file));
+}
+
 void run_cli_tests (void);
 
 void run_cli_tests (void)
@@ -577,5 +617,6 @@ void run_cli_tests (void)
 	test_lex_parse ();
 	test_usage ();
 	test_help ();
+	test_texts_check ();
 	test_codes_documented ();
 }
