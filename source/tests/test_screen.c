@@ -198,7 +198,7 @@ static void test_basic_layout (void)
 	CHECK (l.rows.len == 6);
 	CHECK (row_has (&l, 0, " 1 alg> 1+2"));
 	CHECK (row_has (&l, 1, " 2    \xE2\x94\x94 x"));
-	CHECK (row_is (&l, 2, " 3 pg2> A = 1"));
+	CHECK (row_has (&l, 2, " 3 pg2> A = 1"));
 	CHECK (row_is (&l, 3, " 4 a note"));
 	CHECK (row_is (&l, 4, ""));
 	CHECK (row_is (&l, 5, "-- NOTE -- pga2>           [no name] [+]"));

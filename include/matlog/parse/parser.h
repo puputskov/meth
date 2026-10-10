@@ -141,6 +141,7 @@ typedef struct MlAst
 	MlNodeVec nodes;
 	uint64_t  root; /* the statement: an expression, = or def; 0 if empty */
 	int32_t   units; /* parsed with units: "to" is the conversion operator */
+	int32_t   pga;   /* 2 or 3 on a line of a pga domain, else 0 */
 } MlAst;
 
 typedef enum MlParseCode
@@ -193,6 +194,13 @@ typedef struct MlParseResult
  * line is evaluated with units wherever it is called from.
  */
 MlParseResult ml_parse_units (MlSlice source, int32_t units);
+
+/*
+ * The same for a line of a pga domain: pga is 2 or 3 (0 for none), the
+ * dimension of the algebra, and the names e0 e1 e12 ... are the basis blades
+ * there (pga.h). units is 0 on such a line.
+ */
+MlParseResult ml_parse_mode (MlSlice source, int32_t units, int32_t pga);
 MlParseResult ml_parse (MlSlice source);
 
 void ml_ast_free (MlAst *ast);

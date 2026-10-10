@@ -1,5 +1,7 @@
 #include <matlog/math/env.h>
 
+#include <matlog/math/pga.h>
+
 void ml_env_init (MlEnv *env)
 {
 	ml_arena_init (&env->arena, 0);
@@ -112,6 +114,11 @@ static MlValue copy_scalar (MlArena *arena, MlValue v)
 	else if (v.kind == ML_VALUE_MATRIX)
 	{
 		out.matrix = copy_mat (arena, v.matrix);
+	}
+
+	else if (v.kind == ML_VALUE_MV)
+	{
+		out = ml_mv_copy (arena, v);
 	}
 
 	else if (v.kind == ML_VALUE_COMPLEX || v.kind == ML_VALUE_QUAT)
@@ -240,6 +247,7 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		&& value.kind != ML_VALUE_MATRIX
 		&& value.kind != ML_VALUE_EXPR
 		&& value.kind != ML_VALUE_QUANTITY
+		&& value.kind != ML_VALUE_MV
 		&& value.kind != ML_VALUE_COMPLEX
 		&& value.kind != ML_VALUE_QUAT
 		&& value.kind != ML_VALUE_PLOT
@@ -299,6 +307,7 @@ static MlResult copy_ast (MlAst *out, const MlAst *ast)
 	MlNodeVec_init (&out->nodes);
 	out->root  = ast->root;
 	out->units = ast->units;
+	out->pga   = ast->pga;
 	r          = MlNodeVec_reserve (&out->nodes, ast->nodes.len);
 
 	if (r == ML_OK && ast->nodes.len > 0)

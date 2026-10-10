@@ -368,6 +368,9 @@ static const char *type_name (MlValueKind kind)
 								kind == ML_VALUE_BOOL,
 								"bool",
 								ml_choose (
+									kind == ML_VALUE_MV,
+									"multivector",
+								ml_choose (
 									kind == ML_VALUE_LIST,
 									"list",
 									ml_choose (
@@ -375,6 +378,7 @@ static const char *type_name (MlValueKind kind)
 										"approx",
 										"exact"
 									)
+								)
 								)
 							)
 						)
@@ -934,9 +938,10 @@ static int32_t cmd_parse (
 	else
 	{
 		MlSlice       text = text_argument (o, stdin_text);
-		MlParseResult p    = ml_parse_units (
+		MlParseResult p    = ml_parse_mode (
 			text,
-			o->domain == ML_DOMAIN_PHYSICS
+			ml_domain_units (o->domain),
+			ml_domain_pga (o->domain)
 		);
 		MlStr         tree;
 		MlResult      r    = ML_OK;

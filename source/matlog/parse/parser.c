@@ -1575,6 +1575,11 @@ MlParseResult ml_parse (MlSlice source)
 
 MlParseResult ml_parse_units (MlSlice source, int32_t units)
 {
+	return ml_parse_mode (source, units, 0);
+}
+
+MlParseResult ml_parse_mode (MlSlice source, int32_t units, int32_t pga)
+{
 	MlParseResult result;
 	Parser        p;
 	MlLexResult   lexed = ml_lex (source);
@@ -1605,6 +1610,7 @@ MlParseResult ml_parse_units (MlSlice source, int32_t units)
 	p.error.at_end = 0;
 	p.ast.root     = NIL;
 	p.ast.units    = units;
+	p.ast.pga      = pga;
 	MlNodeVec_init (&p.ast.nodes);
 
 	/* index 0 is the nil node, so the first real node is number 1 */

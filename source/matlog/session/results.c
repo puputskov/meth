@@ -254,12 +254,13 @@ static MlResult run_math (
 	MlArena      *arena,
 	MlLineResult *lr,
 	MlSlice      source,
-	int32_t      units
+	MlDomain     domain
 )
 {
-	MlResult      r    = ML_OK;
-	MlParseResult p    = ml_parse_units (source, units);
-	MlArenaMark   mark = ml_arena_mark (arena);
+	int32_t       units = ml_domain_units (domain);
+	MlResult      r     = ML_OK;
+	MlParseResult p     = ml_parse_mode (source, units, ml_domain_pga (domain));
+	MlArenaMark   mark  = ml_arena_mark (arena);
 
 	if (is_blank (source))
 	{
@@ -269,7 +270,7 @@ static MlResult run_math (
 
 	else if (
 		   p.error.code != ML_PARSE_OK
-		&& !units
+		&& domain == ML_DOMAIN_ALGEBRA
 		&& units_work (res, arena, source)
 	)
 	{
@@ -304,7 +305,7 @@ static MlResult run_math (
 		);
 
 		if (
-			   !units
+			   domain == ML_DOMAIN_ALGEBRA
 			&& v.kind == ML_VALUE_ERROR
 			&& v.error == ML_EVAL_UNDEFINED_NAME
 			&& units_work (res, arena, source)
@@ -480,21 +481,9 @@ static MlResult run_line (
 {
 	MlResult r = ML_OK;
 
-	if (
-		   view.kind == ML_LINE_MATH
-		&& (
-			   view.domain == ML_DOMAIN_ALGEBRA
-			|| view.domain == ML_DOMAIN_PHYSICS
-		)
-	)
+	if (view.kind == ML_LINE_MATH && ml_domain_is_math (view.domain))
 	{
-		r = run_math (
-			res,
-			arena,
-			lr,
-			view.text,
-			view.domain == ML_DOMAIN_PHYSICS
-		);
+		r = run_math (res, arena, lr, view.text, view.domain);
 	}
 
 	else if (

@@ -3,6 +3,7 @@
 #include <matlog/core/heap.h>
 #include <matlog/logic/bool.h>
 #include <matlog/math/eval.h>
+#include <matlog/math/pga.h>
 #include <matlog/math/unit.h>
 #include <matlog/parse/lexer.h>
 #include <matlog/parse/words.h>
@@ -36,7 +37,8 @@ static MlClass name_class (
 	const MlEnv *env,
 	uint64_t    snapshot,
 	int32_t     called,
-	int32_t     units
+	int32_t     units,
+	int32_t     pga
 )
 {
 	MlBinding b = { .kind = ML_BIND_NONE };
@@ -69,7 +71,10 @@ static MlClass name_class (
 		c = ML_CLASS_KEYWORD;
 	}
 
-	else if (ml_word_find (name).kind == ML_WORD_CONSTANT)
+	else if (
+		   ml_word_find (name).kind == ML_WORD_CONSTANT
+		|| (pga != 0 && ml_mv_is_blade (pga, name))
+	)
 	{
 		c = ML_CLASS_CONSTANT;
 	}
@@ -130,7 +135,8 @@ static MlResult classify_algebra (
 	MlSlice     text,
 	const MlEnv *env,
 	uint64_t    snapshot,
-	int32_t     units
+	int32_t     units,
+	int32_t     pga
 )
 {
 	MlLexResult lex = ml_lex (text);
@@ -146,7 +152,14 @@ static MlResult classify_algebra (
 		);
 		MlClass c      = ml_choose (
 			t.kind == ML_TOK_NAME,
-			name_class (ml_token_text (text, t), env, snapshot, called, units),
+			name_class (
+				ml_token_text (text, t),
+				env,
+				snapshot,
+				called,
+				units,
+				pga
+			),
 			token_classes [t.kind]
 		);
 
@@ -390,7 +403,8 @@ MlResult ml_highlight (
 			text,
 			env,
 			snapshot,
-			domain == ML_DOMAIN_PHYSICS
+			domain == ML_DOMAIN_PHYSICS,
+			ml_domain_pga (domain)
 		);
 	}
 

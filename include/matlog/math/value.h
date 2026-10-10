@@ -36,6 +36,7 @@ typedef enum MlValueKind
 	ML_VALUE_PLOT,     /* a picture to draw, see plotdata.h */
 	ML_VALUE_BOOL,     /* true or false: the result of a comparison */
 	ML_VALUE_LIST,     /* a sequence of values of any length, see below */
+	ML_VALUE_MV,       /* a multivector of the projective geometric algebra */
 	ML_VALUE_FUNC,     /* a function passed as an argument, see below */
 	ML_VALUE_ERROR
 } MlValueKind;
@@ -125,6 +126,7 @@ typedef struct MlValue
 	MlRat       scale;  /* quantity: SI value of one show, if show is set */
 	MlMat       matrix; /* ML_VALUE_MATRIX */
 	const MlHyper *hyper; /* ML_VALUE_COMPLEX, ML_VALUE_QUAT (in an arena) */
+	const struct MlMv *mv; /* ML_VALUE_MV, see pga.h (in an arena) */
 	const MlSym *sym;   /* ML_VALUE_EXPR */
 	const MlPlotData *plot; /* ML_VALUE_PLOT */
 	int32_t     flag;   /* ML_VALUE_BOOL: 1 for true */

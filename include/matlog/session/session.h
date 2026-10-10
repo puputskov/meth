@@ -23,6 +23,13 @@ typedef enum MlDomain
 	ML_DOMAIN_COUNT
 } MlDomain;
 
+/* The parts of the syntax a domain switches on (see ml_parse_mode). */
+int32_t ml_domain_units (MlDomain domain);
+int32_t ml_domain_pga (MlDomain domain); /* 2, 3 or 0 */
+
+/* 1 for the domains whose lines are evaluated by the algebra evaluator. */
+int32_t ml_domain_is_math (MlDomain domain);
+
 typedef enum MlLineKind
 {
 	ML_LINE_NONE = 0, /* no such line (index out of range) */

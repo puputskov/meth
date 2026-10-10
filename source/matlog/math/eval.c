@@ -4,6 +4,7 @@
 #include <matlog/core/names.h>
 #include <matlog/math/hyper.h>
 #include <matlog/math/listfn.h>
+#include <matlog/math/pga.h>
 #include <matlog/math/stats.h>
 #include <matlog/math/vector.h>
 #include <matlog/parse/words.h>
@@ -145,6 +146,22 @@ typedef enum MlBuiltin
 	BUILTIN_MAP,
 	BUILTIN_FILTER,
 	BUILTIN_FOLD,
+	/* projective geometric algebra (math/pga.h) */
+	BUILTIN_MV_FIRST,
+	BUILTIN_MV_DUAL = BUILTIN_MV_FIRST,
+	BUILTIN_MV_UNDUAL,
+	BUILTIN_MV_UNIT,
+	BUILTIN_MV_SCALAR,
+	BUILTIN_MV_GRADE,
+	BUILTIN_MV_INNER,
+	BUILTIN_MV_JOIN,
+	BUILTIN_MV_MEET,
+	BUILTIN_MV_POINT,
+	BUILTIN_MV_LINE,
+	BUILTIN_MV_PLANE,
+	BUILTIN_MV_TRANSLATOR,
+	BUILTIN_MV_ROTOR,
+	BUILTIN_MV_LAST = BUILTIN_MV_ROTOR,
 	/* complex numbers and quaternions (math/hyper.h) */
 	BUILTIN_RE,
 	BUILTIN_IM,
@@ -223,6 +240,19 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] = {
 	[BUILTIN_FOLD]   = { .name = "fold",   .min = 3, .max = 3 },
 	[BUILTIN_RE]     = { .name = "re",     .min = 1, .max = 1 },
 	[BUILTIN_IM]     = { .name = "im",     .min = 1, .max = 1 },
+	[BUILTIN_MV_DUAL]       = { .name = "dual",       .min = 1, .max = 1 },
+	[BUILTIN_MV_UNDUAL]     = { .name = "undual",     .min = 1, .max = 1 },
+	[BUILTIN_MV_UNIT]       = { .name = "unit",       .min = 1, .max = 1 },
+	[BUILTIN_MV_SCALAR]     = { .name = "scalar",     .min = 1, .max = 1 },
+	[BUILTIN_MV_GRADE]      = { .name = "grade",      .min = 2, .max = 2 },
+	[BUILTIN_MV_INNER]      = { .name = "inner",      .min = 2, .max = 2 },
+	[BUILTIN_MV_JOIN]       = { .name = "join",       .min = 2, .max = 2 },
+	[BUILTIN_MV_MEET]       = { .name = "meet",       .min = 2, .max = 2 },
+	[BUILTIN_MV_POINT]      = { .name = "point",      .min = 2, .max = 3 },
+	[BUILTIN_MV_LINE]       = { .name = "line",       .min = 3, .max = 3 },
+	[BUILTIN_MV_PLANE]      = { .name = "plane",      .min = 4, .max = 4 },
+	[BUILTIN_MV_TRANSLATOR] = { .name = "translator", .min = 2, .max = 3 },
+	[BUILTIN_MV_ROTOR]      = { .name = "rotor",      .min = 1, .max = 4 },
 	[BUILTIN_CONJ]   = { .name = "conj",   .min = 1, .max = 1 },
 	[BUILTIN_ARG]    = { .name = "arg",    .min = 1, .max = 1 },
 	[BUILTIN_QUAT]   = { .name = "quat",   .min = 4, .max = 4 },
@@ -1069,6 +1099,88 @@ static MlValue dim_value (MlArena *arena, MlValue a)
 	);
 }
 
+/* The functions of the projective geometric algebra. */
+static MlValue mv_builtin (
+	MlArena       *arena,
+	MlBuiltin     id,
+	const MlValue *args,
+	uint64_t      argc
+)
+{
+	MlValue r = error_at (ML_EVAL_TYPE);
+
+	switch (id)
+	{
+		case BUILTIN_MV_DUAL:
+		{
+			r = ml_mv_function (arena, ML_MVFN_DUAL, args [0]);
+		} break;
+
+		case BUILTIN_MV_UNDUAL:
+		{
+			r = ml_mv_function (arena, ML_MVFN_UNDUAL, args [0]);
+		} break;
+
+		case BUILTIN_MV_UNIT:
+		{
+			r = ml_mv_function (arena, ML_MVFN_UNIT, args [0]);
+		} break;
+
+		case BUILTIN_MV_SCALAR:
+		{
+			r = ml_mv_function (arena, ML_MVFN_SCALAR, args [0]);
+		} break;
+
+		case BUILTIN_MV_GRADE:
+		{
+			r = ml_mv_grade (arena, args [0], args [1]);
+		} break;
+
+		case BUILTIN_MV_INNER:
+		{
+			r = ml_mv_apply (arena, ML_MV_INNER, args [0], args [1]);
+		} break;
+
+		case BUILTIN_MV_JOIN:
+		{
+			r = ml_mv_apply (arena, ML_MV_JOIN, args [0], args [1]);
+		} break;
+
+		case BUILTIN_MV_MEET:
+		{
+			r = ml_mv_apply (arena, ML_MV_WEDGE, args [0], args [1]);
+		} break;
+
+		case BUILTIN_MV_POINT:
+		{
+			r = ml_mv_make (arena, ML_MVMAKE_POINT, args, argc);
+		} break;
+
+		case BUILTIN_MV_LINE:
+		{
+			r = ml_mv_make (arena, ML_MVMAKE_LINE, args, argc);
+		} break;
+
+		case BUILTIN_MV_PLANE:
+		{
+			r = ml_mv_make (arena, ML_MVMAKE_PLANE, args, argc);
+		} break;
+
+		case BUILTIN_MV_TRANSLATOR:
+		{
+			r = ml_mv_make (arena, ML_MVMAKE_TRANSLATOR, args, argc);
+		} break;
+
+		case BUILTIN_MV_ROTOR:
+		default:
+		{
+			r = ml_mv_make (arena, ML_MVMAKE_ROTOR, args, argc);
+		} break;
+	}
+
+	return r;
+}
+
 /* The functions of complex numbers and quaternions (and numbers among them). */
 static MlValue hyper_builtin (MlArena *arena, MlBuiltin id, const MlValue *args)
 {
@@ -1155,9 +1267,11 @@ static MlValue builtin_apply (
 	int32_t has_qty    = 0;
 	int32_t has_hyper  = 0;
 	int32_t has_list   = 0;
+	int32_t has_mv     = 0;
 
 	for (uint64_t i = 0; i < argc; i++)
 	{
+		has_mv     = has_mv || args [i].kind == ML_VALUE_MV;
 		has_list   = has_list || ml_value_is_list (args [i]);
 		has_matrix = has_matrix || ml_value_is_matrix (args [i]);
 		has_expr   = has_expr || ml_value_is_expr (args [i]);
@@ -1169,7 +1283,40 @@ static MlValue builtin_apply (
 		has_hyper = has_hyper || ml_value_is_hyper (args [i]);
 	}
 
-	if (id == BUILTIN_NOT)
+	if (id >= BUILTIN_MV_FIRST && id <= BUILTIN_MV_LAST)
+	{
+		r = mv_builtin (arena, id, args, argc);
+	}
+
+	else if (
+		   argc == 1
+		&& args [0].kind == ML_VALUE_MV
+		&& (id == BUILTIN_INV || id == BUILTIN_NORM)
+	)
+	{
+		r = ml_mv_function (
+			arena,
+			ml_choose (id == BUILTIN_INV, ML_MVFN_INVERSE, ML_MVFN_NORM),
+			args [0]
+		);
+	}
+
+	else if (
+		   id == BUILTIN_LISTFN_REVERSE
+		&& argc == 1
+		&& (args [0].kind == ML_VALUE_MV || ml_value_is_number (args [0]))
+	)
+	{
+		r = ml_mv_function (arena, ML_MVFN_REVERSE, args [0]);
+	}
+
+	else if (has_mv && id < BUILTIN_LISTFN_LIST)
+	{
+		/* the functions of numbers do not take multivectors */
+		r = error_at (ML_EVAL_TYPE);
+	}
+
+	else if (id == BUILTIN_NOT)
 	{
 		r = ml_choose (
 			args [0].kind == ML_VALUE_BOOL,
@@ -1627,6 +1774,12 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlRef name)
 			if (v.kind == ML_VALUE_NONE)
 			{
 				v = hyper_unit_find (cx->arena, name.text);
+			}
+
+			/* e0 e1 e12 ...: the blades of the algebra of a pga line */
+			if (v.kind == ML_VALUE_NONE && sc->ast.pga != 0)
+			{
+				v = ml_mv_blade (cx->arena, sc->ast.pga, name.text);
 			}
 
 			/* unit names are names of the physics domain only */
@@ -3999,6 +4152,7 @@ MlResult ml_eval_commit (
 			|| value.kind == ML_VALUE_PLOT
 			|| value.kind == ML_VALUE_BOOL
 			|| value.kind == ML_VALUE_LIST
+			|| value.kind == ML_VALUE_MV
 		)
 	)
 	{

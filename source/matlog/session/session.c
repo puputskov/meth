@@ -11,6 +11,30 @@ static const char *const domain_names [ML_DOMAIN_COUNT] = {
 	[ML_DOMAIN_BOOLEAN]   = "boolean"
 };
 
+int32_t ml_domain_units (MlDomain domain)
+{
+	return domain == ML_DOMAIN_PHYSICS;
+}
+
+int32_t ml_domain_pga (MlDomain domain)
+{
+	return ml_choose (
+		domain == ML_DOMAIN_PGA2,
+		2,
+		ml_choose (domain == ML_DOMAIN_PGA3, 3, 0)
+	);
+}
+
+int32_t ml_domain_is_math (MlDomain domain)
+{
+	return (
+		   domain == ML_DOMAIN_ALGEBRA
+		|| domain == ML_DOMAIN_PHYSICS
+		|| domain == ML_DOMAIN_PGA2
+		|| domain == ML_DOMAIN_PGA3
+	);
+}
+
 const char *ml_domain_name (MlDomain domain)
 {
 	int32_t known = (int32_t)domain >= 0 && domain < ML_DOMAIN_COUNT;

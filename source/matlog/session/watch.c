@@ -1,5 +1,7 @@
 #include <matlog/session/watch.h>
 
+#include <matlog/math/pga.h>
+
 #include <matlog/core/mem.h>
 
 void ml_watch_rows_free (MlWatchRowVec *rows)
@@ -67,6 +69,11 @@ static MlResult type_of (MlStr *out, MlValue v)
 	else if (v.kind == ML_VALUE_BOOL)
 	{
 		r = ml_str_append (out, ml_slice_cstr ("bool"));
+	}
+
+	else if (v.kind == ML_VALUE_MV)
+	{
+		r = ml_str_appendf (out, "multivector %d", (int32_t)v.mv->dim);
 	}
 
 	else if (v.kind == ML_VALUE_LIST)

@@ -164,9 +164,20 @@ static void test_other_lines (void)
 	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 	CHECK (r.lines.len == 6);
 
+	/* a line of a pga domain is evaluated like the algebra: 1 + 1 is 2 */
 	for (uint64_t i = 0; i < 5; i++)
 	{
-		CHECK (is_none (&r, i));
+		MlLineView v = ml_session_get (&s, i);
+
+		if (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_PGA2)
+		{
+			CHECK (is_value (&r, i, "2"));
+		}
+
+		else
+		{
+			CHECK (is_none (&r, i));
+		}
 	}
 
 	CHECK (is_value (&r, 5, "2"));

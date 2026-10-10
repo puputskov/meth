@@ -49,7 +49,7 @@ static MlGhost ghost_algebra (
 	const MlResults *results,
 	uint64_t        idx,
 	MlSlice         text,
-	int32_t         units
+	MlDomain        domain
 )
 {
 	MlGhost g = {
@@ -57,7 +57,11 @@ static MlGhost ghost_algebra (
 		.shown  = 0
 	};
 
-	MlParseResult p     = ml_parse_units (text, units);
+	MlParseResult p     = ml_parse_mode (
+		text,
+		ml_domain_units (domain),
+		ml_domain_pga (domain)
+	);
 	MlArena       *arena = ml_arena_app ();
 	MlArenaMark   mark  = ml_arena_mark (arena);
 
@@ -86,6 +90,7 @@ static MlGhost ghost_algebra (
 			|| v.kind == ML_VALUE_QUAT
 			|| v.kind == ML_VALUE_BOOL
 			|| v.kind == ML_VALUE_LIST
+			|| v.kind == ML_VALUE_MV
 		)
 		{
 			g.result = ml_value_format (out, arena, v);
@@ -118,13 +123,7 @@ MlGhost ml_ghost (
 
 	else
 	{
-		g = ghost_algebra (
-			out,
-			results,
-			idx,
-			text,
-			domain == ML_DOMAIN_PHYSICS
-		);
+		g = ghost_algebra (out, results, idx, text, domain);
 	}
 
 	return g;

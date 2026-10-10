@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <matlog/math/hyper.h>
+#include <matlog/math/pga.h>
 
 /* Approximations are written with this many significant digits. */
 #define APPROX_DIGITS 9
@@ -846,6 +847,11 @@ MlValue ml_value_neg (MlArena *arena, MlValue a)
 		result = ml_value_quantity (ml_rat_neg (arena, a.exact), a.dim);
 	}
 
+	else if (ml_value_is_mv (a))
+	{
+		result = ml_mv_neg (arena, a);
+	}
+
 	else if (ml_value_is_hyper (a))
 	{
 		result = ml_hyper_neg (arena, a);
@@ -909,7 +915,12 @@ MlValue ml_value_add (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	if (ml_value_is_mv (a) || ml_value_is_mv (b))
+	{
+		result = ml_mv_apply (arena, ML_MV_ADD, a, b);
+	}
+
+	else if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
 	{
 		result = ml_hyper_apply (arena, ML_HYPER_ADD, a, b);
 	}
@@ -962,7 +973,12 @@ MlValue ml_value_mul (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	if (ml_value_is_mv (a) || ml_value_is_mv (b))
+	{
+		result = ml_mv_apply (arena, ML_MV_MUL, a, b);
+	}
+
+	else if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
 	{
 		result = ml_hyper_apply (arena, ML_HYPER_MUL, a, b);
 	}
@@ -1020,7 +1036,12 @@ MlValue ml_value_div (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	if (ml_value_is_mv (a) || ml_value_is_mv (b))
+	{
+		result = ml_mv_apply (arena, ML_MV_DIV, a, b);
+	}
+
+	else if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
 	{
 		result = ml_hyper_apply (arena, ML_HYPER_DIV, a, b);
 	}
@@ -1172,7 +1193,12 @@ MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	if (ml_value_is_mv (a) || ml_value_is_mv (b))
+	{
+		result = ml_mv_apply (arena, ML_MV_POW, a, b);
+	}
+
+	else if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
 	{
 		result = ml_hyper_apply (arena, ML_HYPER_POW, a, b);
 	}
@@ -1281,6 +1307,11 @@ static MlResult format_scalar (MlStr *out, MlArena *arena, MlValue v)
 	else if (v.kind == ML_VALUE_MATRIX)
 	{
 		r = ml_mat_format (out, v.matrix);
+	}
+
+	else if (ml_value_is_mv (v))
+	{
+		r = ml_mv_format (out, arena, v.mv);
 	}
 
 	else if (ml_value_is_hyper (v))
