@@ -3000,14 +3000,28 @@ MlResult ml_screen_render (MlScreen *s, MlStr *out, const MlEditor *ed)
 		{
 			r = ml_str_appendf (out, "\x1b[%u;1H", (uint32_t)(i + 1));
 
+			/*
+			 * The line is erased before it is written: erasing after a row
+			 * that fills the last column would take that column away again.
+			 */
 			if (r == ML_OK)
 			{
-				r = ml_str_append (out, row);
+				r = append_cstr (out, "\x1b[0m");
+			}
+
+			if (r == ML_OK)
+			{
+				r = ml_str_append (out, ml_str_view (base));
 			}
 
 			if (r == ML_OK)
 			{
 				r = append_cstr (out, "\x1b[K");
+			}
+
+			if (r == ML_OK)
+			{
+				r = ml_str_append (out, row);
 			}
 		}
 	}

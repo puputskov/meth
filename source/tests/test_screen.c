@@ -441,6 +441,10 @@ static void test_render (void)
 	CHECK (strstr           (ml_str_cstr (out), "\x1b[4;1H") != NULL);
 	CHECK (!s.force);
 
+	/* a row is erased before it is written, so a row that fills the last
+	   column keeps it (erasing after it would take the last character) */
+	CHECK (strstr (ml_str_cstr (out), "\x1b[4;1H\x1b[0m\x1b[K") != NULL);
+
 	/* nothing changed: no row is redrawn, only the cursor is placed */
 	ml_str_clear (&out);
 	CHECK (ml_screen_render (&s, &out, &ed) == ML_OK);
