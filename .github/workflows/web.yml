@@ -28,7 +28,7 @@ jobs:
         run: make test
 
       - name: Build the WebAssembly modules
-        run: ./build_web.sh
+        run: sh ./build_web.sh
 
       - name: Build the native program the page is compared with
         run: make meth
