@@ -27,8 +27,8 @@ static const MlSym *ln_abs (MlSymCtx *ctx, const MlSym *u)
 {
 	return ml_sym_call (
 		ctx,
-		ml_slice_cstr ("ln"),
-		ml_sym_call (ctx, ml_slice_cstr ("abs"), u)
+		ML_WORD_NAME (LN),
+		ml_sym_call (ctx, ML_WORD_NAME (ABS), u)
 	);
 }
 
@@ -144,7 +144,7 @@ static const MlSym *inverse_quadratic (
 			ml_sym_div (ctx, int_node (ctx, 2), root),
 			ml_sym_call (
 				ctx,
-				ml_slice_cstr ("atan"),
+				ML_WORD_NAME (ATAN),
 				ml_sym_div (ctx, lin, root)
 			)
 		);
@@ -331,7 +331,7 @@ static void quadratic_terms (
 	const MlSym *logq   = ml_choose (
 		is_log,
 		ln_abs (ctx, qs),
-		ml_sym_call (ctx, ml_slice_cstr ("ln"), qs)
+		ml_sym_call (ctx, ML_WORD_NAME (LN), qs)
 	);
 
 	push_part (

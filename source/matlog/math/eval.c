@@ -241,13 +241,9 @@ static MlBuiltin builtin_find (MlSlice name)
 	return found;
 }
 
-static const char *const symbolic_names [] = {
-	"simplify", "expand", "subs", "diff", "integrate", "limit"
-};
-
 uint64_t ml_function_name_count (void)
 {
-	return (BUILTIN_COUNT - 1) + ml_count (symbolic_names);
+	return (BUILTIN_COUNT - 1) + ml_word_kind_count (ML_WORD_SYMBOLIC);
 }
 
 MlSlice ml_function_name_at (uint64_t index)
@@ -261,7 +257,10 @@ MlSlice ml_function_name_at (uint64_t index)
 
 	else if (index < ml_function_name_count ())
 	{
-		name = ml_slice_cstr (symbolic_names [index - (BUILTIN_COUNT - 1)]);
+		name = ml_word_kind_at (
+			ML_WORD_SYMBOLIC,
+			index - (BUILTIN_COUNT - 1)
+		);
 	}
 
 	return name;
@@ -970,8 +969,8 @@ static MlValue formula_function (MlArena *arena, MlBuiltin id, MlValue a)
 		out = ml_value_expr (
 			ml_sym_div (
 				&ctx,
-				ml_sym_call (&ctx, ml_slice_cstr ("ln"), a.sym),
-				ml_sym_call (&ctx, ml_slice_cstr ("ln"), ml_sym_int (&ctx, 10))
+				ml_sym_call (&ctx, ML_WORD_NAME (LN), a.sym),
+				ml_sym_call (&ctx, ML_WORD_NAME (LN), ml_sym_int (&ctx, 10))
 			),
 			ctx.status
 		);
@@ -1606,11 +1605,11 @@ static const MlSym *bound_value (
 	int32_t     *ok
 )
 {
-	int32_t     plus  = ml_sym_is_var (bound, ml_word_name (ML_WORD_ID_INF));
+	int32_t     plus  = ml_sym_is_var (bound, ML_WORD_NAME (INF));
 	int32_t     minus = (
 		   bound->kind == ML_SYM_MUL
 		&& bound->count == 2
-		&& ml_sym_is_var (bound->kids [1], ml_word_name (ML_WORD_ID_INF))
+		&& ml_sym_is_var (bound->kids [1], ML_WORD_NAME (INF))
 	);
 	const MlSym *out  = NULL;
 
@@ -1707,11 +1706,11 @@ static MlValue symbolic_call (
 	MlSymCall c;
 	MlValue   out  = ml_value_none ();
 	MlSlice   none = ml_slice ("", 0);
-	int32_t   is_diff      = ml_slice_equal (name, ml_slice_cstr ("diff"));
-	int32_t   is_integrate = ml_slice_equal (name, ml_slice_cstr ("integrate"));
-	int32_t   is_subs      = ml_slice_equal (name, ml_slice_cstr ("subs"));
-	int32_t   is_limit     = ml_slice_equal (name, ml_slice_cstr ("limit"));
-	int32_t   is_solve     = ml_slice_equal (name, ml_slice_cstr ("solve"));
+	int32_t   is_diff      = ML_WORD_IS (name, DIFF);
+	int32_t   is_integrate = ML_WORD_IS (name, INTEGRATE);
+	int32_t   is_subs      = ML_WORD_IS (name, SUBS);
+	int32_t   is_limit     = ML_WORD_IS (name, LIMIT);
+	int32_t   is_solve     = ML_WORD_IS (name, SOLVE);
 	int32_t   fits         = (
 		   ml_choose (
 			   is_diff,
@@ -1766,7 +1765,7 @@ static MlValue symbolic_call (
 		ml_steplog_line (
 			cx->log,
 			ml_choose (
-				ml_slice_equal (name, ml_slice_cstr ("expand")),
+				ML_WORD_IS (name, EXPAND),
 				ml_slice_cstr ("Multiply out:"),
 				ml_slice_cstr ("Simplify:")
 			)
@@ -1787,7 +1786,7 @@ static MlValue symbolic_call (
 		f         = formula_arg (&c, 1, none);
 		c.ctx.raw = 0;
 		out = ml_choose (
-			ml_slice_equal (name, ml_slice_cstr ("expand")),
+			ML_WORD_IS (name, EXPAND),
 			ml_value_expr (ml_sym_expand (&c.ctx, f), c.ctx.status),
 			ml_value_expr (ml_sym_simplify (&c.ctx, f), c.ctx.status)
 		);
@@ -1869,14 +1868,14 @@ static MlValue symbolic_call (
 
 				else if (lim.kind == ML_LIMIT_PINF)
 				{
-					result = ml_sym_var (&c.ctx, ml_word_name (ML_WORD_ID_INF));
+					result = ml_sym_var (&c.ctx, ML_WORD_NAME (INF));
 				}
 
 				else if (lim.kind == ML_LIMIT_NINF)
 				{
 					result = ml_sym_neg (
 						&c.ctx,
-						ml_sym_var (&c.ctx, ml_word_name (ML_WORD_ID_INF))
+						ml_sym_var (&c.ctx, ML_WORD_NAME (INF))
 					);
 				}
 
@@ -1972,12 +1971,12 @@ static MlValue symbolic_call (
 static int32_t is_symbolic_name (MlSlice name)
 {
 	return (
-		   ml_slice_equal (name, ml_slice_cstr ("simplify"))
-		|| ml_slice_equal (name, ml_slice_cstr ("expand"))
-		|| ml_slice_equal (name, ml_slice_cstr ("subs"))
-		|| ml_slice_equal (name, ml_slice_cstr ("diff"))
-		|| ml_slice_equal (name, ml_slice_cstr ("integrate"))
-		|| ml_slice_equal (name, ml_slice_cstr ("limit"))
+		   ML_WORD_IS (name, SIMPLIFY)
+		|| ML_WORD_IS (name, EXPAND)
+		|| ML_WORD_IS (name, SUBS)
+		|| ML_WORD_IS (name, DIFF)
+		|| ML_WORD_IS (name, INTEGRATE)
+		|| ML_WORD_IS (name, LIMIT)
 	);
 }
 
@@ -2784,7 +2783,7 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 	if (
 		   kind == CALL_BUILTIN
 		&& argc == 2
-		&& ml_slice_equal (name, ml_slice_cstr ("solve"))
+		&& ML_WORD_IS (name, SOLVE)
 		&& is_unbound_symbol (cx, sc, ml_ast_child (&sc->ast, f.node, 2))
 	)
 	{

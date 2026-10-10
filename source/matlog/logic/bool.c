@@ -1,4 +1,5 @@
 #include <matlog/logic/bool.h>
+#include <matlog/parse/words.h>
 
 #include <matlog/core/heap.h>
 #include <matlog/core/utf8.h>
@@ -1346,7 +1347,7 @@ MlResult ml_bool_run (
 			   first.kind == TK_NAME
 			&& ml_slice_equal (
 				ml_slice_sub (source, first.start, first.len),
-				ml_slice_cstr ("table")
+				ML_WORD_NAME (TABLE)
 			)
 			&& starts_operand (second)
 		);

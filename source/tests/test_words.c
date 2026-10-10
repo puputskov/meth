@@ -1,5 +1,6 @@
 #include "test.h"
 
+#include <matlog/math/eval.h>
 #include <matlog/parse/words.h>
 
 static MlSlice lit (const char *s)
@@ -79,6 +80,52 @@ static void test_rows (void)
 	CHECK (!ml_word_listed (ml_word_count ()));
 }
 
+/* 1 when the evaluator lists a function of this name. */
+static int32_t is_listed_function (MlSlice name)
+{
+	int32_t found = 0;
+
+	for (uint64_t i = 0; i < ml_function_name_count () && !found; i++)
+	{
+		found = ml_slice_equal (ml_function_name_at (i), name);
+	}
+
+	return found;
+}
+
+static void test_functions (void)
+{
+	/* the words of the engines are functions the evaluator knows, so the
+	   spelling in the table cannot drift from the one in the builtin tables */
+	for (uint64_t i = 0; i < ml_word_count (); i++)
+	{
+		MlWord w = ml_word_at (i);
+
+		if (w.kind == ML_WORD_FUNCTION || w.kind == ML_WORD_SYMBOLIC)
+		{
+			CHECK (is_listed_function (ml_word_spelling (i)));
+		}
+	}
+
+	/* the symbolic functions are listed by the evaluator from the table */
+	CHECK (ml_word_kind_count (ML_WORD_SYMBOLIC) == 6);
+	CHECK (
+		ml_slice_equal (ml_word_kind_at (ML_WORD_SYMBOLIC, 0), lit ("simplify"))
+	);
+	CHECK (
+		ml_slice_equal (ml_word_kind_at (ML_WORD_SYMBOLIC, 5), lit ("limit"))
+	);
+	CHECK (ml_word_kind_at (ML_WORD_SYMBOLIC, 6).len == 0);
+	CHECK (is_listed_function (lit ("diff")));
+	CHECK (ml_word_kind_count (ML_WORD_COMMAND) == 2);
+
+	CHECK (find ("sin").kind == ML_WORD_FUNCTION);
+	CHECK (find ("diff").kind == ML_WORD_SYMBOLIC);
+	CHECK (find ("table").id == ML_WORD_ID_TABLE);
+	CHECK (ML_WORD_IS (lit ("trace"), TRACE));
+	CHECK (ml_slice_equal (ML_WORD_NAME (SQRT), lit ("sqrt")));
+}
+
 void run_words_tests (void);
 
 void run_words_tests (void)
@@ -86,4 +133,5 @@ void run_words_tests (void)
 	test_kinds ();
 	test_ids ();
 	test_rows ();
+	test_functions ();
 }

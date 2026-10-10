@@ -22,14 +22,9 @@ static const MlSym *int_node (MlSymCtx *ctx, int64_t n)
 	return ml_sym_int (ctx, n);
 }
 
-static int32_t is_name (MlSlice name, const char *text)
-{
-	return ml_slice_equal (name, ml_slice_cstr (text));
-}
-
 static const MlSym *ln_of (MlSymCtx *ctx, const MlSym *u)
 {
-	return ml_sym_call (ctx, ml_slice_cstr ("ln"), u);
+	return ml_sym_call (ctx, ML_WORD_NAME (LN), u);
 }
 
 /* u = a x + b with a and b free of x and a not zero? */
@@ -145,7 +140,7 @@ static const MlSym *table (
 				ctx,
 				ln_of (
 					ctx,
-					ml_sym_call (ctx, ml_slice_cstr ("abs"), g->kids [0])
+					ml_sym_call (ctx, ML_WORD_NAME (ABS), g->kids [0])
 				),
 				a
 			);
@@ -168,20 +163,20 @@ static const MlSym *table (
 		   g->kind == ML_SYM_POW
 		&& g->kids [0]->kind == ML_SYM_FUNC
 		&& (
-			   is_name (g->kids [0]->name, "sin")
-			|| is_name (g->kids [0]->name, "cos")
+			   ML_WORD_IS (g->kids [0]->name, SIN)
+			|| ML_WORD_IS (g->kids [0]->name, COS)
 		)
 		&& ml_sym_compare (ctx, g->kids [1], int_node (ctx, 2)) == 0
 		&& ml_sym_linear_parts (ctx, g->kids [0]->kids [0], x, &a, &b)
 	)
 	{
 		/* sin^2 u = (1 - cos 2u) / 2 and cos^2 u = (1 + cos 2u) / 2 */
-		int32_t     is_sin = is_name (g->kids [0]->name, "sin");
+		int32_t     is_sin = ML_WORD_IS (g->kids [0]->name, SIN);
 		const MlSym *u2
 			= ml_sym_mul (ctx, int_node (ctx, 2), g->kids [0]->kids [0]);
 		const MlSym *s2    = ml_sym_div (
 			ctx,
-			ml_sym_call (ctx, ml_slice_cstr ("sin"), u2),
+			ml_sym_call (ctx, ML_WORD_NAME (SIN), u2),
 			ml_sym_mul (ctx, int_node (ctx, 4), a)
 		);
 
@@ -211,7 +206,7 @@ static const MlSym *table (
 	)
 	{
 		/* b^u / (a ln b), and e^u / a */
-		int32_t is_e = ml_sym_is_var (g->kids [0], ml_word_name (ML_WORD_ID_E));
+		int32_t is_e = ml_sym_is_var (g->kids [0], ML_WORD_NAME (E));
 
 		*rule = ML_RULE_INT_EXPONENTIAL;
 		out   = ml_sym_div (
@@ -228,27 +223,27 @@ static const MlSym *table (
 	{
 		const MlSym *u = g->kids [0];
 
-		if (is_name (g->name, "sin"))
+		if (ML_WORD_IS (g->name, SIN))
 		{
 			*rule = ML_RULE_INT_SINE;
 			out   = ml_sym_div (
 				ctx,
-				ml_sym_neg (ctx, ml_sym_call (ctx, ml_slice_cstr ("cos"), u)),
+				ml_sym_neg (ctx, ml_sym_call (ctx, ML_WORD_NAME (COS), u)),
 				a
 			);
 		}
 
-		else if (is_name (g->name, "cos"))
+		else if (ML_WORD_IS (g->name, COS))
 		{
 			*rule = ML_RULE_INT_COSINE;
 			out   = ml_sym_div (
 				ctx,
-				ml_sym_call (ctx, ml_slice_cstr ("sin"), u),
+				ml_sym_call (ctx, ML_WORD_NAME (SIN), u),
 				a
 			);
 		}
 
-		else if (is_name (g->name, "tan"))
+		else if (ML_WORD_IS (g->name, TAN))
 		{
 			*rule = ML_RULE_INT_TANGENT;
 			out   = ml_sym_div (
@@ -259,8 +254,8 @@ static const MlSym *table (
 						ctx,
 						ml_sym_call (
 							ctx,
-							ml_slice_cstr ("abs"),
-							ml_sym_call (ctx, ml_slice_cstr ("cos"), u)
+							ML_WORD_NAME (ABS),
+							ml_sym_call (ctx, ML_WORD_NAME (COS), u)
 						)
 					)
 				),
@@ -268,13 +263,13 @@ static const MlSym *table (
 			);
 		}
 
-		else if (is_name (g->name, "exp"))
+		else if (ML_WORD_IS (g->name, EXP))
 		{
 			*rule = ML_RULE_INT_EXPONENTIAL;
 			out   = ml_sym_div (ctx, g, a);
 		}
 
-		else if (is_name (g->name, "ln"))
+		else if (ML_WORD_IS (g->name, LN))
 		{
 			*rule = ML_RULE_INT_LOGARITHM;
 			out   = ml_sym_div (
@@ -284,7 +279,7 @@ static const MlSym *table (
 			);
 		}
 
-		else if (is_name (g->name, "atan"))
+		else if (ML_WORD_IS (g->name, ATAN))
 		{
 			*rule = ML_RULE_INT_ARCTANGENT;
 			out   = ml_sym_div (
@@ -349,7 +344,7 @@ static const MlSym *inverse_quadratic (
 				ctx,
 				ml_sym_call (
 					ctx,
-					ml_slice_cstr ("atan"),
+					ML_WORD_NAME (ATAN),
 					ml_sym_div (ctx, x, root)
 				),
 				root

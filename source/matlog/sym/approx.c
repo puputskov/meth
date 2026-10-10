@@ -11,57 +11,52 @@ typedef struct ApproxFrame
 ML_VEC_DEFINE (ApproxFrameVec, ApproxFrame)
 ML_VEC_DEFINE (DoubleVec, double)
 
-static int32_t is_name (MlSlice name, const char *text)
-{
-	return ml_slice_equal (name, ml_slice_cstr (text));
-}
-
 /* The value of a function at x; ok is cleared for a name that is unknown. */
 static double function_value (MlSlice name, double x, int32_t *ok)
 {
 	double v = 0.0;
 
-	if (is_name (name, "sin"))
+	if (ML_WORD_IS (name, SIN))
 	{
 		v = sin (x);
 	}
 
-	else if (is_name (name, "cos"))
+	else if (ML_WORD_IS (name, COS))
 	{
 		v = cos (x);
 	}
 
-	else if (is_name (name, "tan"))
+	else if (ML_WORD_IS (name, TAN))
 	{
 		v = tan (x);
 	}
 
-	else if (is_name (name, "asin"))
+	else if (ML_WORD_IS (name, ASIN))
 	{
 		v = asin (x);
 	}
 
-	else if (is_name (name, "acos"))
+	else if (ML_WORD_IS (name, ACOS))
 	{
 		v = acos (x);
 	}
 
-	else if (is_name (name, "atan"))
+	else if (ML_WORD_IS (name, ATAN))
 	{
 		v = atan (x);
 	}
 
-	else if (is_name (name, "ln"))
+	else if (ML_WORD_IS (name, LN))
 	{
 		v = log (x);
 	}
 
-	else if (is_name (name, "exp"))
+	else if (ML_WORD_IS (name, EXP))
 	{
 		v = exp (x);
 	}
 
-	else if (is_name (name, "abs"))
+	else if (ML_WORD_IS (name, ABS))
 	{
 		v = fabs (x);
 	}
@@ -84,12 +79,12 @@ static double leaf_value (MlArena *arena, const MlSym *s, int32_t *ok)
 		v = ml_rat_to_double (arena, s->num);
 	}
 
-	else if (ml_word_is (s->name, ML_WORD_ID_PI))
+	else if (ML_WORD_IS (s->name, PI))
 	{
 		v = 3.14159265358979323846;
 	}
 
-	else if (ml_word_is (s->name, ML_WORD_ID_E))
+	else if (ML_WORD_IS (s->name, E))
 	{
 		v = 2.71828182845904523536;
 	}

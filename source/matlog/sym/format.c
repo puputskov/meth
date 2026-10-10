@@ -568,7 +568,7 @@ static MlResult print_node (
 		r = ml_str_append (
 			out,
 			ml_choose (
-				ml_word_is (n->name, ML_WORD_ID_PI),
+				ML_WORD_IS (n->name, PI),
 				ml_slice_cstr ("\xCF\x80"),
 				n->name
 			)

@@ -9,12 +9,6 @@
 
 #include <string.h>
 
-/* For the commands of one domain (table, trace), no words of the syntax. */
-static int32_t is_word (MlSlice text, const char *word)
-{
-	return ml_slice_equal (text, ml_slice_cstr (word));
-}
-
 /* The λ (or \\) of the lambda domain at pos. */
 static int32_t is_lambda_at (MlSlice text, uint64_t pos)
 {
@@ -273,7 +267,7 @@ static void classify_boolean (uint8_t *cls, MlSlice text)
 				c
 			);
 			c    = ml_choose (
-				first && is_word (word, "table"),
+				first && ML_WORD_IS (word, TABLE),
 				ML_CLASS_KEYWORD,
 				c
 			);
@@ -341,7 +335,7 @@ static void classify_lambda (uint8_t *cls, MlSlice text)
 			c = ML_CLASS_NAME;
 			c = ml_choose (digits, ML_CLASS_NUMBER, c);
 			c = ml_choose (
-				first && is_word (word, "trace"),
+				first && ML_WORD_IS (word, TRACE),
 				ML_CLASS_KEYWORD,
 				c
 			);

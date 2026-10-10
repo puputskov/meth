@@ -133,14 +133,14 @@ static int32_t invert (
 	{
 		const MlSym *value = NULL;
 
-		if (ml_slice_equal (u->name, ml_slice_cstr ("exp")) && sg > 0)
+		if (ML_WORD_IS (u->name, EXP) && sg > 0)
 		{
-			value = ml_sym_call (ctx, ml_slice_cstr ("ln"), w0);
+			value = ml_sym_call (ctx, ML_WORD_NAME (LN), w0);
 		}
 
-		else if (ml_slice_equal (u->name, ml_slice_cstr ("ln")))
+		else if (ML_WORD_IS (u->name, LN))
 		{
-			value = ml_sym_call (ctx, ml_slice_cstr ("exp"), w0);
+			value = ml_sym_call (ctx, ML_WORD_NAME (EXP), w0);
 		}
 
 		if (value != NULL)
@@ -400,7 +400,7 @@ static int32_t by_inner_part (
 		/* exp (2x) is exp (x)^2, and so on for the small multiples */
 		for (int64_t k = 2; k <= 6 && u->kind == ML_SYM_FUNC; k++)
 		{
-			if (ml_slice_equal (u->name, ml_slice_cstr ("exp")))
+			if (ML_WORD_IS (u->name, EXP))
 			{
 				g = ml_sym_replace (
 					ctx,
@@ -578,7 +578,7 @@ const MlSym *ml_sym_set (MlSymCtx *ctx, const MlSym *const *items, uint64_t n)
 		}
 	}
 
-	out = ml_sym_func_n (ctx, ml_slice_cstr ("set"), sorted.data, sorted.len);
+	out = ml_sym_func_n (ctx, ML_WORD_NAME (SET), sorted.data, sorted.len);
 	SymPtrVec_free (&sorted);
 	return out;
 }

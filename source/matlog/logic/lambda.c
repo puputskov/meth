@@ -1,4 +1,5 @@
 #include <matlog/logic/lambda.h>
+#include <matlog/parse/words.h>
 
 #include <matlog/session/session.h>
 
@@ -1637,7 +1638,7 @@ MlResult ml_lambda_run (
 			   first.kind == TK_NAME
 			&& ml_slice_equal (
 				ml_slice_sub (source, first.start, first.len),
-				ml_slice_cstr ("trace")
+				ML_WORD_NAME (TRACE)
 			)
 			&& starts_term (second)
 		);

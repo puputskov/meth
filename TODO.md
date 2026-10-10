@@ -9,8 +9,8 @@ When a task is finished: delete it here, and write what was built into its secti
 
 1. **Texts in files, the last parts** (4.24): the summaries of the editor commands (`:` commands, `ui/complete.c`), a test that every catalog entry is used by
    some code, the placeholders of the website build.
-2. **Words table, part 2** (4.25): the function names (`eval.c` `builtins`, `stats.h`, `listfn.h`) through `ml_word_find`, `name_class` for functions,
-   the export table of Greek names, the words of the other domains (`table`, `trace`, the logic words).
+2. **Interned names** (4.25): the lexer gives every name an integer id from a hash table (the words of `parse/words.h` have fixed ids), the syntax tree, the
+   symbolic nodes and the environment carry the id, and name checks and the environment lookup compare integers. Measure a heavy line first.
 3. **Physics domain** (decided 2026-10-10, section 2 below): units leave the algebra domain.
 4. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 5); **PGA** (section 6).
 

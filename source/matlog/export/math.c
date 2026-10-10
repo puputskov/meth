@@ -1,4 +1,5 @@
 #include <matlog/export/math.h>
+#include <matlog/parse/words.h>
 
 #include <matlog/core/utf8.h>
 #include <matlog/core/vec.h>
@@ -935,17 +936,17 @@ static MlResult expand (
 	else if (node.kind == ML_NODE_CALL && ml_ast_child_count (ast, at) == 2
 			 && (ml_slice_equal (
 					 ml_ast_text (ast, source, a),
-					 ml_slice_cstr ("sqrt")
+					 ML_WORD_NAME (SQRT)
 				 )
 				 || ml_slice_equal (
 					 ml_ast_text (ast, source, a),
-					 ml_slice_cstr ("abs")
+					 ML_WORD_NAME (ABS)
 				 )))
 	{
 		/* sqrt(x) is a root and abs(x) is |x|, as √x would be */
 		int32_t root = ml_slice_equal (
 			ml_ast_text (ast, source, a),
-			ml_slice_cstr ("sqrt")
+			ML_WORD_NAME (SQRT)
 		);
 
 		r = OpVec_push (

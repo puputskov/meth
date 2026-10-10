@@ -1,4 +1,5 @@
 #include <matlog/session/steps.h>
+#include <matlog/parse/words.h>
 
 #include <matlog/core/mem.h>
 #include <matlog/logic/bool.h>
@@ -82,35 +83,35 @@ static StepKind call_kind (MlSlice name, uint64_t argc)
 	StepKind kind = STEP_NONE;
 
 	kind = ml_choose (
-		argc == 1 && ml_slice_equal (name, ml_slice_cstr ("det")),
+		argc == 1 && ML_WORD_IS (name, DET),
 		STEP_DET,
 		kind
 	);
 	kind = ml_choose (
-		argc == 1 && ml_slice_equal (name, ml_slice_cstr ("inv")),
+		argc == 1 && ML_WORD_IS (name, INV),
 		STEP_INV,
 		kind
 	);
 	kind = ml_choose (
 		argc == 1
 			&& (
-				   ml_slice_equal (name, ml_slice_cstr ("rref"))
-				|| ml_slice_equal (name, ml_slice_cstr ("rank"))
+				   ML_WORD_IS (name, RREF)
+				|| ML_WORD_IS (name, RANK)
 			),
 		STEP_RREF,
 		kind
 	);
 	kind = ml_choose (
-		argc == 2 && ml_slice_equal (name, ml_slice_cstr ("solve")),
+		argc == 2 && ML_WORD_IS (name, SOLVE),
 		STEP_SOLVE,
 		kind
 	);
 	kind = ml_choose (
-		   ml_slice_equal (name, ml_slice_cstr ("simplify"))
-		|| ml_slice_equal (name, ml_slice_cstr ("expand"))
-		|| ml_slice_equal (name, ml_slice_cstr ("diff"))
-		|| ml_slice_equal (name, ml_slice_cstr ("integrate"))
-		|| ml_slice_equal (name, ml_slice_cstr ("limit")),
+		   ML_WORD_IS (name, SIMPLIFY)
+		|| ML_WORD_IS (name, EXPAND)
+		|| ML_WORD_IS (name, DIFF)
+		|| ML_WORD_IS (name, INTEGRATE)
+		|| ML_WORD_IS (name, LIMIT),
 		STEP_SYMBOLIC,
 		kind
 	);

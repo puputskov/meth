@@ -199,7 +199,7 @@ int32_t ml_sym_is_set (const MlSym *s)
 {
 	return (
 		   s->kind == ML_SYM_FUNC
-		&& ml_slice_equal (s->name, ml_slice_cstr ("set"))
+		&& ML_WORD_IS (s->name, SET)
 	);
 }
 

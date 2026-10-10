@@ -115,7 +115,7 @@ static const MlSym *name_value (
 			b->ctx,
 			ml_choose (
 				is_name (name, "\xCF\x80"),
-				ml_word_name (ML_WORD_ID_PI),
+				ML_WORD_NAME (PI),
 				name
 			)
 		);
@@ -162,11 +162,11 @@ static const MlSym *factorial_of (
 static int32_t is_function_name (MlSlice name)
 {
 	return (
-		   is_name (name, "sin") || is_name (name, "cos")
-		|| is_name (name, "tan") || is_name (name, "asin")
-		|| is_name (name, "acos") || is_name (name, "atan")
-		|| is_name (name, "ln") || is_name (name, "exp")
-		|| is_name (name, "abs")
+		   ML_WORD_IS (name, SIN) || ML_WORD_IS (name, COS)
+		|| ML_WORD_IS (name, TAN) || ML_WORD_IS (name, ASIN)
+		|| ML_WORD_IS (name, ACOS) || ML_WORD_IS (name, ATAN)
+		|| ML_WORD_IS (name, LN) || ML_WORD_IS (name, EXP)
+		|| ML_WORD_IS (name, ABS)
 	);
 }
 
@@ -281,7 +281,7 @@ static const MlSym *call_value (
 		);
 	}
 
-	else if (is_name (name, "sqrt") && argc == 1 && fn.kind == ML_BIND_NONE)
+	else if (ML_WORD_IS (name, SQRT) && argc == 1 && fn.kind == ML_BIND_NONE)
 	{
 		out = ml_sym_pow (
 			b->ctx,
@@ -297,12 +297,12 @@ static const MlSym *call_value (
 		);
 	}
 
-	else if (is_name (name, "log") && argc == 1 && fn.kind == ML_BIND_NONE)
+	else if (ML_WORD_IS (name, LOG) && argc == 1 && fn.kind == ML_BIND_NONE)
 	{
 		out = ml_sym_div (
 			b->ctx,
-			ml_sym_call (b->ctx, ml_slice_cstr ("ln"), kid (sc, sc->cur, 1)),
-			ml_sym_call (b->ctx, ml_slice_cstr ("ln"), ml_sym_int (b->ctx, 10))
+			ml_sym_call (b->ctx, ML_WORD_NAME (LN), kid (sc, sc->cur, 1)),
+			ml_sym_call (b->ctx, ML_WORD_NAME (LN), ml_sym_int (b->ctx, 10))
 		);
 	}
 

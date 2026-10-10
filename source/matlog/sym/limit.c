@@ -46,11 +46,6 @@ typedef struct Lim
 	Ev          at;
 } Lim;
 
-static int32_t is_name (MlSlice name, const char *text)
-{
-	return ml_slice_equal (name, ml_slice_cstr (text));
-}
-
 static const MlSym *int_node (Lim *L, int64_t n)
 {
 	return ml_sym_int (L->ctx, n);
@@ -355,7 +350,7 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 		r = ev_unk ();
 	}
 
-	else if (is_name (name, "exp"))
+	else if (ML_WORD_IS (name, EXP))
 	{
 		if (a.kind == EV_FIN)
 		{
@@ -372,7 +367,7 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 		}
 	}
 
-	else if (is_name (name, "ln"))
+	else if (ML_WORD_IS (name, LN))
 	{
 		int32_t cs = ml_choose (a.kind == EV_FIN, sign_of (L, a.value), 0);
 
@@ -392,9 +387,9 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 		}
 	}
 
-	else if (is_name (name, "atan") && is_inf (a))
+	else if (ML_WORD_IS (name, ATAN) && is_inf (a))
 	{
-		const MlSym *pi = ml_sym_var (L->ctx, ml_word_name (ML_WORD_ID_PI));
+		const MlSym *pi = ml_sym_var (L->ctx, ML_WORD_NAME (PI));
 
 		r = ev_fin (
 			ml_sym_mul (
@@ -413,7 +408,7 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 		);
 	}
 
-	else if (is_name (name, "abs") && is_inf (a))
+	else if (ML_WORD_IS (name, ABS) && is_inf (a))
 	{
 		r = ev_inf (1);
 	}
@@ -424,7 +419,7 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 		int32_t zero  = ml_sym_is_zero (a.value);
 		int32_t range = 1;
 
-		if (is_name (name, "asin") || is_name (name, "acos"))
+		if (ML_WORD_IS (name, ASIN) || ML_WORD_IS (name, ACOS))
 		{
 			double d;
 
@@ -438,13 +433,13 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 		if (
 			   range
 			&& (
-				   is_name (name, "sin")
-				|| is_name (name, "cos")
-				|| is_name (name, "tan")
-				|| is_name (name, "asin")
-				|| is_name (name, "acos")
-				|| is_name (name, "atan")
-				|| is_name (name, "abs")
+				   ML_WORD_IS (name, SIN)
+				|| ML_WORD_IS (name, COS)
+				|| ML_WORD_IS (name, TAN)
+				|| ML_WORD_IS (name, ASIN)
+				|| ML_WORD_IS (name, ACOS)
+				|| ML_WORD_IS (name, ATAN)
+				|| ML_WORD_IS (name, ABS)
 			)
 		)
 		{
@@ -452,7 +447,7 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 			int32_t     side  = 0;
 			int32_t     moved = a.side != 0;
 
-			if (is_name (name, "abs"))
+			if (ML_WORD_IS (name, ABS))
 			{
 				side = ml_choose (zero, ml_choose (moved, 1, 0), a.side * cs);
 			}
@@ -460,10 +455,10 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 			else if (
 				   zero
 				&& (
-					   is_name (name, "sin")
-					|| is_name (name, "tan")
-					|| is_name (name, "asin")
-					|| is_name (name, "atan")
+					   ML_WORD_IS (name, SIN)
+					|| ML_WORD_IS (name, TAN)
+					|| ML_WORD_IS (name, ASIN)
+					|| ML_WORD_IS (name, ATAN)
 				)
 			)
 			{
@@ -522,20 +517,20 @@ static Ev ev_node (Lim *L, const MlSym *s, const Ev *kids)
 			r = ev_pow_num (L, kids [0], s->kids [1]);
 		}
 
-		else if (ml_sym_is_var (s->kids [0], ml_word_name (ML_WORD_ID_E)))
+		else if (ml_sym_is_var (s->kids [0], ML_WORD_NAME (E)))
 		{
-			r = ev_func (L, ml_slice_cstr ("exp"), kids [1]);
+			r = ev_func (L, ML_WORD_NAME (EXP), kids [1]);
 		}
 
 		else
 		{
 			r = ev_func (
 				L,
-				ml_slice_cstr ("exp"),
+				ML_WORD_NAME (EXP),
 				ev_mul (
 					L,
 					kids [1],
-					ev_func (L, ml_slice_cstr ("ln"), kids [0])
+					ev_func (L, ML_WORD_NAME (LN), kids [0])
 				)
 			);
 		}
@@ -889,12 +884,12 @@ MlSymLimit ml_sym_limit (
 		.value = NULL
 	};
 
-	int32_t    plus  = ml_sym_is_var (at, ml_word_name (ML_WORD_ID_INF));
+	int32_t    plus  = ml_sym_is_var (at, ML_WORD_NAME (INF));
 	int32_t    minus = (
 		   at->kind == ML_SYM_MUL
 		&& at->count == 2
 		&& ml_sym_is_one (ml_sym_neg (ctx, at->kids [0]))
-		&& ml_sym_is_var (at->kids [1], ml_word_name (ML_WORD_ID_INF))
+		&& ml_sym_is_var (at->kids [1], ML_WORD_NAME (INF))
 	);
 
 	L.ctx = ctx;

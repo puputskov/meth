@@ -45,11 +45,6 @@ static const MlSym *int_node (MlSymCtx *ctx, int64_t n)
 	return ml_sym_int (ctx, n);
 }
 
-static int32_t is_name (MlSlice name, const char *text)
-{
-	return ml_slice_equal (name, ml_slice_cstr (text));
-}
-
 /* ---- the steps ---- */
 
 void ml_int_note (
@@ -278,17 +273,17 @@ static uint32_t liate_rank (const MlSym *g, const MlSym *x)
 	if (g->kind == ML_SYM_FUNC)
 	{
 		rank = ml_choose (
-			is_name (g->name, "atan") || is_name (g->name, "asin")
-				|| is_name (g->name, "acos"),
+			ML_WORD_IS (g->name, ATAN) || ML_WORD_IS (g->name, ASIN)
+				|| ML_WORD_IS (g->name, ACOS),
 			1,
 			ml_choose (
-				is_name (g->name, "ln"),
+				ML_WORD_IS (g->name, LN),
 				2,
 				ml_choose (
-					is_name (g->name, "sin") || is_name (g->name, "cos")
-						|| is_name (g->name, "tan"),
+					ML_WORD_IS (g->name, SIN) || ML_WORD_IS (g->name, COS)
+						|| ML_WORD_IS (g->name, TAN),
 					4,
-					ml_choose (is_name (g->name, "exp"), 5, 6)
+					ml_choose (ML_WORD_IS (g->name, EXP), 5, 6)
 				)
 			)
 		);

@@ -15,11 +15,6 @@ typedef struct DiffFrame
 
 ML_VEC_DEFINE (DiffFrameVec, DiffFrame)
 
-static int32_t is_name (MlSlice name, const char *text)
-{
-	return ml_slice_equal (name, ml_slice_cstr (text));
-}
-
 static const MlSym *int_node (MlSymCtx *ctx, int64_t n)
 {
 	return ml_sym_int (ctx, n);
@@ -51,42 +46,42 @@ static const MlSym *function_rule (
 
 	*rule = ML_RULE_DIFF_CHAIN;
 
-	if (is_name (name, "sin"))
+	if (ML_WORD_IS (name, SIN))
 	{
-		outer = ml_sym_call (ctx, ml_slice_cstr ("cos"), u);
+		outer = ml_sym_call (ctx, ML_WORD_NAME (COS), u);
 	}
 
-	else if (is_name (name, "cos"))
+	else if (ML_WORD_IS (name, COS))
 	{
-		outer = ml_sym_neg (ctx, ml_sym_call (ctx, ml_slice_cstr ("sin"), u));
+		outer = ml_sym_neg (ctx, ml_sym_call (ctx, ML_WORD_NAME (SIN), u));
 	}
 
-	else if (is_name (name, "tan"))
+	else if (ML_WORD_IS (name, TAN))
 	{
 		outer = ml_sym_pow (
 			ctx,
-			ml_sym_call (ctx, ml_slice_cstr ("cos"), u),
+			ml_sym_call (ctx, ML_WORD_NAME (COS), u),
 			int_node (ctx, -2)
 		);
 	}
 
-	else if (is_name (name, "exp"))
+	else if (ML_WORD_IS (name, EXP))
 	{
-		outer = ml_sym_call (ctx, ml_slice_cstr ("exp"), u);
+		outer = ml_sym_call (ctx, ML_WORD_NAME (EXP), u);
 	}
 
-	else if (is_name (name, "ln"))
+	else if (ML_WORD_IS (name, LN))
 	{
 		outer = ml_sym_pow (ctx, u, int_node (ctx, -1));
 	}
 
-	else if (is_name (name, "abs"))
+	else if (ML_WORD_IS (name, ABS))
 	{
 		/* u / |u| */
 		outer = ml_sym_div (
 			ctx,
 			u,
-			ml_sym_call (ctx, ml_slice_cstr ("abs"), u)
+			ml_sym_call (ctx, ML_WORD_NAME (ABS), u)
 		);
 	}
 
@@ -94,7 +89,7 @@ static const MlSym *function_rule (
 	{
 		/* asin, acos, atan: 1/sqrt(1 - u^2), -1/sqrt(1 - u^2), 1/(1 + u^2) */
 		const MlSym *square = ml_sym_pow (ctx, u, int_node (ctx, 2));
-		int32_t     inverse = is_name (name, "atan");
+		int32_t     inverse = ML_WORD_IS (name, ATAN);
 
 		outer = ml_choose (
 			inverse,
@@ -110,7 +105,7 @@ static const MlSym *function_rule (
 			)
 		);
 		outer = ml_choose (
-			is_name (name, "acos"),
+			ML_WORD_IS (name, ACOS),
 			ml_sym_neg (ctx, outer),
 			outer
 		);
@@ -223,9 +218,9 @@ static const MlSym *rule (
 			*name = ML_RULE_DIFF_EXPONENTIAL;
 			factors [0] = n;
 			factors [1] = ml_choose (
-				ml_sym_is_var (b, ml_word_name (ML_WORD_ID_E)),
+				ml_sym_is_var (b, ML_WORD_NAME (E)),
 				int_node (ctx, 1),
-				ml_sym_call (ctx, ml_slice_cstr ("ln"), b)
+				ml_sym_call (ctx, ML_WORD_NAME (LN), b)
 			);
 			factors [2] = d [1];
 			out         = ml_sym_product (ctx, factors, 3);
@@ -243,7 +238,7 @@ static const MlSym *rule (
 					ml_sym_mul (
 						ctx,
 						d [1],
-						ml_sym_call (ctx, ml_slice_cstr ("ln"), b)
+						ml_sym_call (ctx, ML_WORD_NAME (LN), b)
 					),
 					ml_sym_div (ctx, ml_sym_mul (ctx, e, d [0]), b)
 				)

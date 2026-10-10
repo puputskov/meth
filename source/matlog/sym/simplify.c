@@ -43,8 +43,8 @@ static MlRat symbol_degree (MlSymCtx *ctx, const MlSym *s)
 	if (s->kind == ML_SYM_VAR)
 	{
 		d = ml_choose (
-			   ml_word_is (s->name, ML_WORD_ID_PI)
-			|| ml_word_is (s->name, ML_WORD_ID_E),
+			   ML_WORD_IS (s->name, PI)
+			|| ML_WORD_IS (s->name, E),
 			d,
 			one_rat (ctx)
 		);
@@ -802,17 +802,12 @@ const MlSym *ml_sym_div (MlSymCtx *ctx, const MlSym *a, const MlSym *b)
 
 /* ---- functions ---- */
 
-static int32_t is_name (MlSlice name, const char *text)
-{
-	return ml_slice_equal (name, ml_slice_cstr (text));
-}
-
 const MlSym *ml_sym_call (MlSymCtx *ctx, MlSlice name, const MlSym *arg)
 {
 	const MlSym *result = NULL;
-	int32_t     odd     = is_name (name, "sin") || is_name (name, "tan")
-		|| is_name (name, "asin") || is_name (name, "atan");
-	int32_t     even    = is_name (name, "cos") || is_name (name, "abs");
+	int32_t     odd     = ML_WORD_IS (name, SIN) || ML_WORD_IS (name, TAN)
+		|| ML_WORD_IS (name, ASIN) || ML_WORD_IS (name, ATAN);
+	int32_t     even    = ML_WORD_IS (name, COS) || ML_WORD_IS (name, ABS);
 	int32_t     negated = (
 		   arg->kind == ML_SYM_NUM && ml_rat_sign (arg->num) < 0
 	) || (
@@ -824,24 +819,24 @@ const MlSym *ml_sym_call (MlSymCtx *ctx, MlSlice name, const MlSym *arg)
 	if (ml_sym_is_zero (arg))
 	{
 		result = ml_choose (
-			is_name (name, "cos") || is_name (name, "exp"),
+			ML_WORD_IS (name, COS) || ML_WORD_IS (name, EXP),
 			int_node (ctx, 1),
 			ml_choose (
-				is_name (name, "sin") || is_name (name, "tan")
-					|| is_name (name, "asin") || is_name (name, "atan")
-					|| is_name (name, "abs"),
+				ML_WORD_IS (name, SIN) || ML_WORD_IS (name, TAN)
+					|| ML_WORD_IS (name, ASIN) || ML_WORD_IS (name, ATAN)
+					|| ML_WORD_IS (name, ABS),
 				int_node (ctx, 0),
 				NULL
 			)
 		);
 	}
 
-	else if (ml_sym_is_one (arg) && is_name (name, "ln"))
+	else if (ml_sym_is_one (arg) && ML_WORD_IS (name, LN))
 	{
 		result = int_node (ctx, 0);
 	}
 
-	else if (arg->kind == ML_SYM_NUM && is_name (name, "abs"))
+	else if (arg->kind == ML_SYM_NUM && ML_WORD_IS (name, ABS))
 	{
 		MlRat m = arg->num;
 
@@ -851,14 +846,14 @@ const MlSym *ml_sym_call (MlSymCtx *ctx, MlSlice name, const MlSym *arg)
 		);
 	}
 
-	else if (is_name (name, "exp") && arg->kind == ML_SYM_FUNC
-		&& is_name (arg->name, "ln"))
+	else if (ML_WORD_IS (name, EXP) && arg->kind == ML_SYM_FUNC
+		&& ML_WORD_IS (arg->name, LN))
 	{
 		result = arg->kids [0];
 	}
 
-	else if (is_name (name, "ln") && arg->kind == ML_SYM_FUNC
-		&& is_name (arg->name, "exp"))
+	else if (ML_WORD_IS (name, LN) && arg->kind == ML_SYM_FUNC
+		&& ML_WORD_IS (arg->name, EXP))
 	{
 		result = arg->kids [0];
 	}
