@@ -11,259 +11,31 @@
 #include <matlog/session/options.h>
 #include <matlog/session/settings.h>
 #include <matlog/session/watch.h>
+#include <matlog/texts/texts.h>
 #include <matlog/ui/theme.h>
 
 #define VERSION "matlog 0.3.0"
 
 /* ---- text of the help ---- */
 
-static const char *const help_overview =
-	"matlog: an exact math shell. Without a command it opens the "
-	"interactive editor.\n"
-	"\n"
-	"usage: matlog [FILE.mlog]\n"
-	"       matlog COMMAND [OPTIONS] [ARGUMENTS]\n"
-	"\n"
-	"commands:\n"
-	"  eval EXPR...   evaluate expressions, one result each\n"
-	"  run FILE       evaluate every line of a session file\n"
-	"  lex TEXT       the tokens of a text\n"
-	"  parse TEXT     the syntax tree of a text\n"
-	"  steps EXPR     the steps of an expression, or of FILE:LINE\n"
-	"  help [CMD]     this text, or the help of one command\n"
-	"  syntax         the syntax, functions and domains\n"
-	"  docs list|show|search|check   the documentation\n"
-	"  export FILE FMT   a session as latex, mathml or markdown\n"
-	"  theme [NAME]   the built in themes, or one as a theme file\n"
-	"  config list|get|set|path   the settings\n"
-	"  examples [NAME]   the worked examples, or one as a .mlog file\n"
-	"  vars FILE[:LINE]  the names defined at a line, with type and value\n"
-	"  schema         the shape of the JSON output\n"
-	"  commands       the list of commands (--format json for tools)\n"
-	"  version        the version\n"
-	"\n"
-	"options:\n"
-	"  --format text|json   the output form (default text)\n"
-	"  --session FILE       eval: the session whose definitions are visible\n"
-	"  --domain NAME        eval, steps: the domain of the text (default "
-	"algebra;\n"
-	"                       boolean and lambda are evaluated)\n"
-	"  --write              eval: keep the new lines in the session file\n"
-	"  --symbols            a name that stands for nothing is a symbol\n"
-	"\n"
-	"An argument - reads standard input. Exit codes: 0 success, 1 an "
-	"expression\n"
-	"was an error, 2 usage error, 3 file error.\n";
-
-static const char *const help_eval =
-	"matlog eval [--session FILE] [--domain NAME] [--write] "
-	"[--format text|json] EXPR...\n"
-	"\n"
-	"Evaluates each EXPR in order, as lines of a session: a = 3 defines a "
-	"for\n"
-	"the expressions after it. With --session the definitions of that file "
-	"are\n"
-	"visible; with --write the new lines are appended to it. An EXPR of - "
-	"takes\n"
-	"one expression per line from standard input.\n"
-	"\n"
-	"examples:\n"
-	"  matlog eval \"1/3 + 1/6\" \"sqrt(2)\"\n"
-	"  matlog eval \"a = 3\" \"a^2 + 1\" --format json\n"
-	"  matlog eval \"det([[1,2],[3,4]])\"\n"
-	"  matlog eval --domain boolean \"a -> b\" \"table a & b\"\n"
-	"  matlog eval --domain lambda \"succ = \\x n f. f (n f)\" \"succ 2\"\n";
-
-static const char *const help_config =
-	"matlog config list [--format text|json]\n"
-	"matlog config get NAME [--format text|json]\n"
-	"matlog config set NAME VALUE\n"
-	"matlog config path\n"
-	"\n"
-	"Reads and changes the settings of settings.mlcfg (theme, colors, "
-	"highlight,\n"
-	"ghost). A setting that is not in the file has its default, and the "
-	"value auto\n"
-	"means that the terminal decides. MATLOG_CONFIG names another settings "
-	"folder.\n"
-	"The key bindings are the section [keys] of the file, see the page "
-	"keys of\n"
-	"matlog docs.\n";
-
-static const char *const help_examples =
-	"matlog examples [--format text|json]\n"
-	"matlog examples NAME\n"
-	"\n"
-	"Without a name lists the worked examples with their titles. With a name "
-	"prints\n"
-	"that example as a session file, to save and open or to run with "
-	"matlog run:\n"
-	"\n"
-	"  matlog examples calculus-newton-sqrt2 > newton.mlog\n"
-	"  matlog run newton.mlog\n";
-
-static const char *const help_vars =
-	"matlog vars FILE[:LINE] [--format text|json]\n"
-	"\n"
-	"Prints the names that are defined after line LINE of a session file (1 "
-	"based;\n"
-	"the end of the file without it): variables, functions and the "
-	"definitions of the\n"
-	"boolean and lambda domains, each with its type and value. A name that was "
-	"defined\n"
-	"again has one row, its newest value. The JSON form is one object per "
-	"name:\n"
-	"{\"name\":\"a\",\"type\":\"exact\",\"value\":\"3\",\"fresh\":true}, "
-	"fresh for a name that\n"
-	"the line itself defined or changed.\n";
-
-static const char *const help_run =
-	"matlog run FILE [--format text|json]\n"
-	"\n"
-	"Evaluates a session file and prints every line with its result. "
-	"Includes\n"
-	"are followed. Exit code 1 when any line is an error.\n";
-
-static const char *const help_export =
-	"matlog export FILE FORMAT [WORDS...]\n"
-	"\n"
-	"Writes the session FILE as a document on standard output. FORMAT is\n"
-	"latex, mathml (an HTML page) or markdown. The words after it are\n"
-	"body (no preamble or page), errors (the errors of lines too), a line\n"
-	"range (3 or 3-12, from 1) and a path: with a path the document is\n"
-	"written there instead (an existing file is replaced).\n";
-
-static const char *const help_lex =
-	"matlog lex TEXT [--format text|json]\n"
-	"\n"
-	"Prints the tokens of TEXT: kind, byte offset, byte length and text.\n";
-
-static const char *const help_parse =
-	"matlog parse TEXT [--format text|json]\n"
-	"\n"
-	"Prints the syntax tree of TEXT, e.g. (+ 1 (* 2 x)). Exit code 1 and the "
-	"place\n"
-	"of the problem when TEXT is not a valid statement.\n";
-
-static const char *const help_steps =
-	"matlog steps [--session FILE] [--domain NAME] [--format text|json] "
-	"EXPR\n"
-	"matlog steps [--format text|json] FILE:LINE\n"
-	"\n"
-	"Prints the steps of one line: the row operations of a matrix "
-	"calculation, the\n"
-	"rule used for each part of a derivative or an integral, the changes "
-	"made by simplify.\n"
-	"With --domain lambda: the beta steps of the reduction; with --domain "
-	"boolean:\nthe truth table. Exit code 1 when the line has no steps.\n";
-
-static const char *const syntax_text =
-	"Numbers      12  3.14  .5   exact fractions: 1/3 + 1/6 is 1/2\n"
-	"Operators    + - * / ^ (right associative)  ! (factorial)  "
-	"sqrt(x) or the root sign\n"
-	"             -2^2 is -4; implicit product: 2x  2(x+1)  (a)(b)  2pi\n"
-	"Unicode      the same as ASCII: x\xC2\xB2 for x^2, \xE2\x88\x9A for "
-	"sqrt, \xCF\x80 for pi,\n"
-	"             \xC3\x97 \xC2\xB7 for *, \xC3\xB7 for /, \xE2\x88\x92 "
-	"for -\n"
-	"Names        letters, digits and _, whole words: xy is one name\n"
-	"Statements   expression | name = expression | f(x, y) = expression\n"
-	"Constants    pi  e   (approximate)\n"
-	"Functions    sqrt abs sin cos tan asin acos atan ln log exp floor "
-	"ceil round\n"
-	"             min max gcd lcm\n"
-	"Matrices     [[1,2],[3,4]] rows; [1,2,3] a column vector; A^T A^-1 "
-	"A*B\n"
-	"             det inv transpose trace rank rref solve identity dot "
-	"cross norm\n"
-	"Symbolic     simplify(f) expand(f) subs(f, x, v) diff(f, x [, n]) "
-	"integrate(f, x [, a, b]) limit(f, x, a [, side]) solve(f, x);\n"
-	"             inf is infinity; solve gives the real roots of f as a set\n"
-	"             names are symbols inside these: diff(x^3, x) is 3x\xC2\xB2; "
-	"results can be stored\n"
-	"Complex      3 + 4i, i*i = -1, sqrt(-4) = 2i; re im conj abs arg; "
-	"quaternions\n"
-	"             1 + 2i + 3j + 4k, quat (w, x, y, z), rotate (q, v)\n"
-	"Statistics   mean median mode var std quantile cov corr linfit polyfit "
-	"histogram\n"
-	"             binomial_pdf normal_cdf ...; data is a list [2, 4, 5] or "
-	"range (1, 9)\n"
-	"Units        5 km + 300 m, 12 N * 3 m; a to b converts: 3 ft to m;\n"
-	"             dim(x) is the dimension of x as one SI unit\n"
-	"Results      exact (1/2) or approximate (\xE2\x89\x88 1.41421356); "
-	"errors have a code\n"
-	"Domains      algebra, boolean and lambda are evaluated (eval --domain "
-	"NAME);\n"
-	"             matrices, vectors and equations are part of algebra; "
-	"pga2 and pga3 are\n"
-	"             stored but not evaluated yet\n";
-
-static const char *const schema_text =
-	"Every result is one JSON object on one line (JSON Lines).\n"
-	"\n"
-	"eval, run:\n"
-	"  {\"line\":N, \"kind\":\"math|note|include|blank|unknown\", "
-	"\"domain\":\"algebra|boolean|lambda|...\",\n"
-	"   \"input\":\"text\", \"status\":\"value|error|none\",\n"
-	"   \"type\":\"exact|approx|matrix|expr|quantity|boolean|lambda\", "
-	"\"value\":\"7/2\", "
-	"\"block\":[\"row\",...],\n"
-	"   \"error\":{\"code\":\"div_zero\", \"message\":\"...\", "
-	"\"start\":N, \"len\":N}}\n"
-	"  type, value and block only with status value (block: the rows of a "
-	"matrix, a\n"
-	"  truth table or a lambda trace); type is the domain name for the "
-	"boolean\n"
-	"  and the lambda domain;\n"
-	"  error only with status error; domain only for kind math.\n"
-	"lex:    {\"kind\":\"number\", \"start\":N, \"len\":N, "
-	"\"text\":\"12\"}\n"
-	"parse:  {\"ok\":true, \"tree\":\"(+ 1 2)\"} or {\"ok\":false, "
-	"\"error\":{...}}\n"
-	"\n"
-	"error codes: syntax div_zero zero_pow_zero not_real domain "
-	"not_integer\n"
-	"  undefined_name not_function not_value arity too_large depth no_file\n"
-	"  include_loop size type not_exact cannot_integrate not_symbolic\n"
-	"  singular dimension_mismatch unknown_unit no_limit cannot_solve\n"
-	"  no_memory too_long, and for "
-	"text that does\n"
-	"  not parse parse_unexpected_end parse_unexpected_token "
-	"parse_expected_expr\n"
-	"  parse_bad_character parse_bad_superscript parse_assign_target\n"
-	"  parse_duplicate_param parse_too_deep parse_no_memory\n"
-	"boolean: bool_unexpected_character bool_expected_operand "
-	"bool_expected_operator\n"
-	"  bool_unbalanced_parenthesis bool_too_many_names bool_table_too_big\n"
-	"  bool_bad_definition\n"
-	"lambda: lambda_unexpected_character lambda_expected_term\n"
-	"  lambda_expected_parameter lambda_unbalanced_parenthesis "
-	"lambda_number_too_big\n"
-	"  lambda_no_normal_form lambda_too_big lambda_bad_definition\n";
-
-typedef struct CommandInfo
-{
-	const char *name;
-	const char *summary;
-} CommandInfo;
-
-static const CommandInfo commands [] = {
-	{ .name = "eval", .summary = "evaluate expressions" },
-	{ .name = "run", .summary = "evaluate a session file" },
-	{ .name = "lex", .summary = "tokens of a text" },
-	{ .name = "parse", .summary = "syntax tree of a text" },
-	{ .name = "steps", .summary = "steps of an expression or a line" },
-	{ .name = "help", .summary = "usage" },
-	{ .name = "syntax", .summary = "the syntax and functions" },
-	{ .name = "docs", .summary = "read, search and check the documentation" },
-	{ .name = "export", .summary = "a session as latex, mathml or markdown" },
-	{ .name = "theme", .summary = "the built in themes as theme files" },
-	{ .name = "config", .summary = "read and change the settings" },
-	{ .name = "examples", .summary = "worked examples as session files" },
-	{ .name = "vars", .summary = "the names defined at a line of a file" },
-	{ .name = "schema", .summary = "shape of the JSON output" },
-	{ .name = "commands", .summary = "list of commands" },
-	{ .name = "version", .summary = "the version" }
+/* The commands of the command line (summaries: section [cli] of the texts). */
+static const char *const commands [] = {
+	"eval",
+	"run",
+	"lex",
+	"parse",
+	"steps",
+	"help",
+	"syntax",
+	"docs",
+	"export",
+	"theme",
+	"config",
+	"examples",
+	"vars",
+	"schema",
+	"commands",
+	"version"
 };
 
 /* ---- small helpers ---- */
@@ -295,7 +67,7 @@ int32_t ml_cli_is_command (MlSlice first)
 
 	for (uint64_t i = 0; i < ml_count (commands); i++)
 	{
-		found = found || is (first, commands [i].name);
+		found = found || is (first, commands [i]);
 	}
 
 	return found;
@@ -1370,7 +1142,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 {
 	int32_t     code  = ML_EXIT_OK;
-	const char *topic = help_overview;
+	const char *topic = ml_text ("help.overview");
 
 	if (o->rest.len > 1)
 	{
@@ -1380,54 +1152,29 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 	else if (o->rest.len == 1)
 	{
 		MlSlice name = o->rest.data [0];
+		MlStr   key;
 
-		topic = ml_choose (
-			is (name, "eval"),
-			help_eval,
-			ml_choose (
-				is (name, "run"),
-				help_run,
-				ml_choose (
-					is (name, "lex"),
-					help_lex,
-					ml_choose (
-						is (name, "parse"),
-						help_parse,
-						ml_choose (
-							is (name, "steps"),
-							help_steps,
-							ml_choose (
-								is (name, "export"),
-								help_export,
-								ml_choose (
-									is (name, "config"),
-									help_config,
-									ml_choose (
-										is (name, "examples"),
-										help_examples,
-										ml_choose (
-											is (name, "vars"),
-											help_vars,
-											NULL
-										)
-									)
-								)
-							)
-						)
-					)
-				)
-			)
-		);
+		ml_str_init (&key);
 
-		if (topic == NULL && ml_cli_is_command (name))
+		/* syntax and schema are texts of their own, not help of a command */
+		if (
+			   ml_str_appendf (&key, "help.%.*s", (int)name.len, name.data)
+			== ML_OK
+			&& ml_cli_is_command (name)
+			&& !is (name, "syntax")
+			&& !is (name, "schema")
+			&& ml_text_find (ml_str_cstr (key)) != NULL
+		)
 		{
-			topic = help_overview;
+			topic = ml_text_find (ml_str_cstr (key));
 		}
 
-		else if (topic == NULL)
+		else if (!ml_cli_is_command (name))
 		{
 			code = usage_error (err, "no such command", name);
 		}
+
+		ml_str_free (&key);
 	}
 
 	if (code == ML_EXIT_OK)
@@ -2237,8 +1984,8 @@ static int32_t cmd_commands (const Options *o, MlStr *out)
 			r = ml_str_appendf (
 				out,
 				"{\"name\":\"%s\",\"summary\":\"%s\"}\n",
-				commands [i].name,
-				commands [i].summary
+				commands [i],
+				ml_text_in ("cli", commands [i])
 			);
 		}
 
@@ -2247,8 +1994,8 @@ static int32_t cmd_commands (const Options *o, MlStr *out)
 			r = ml_str_appendf (
 				out,
 				"%s\t%s\n",
-				commands [i].name,
-				commands [i].summary
+				commands [i],
+				ml_text_in ("cli", commands [i])
 			);
 		}
 	}
@@ -2314,7 +2061,7 @@ int32_t ml_cli_run (
 
 	else if (is (cmd, "syntax"))
 	{
-		add (out, syntax_text);
+		add (out, ml_text ("help.syntax"));
 	}
 
 	else if (is (cmd, "docs"))
@@ -2349,7 +2096,7 @@ int32_t ml_cli_run (
 
 	else if (is (cmd, "schema"))
 	{
-		add (out, schema_text);
+		add (out, ml_text ("help.schema"));
 	}
 
 	else if (is (cmd, "commands"))

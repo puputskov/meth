@@ -167,5 +167,202 @@ watch = the watch window with the names and their values
 language = the language of messages, hints and lessons (a texts file)
 ghost = the preview of the result while typing
 
+# The help of the command line (matlog help, matlog syntax, matlog schema):
+# blocks, the lines as they are.
+[help]
+overview = <<
+matlog: an exact math shell. Without a command it opens the interactive editor.
+
+usage: matlog [FILE.mlog]
+       matlog COMMAND [OPTIONS] [ARGUMENTS]
+
+commands:
+  eval EXPR...   evaluate expressions, one result each
+  run FILE       evaluate every line of a session file
+  lex TEXT       the tokens of a text
+  parse TEXT     the syntax tree of a text
+  steps EXPR     the steps of an expression, or of FILE:LINE
+  help [CMD]     this text, or the help of one command
+  syntax         the syntax, functions and domains
+  docs list|show|search|check   the documentation
+  export FILE FMT   a session as latex, mathml or markdown
+  theme [NAME]   the built in themes, or one as a theme file
+  config list|get|set|path   the settings
+  examples [NAME]   the worked examples, or one as a .mlog file
+  vars FILE[:LINE]  the names defined at a line, with type and value
+  schema         the shape of the JSON output
+  commands       the list of commands (--format json for tools)
+  version        the version
+
+options:
+  --format text|json   the output form (default text)
+  --session FILE       eval: the session whose definitions are visible
+  --domain NAME        eval, steps: the domain of the text (default algebra;
+                       boolean and lambda are evaluated)
+  --write              eval: keep the new lines in the session file
+  --symbols            a name that stands for nothing is a symbol
+
+An argument - reads standard input. Exit codes: 0 success, 1 an expression
+was an error, 2 usage error, 3 file error.
+>>
+eval = <<
+matlog eval [--session FILE] [--domain NAME] [--write] [--format text|json] EXPR...
+
+Evaluates each EXPR in order, as lines of a session: a = 3 defines a for
+the expressions after it. With --session the definitions of that file are
+visible; with --write the new lines are appended to it. An EXPR of - takes
+one expression per line from standard input.
+
+examples:
+  matlog eval "1/3 + 1/6" "sqrt(2)"
+  matlog eval "a = 3" "a^2 + 1" --format json
+  matlog eval "det([[1,2],[3,4]])"
+  matlog eval --domain boolean "a -> b" "table a & b"
+  matlog eval --domain lambda "succ = \x n f. f (n f)" "succ 2"
+>>
+config = <<
+matlog config list [--format text|json]
+matlog config get NAME [--format text|json]
+matlog config set NAME VALUE
+matlog config path
+
+Reads and changes the settings of settings.mlcfg (theme, colors, highlight,
+ghost). A setting that is not in the file has its default, and the value auto
+means that the terminal decides. MATLOG_CONFIG names another settings folder.
+The key bindings are the section [keys] of the file, see the page keys of
+matlog docs.
+>>
+examples = <<
+matlog examples [--format text|json]
+matlog examples NAME
+
+Without a name lists the worked examples with their titles. With a name prints
+that example as a session file, to save and open or to run with matlog run:
+
+  matlog examples calculus-newton-sqrt2 > newton.mlog
+  matlog run newton.mlog
+>>
+vars = <<
+matlog vars FILE[:LINE] [--format text|json]
+
+Prints the names that are defined after line LINE of a session file (1 based;
+the end of the file without it): variables, functions and the definitions of the
+boolean and lambda domains, each with its type and value. A name that was defined
+again has one row, its newest value. The JSON form is one object per name:
+{"name":"a","type":"exact","value":"3","fresh":true}, fresh for a name that
+the line itself defined or changed.
+>>
+run = <<
+matlog run FILE [--format text|json]
+
+Evaluates a session file and prints every line with its result. Includes
+are followed. Exit code 1 when any line is an error.
+>>
+export = <<
+matlog export FILE FORMAT [WORDS...]
+
+Writes the session FILE as a document on standard output. FORMAT is
+latex, mathml (an HTML page) or markdown. The words after it are
+body (no preamble or page), errors (the errors of lines too), a line
+range (3 or 3-12, from 1) and a path: with a path the document is
+written there instead (an existing file is replaced).
+>>
+lex = <<
+matlog lex TEXT [--format text|json]
+
+Prints the tokens of TEXT: kind, byte offset, byte length and text.
+>>
+parse = <<
+matlog parse TEXT [--format text|json]
+
+Prints the syntax tree of TEXT, e.g. (+ 1 (* 2 x)). Exit code 1 and the place
+of the problem when TEXT is not a valid statement.
+>>
+steps = <<
+matlog steps [--session FILE] [--domain NAME] [--format text|json] EXPR
+matlog steps [--format text|json] FILE:LINE
+
+Prints the steps of one line: the row operations of a matrix calculation, the
+rule used for each part of a derivative or an integral, the changes made by simplify.
+With --domain lambda: the beta steps of the reduction; with --domain boolean:
+the truth table. Exit code 1 when the line has no steps.
+>>
+syntax = <<
+Numbers      12  3.14  .5   exact fractions: 1/3 + 1/6 is 1/2
+Operators    + - * / ^ (right associative)  ! (factorial)  sqrt(x) or the root sign
+             -2^2 is -4; implicit product: 2x  2(x+1)  (a)(b)  2pi
+Unicode      the same as ASCII: x² for x^2, √ for sqrt, π for pi,
+             × · for *, ÷ for /, − for -
+Names        letters, digits and _, whole words: xy is one name
+Statements   expression | name = expression | f(x, y) = expression
+Constants    pi  e   (approximate)
+Functions    sqrt abs sin cos tan asin acos atan ln log exp floor ceil round
+             min max gcd lcm
+Matrices     [[1,2],[3,4]] rows; [1,2,3] a column vector; A^T A^-1 A*B
+             det inv transpose trace rank rref solve identity dot cross norm
+Symbolic     simplify(f) expand(f) subs(f, x, v) diff(f, x [, n]) integrate(f, x [, a, b]) limit(f, x, a [, side]) solve(f, x);
+             inf is infinity; solve gives the real roots of f as a set
+             names are symbols inside these: diff(x^3, x) is 3x²; results can be stored
+Complex      3 + 4i, i*i = -1, sqrt(-4) = 2i; re im conj abs arg; quaternions
+             1 + 2i + 3j + 4k, quat (w, x, y, z), rotate (q, v)
+Statistics   mean median mode var std quantile cov corr linfit polyfit histogram
+             binomial_pdf normal_cdf ...; data is a list [2, 4, 5] or range (1, 9)
+Units        5 km + 300 m, 12 N * 3 m; a to b converts: 3 ft to m;
+             dim(x) is the dimension of x as one SI unit
+Results      exact (1/2) or approximate (≈ 1.41421356); errors have a code
+Domains      algebra, boolean and lambda are evaluated (eval --domain NAME);
+             matrices, vectors and equations are part of algebra; pga2 and pga3 are
+             stored but not evaluated yet
+>>
+schema = <<
+Every result is one JSON object on one line (JSON Lines).
+
+eval, run:
+  {"line":N, "kind":"math|note|include|blank|unknown", "domain":"algebra|boolean|lambda|...",
+   "input":"text", "status":"value|error|none",
+   "type":"exact|approx|matrix|expr|quantity|boolean|lambda", "value":"7/2", "block":["row",...],
+   "error":{"code":"div_zero", "message":"...", "start":N, "len":N}}
+  type, value and block only with status value (block: the rows of a matrix, a
+  truth table or a lambda trace); type is the domain name for the boolean
+  and the lambda domain;
+  error only with status error; domain only for kind math.
+lex:    {"kind":"number", "start":N, "len":N, "text":"12"}
+parse:  {"ok":true, "tree":"(+ 1 2)"} or {"ok":false, "error":{...}}
+
+error codes: syntax div_zero zero_pow_zero not_real domain not_integer
+  undefined_name not_function not_value arity too_large depth no_file
+  include_loop size type not_exact cannot_integrate not_symbolic
+  singular dimension_mismatch unknown_unit no_limit cannot_solve
+  no_memory too_long, and for text that does
+  not parse parse_unexpected_end parse_unexpected_token parse_expected_expr
+  parse_bad_character parse_bad_superscript parse_assign_target
+  parse_duplicate_param parse_too_deep parse_no_memory
+boolean: bool_unexpected_character bool_expected_operand bool_expected_operator
+  bool_unbalanced_parenthesis bool_too_many_names bool_table_too_big
+  bool_bad_definition
+lambda: lambda_unexpected_character lambda_expected_term
+  lambda_expected_parameter lambda_unbalanced_parenthesis lambda_number_too_big
+  lambda_no_normal_form lambda_too_big lambda_bad_definition
+>>
+
+# One line for each command of the command line (matlog commands).
+[cli]
+eval = evaluate expressions
+run = evaluate a session file
+lex = tokens of a text
+parse = syntax tree of a text
+steps = steps of an expression or a line
+help = usage
+syntax = the syntax and functions
+docs = read, search and check the documentation
+export = a session as latex, mathml or markdown
+theme = the built in themes as theme files
+config = read and change the settings
+examples = worked examples as session files
+vars = the names defined at a line of a file
+schema = shape of the JSON output
+commands = list of commands
+version = the version
+
 # The lessons of the tutorial are in the files lessons/en/*.mltext, one lesson per
 # file, built into the program in the same way and read in the order of their names.

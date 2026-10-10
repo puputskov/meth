@@ -150,6 +150,7 @@ typedef struct Reader
 	MlStr section;
 	MlStr key;   /* the entry that a continuation line adds to */
 	MlStr text;  /* its text so far, unescaped */
+	int32_t raw; /* inside a block (code = <<  ...  >>): lines are verbatim */
 } Reader;
 
 /* Stores the entry the reader has collected. */
@@ -167,7 +168,11 @@ static MlResult flush (Reader *rd)
 	return r;
 }
 
-/* One line of a catalog; bad is counted for a line that is nothing. */
+/*
+ * One line of a catalog; bad is counted for a line that is nothing. Inside a
+ * block every line up to a line that is only >> is taken as it is, white
+ * space, # and backslashes included, each with its line break.
+ */
 static MlResult read_line (Reader *rd, MlSlice line, uint64_t *bad)
 {
 	MlResult r       = ML_OK;
@@ -183,7 +188,23 @@ static MlResult read_line (Reader *rd, MlSlice line, uint64_t *bad)
 		eq++;
 	}
 
-	if (t.len == 0 || t.data [0] == '#')
+	if (rd->raw && ml_slice_equal (line, ml_slice_cstr (">>")))
+	{
+		rd->raw = 0;
+		r       = flush (rd);
+	}
+
+	else if (rd->raw)
+	{
+		r = ml_str_append (&rd->text, line);
+
+		if (r == ML_OK)
+		{
+			r = ml_str_append (&rd->text, ml_slice_cstr ("\n"));
+		}
+	}
+
+	else if (t.len == 0 || t.data [0] == '#')
 	{
 		r = ML_OK;
 	}
@@ -230,10 +251,14 @@ static MlResult read_line (Reader *rd, MlSlice line, uint64_t *bad)
 
 		if (r == ML_OK)
 		{
-			r = unescape (
-				&rd->text,
-				trim (ml_slice_sub (t, eq + 1, t.len - eq - 1))
-			);
+			MlSlice value = trim (ml_slice_sub (t, eq + 1, t.len - eq - 1));
+
+			rd->raw = ml_slice_equal (value, ml_slice_cstr ("<<"));
+
+			if (!rd->raw)
+			{
+				r = unescape (&rd->text, value);
+			}
 		}
 	}
 
@@ -255,6 +280,7 @@ MlResult ml_texts_add (MlSlice text, uint64_t *bad)
 	ml_str_init (&rd.section);
 	ml_str_init (&rd.key);
 	ml_str_init (&rd.text);
+	rd.raw = 0;
 
 	if (bad == NULL)
 	{

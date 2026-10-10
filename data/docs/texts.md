@@ -6,7 +6,7 @@ see: settings, tutorial
 
 Every text the tool shows you is data in a text file, not part of the program:
 the error messages, the messages of the editor, the hints in an empty editor,
-the summaries of the keys and the settings, and the lessons of the tutorial. The program only holds
+the summaries of the keys, the settings and the commands of the command line, its help, and the lessons of the tutorial. The program only holds
 the stable code of a text, such as `errors.div_zero`. So a mistake in a word, a
 new hint or a translation needs no rebuild.
 
@@ -28,6 +28,20 @@ undefined_name_of = undefined name '{name}'
 above it. `\n` is a line break and `\\` a backslash. `{name}` is a place the
 program fills in; in the hints the parts in braces are drawn as keys, and
 `{ACTION_UNDO}` is the key of the action `undo` (see [keys](keys)).
+
+A long text that has its own line breaks and indents, such as the help of the
+command line (`matlog help`), is a block. The entry ends in `= <<`, the lines
+that follow are taken as they are (spaces, `#` and backslashes included), and
+a line that is only `>>` ends it:
+
+```code
+[help]
+lex = <<
+matlog lex TEXT [--format text|json]
+
+Prints the tokens of TEXT.
+>>
+```
 
 # Your own texts
 The English texts are built into the program (`texts/en.mltext` in the

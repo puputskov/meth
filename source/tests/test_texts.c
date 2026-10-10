@@ -121,6 +121,46 @@ static void test_format (void)
 	ml_texts_reload ("en", NULL);
 }
 
+static void test_block (void)
+{
+	uint64_t bad = 0;
+
+	ml_texts_clear ();
+	CHECK (
+		ml_texts_add (
+			lit (
+				"[help]\n"
+				"a = <<\n"
+				"usage: x\n"
+				"\n"
+				"  indented \\n # not a comment = nor an entry\n"
+				"[not a section]\n"
+				">>\n"
+				"b = after the block\n"
+				"c = <<\r\n"
+				"crlf\r\n"
+				">>\r\n"
+				"d = <<\n"
+				"open to the end\n"
+			),
+			&bad
+		) == ML_OK
+	);
+
+	CHECK (bad == 0);
+	CHECK (
+		is (
+			ml_text ("help.a"),
+			"usage: x\n\n  indented \\n # not a comment = nor an entry\n"
+			"[not a section]\n"
+		)
+	);
+	CHECK (is (ml_text ("help.b"), "after the block"));
+	CHECK (is (ml_text ("help.c"), "crlf\n"));
+	CHECK (is (ml_text ("help.d"), "open to the end\n"));
+	CHECK (ml_text_count ("help") == 4);
+}
+
 static void test_override_and_add (void)
 {
 	ml_texts_reload ("en", NULL);
@@ -411,6 +451,7 @@ void run_texts_tests (void);
 void run_texts_tests (void)
 {
 	test_format ();
+	test_block ();
 	test_override_and_add ();
 	test_fill ();
 	test_language_file ();

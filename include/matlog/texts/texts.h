@@ -21,8 +21,10 @@
  * A heading `[section]` gives its name to the entries after it, the code of
  * an entry is `section.name`. A line that starts with white space continues
  * the entry above it (joined with one space), `\n` in a text is a line break
- * and `\\` a backslash. `{name}` is a place for a value (ml_text_fill) or for
- * the key of an action (ml_keymap_expand).
+ * and `\\` a backslash. A long text with its own line breaks and indents
+ * (the help of the command line) is a block: `code = <<`, then the lines as
+ * they are, then a line that is only `>>`. `{name}` is a place for a value
+ * (ml_text_fill) or for the key of an action (ml_keymap_expand).
  *
  * The English catalog is texts/en.mltext, compiled into the program (source/
  * matlog/texts/catalog_data.c, made by tools/gen_docs.py), so the tool works
