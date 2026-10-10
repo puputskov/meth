@@ -1,0 +1,16 @@
+# Newton's method for the square root of 2
+# Each step doubles the number of correct digits, and with exact fractions you see them.
+# To solve x^2 = 2 look for the zero of f(x) = x^2 - 2. Newton's step is x - f(x)/f'(x):
+m:algebra g(x) = x - (x^2 - 2)/(2x)
+# Start at 1 and repeat the step. The numbers are exact fractions:
+m:algebra x1 = g(1)
+m:algebra x2 = g(x1)
+m:algebra x3 = g(x2)
+m:algebra x4 = g(x3)
+# The error of each guess, x^2 - 2, shrinks very fast:
+m:algebra x1^2 - 2
+m:algebra x2^2 - 2
+m:algebra x3^2 - 2
+m:algebra x4^2 - 2
+# Compare with the library root:
+m:algebra sqrt(2)

@@ -1,0 +1,15 @@
+# Exact numbers
+# Fractions stay fractions; only a root or a trig function makes an approximation.
+# matlog computes with exact fractions, so there is no rounding error to hunt for.
+m:algebra 1/3 + 1/6
+m:algebra 0.1 + 0.2
+m:algebra 2^100
+m:algebra 30!
+# A root of a perfect square stays exact, any other root is an approximation (the sign says so).
+m:algebra sqrt(16/25)
+m:algebra sqrt(2)
+# Dividing integers is exact too.
+m:algebra gcd(84, 36)
+m:algebra lcm(4, 6)
+m:algebra 22/7 - pi
+# Press F3 on a line to see the steps, if it has some.

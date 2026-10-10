@@ -1,0 +1,14 @@
+# A quadratic equation
+# Solve x^2 - 5x + 6 = 0 and check the answer, then look at one with no real roots.
+# The roots of f(x) = x^2 - 5x + 6:
+m:algebra f(x) = x^2 - 5x + 6
+m:algebra solve(f(x), x)
+# Check: f is zero at both roots.
+m:algebra f(2)
+m:algebra f(3)
+# The factored form is the same polynomial.
+m:algebra expand((x - 2)*(x - 3))
+# The discriminant b^2 - 4ac tells how many real roots there are. For x^2 + x + 1:
+m:algebra 1^2 - 4*1*1
+# It is negative, so there is no real root and solve gives the empty set.
+m:algebra solve(x^2 + x + 1, x)

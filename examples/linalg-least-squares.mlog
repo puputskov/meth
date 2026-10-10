@@ -1,0 +1,15 @@
+# A least squares line
+# Fit y = a + b t to four measurements with the normal equations.
+# Measurements: the times t and the values y.
+m:algebra X = [[1, 0], [1, 1], [1, 2], [1, 3]]
+m:algebra y = [1, 3, 4, 8]
+# The line a + b t that is closest to the points solves  X^T X c = X^T y:
+m:algebra N = transpose(X)*X
+m:algebra r = transpose(X)*y
+m:algebra c = solve(N, r)
+# The first entry is a = 7/10 and the second is b = 11/5: the line is y = 7/10 + 11/5 t.
+# The fitted values and the residuals (the error that is left):
+m:algebra X*c
+m:algebra y - X*c
+# The residuals are perpendicular to the columns of X, so X^T times them is zero:
+m:algebra transpose(X)*(y - X*c)

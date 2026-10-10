@@ -1,0 +1,15 @@
+# A linear system
+# Solve three equations in three unknowns with a matrix, and check the answer.
+# 2x + y - z = 8,  -3x - y + 2z = -11,  -2x + y + 2z = -3
+m:algebra A = [[2, 1, -1], [-3, -1, 2], [-2, 1, 2]]
+m:algebra b = [8, -11, -3]
+# The system has one solution when the determinant is not zero:
+m:algebra det(A)
+m:algebra x = solve(A, b)
+# Check that A x is b:
+m:algebra A*x
+# The same with the inverse (F3 on this line shows the row reduction):
+m:algebra inv(A)*b
+m:algebra rank(A)
+# The reduced row echelon form of A with b beside it is where the answer is read off:
+m:algebra rref([[2, 1, -1, 8], [-3, -1, 2, -11], [-2, 1, 2, -3]])

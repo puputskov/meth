@@ -1,0 +1,15 @@
+# Rotations as matrices
+# A rotation matrix turns a vector and keeps its length. With cos = 3/5 and sin = 4/5 everything is exact.
+m:algebra R = [[3/5, -4/5], [4/5, 3/5]]
+m:algebra v = [1, 0]
+# Rotate the vector:
+m:algebra R*v
+# Its length is the same:
+m:algebra norm(R*v)
+# A rotation is orthogonal: the transpose is the inverse, and the determinant is 1.
+m:algebra transpose(R)*R
+m:algebra det(R)
+# Two rotations in a row are one rotation by the sum of the angles:
+m:algebra R*R
+# Rotating back with the transpose gives the vector again:
+m:algebra transpose(R)*(R*v)

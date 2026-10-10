@@ -1,0 +1,19 @@
+# Arithmetic with nothing but functions
+# In the lambda calculus a number is a function that applies f n times. Everything else is built from that.
+# The successor, addition and multiplication of Church numerals:
+m:lambda succ = λn f x. f (n f x)
+m:lambda plus = λm n f x. m f (n f x)
+m:lambda mult = λm n f. m (n f)
+# Two is a function that applies f twice. Add one:
+m:lambda succ 2
+# 2 + 3 is the numeral 5 (apply f five times):
+m:lambda plus 2 3
+# 3 * 4 is the numeral 12:
+m:lambda mult 3 4
+# Booleans are functions that choose:
+m:lambda true = λa b. a
+m:lambda false = λa b. b
+m:lambda and = λp q. p q p
+m:lambda and true false
+# F3 on a line shows every beta step of the reduction:
+m:lambda mult 2 2

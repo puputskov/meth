@@ -7,6 +7,7 @@
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
 #include <matlog/session/steps.h>
+#include <matlog/docs/examples.h>
 #include <matlog/session/options.h>
 #include <matlog/session/settings.h>
 #include <matlog/ui/theme.h>
@@ -34,6 +35,7 @@ static const char *const help_overview =
 	"  export FILE FMT   a session as latex, mathml or markdown\n"
 	"  theme [NAME]   the built in themes, or one as a theme file\n"
 	"  config list|get|set|path   the settings\n"
+	"  examples [NAME]   the worked examples, or one as a .mlog file\n"
 	"  schema         the shape of the JSON output\n"
 	"  commands       the list of commands (--format json for tools)\n"
 	"  version        the version\n"
@@ -85,6 +87,18 @@ static const char *const help_config =
 	"The key bindings are the section [keys] of the file, see the page "
 	"keys of\n"
 	"matlog docs.\n";
+
+static const char *const help_examples =
+	"matlog examples [--format text|json]\n"
+	"matlog examples NAME\n"
+	"\n"
+	"Without a name lists the worked examples with their titles. With a name "
+	"prints\n"
+	"that example as a session file, to save and open or to run with "
+	"matlog run:\n"
+	"\n"
+	"  matlog examples calculus-newton-sqrt2 > newton.mlog\n"
+	"  matlog run newton.mlog\n";
 
 static const char *const help_run =
 	"matlog run FILE [--format text|json]\n"
@@ -221,6 +235,7 @@ static const CommandInfo commands [] =
 	{ .name = "export", .summary = "a session as latex, mathml or markdown" },
 	{ .name = "theme", .summary = "the built in themes as theme files" },
 	{ .name = "config", .summary = "read and change the settings" },
+	{ .name = "examples", .summary = "worked examples as session files" },
 	{ .name = "schema", .summary = "shape of the JSON output" },
 	{ .name = "commands", .summary = "list of commands" },
 	{ .name = "version", .summary = "the version" }
@@ -1340,7 +1355,11 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 								ml_choose (
 									is (name, "config"),
 									help_config,
-									NULL
+									ml_choose (
+										is (name, "examples"),
+										help_examples,
+										NULL
+									)
 								)
 							)
 						)
@@ -1965,6 +1984,95 @@ static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
 	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
 }
 
+/* ---- examples ---- */
+
+/* One example of the list as a JSON object. */
+static MlResult example_json (
+	MlStr    *out,
+	uint64_t i,
+	MlSlice  title,
+	MlSlice  summary
+)
+{
+	MlResult r = add (out, "{\"name\":");
+
+	r = ml_choose (r == ML_OK, json_string (out, ml_example_name (i)), r);
+	r = ml_choose (r == ML_OK, add (out, ",\"area\":"), r);
+	r = ml_choose (r == ML_OK, json_string (out, ml_example_area (i)), r);
+	r = ml_choose (r == ML_OK, add (out, ",\"title\":"), r);
+	r = ml_choose (r == ML_OK, json_string (out, title), r);
+	r = ml_choose (r == ML_OK, add (out, ",\"summary\":"), r);
+	r = ml_choose (r == ML_OK, json_string (out, summary), r);
+	r = ml_choose (r == ML_OK, add (out, "}\n"), r);
+	return r;
+}
+
+static int32_t cmd_examples (const Options *o, MlStr *out, MlStr *err)
+{
+	MlResult r    = ML_OK;
+	int32_t  code = ML_EXIT_OK;
+
+	if (o->rest.len > 1)
+	{
+		code = usage_error (err, "examples takes one name", ml_slice ("", 0));
+	}
+
+	else if (o->rest.len == 1)
+	{
+		uint64_t idx = ml_example_find (o->rest.data [0]);
+
+		if (idx >= ml_example_count ())
+		{
+			code = usage_error (err, "no such example", o->rest.data [0]);
+		}
+
+		else
+		{
+			r = ml_str_append (out, ml_example_text (idx));
+		}
+	}
+
+	else
+	{
+		for (uint64_t i = 0; i < ml_example_count () && r == ML_OK; i++)
+		{
+			MlStr title;
+			MlStr summary;
+
+			ml_str_init (&title);
+			ml_str_init (&summary);
+			r = ml_example_title (&title, i);
+			r = ml_choose (r == ML_OK, ml_example_summary (&summary, i), r);
+
+			if (r == ML_OK && o->json)
+			{
+				r = example_json (
+					out,
+					i,
+					ml_str_view (title),
+					ml_str_view (summary)
+				);
+			}
+
+			else if (r == ML_OK)
+			{
+				r = ml_str_appendf (
+					out,
+					"%-26.*s %s\n",
+					(int)ml_example_name (i).len,
+					ml_example_name (i).data,
+					ml_str_cstr (title)
+				);
+			}
+
+			ml_str_free (&summary);
+			ml_str_free (&title);
+		}
+	}
+
+	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
+}
+
 static int32_t cmd_commands (const Options *o, MlStr *out)
 {
 	MlResult r = ML_OK;
@@ -2074,6 +2182,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "config"))
 	{
 		code = cmd_config (&o, out, err);
+	}
+
+	else if (is (cmd, "examples"))
+	{
+		code = cmd_examples (&o, out, err);
 	}
 
 	else if (is (cmd, "schema"))

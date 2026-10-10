@@ -1,0 +1,12 @@
+# The tangent line
+# Differentiate, and use the derivative to find the tangent line of a curve at a point.
+# The curve y = x^3 - 2x and its derivative:
+m:algebra f(x) = x^3 - 2x
+m:algebra fp = diff(f(x), x)
+# The point is x = 1: the value and the slope there.
+m:algebra y0 = f(1)
+m:algebra k = subs(fp, x, 1)
+# The tangent line is y = y0 + k (x - 1):
+m:algebra expand(y0 + k*(x - 1))
+# The area under the curve between 1 and 2:
+m:algebra integrate(f(x), x, 1, 2)

@@ -1,4 +1,5 @@
 #include <matlog/docs/docs.h>
+#include <matlog/docs/examples.h>
 
 #include <matlog/session/results.h>
 #include <matlog/session/session.h>
@@ -41,6 +42,17 @@ MlResult ml_docs_load (MlDocs *d, uint64_t *page, uint64_t *line)
 		{
 			*page = i;
 			ml_doc_page_free (&p);
+		}
+	}
+
+	/* the examples are pages too (made when the pages are loaded) */
+	if (r == ML_OK)
+	{
+		r = ml_examples_add_pages (d);
+
+		if (r != ML_OK)
+		{
+			*page = ml_doc_source_count;
 		}
 	}
 

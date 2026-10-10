@@ -1,6 +1,7 @@
 #include <matlog/ui/editor.h>
 
 #include <matlog/core/utf8.h>
+#include <matlog/docs/examples.h>
 #include <matlog/export/export.h>
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
@@ -2239,6 +2240,76 @@ static MlResult config_command (MlEditor *ed, MlSlice arg)
 	return r;
 }
 
+/*
+ * :example NAME puts the lines of an example (see docs/examples.h) into the
+ * session after the cursor line, as one change that undo takes back at once;
+ * :examples alone opens the table of contents in the help.
+ */
+static MlResult insert_example (MlEditor *ed, MlSlice name)
+{
+	MlResult r   = ML_OK;
+	uint64_t idx = ml_example_find (name);
+
+	if (name.len == 0)
+	{
+		r = open_help (ed, ml_slice_cstr ("examples"));
+	}
+
+	else if (idx >= ml_example_count ())
+	{
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (
+			&ed->message,
+			"no example %.*s, see :examples",
+			(int)name.len,
+			name.data
+		);
+	}
+
+	else
+	{
+		MlSession ex;
+		uint64_t  at = ml_choose (
+			ed->session.lines.len > 0,
+			ed->session.cursor + 1,
+			0
+		);
+
+		ml_session_init (&ex);
+		r = ml_mlog_parse (&ex, ml_example_text (idx));
+
+		for (uint64_t i = 0; i < ex.lines.len && r == ML_OK; i++)
+		{
+			MlLineView v = ml_session_get (&ex, i);
+
+			r = ml_session_insert (
+				&ed->session,
+				at + i,
+				v.kind,
+				v.domain,
+				v.text
+			);
+		}
+
+		if (r == ML_OK)
+		{
+			ml_session_set_cursor (&ed->session, at);
+			ml_str_clear (&ed->message);
+			r = ml_str_appendf (
+				&ed->message,
+				"%u lines of %.*s",
+				(uint32_t)ex.lines.len,
+				(int)name.len,
+				name.data
+			);
+		}
+
+		ml_session_free (&ex);
+	}
+
+	return r;
+}
+
 /* The name of the session file without its folder and its extension. */
 static MlSlice session_stem (const MlSession *s)
 {
@@ -2952,6 +3023,11 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "redo") || is_cmd (cmd, "red"))
 	{
 		r = undo_redo (ed, 1);
+	}
+
+	else if (is_cmd (cmd, "examples") || is_cmd (cmd, "example"))
+	{
+		r = insert_example (ed, arg);
 	}
 
 	else if (is_cmd (cmd, "set"))

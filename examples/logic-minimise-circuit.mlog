@@ -1,0 +1,14 @@
+# Simplifying a logic circuit
+# A circuit is a boolean expression. matlog finds the smallest sum of products and a truth table checks it.
+m:boolean f = (a & b) | (a & ~b) | (~a & b)
+# The expression is the same as a OR b. The result above is the minimal form.
+m:boolean table a | b
+# De Morgan: not (a and b) is (not a) or (not b). Two expressions are equal when == gives true:
+m:boolean ~(a & b) == (~a | ~b)
+# Exclusive or built from and, or and not, and its truth table:
+m:boolean table (a | b) & ~(a & b)
+# A circuit with a redundant gate: the term (a & b) is covered by a.
+m:boolean a | (a & b)
+# A tautology and a contradiction:
+m:boolean a | ~a
+m:boolean a & ~a

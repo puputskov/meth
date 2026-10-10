@@ -1,0 +1,18 @@
+# Units in a physics problem
+# A car of 1200 kg drives at 90 km/h. How much energy does it have, and how far does it travel in 20 s?
+# The mass and the speed, with their units:
+m:algebra mass = 1200 kg
+m:algebra v = 90 km/h
+# Convert the speed to SI units:
+m:algebra v to m/s
+# The kinetic energy is mass v^2 / 2. The units multiply out by themselves:
+m:algebra mass*(v to m/s)^2/2
+# In kilojoules:
+m:algebra mass*(v to m/s)^2/2 to kJ
+# The distance in 20 seconds:
+m:algebra (v to m/s)*20 s
+# Lengths in different units add up (the sum is in metres), and to converts back:
+m:algebra 5 km + 300 m
+m:algebra 5300 m to km
+# Time to stop with a deceleration of 8 m/s^2 from this speed:
+m:algebra (v to m/s)/(8 m/s^2)

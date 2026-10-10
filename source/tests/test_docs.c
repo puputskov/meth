@@ -1,6 +1,7 @@
 #include "test.h"
 
 #include <matlog/docs/docs.h>
+#include <matlog/docs/examples.h>
 #include <matlog/platform/fs.h>
 
 #include <string.h>
@@ -231,11 +232,13 @@ static void test_builtin_pages (void)
 
 	ml_docs_init (&d);
 	CHECK (ml_docs_load (&d, &page, &line) == ML_OK);
-	CHECK (d.pages.len == ml_doc_source_count);
 	CHECK (d.pages.len >= 10);
 
+	/* the pages of the files, then the table of contents and the examples */
+	CHECK (d.pages.len == ml_doc_source_count + 1 + ml_example_count ());
+
 	/* every page is found by its id, which is the name of its file */
-	for (uint64_t i = 0; i < d.pages.len; i++)
+	for (uint64_t i = 0; i < ml_doc_source_count; i++)
 	{
 		CHECK (ml_docs_find (&d, ml_str_view (d.pages.data [i].id)) == i);
 		CHECK (ml_slice_equal (

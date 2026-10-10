@@ -1,0 +1,24 @@
+# A robot arm with two links
+# Forward and inverse kinematics of a planar arm. With rational sines and cosines the whole computation is exact.
+# A joint is a rotation by an angle, given by its cosine and sine:
+m:algebra rot(c, s) = [[c, -s], [s, c]]
+# Two links of length 5. The first joint turns by (3/5, 4/5), the second by (3/5, 4/5) more:
+m:algebra l1 = 5
+m:algebra l2 = 5
+m:algebra R1 = rot(3/5, 4/5)
+m:algebra R2 = rot(3/5, 4/5)
+# Forward kinematics: the hand is link 1 turned by R1, plus link 2 turned by R1 R2.
+m:algebra p = R1*[l1, 0] + R1*R2*[l2, 0]
+# Inverse kinematics: given only the hand position p, find the joint angles.
+# The law of cosines gives the second joint from the distance to the hand:
+m:algebra c2 = (dot(p, p) - l1^2 - l2^2)/(2*l1*l2)
+m:algebra s2 = sqrt(1 - c2^2)
+# (The other sign of s2 is the elbow bent the other way.) The first link plus the turned second link is a vector w = (l1 + l2 c2, l2 s2) that R1 turns into p:
+m:algebra w = [l1 + l2*c2, l2*s2]
+# R1 = [[c1, -s1], [s1, c1]] solves  [[wx, -wy], [wy, wx]] [c1, s1] = p
+m:algebra cs1 = solve([[l1 + l2*c2, -l2*s2], [l2*s2, l1 + l2*c2]], p)
+# The answer (c1, s1) = (3/5, 4/5) is the first joint we started with. Check the forward kinematics:
+m:algebra rot(3/5, 4/5)*[l1, 0] + rot(3/5, 4/5)*rot(c2, s2)*[l2, 0]
+# With angles instead of cosines and sines the same formulas use acos and atan:
+m:algebra q2 = acos(3/5)
+m:algebra q1 = atan(44/8) - atan(5*sin(q2)/(5 + 5*cos(q2)))

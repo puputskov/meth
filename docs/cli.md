@@ -16,6 +16,7 @@ matlog steps EXPR          the steps of an expression
 matlog export FILE FORMAT  a session as a document
 matlog theme [NAME]        the built in themes
 matlog config list|get|set|path  the settings
+matlog examples [NAME]     the worked examples, or one as a file
 matlog docs list           the pages of the documentation
 matlog help [CMD]          the usage
 ```

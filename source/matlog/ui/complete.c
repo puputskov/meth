@@ -1,5 +1,6 @@
 #include <matlog/ui/complete.h>
 
+#include <matlog/docs/examples.h>
 #include <matlog/math/eval.h>
 #include <matlog/math/unit.h>
 #include <matlog/session/session.h>
@@ -15,6 +16,7 @@ typedef enum ArgKind
 	ARG_COLORS,
 	ARG_EXPORT,
 	ARG_HELP,
+	ARG_EXAMPLE,
 	ARG_PATH /* files are not completed yet */
 } ArgKind;
 
@@ -52,6 +54,8 @@ static const Command commands [] =
 	{ .name = "export!", .arg = ARG_EXPORT, .needs_arg = 1 },
 	{ .name = "theme", .arg = ARG_THEME,   .needs_arg = 0 },
 	{ .name = "colors", .arg = ARG_COLORS, .needs_arg = 0 },
+	{ .name = "example", .arg = ARG_EXAMPLE, .needs_arg = 0 },
+	{ .name = "examples", .arg = ARG_NONE, .needs_arg = 0 },
 	{ .name = "set",   .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "config", .arg = ARG_NONE,   .needs_arg = 0 },
 	{ .name = "keys",  .arg = ARG_NONE,    .needs_arg = 0 },
@@ -258,6 +262,14 @@ MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files)
 
 			add_candidate (&c, typed, "reload");
 			add_theme_files (&c, typed, theme_files);
+		}
+
+		else if (kind == ARG_EXAMPLE && !more)
+		{
+			for (uint64_t i = 0; i < ml_example_count (); i++)
+			{
+				add_candidate (&c, typed, ml_example_sources [i].name);
+			}
 		}
 
 		else if (kind == ARG_EXPORT && !more)
