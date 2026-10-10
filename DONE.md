@@ -609,6 +609,16 @@ no recompile, and the code only holds the stable code name of a text.
 - **Order of work:** the catalog reader and `text (code)` with the built in English file first, then the error texts (smallest, most visible), the
   hints, the command summaries, the lessons, last the settings file entry `language` and `matlog texts`.
 
+### Interned names (built 2026-10-10)
+
+- `core/names.h`: every distinct name has one number (`ml_name`, `ml_name_find`, `ml_name_text`); the texts are in an arena of their own and a hash table maps
+  a text to its number. `ml_name` is for where a name is created (a definition, the table of words), `ml_name_find` for looking up, and it gives
+  `ML_NAME_NONE` for a text never interned, which also answers "is this bound / a word / a function" without growing the table.
+- The words (`parse/words.c`), the built in functions (`eval.c`, `builtin_of_name`) and the bindings of an environment (`MlBinding.id`) are tables indexed by
+  name number, made again when `ml_names_generation ()` changed. Their first look up must build the table before it looks the name up. `ml_names_release`,
+  `ml_words_release` and `ml_eval_release` free all of it for the end of a test run (tests release names only when no environment is alive).
+- `ml_env_lookup` compares numbers in place and copies only the binding it finds. `len (primes (1000))` went from 0.86 s to 0.50 s.
+
 ### Memory (built 2026-10-10)
 
 - `core/mem.h`: an arena is reserved address space (`platform/vm.h`: `VirtualAlloc` on Windows, `mmap` and `mprotect` on POSIX) with pages committed by

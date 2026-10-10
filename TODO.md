@@ -9,8 +9,9 @@ When a task is finished: delete it here, and write what was built into its secti
 
 1. **Texts in files, the last parts** (4.24): the summaries of the editor commands (`:` commands, `ui/complete.c`), a test that every catalog entry is used by
    some code, the placeholders of the website build.
-2. **Interned names** (4.25): the lexer gives every name an integer id from a hash table (the words of `parse/words.h` have fixed ids), the syntax tree, the
-   symbolic nodes and the environment carry the id, and name checks and the environment lookup compare integers. Measure a heavy line first.
+2. **Faster evaluation**: after the interned names the profile of `len (primes (1000))` is led by `ml_value_error` and `ml_rat_error` (1.3 and 2.6 million calls: error
+   values are built or tested for every step), `ml_value_locate` and `eval_with`. Name numbers could also be kept in the syntax tree nodes and the symbolic
+   nodes (now `local_find`, `param_find` and the symbolic engine still compare the characters of a name once it is found by number).
 3. **Physics domain** (decided 2026-10-10, section 2 below): units leave the algebra domain.
 4. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 5); **PGA** (section 6).
 
