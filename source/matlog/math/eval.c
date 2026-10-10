@@ -489,49 +489,52 @@ static double real_apply (MlBuiltin id, double x)
 {
 	double y = 0.0;
 
-	if (id == BUILTIN_SIN)
+	switch (id)
 	{
-		y = sin (x);
-	}
+		case BUILTIN_SIN:
+		{
+			y = sin (x);
+		} break;
 
-	else if (id == BUILTIN_COS)
-	{
-		y = cos (x);
-	}
+		case BUILTIN_COS:
+		{
+			y = cos (x);
+		} break;
 
-	else if (id == BUILTIN_TAN)
-	{
-		y = tan (x);
-	}
+		case BUILTIN_TAN:
+		{
+			y = tan (x);
+		} break;
 
-	else if (id == BUILTIN_ASIN)
-	{
-		y = asin (x);
-	}
+		case BUILTIN_ASIN:
+		{
+			y = asin (x);
+		} break;
 
-	else if (id == BUILTIN_ACOS)
-	{
-		y = acos (x);
-	}
+		case BUILTIN_ACOS:
+		{
+			y = acos (x);
+		} break;
 
-	else if (id == BUILTIN_ATAN)
-	{
-		y = atan (x);
-	}
+		case BUILTIN_ATAN:
+		{
+			y = atan (x);
+		} break;
 
-	else if (id == BUILTIN_LN)
-	{
-		y = log (x);
-	}
+		case BUILTIN_LN:
+		{
+			y = log (x);
+		} break;
 
-	else if (id == BUILTIN_LOG)
-	{
-		y = log10 (x);
-	}
+		case BUILTIN_LOG:
+		{
+			y = log10 (x);
+		} break;
 
-	else
-	{
-		y = exp (x);
+		default:
+		{
+			y = exp (x);
+		} break;
 	}
 
 	return y;
@@ -1181,44 +1184,59 @@ static MlValue builtin_apply (
 		r = error_at (ML_EVAL_TYPE);
 	}
 
-	else if (id == BUILTIN_SQRT)
-	{
-		r = sqrt_value (arena, args [0]);
-	}
-
-	else if (id == BUILTIN_ABS)
-	{
-		r = abs_value (arena, args [0]);
-	}
-
-	else if (id >= BUILTIN_SIN && id <= BUILTIN_EXP)
-	{
-		r = real_function (arena, id, args [0]);
-	}
-
-	else if (id == BUILTIN_FLOOR)
-	{
-		r = round_value (arena, args [0], ROUND_FLOOR);
-	}
-
-	else if (id == BUILTIN_CEIL)
-	{
-		r = round_value (arena, args [0], ROUND_CEIL);
-	}
-
-	else if (id == BUILTIN_ROUND)
-	{
-		r = round_value (arena, args [0], ROUND_NEAREST);
-	}
-
-	else if (id == BUILTIN_MIN || id == BUILTIN_MAX)
-	{
-		r = min_max (arena, id, args, argc);
-	}
-
 	else
 	{
-		r = gcd_lcm (arena, id, args [0], args [1]);
+		switch (id)
+		{
+			case BUILTIN_SQRT:
+			{
+				r = sqrt_value (arena, args [0]);
+			} break;
+
+			case BUILTIN_ABS:
+			{
+				r = abs_value (arena, args [0]);
+			} break;
+
+			case BUILTIN_SIN:
+			case BUILTIN_COS:
+			case BUILTIN_TAN:
+			case BUILTIN_ASIN:
+			case BUILTIN_ACOS:
+			case BUILTIN_ATAN:
+			case BUILTIN_LN:
+			case BUILTIN_LOG:
+			case BUILTIN_EXP:
+			{
+				r = real_function (arena, id, args [0]);
+			} break;
+
+			case BUILTIN_FLOOR:
+			{
+				r = round_value (arena, args [0], ROUND_FLOOR);
+			} break;
+
+			case BUILTIN_CEIL:
+			{
+				r = round_value (arena, args [0], ROUND_CEIL);
+			} break;
+
+			case BUILTIN_ROUND:
+			{
+				r = round_value (arena, args [0], ROUND_NEAREST);
+			} break;
+
+			case BUILTIN_MIN:
+			case BUILTIN_MAX:
+			{
+				r = min_max (arena, id, args, argc);
+			} break;
+
+			default:
+			{
+				r = gcd_lcm (arena, id, args [0], args [1]);
+			} break;
+		}
 	}
 
 	return r;
@@ -1234,45 +1252,53 @@ static MlValue binary_scalar (
 {
 	MlValue r;
 
-	if (kind == ML_NODE_ADD)
+	switch (kind)
 	{
-		r = ml_value_add (arena, a, b);
-	}
+		case ML_NODE_ADD:
+		{
+			r = ml_value_add (arena, a, b);
+		} break;
 
-	else if (kind == ML_NODE_SUB)
-	{
-		r = ml_value_sub (arena, a, b);
-	}
+		case ML_NODE_SUB:
+		{
+			r = ml_value_sub (arena, a, b);
+		} break;
 
-	else if (kind == ML_NODE_MUL)
-	{
-		r = ml_value_mul (arena, a, b);
-	}
+		case ML_NODE_MUL:
+		{
+			r = ml_value_mul (arena, a, b);
+		} break;
 
-	else if (kind == ML_NODE_DIV)
-	{
-		r = ml_value_div (arena, a, b);
-	}
+		case ML_NODE_DIV:
+		{
+			r = ml_value_div (arena, a, b);
+		} break;
 
-	else if (kind == ML_NODE_TO)
-	{
-		r = convert_value (a, b);
-	}
+		case ML_NODE_TO:
+		{
+			r = convert_value (a, b);
+		} break;
 
-	else if (kind >= ML_NODE_LT && kind <= ML_NODE_NE)
-	{
-		/* the nodes < > <= >= == != in the order of MlCompare */
-		r = ml_value_compare (
-			arena,
-			(MlCompare)(kind - ML_NODE_LT),
-			a,
-			b
-		);
-	}
+		case ML_NODE_LT:
+		case ML_NODE_GT:
+		case ML_NODE_LE:
+		case ML_NODE_GE:
+		case ML_NODE_EQ:
+		case ML_NODE_NE:
+		{
+			/* the nodes < > <= >= == != in the order of MlCompare */
+			r = ml_value_compare (
+				arena,
+				(MlCompare)(kind - ML_NODE_LT),
+				a,
+				b
+			);
+		} break;
 
-	else
-	{
-		r = ml_value_pow (arena, a, b);
+		default:
+		{
+			r = ml_value_pow (arena, a, b);
+		} break;
 	}
 
 	return r;

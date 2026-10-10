@@ -77,8 +77,33 @@ Interactive math shell written in C. See `plan.md` for the design.
   Do not use numeric designators (`[1] = ...`): the index names nothing, so compute the value instead. Plain value lists with
   no natural index (e.g. test data) stay positional.
 - Declare loop variables in the `for` statement: `for (uint64_t i = 0; i < n; i++)`, not at the top of the function.
-- No early exits. Every function has a single `return` at its end. Avoid `break`, `continue` and `goto`.
+- No early exits. Every function has a single `return` at its end. Avoid `break`, `continue` and `goto`. The one use of `break` is to end a case of
+  a `switch`.
   Chain conditions with a result variable (`if (r == ML_OK) { ... }`) instead of returning early.
+- A choice among several constant values of one enum or integer is a `switch`, not a chain of `else if`. Allman braces; the `case` labels are
+  indented one level inside the `switch`, one label per line, and the statements of a case are in braces that stand at the indent of the label,
+  the statements one level deeper, the closing brace and the `break` together: `} break;`. A blank line between the cases, always a `default`,
+  the value is assigned to the result variable and not returned from the case:
+  ```c
+  switch (kind)
+  {
+  	case ML_NODE_ADD:
+  	case ML_NODE_SUB:
+  	{
+  		r = sum_value (kind, a, b);
+  	} break;
+
+  	case ML_NODE_MUL:
+  	{
+  		r = ml_value_mul (arena, a, b);
+  	} break;
+
+  	default:
+  	{
+  		r = error_at (ML_EVAL_TYPE);
+  	} break;
+  }
+  ```
 - If cleanup is needed, do it in one cleanup stage at the end of the function.
 - No recursion, anywhere. Walk trees and other nested data with a loop and an explicit stack (a typed vector on the heap),
   or with the tree's own links (parent, first child, next sibling) when it has them, never with a function that calls
@@ -100,6 +125,6 @@ operands aligned after the operator, the star in the name column of aligned decl
 Do not run it over a whole existing file without looking at the diff: about one line in seven of the current code would change.
 
 `python tools/stylecheck.py` checks the rules a tool can check (tabs, brace placement, empty line after `}`, 80 columns, no `?:`, spaces before `(`
-and `[`, fixed-width types, one `return` at the end, no `break`/`continue`/`goto`, no recursion through the call graph, no numeric designators).
+and `[`, fixed-width types, one `return` at the end, no `break`/`continue`/`goto` (except `} break;` ending a case), no recursion through the call graph, no numeric designators).
 `--fix` adds the empty lines after `}` and turns leading spaces into tabs. Run it before a commit; the aim is 0 findings.
 

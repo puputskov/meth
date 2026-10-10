@@ -436,30 +436,45 @@ static MlNodeKind binary_kind (MlTokenKind kind)
 {
 	MlNodeKind node = ML_NODE_MUL;
 
-	if (kind == ML_TOK_PLUS)
+	switch (kind)
 	{
-		node = ML_NODE_ADD;
-	}
+		case ML_TOK_PLUS:
+		{
+			node = ML_NODE_ADD;
+		} break;
 
-	else if (kind == ML_TOK_MINUS)
-	{
-		node = ML_NODE_SUB;
-	}
+		case ML_TOK_MINUS:
+		{
+			node = ML_NODE_SUB;
+		} break;
 
-	else if (kind == ML_TOK_SLASH)
-	{
-		node = ML_NODE_DIV;
-	}
+		case ML_TOK_SLASH:
+		{
+			node = ML_NODE_DIV;
+		} break;
 
-	else if (kind == ML_TOK_TO)
-	{
-		node = ML_NODE_TO;
-	}
+		case ML_TOK_TO:
+		{
+			node = ML_NODE_TO;
+		} break;
 
-	else if (kind >= ML_TOK_LT && kind <= ML_TOK_OR)
-	{
-		/* the tokens < > <= >= == != and or in the order of the nodes */
-		node = (MlNodeKind)(ML_NODE_LT + (kind - ML_TOK_LT));
+		case ML_TOK_LT:
+		case ML_TOK_GT:
+		case ML_TOK_LE:
+		case ML_TOK_GE:
+		case ML_TOK_EQEQ:
+		case ML_TOK_NE:
+		case ML_TOK_AND:
+		case ML_TOK_OR:
+		{
+			/* the tokens < > <= >= == != and or in the order of the nodes */
+			node = (MlNodeKind)(ML_NODE_LT + (kind - ML_TOK_LT));
+		} break;
+
+		default:
+		{
+			node = ML_NODE_MUL;
+		} break;
 	}
 
 	return node;

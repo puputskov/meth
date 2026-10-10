@@ -301,36 +301,39 @@ static int32_t matrices_equal (MlArena *arena, MlMat a, MlMat b)
 /* The result of a comparison, given the order -1, 0 or 1 of the operands. */
 static MlValue compare_order (MlCompare op, int32_t order)
 {
-	int32_t holds;
+	int32_t holds = 0;
 
-	if (op == ML_COMPARE_LT)
+	switch (op)
 	{
-		holds = order < 0;
-	}
+		case ML_COMPARE_LT:
+		{
+			holds = order < 0;
+		} break;
 
-	else if (op == ML_COMPARE_GT)
-	{
-		holds = order > 0;
-	}
+		case ML_COMPARE_GT:
+		{
+			holds = order > 0;
+		} break;
 
-	else if (op == ML_COMPARE_LE)
-	{
-		holds = order <= 0;
-	}
+		case ML_COMPARE_LE:
+		{
+			holds = order <= 0;
+		} break;
 
-	else if (op == ML_COMPARE_GE)
-	{
-		holds = order >= 0;
-	}
+		case ML_COMPARE_GE:
+		{
+			holds = order >= 0;
+		} break;
 
-	else if (op == ML_COMPARE_EQ)
-	{
-		holds = order == 0;
-	}
+		case ML_COMPARE_EQ:
+		{
+			holds = order == 0;
+		} break;
 
-	else
-	{
-		holds = order != 0;
+		default:
+		{
+			holds = order != 0;
+		} break;
 	}
 
 	return ml_value_bool (holds);

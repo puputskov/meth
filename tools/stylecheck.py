@@ -99,6 +99,24 @@ def functions(clean_lines):
     return found
 
 
+def ends_case(clean, idx):
+    """True for the `} break;` that ends a braced case of a switch: the brace
+    that opened the case stands at the same indent, right under a case label."""
+    line = clean[idx]
+    if line.strip() != '} break;':
+        return False
+    indent = len(line) - len(line.lstrip('\t'))
+    for k in range(idx - 1, -1, -1):
+        above = clean[k]
+        if not above.strip():
+            continue
+        depth = len(above) - len(above.lstrip('\t'))
+        if depth == indent and above.strip() == '{':
+            head = clean[k - 1].strip() if k > 0 else ''
+            return head.startswith('case ') or head.startswith('default:')
+    return False
+
+
 def check_file(path, rel, rep, only):
     raw = open(path, encoding='utf-8', errors='replace', newline='').read()
     raw = raw.replace('\r\n', '\n')
@@ -164,7 +182,8 @@ def check_file(path, rel, rep, only):
                     and not re.search(r'\bint\s+(argc|i)\b.*argc', test):
                 rep.add('types', rel, no, 'int instead of int32_t')
 
-        if want('jump') and re.search(r'\b(break|continue|goto)\b', cl):
+        if want('jump') and re.search(r'\b(break|continue|goto)\b', cl) \
+                and not ends_case(clean, idx):
             rep.add('jump', rel, no, 'break/continue/goto')
 
         if want('numeric-designator') and re.search(r'^\s*\[\d+\]\s*=', cl):
