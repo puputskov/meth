@@ -9,9 +9,10 @@ When a task is finished: delete it here, and write what was built into its secti
 
 1. **Texts in files, the rest** (4.24): the texts inside the export writers and the docs build (names of the page kinds, `matlog docs` output), and the
    placeholders of the website build (waits for the website build).
-2. **Faster evaluation, more**: what is left in the profile is the machine itself: `MlValue` (280 bytes) is passed and returned by value at every step
-   (`eval_with`, `push_value`, `ml_value_locate`, `finish`), and `MlBinding` (about 450 bytes) is copied by `call_target` and `MlScope.func`. Writing results in place,
-   or passing values by index into the value stack, would remove most of the copies; `scale` of a quantity behind a pointer would save 40 bytes more.
+2. **Faster evaluation, still**: `MlValue` (280 bytes) is passed and returned by value at every step (`eval_with`, `finish`, `step_call`) and `MlBinding` (about
+   450 bytes) is copied by `call_target` and `MlScope.func`; the zero fill of the limbs of small big numbers (`limbs_new`, 260 thousand calls for `primes (300)`)
+   and `ml_value_none` (a 280 byte clear, 90 thousand calls) are the next costs in the profile. Writing results in place, a smaller value (the kinds that
+   exclude each other in a union, after checking that nothing reads a field of another kind) or passing values by index into the value stack would help.
 3. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 4); **PGA** (section 5).
 
 ## 2. Not built, per section of DONE.md

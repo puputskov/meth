@@ -2474,7 +2474,25 @@ static int32_t top_is_error (const MlEvalCtx *cx)
 static void finish (MlEvalCtx *cx, uint64_t operands, MlValue v, MlNode node)
 {
 	cx->vals.len -= operands;
-	push_value (cx, ml_value_locate (v, node.start, node.len));
+
+	if (MlValueVec_push (&cx->vals, v) == ML_OK)
+	{
+		/* an error with no place yet gets the place of this node, in the
+		   pushed value itself, without copying it again */
+		MlValue *top = &cx->vals.data [cx->vals.len - 1];
+
+		if (top->kind == ML_VALUE_ERROR && top->error_len == 0)
+		{
+			top->error_start = node.start;
+			top->error_len   = node.len;
+		}
+	}
+
+	else
+	{
+		cx->failed = 1;
+	}
+
 	cx->frames.len--;
 }
 

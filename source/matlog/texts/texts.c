@@ -1,5 +1,6 @@
 #include <matlog/texts/texts.h>
 
+#include <matlog/core/names.h>
 #include <matlog/core/vec.h>
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
@@ -15,7 +16,16 @@ typedef struct Entry
 
 ML_VEC_DEFINE (EntryVec, Entry)
 
+ML_VEC_DEFINE (TextIndexVec, uint64_t)
+
 static EntryVec entries;
+/*
+ * By name number (core/names.h) of the code: the entry plus one, 0 for none.
+ * It is made again when the names were released or the entries were swapped
+ * (index_for is the generation of the names it was made for, 0 for none).
+ */
+static TextIndexVec by_name;
+static uint64_t     index_for = 0;
 static int32_t  started = 0;
 static char     current [32] = "en";
 static uint64_t generation = 1;
@@ -29,6 +39,8 @@ static void free_entries (void)
 	}
 
 	EntryVec_free (&entries);
+	TextIndexVec_free (&by_name);
+	index_for = 0;
 }
 
 void ml_texts_clear (void)
@@ -54,9 +66,41 @@ static uint64_t find_in (const EntryVec *v, MlSlice key)
 	return found;
 }
 
+/* Makes the index of the entries when it is not there for these names. */
+static void ensure_index (void)
+{
+	if (index_for != ml_names_generation ())
+	{
+		TextIndexVec_clear (&by_name);
+
+		for (uint64_t i = 0; i < entries.len; i++)
+		{
+			MlName id = ml_name (ml_str_view (entries.data [i].key));
+
+			while (by_name.len <= id)
+			{
+				TextIndexVec_push (&by_name, 0);
+			}
+
+			by_name.data [id] = i + 1;
+		}
+
+		index_for = ml_names_generation ();
+	}
+}
+
 static uint64_t find (MlSlice key)
 {
-	return find_in (&entries, key);
+	MlName id;
+
+	ensure_index ();
+	id = ml_name_find (key);
+
+	return ml_choose (
+		id < by_name.len && by_name.data [id] != 0,
+		by_name.data [id] - 1,
+		entries.len
+	);
 }
 
 /* Sets the text of a key: replaces the one there, or adds the entry. */
@@ -89,6 +133,21 @@ static MlResult put (MlSlice key, MlSlice text)
 		if (r == ML_OK)
 		{
 			r = EntryVec_push (&entries, e);
+		}
+
+		if (r == ML_OK)
+		{
+			MlName id = ml_name (key);
+
+			while (by_name.len <= id && r == ML_OK)
+			{
+				r = TextIndexVec_push (&by_name, 0);
+			}
+
+			if (r == ML_OK)
+			{
+				by_name.data [id] = entries.len;
+			}
 		}
 
 		if (r != ML_OK)
@@ -903,9 +962,11 @@ static int32_t group_present (const EntryVec *trans, MlSlice key)
 
 MlResult ml_texts_check (MlStr *report, MlSlice text, uint64_t *problems)
 {
-	EntryVec saved   = entries;
-	uint64_t gen     = generation;
-	int32_t  was     = started;
+	EntryVec     saved       = entries;
+	TextIndexVec saved_index = by_name;
+	uint64_t     saved_for   = index_for;
+	uint64_t     gen         = generation;
+	int32_t      was         = started;
 	EntryVec english;
 	EntryVec trans;
 	uint64_t bad     = 0;
@@ -919,12 +980,19 @@ MlResult ml_texts_check (MlStr *report, MlSlice text, uint64_t *problems)
 
 	*problems = 0;
 	EntryVec_init (&entries);
-	r       = add_built_in ();
-	english = entries;
+	TextIndexVec_init (&by_name);
+	index_for = 0;
+	r         = add_built_in ();
+	english   = entries;
 	EntryVec_init (&entries);
-	r       = ml_choose (r == ML_OK, ml_texts_add (text, &bad), r);
-	trans   = entries;
-	entries = saved;
+	TextIndexVec_free (&by_name);
+	index_for = 0;
+	r         = ml_choose (r == ML_OK, ml_texts_add (text, &bad), r);
+	trans     = entries;
+	TextIndexVec_free (&by_name);
+	by_name   = saved_index;
+	index_for = saved_for;
+	entries   = saved;
 	generation = gen;
 	started    = was;
 

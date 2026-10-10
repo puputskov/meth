@@ -641,6 +641,12 @@ no recompile, and the code only holds the stable code name of a text.
   environment; `ml_env_kind` and `ml_env_value` read a binding without copying it. `len (primes (1000))` 0.33 s to 0.30 s; the instructions of
   `len (primes (300))` went from 470 million (before the names were interned) to 263 million.
 
+- Cheaper steps of the evaluation: `Name_push` of the typed vectors appends directly (it went through `insert` and a `memmove`), `finish` pushes the value of
+  a step and puts the place of an error into the pushed value instead of copying it again, `ml_arena_alloc` has a short path for memory that is already
+  committed, and the catalog of texts is indexed by name number (`ml_text` and loading the catalog are a hash look up, not a scan of the entries).
+  `len (primes (300))` went from 265 to 230 million instructions and `len (primes (1000))` from 0.29 s to 0.26 s; a start of the program (`eval 1 + 1`) costs
+  about 7 million instructions.
+
 ### Memory (built 2026-10-10)
 
 - `core/mem.h`: an arena is reserved address space (`platform/vm.h`: `VirtualAlloc` on Windows, `mmap` and `mprotect` on POSIX) with pages committed by

@@ -79,28 +79,54 @@ MlArena *ml_arena_app (void)
 	return &app;
 }
 
-void *ml_arena_alloc (MlArena *a, uint64_t size, uint64_t align)
+/* The general case: reserves, commits more pages, or fails. */
+static void *alloc_slow (MlArena *a, uint64_t size, uint64_t align)
 {
-	void    *p    = NULL;
-	int32_t valid = size != 0 && align != 0 && (align & (align - 1)) == 0;
+	void *p = NULL;
 
-	if (valid && a->base == NULL)
+	if (a->base == NULL)
 	{
 		reserve_space (a);
 	}
 
-	if (valid && a->base != NULL)
+	if (a->base != NULL)
 	{
 		/* base is page aligned, so aligning the offset aligns the address
 		   for every align up to the page size */
 		uint64_t at  = (a->used + align - 1) & ~(align - 1);
 		int32_t  fit = at >= a->used && at <= a->reserved
-		              && size <= a->reserved - at;
+			&& size <= a->reserved - at;
 
 		if (fit && commit_to (a, at + size))
 		{
 			p       = a->base + at;
 			a->used = at + size;
+		}
+	}
+
+	return p;
+}
+
+void *ml_arena_alloc (MlArena *a, uint64_t size, uint64_t align)
+{
+	void    *p    = NULL;
+	int32_t valid = size != 0 && align != 0 && (align & (align - 1)) == 0;
+
+	if (valid)
+	{
+		/* the usual case: the pages are there, so it is a bump */
+		uint64_t at  = (a->used + align - 1) & ~(align - 1);
+		uint64_t end = at + size;
+
+		if (a->base != NULL && end >= at && end <= a->committed)
+		{
+			p       = a->base + at;
+			a->used = end;
+		}
+
+		else
+		{
+			p = alloc_slow (a, size, align);
 		}
 	}
 

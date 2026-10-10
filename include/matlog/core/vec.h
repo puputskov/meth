@@ -126,7 +126,27 @@ static inline MlResult Name##_insert (Name *v, uint64_t idx, T value) \
 \
 static inline MlResult Name##_push (Name *v, T value) \
 { \
-	return Name##_insert (v, v->len, value); \
+	MlResult r = ML_OK; \
+\
+	if (v->len == v->cap) \
+	{ \
+		r = Name##_reserve ( \
+			v, \
+			ml_choose ( \
+				v->cap > 0, \
+				v->cap * 2, \
+				8 \
+			) \
+		); \
+	} \
+\
+	if (r == ML_OK) \
+	{ \
+		v->data [v->len] = value; \
+		v->len++; \
+	} \
+\
+	return r; \
 } \
 \
 static inline MlResult Name##_set (Name *v, uint64_t idx, T value) \
