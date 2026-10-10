@@ -504,18 +504,18 @@ static void test_pick_block (void)
 	/* Ctrl+B chooses the block; letters and arrows move the choice */
 	CHECK (ml_editor_handle_key (&ed, ctrl_b) == ML_OK);
 	CHECK (ed.picking && ed.pick == ML_DOMAIN_ALGEBRA);
-	type (&ed, "m");
-	CHECK (ed.pick == ML_DOMAIN_MATRIX);
+	type (&ed, "l");
+	CHECK (ed.pick == ML_DOMAIN_LAMBDA);
 	press (&ed, ML_KEY_RIGHT);
-	CHECK (ed.pick == ML_DOMAIN_VECTOR);
+	CHECK (ed.pick == ML_DOMAIN_PGA2);
 	press (&ed, ML_KEY_LEFT);
 	CHECK (ml_editor_status (&status, &ed) == ML_OK);
-	CHECK (strstr (ml_str_cstr (status), "[matrix]") != NULL);
+	CHECK (strstr (ml_str_cstr (status), "[lambda]") != NULL);
 
 	/* Enter starts the block on a new line below */
 	press (&ed, ML_KEY_ENTER);
 	CHECK (!ed.picking && ed.state == ML_STATE_MATH);
-	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
+	CHECK (ed.edit_domain == ML_DOMAIN_LAMBDA);
 	type (&ed, "A = 1");
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "B = 2");
@@ -528,7 +528,7 @@ static void test_pick_block (void)
 	test_leave (&ed);
 	CHECK (texts_are (&ed, "intro|A = 1|B = 2||after"));
 	CHECK (ml_session_get (&ed.session, 1).kind == ML_LINE_MATH);
-	CHECK (ml_session_get (&ed.session, 1).domain == ML_DOMAIN_MATRIX);
+	CHECK (ml_session_get (&ed.session, 1).domain == ML_DOMAIN_LAMBDA);
 	CHECK (ml_session_get (&ed.session, 4).kind == ML_LINE_NOTE);
 
 	/* Esc cancels the choice, an empty line becomes the block's first line */
@@ -545,7 +545,7 @@ static void test_pick_block (void)
 	CHECK (ed.state == ML_STATE_NOTE);
 	CHECK (ml_editor_handle_key (&ed, shift_enter) == ML_OK);
 	CHECK (!ed.picking && ed.state == ML_STATE_MATH);
-	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
+	CHECK (ed.edit_domain == ML_DOMAIN_LAMBDA);
 
 	ml_str_free (&status);
 	ml_editor_free (&ed);
@@ -653,7 +653,7 @@ static void test_edit_line (void)
 	MlEditor ed;
 
 	ml_editor_init (&ed);
-	test_normal (&ed, ":mode matrix");
+	test_normal (&ed, ":mode pga2");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "A = 1");
@@ -663,7 +663,7 @@ static void test_edit_line (void)
 	test_normal (&ed, "o");
 	type (&ed, "x");
 	test_leave (&ed);
-	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 1"));
+	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_PGA2, "A = 1"));
 	CHECK (line_is (&ed, 1, ML_LINE_MATH, ML_DOMAIN_LAMBDA, "x"));
 
 	/* Enter edits the cursor line; it keeps its own domain */
@@ -671,12 +671,12 @@ static void test_edit_line (void)
 	press (&ed, ML_KEY_END);
 	CHECK (ed.state == ML_STATE_MATH);
 	CHECK (ed.edit.cursor == 5);
-	CHECK (status_is (&ed, "-- MATH -- matrix>"));
+	CHECK (status_is (&ed, "-- MATH -- pga2>"));
 	type (&ed, "2");
 	press (&ed, ML_KEY_ESCAPE);
 	CHECK (test_editing (&ed));
 	CHECK (ed.session.lines.len == 2);
-	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 12"));
+	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_PGA2, "A = 12"));
 	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
 
 	/* an edited note stays a note */
@@ -702,17 +702,18 @@ static void test_domains (void)
 	MlEditor ed;
 	uint32_t i;
 
+	/* matrix, vector and equations are the names of older files */
 	static const char *const names []   =
 	{
-		"algebra", "equations", "matrix", "vector",
-		"lambda", "boolean", "pga2", "pga3"
+		"algebra", "lambda", "boolean", "pga2", "pga3",
+		"matrix", "vector", "equations"
 	};
 
 	static const MlDomain    domains [] =
 	{
-		ML_DOMAIN_ALGEBRA, ML_DOMAIN_EQUATIONS, ML_DOMAIN_MATRIX,
-		ML_DOMAIN_VECTOR, ML_DOMAIN_LAMBDA, ML_DOMAIN_BOOLEAN,
-		ML_DOMAIN_PGA2, ML_DOMAIN_PGA3
+		ML_DOMAIN_ALGEBRA, ML_DOMAIN_LAMBDA, ML_DOMAIN_BOOLEAN,
+		ML_DOMAIN_PGA2, ML_DOMAIN_PGA3,
+		ML_DOMAIN_ALGEBRA, ML_DOMAIN_ALGEBRA, ML_DOMAIN_ALGEBRA
 	};
 
 	ml_editor_init (&ed);
@@ -727,16 +728,16 @@ static void test_domains (void)
 	}
 
 	/* the status line follows the domain */
-	test_normal (&ed, ":mode matrix");
+	test_normal (&ed, ":mode lambda");
 	press (&ed, ML_KEY_ENTER);
-	CHECK (status_is       (&ed, "-- NOTE -- matrix>  matrix"));
+	CHECK (status_is       (&ed, "-- NOTE -- lambda>  lambda"));
 	CHECK (ml_editor_begin (&ed) == ML_OK);
-	CHECK (status_is       (&ed, "-- MATH -- matrix>"));
+	CHECK (status_is       (&ed, "-- MATH -- lambda>"));
 
 	/* new lines use it, and the rewriter follows it */
 	type (&ed, "A^2 ");
 	test_leave (&ed);
-	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A\xC2\xB2 "));
+	CHECK (line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_LAMBDA, "A\xC2\xB2 "));
 
 	test_normal (&ed, ":mode pga3");
 	press (&ed, ML_KEY_ENTER);
@@ -758,8 +759,8 @@ static void test_domain_cycle (void)
 
 	/* Normal: Alt+Right goes forward through the domains and wraps around */
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
-	CHECK (ed.session.domain == ML_DOMAIN_EQUATIONS);
-	CHECK (status_is            (&ed, "-- NOTE -- equations>  equations"));
+	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
+	CHECK (status_is            (&ed, "-- NOTE -- lambda>  lambda"));
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ed.session.domain == ML_DOMAIN_ALGEBRA);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
@@ -778,19 +779,17 @@ static void test_domain_cycle (void)
 	CHECK (ml_editor_begin (&ed) == ML_OK);
 	type (&ed, "a^2 ");
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
-	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
-	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
-	CHECK (status_is (&ed, "-- MATH -- matrix>  matrix"));
+	CHECK (ed.edit_domain == ML_DOMAIN_LAMBDA);
+	CHECK (status_is (&ed, "-- MATH -- lambda>  lambda"));
 	type (&ed, "b^2 ");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (
-		line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_MATRIX, "a\xC2\xB2 b\xC2\xB2 ")
+		line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_LAMBDA, "a\xC2\xB2 b\xC2\xB2 ")
 	);
-	CHECK (ed.session.domain == ML_DOMAIN_MATRIX);
-	CHECK (ed.edit_domain == ML_DOMAIN_MATRIX);
+	CHECK (ed.session.domain == ML_DOMAIN_LAMBDA);
+	CHECK (ed.edit_domain == ML_DOMAIN_LAMBDA);
 
 	/* the rewrites follow the domain: ^ is an operator in the boolean domain */
-	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ed.edit_domain == ML_DOMAIN_BOOLEAN);
@@ -804,7 +803,7 @@ static void test_domain_cycle (void)
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	press (&ed, ML_KEY_ENTER);
 	CHECK (
-		line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_VECTOR, "a\xC2\xB2 b\xC2\xB2 ")
+		line_is (&ed, 0, ML_LINE_MATH, ML_DOMAIN_PGA2, "a\xC2\xB2 b\xC2\xB2 ")
 	);
 	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
 
@@ -911,11 +910,11 @@ static void test_commands (void)
 	CHECK (test_editing (&ed) && !ed.quit);
 
 	/* the command line is editable */
-	test_normal (&ed, ":mode matriz");
+	test_normal (&ed, ":mode pgaz");
 	press (&ed, ML_KEY_BACKSPACE);
-	type (&ed, "x");
+	type (&ed, "3");
 	press (&ed, ML_KEY_ENTER);
-	CHECK (ed.session.domain == ML_DOMAIN_MATRIX);
+	CHECK (ed.session.domain == ML_DOMAIN_PGA3);
 
 	test_normal (&ed, ":q");
 	press (&ed, ML_KEY_ENTER);

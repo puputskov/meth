@@ -257,7 +257,7 @@ static const char *const demo_session =
 	"m:algebra 1/3 + 1/6\n"
 	"m:algebra sqrt(2)\n"
 	"# ---\n"
-	"m:matrix [1 2; 3 4]\n";
+	"m:pga2 [1 2; 3 4]\n";
 
 static void test_markdown (void)
 {

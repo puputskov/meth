@@ -15,9 +15,6 @@
 typedef enum MlDomain
 {
 	ML_DOMAIN_ALGEBRA = 0,
-	ML_DOMAIN_EQUATIONS,
-	ML_DOMAIN_MATRIX,
-	ML_DOMAIN_VECTOR,
 	ML_DOMAIN_LAMBDA,
 	ML_DOMAIN_PGA2,
 	ML_DOMAIN_PGA3,
@@ -140,11 +137,13 @@ typedef struct MlSession
 	uint64_t  revision;
 } MlSession;
 
-/* "algebra", "matrix", ... ("unknown" for an invalid value). */
+/* "algebra", "lambda", ... ("unknown" for an invalid value). */
 const char *ml_domain_name (MlDomain domain);
 
 /*
  * Parses a domain name as used in the file format. ML_ERR_PARSE when unknown.
+ * Matrices, vectors and equations are part of the algebra domain; the names
+ * matrix, vector and equations of older files read as algebra.
  */
 MlDomainResult ml_domain_from_name (MlSlice name);
 

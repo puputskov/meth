@@ -13,7 +13,7 @@ static void test_domains (void)
 {
 	MlDomainResult r;
 
-	CHECK (strcmp (ml_domain_name (ML_DOMAIN_MATRIX), "matrix") == 0);
+	CHECK (strcmp (ml_domain_name (ML_DOMAIN_PGA2), "pga2") == 0);
 	CHECK (strcmp (ml_domain_name (ML_DOMAIN_PGA3), "pga3") == 0);
 	CHECK (strcmp (ml_domain_name ((MlDomain)99), "unknown") == 0);
 
@@ -45,7 +45,7 @@ static void test_edit (void)
 		ml_session_append (
 			&s,
 			ML_LINE_MATH,
-			ML_DOMAIN_MATRIX,
+			ML_DOMAIN_PGA2,
 			lit ("A = [[1,2],[3,4]]")
 		) == ML_OK
 	);
@@ -69,7 +69,7 @@ static void test_edit (void)
 	CHECK (s.lines.len == 3);
 
 	v = ml_session_get (&s, 0);
-	CHECK (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_MATRIX);
+	CHECK (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_PGA2);
 	CHECK (ml_slice_equal (v.text, lit ("A = [[1,2],[3,4]]")));
 	v = ml_session_get (&s, 2);
 	CHECK (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_LAMBDA);
@@ -474,7 +474,7 @@ static void test_blocks (void)
 	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "intro");
 	add_line (&s, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "a = 1");
 	add_line (&s, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "b = 2");
-	add_line (&s, ML_LINE_MATH, ML_DOMAIN_MATRIX, "A = 1");
+	add_line (&s, ML_LINE_MATH, ML_DOMAIN_PGA2, "A = 1");
 	add_line (&s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, "");
 	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "more");
 	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "text");
@@ -489,7 +489,7 @@ static void test_blocks (void)
 	CHECK (b.domain == ML_DOMAIN_ALGEBRA);
 	b = ml_session_block (&s, 3);
 	CHECK (b.kind == ML_BLOCK_CODE && b.first == 3 && b.last == 3);
-	CHECK (b.domain == ML_DOMAIN_MATRIX);
+	CHECK (b.domain == ML_DOMAIN_PGA2);
 	b = ml_session_block (&s, 4);
 	CHECK (b.kind == ML_BLOCK_BLANK && b.first == 4 && b.last == 4);
 	b = ml_session_block (&s, 6);

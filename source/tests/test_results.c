@@ -147,7 +147,7 @@ static void test_other_lines (void)
 		ml_session_append (
 			&s,
 			ML_LINE_MATH,
-			ML_DOMAIN_MATRIX,
+			ML_DOMAIN_PGA2,
 			lit ("1 + 1")
 		) == ML_OK
 	);

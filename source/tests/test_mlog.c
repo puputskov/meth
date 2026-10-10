@@ -39,7 +39,7 @@ static void test_parse (void)
 		&s,
 		lit (
 			"# a note\n"
-			"m:matrix A = [[1,2],[3,4]]\n"
+			"m:pga2 A = [[1,2],[3,4]]\n"
 			"include \"consts.mlog\"\n"
 			"\n"
 			"m:lambda \xCE\xBB" "x.x\n"
@@ -50,7 +50,7 @@ static void test_parse (void)
 	v = ml_session_get (&s, 0);
 	CHECK (v.kind == ML_LINE_NOTE && ml_slice_equal (v.text, lit ("a note")));
 	v = ml_session_get (&s, 1);
-	CHECK (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_MATRIX);
+	CHECK (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_PGA2);
 	CHECK (ml_slice_equal (v.text, lit ("A = [[1,2],[3,4]]")));
 	v = ml_session_get (&s, 2);
 	CHECK (
@@ -121,7 +121,7 @@ static void test_unknown (void)
 			"m:\n"
 			"include \"unterminated\n"
 			"include \"\"\n"
-			"  m:matrix x\n"
+			"  m:pga2 x\n"
 		)
 	) == ML_OK);
 	CHECK (s.lines.len == 6);
@@ -165,7 +165,7 @@ static void test_note_and_math_edges (void)
 	CHECK (
 		ml_mlog_parse (
 			&s,
-			lit ("#\n#x\n#  indented\nm:matrix\nm:pga3  two spaces\n")
+			lit ("#\n#x\n#  indented\nm:pga2\nm:pga3  two spaces\n")
 		) == ML_OK
 	);
 
@@ -181,7 +181,7 @@ static void test_note_and_math_edges (void)
 	CHECK (
 		(
 			   v.kind == ML_LINE_MATH
-			&& v.domain == ML_DOMAIN_MATRIX
+			&& v.domain == ML_DOMAIN_PGA2
 			&& v.text.len == 0
 		)
 	);
@@ -224,7 +224,7 @@ static void test_format (void)
 		ml_session_append (
 			&s,
 			ML_LINE_MATH,
-			ML_DOMAIN_VECTOR,
+			ML_DOMAIN_PGA3,
 			lit ("v = (1, 2)")
 		) == ML_OK
 	);
@@ -266,7 +266,7 @@ static void test_format (void)
 		ml_str_cstr (out),
 		"# note\n"
 		"#\n"
-		"m:vector v = (1, 2)\n"
+		"m:pga3 v = (1, 2)\n"
 		"m:boolean\n"
 		"include \"a/b.mlog\"\n"
 		"\n"
@@ -283,7 +283,7 @@ static void test_round_trip (void)
 	MlStr      b;
 	const char *samples [] =
 	{
-		"# note\nm:matrix A = [[1,2],[3,4]]\n\ninclude \"x.mlog\"\n"
+		"# note\nm:pga2 A = [[1,2],[3,4]]\n\ninclude \"x.mlog\"\n"
 		"m:pga2 e12 * e1\n",
 		"garbage line\nm:nonsense x\n# ok\n",
 		"# \xCF\x80 and \xE2\x88\x9A" "x\nm:lambda \xCE\xBB" "x.x\n",
@@ -357,7 +357,7 @@ static void test_files (void)
 		ml_session_append (
 			&s,
 			ML_LINE_MATH,
-			ML_DOMAIN_MATRIX,
+			ML_DOMAIN_PGA2,
 			lit ("A = [[1]]")
 		) == ML_OK
 	);
@@ -390,7 +390,7 @@ static void test_files (void)
 	CHECK (other.lines.len == 3 && !other.dirty && other.cursor == 0);
 	CHECK (other.domain == ML_DOMAIN_PGA3);
 	CHECK (ml_slice_equal (ml_str_view (other.path), path));
-	CHECK (ml_session_get (&other, 0).domain == ML_DOMAIN_MATRIX);
+	CHECK (ml_session_get (&other, 0).domain == ML_DOMAIN_PGA2);
 	CHECK (
 		ml_slice_equal (ml_session_get (&other, 1).text, lit ("hi \xCF\x80"))
 	);
@@ -423,6 +423,44 @@ static void test_files (void)
 	ml_session_free (&s);
 }
 
+/* Files from before matrix, vector and equations joined algebra. */
+static void test_old_domain_names (void)
+{
+	MlSession s;
+	MlStr     out;
+
+	ml_session_init (&s);
+	ml_str_init (&out);
+	CHECK (
+		ml_mlog_parse (
+			&s,
+			lit ("m:matrix A = [[1,2],[3,4]]\nm:vector v = [1, 2]\n"
+				"m:equations x + 1\nm:lambda x\n")
+		) == ML_OK
+	);
+	CHECK (s.lines.len == 4);
+	CHECK (ml_session_get (&s, 0).domain == ML_DOMAIN_ALGEBRA);
+	CHECK (ml_session_get (&s, 1).domain == ML_DOMAIN_ALGEBRA);
+	CHECK (ml_session_get (&s, 2).domain == ML_DOMAIN_ALGEBRA);
+	CHECK (ml_session_get (&s, 3).domain == ML_DOMAIN_LAMBDA);
+	CHECK (ml_session_get (&s, 0).kind == ML_LINE_MATH);
+
+	/* and are written back as algebra */
+	CHECK (ml_mlog_format (&out, &s) == ML_OK);
+	CHECK (
+		ml_slice_equal (
+			ml_str_view (out),
+			lit ("m:algebra A = [[1,2],[3,4]]\nm:algebra v = [1, 2]\n"
+				"m:algebra x + 1\nm:lambda x\n")
+		)
+	);
+
+	ml_str_free (&out);
+	ml_session_free (&s);
+}
+
+void run_mlog_tests (void);
+
 void run_mlog_tests (void)
 {
 	test_parse ();
@@ -432,4 +470,5 @@ void run_mlog_tests (void)
 	test_format ();
 	test_round_trip ();
 	test_files ();
+	test_old_domain_names ();
 }

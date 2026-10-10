@@ -157,7 +157,7 @@ static void test_basic_layout (void)
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "x");
 	press (&ed, ML_KEY_ENTER);
-	test_normal (&ed, "gm");
+	test_normal (&ed, "g2");
 	test_normal (&ed, "o");
 	type (&ed, "A = 1");
 	press (&ed, ML_KEY_ENTER);
@@ -169,10 +169,10 @@ static void test_basic_layout (void)
 	CHECK (l.rows.len == 6);
 	CHECK (row_has (&l, 0, " 1 alg> 1+2"));
 	CHECK (row_has (&l, 1, " 2    \xE2\x94\x94 x"));
-	CHECK (row_is (&l, 2, " 3 mat> A = 1"));
+	CHECK (row_is (&l, 2, " 3 pg2> A = 1"));
 	CHECK (row_is (&l, 3, " 4 a note"));
 	CHECK (row_is (&l, 4, ""));
-	CHECK (row_is (&l, 5, "-- NOTE -- matrix>         [no name] [+]"));
+	CHECK (row_is (&l, 5, "-- NOTE -- pga2>           [no name] [+]"));
 
 	/* the cursor sits at the end of the line being edited */
 	CHECK (l.cursor.row == 4 && l.cursor.col == 3 + 6 + 1);
@@ -219,10 +219,10 @@ static void test_typing_row (void)
 
 	/* the command line takes the last row */
 	test_leave (&ed);
-	test_normal (&ed, ":mode vec");
+	test_normal (&ed, ":mode boo");
 	l = ml_screen_layout (&s, &ed);
-	/* the ghost text "tor" completes "vec" to "vector" */
-	CHECK (row_is (&l, 4, ":mode vector"));
+	/* the ghost text "lean" completes "boo" to "boolean" */
+	CHECK (row_is (&l, 4, ":mode boolean"));
 	CHECK (l.cursor.row == 5 && l.cursor.col == 2 + 8);
 	ml_layout_free (&l);
 
@@ -992,7 +992,7 @@ static void test_blocks_layout (void)
 	press (&ed, ML_KEY_ENTER);
 	type (&ed, "a + b");
 	press (&ed, ML_KEY_ENTER);
-	test_normal (&ed, "gm");
+	test_normal (&ed, "gl");
 	test_normal (&ed, "o");
 	type (&ed, "[1,2]");
 	press (&ed, ML_KEY_ENTER);
@@ -1005,7 +1005,7 @@ static void test_blocks_layout (void)
 	CHECK (row_is (&l, 2, " 3 alg> a = 1  = 1"));
 	CHECK (row_is (&l, 3, " 4    \xE2\x94\x82 b = 2  = 2"));
 	CHECK (row_is (&l, 4, " 5    \xE2\x94\x94 a + b  = 3"));
-	CHECK (row_has (&l, 5, " 6 mat> [1,2]"));
+	CHECK (row_has (&l, 5, " 6 \xCE\xBB  > [1,2]"));
 	ml_layout_free (&l);
 
 	/* a folded block is one row with the number of lines behind it */
@@ -1014,7 +1014,7 @@ static void test_blocks_layout (void)
 	test_normal (&ed, "za");
 	l = ml_screen_layout (&s, &ed);
 	CHECK (row_has (&l, 2, " 3 alg> \xE2\x96\xB8 a = 1  +2 lines"));
-	CHECK (row_has (&l, 3, " 6 mat> [1,2]"));
+	CHECK (row_has (&l, 3, " 6 \xCE\xBB  > [1,2]"));
 	CHECK (l.cursor.row == 3);
 	ml_layout_free (&l);
 

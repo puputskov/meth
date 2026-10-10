@@ -3,9 +3,6 @@
 static const char *const domain_names [ML_DOMAIN_COUNT] =
 {
 	[ML_DOMAIN_ALGEBRA]   = "algebra",
-	[ML_DOMAIN_EQUATIONS] = "equations",
-	[ML_DOMAIN_MATRIX]    = "matrix",
-	[ML_DOMAIN_VECTOR]    = "vector",
 	[ML_DOMAIN_LAMBDA]    = "lambda",
 	[ML_DOMAIN_PGA2]      = "pga2",
 	[ML_DOMAIN_PGA3]      = "pga3",
@@ -38,6 +35,17 @@ MlDomainResult ml_domain_from_name (MlSlice name)
 			res.result = ML_OK;
 			res.domain = (MlDomain)i;
 		}
+	}
+
+	/* matrices, vectors and equations are algebra; old files say otherwise */
+	if (
+		   ml_slice_equal (name, ml_slice_cstr ("matrix"))
+		|| ml_slice_equal (name, ml_slice_cstr ("vector"))
+		|| ml_slice_equal (name, ml_slice_cstr ("equations"))
+	)
+	{
+		res.result = ML_OK;
+		res.domain = ML_DOMAIN_ALGEBRA;
 	}
 
 	return res;

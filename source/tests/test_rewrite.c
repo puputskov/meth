@@ -179,7 +179,7 @@ static void test_superscripts (void)
 	CHECK (types_as (ML_DOMAIN_BOOLEAN, "a^2 ", "a^2 "));
 	CHECK (types_as (ML_DOMAIN_PGA2, "e1^2 ", "e1^2 "));
 	CHECK (types_as (ML_DOMAIN_PGA3, "e1^2 ", "e1^2 "));
-	CHECK (types_as (ML_DOMAIN_MATRIX, "A^2 ", "A\xC2\xB2 "));
+	CHECK (types_as (ML_DOMAIN_LAMBDA, "A^2 ", "A\xC2\xB2 "));
 }
 
 static void test_sqrt (void)

@@ -20,9 +20,6 @@
 static const char *const math_gutters [ML_DOMAIN_COUNT] =
 {
 	[ML_DOMAIN_ALGEBRA]   = "alg> ",
-	[ML_DOMAIN_EQUATIONS] = "=  > ",
-	[ML_DOMAIN_MATRIX]    = "mat> ",
-	[ML_DOMAIN_VECTOR]    = "\xE2\x86\x92  > ", /* right arrow */
 	[ML_DOMAIN_LAMBDA]    = "\xCE\xBB  > ",     /* lambda sign */
 	[ML_DOMAIN_PGA2]      = "pg2> ",
 	[ML_DOMAIN_PGA3]      = "pg3> ",

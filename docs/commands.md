@@ -19,7 +19,7 @@ first argument.
 
 # The session
 ```command
-:mode name     the domain of new blocks (algebra, matrix, ...)
+:mode name     the domain of new blocks (algebra, lambda, ...)
 :pga 2|3       the same for the pga domains
 :steps         show or hide the steps of the line
 :symbols on|off  names with no value are symbols

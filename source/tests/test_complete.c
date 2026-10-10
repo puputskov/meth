@@ -83,7 +83,7 @@ static void test_arguments (void)
 	MlCompletion c = ml_complete_command (lit ("mode "));
 
 	/* the values of the argument are listed, and they start after the space */
-	CHECK (c.count == 8 && c.token_start == 5);
+	CHECK (c.count == 5 && c.token_start == 5);
 	CHECK (has_item (&c, "algebra") && has_item (&c, "pga3"));
 	CHECK (has_item (&c, "boolean") && c.ghost == ML_MAX_CANDIDATES);
 
@@ -173,7 +173,7 @@ static void test_editor_keys (void)
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is           (&ed, "mode "));
-	CHECK (ml_editor_completion (&ed).count == 8);
+	CHECK (ml_editor_completion (&ed).count == 5);
 	type (&ed, "l");
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
@@ -303,7 +303,7 @@ static void test_screen (void)
 	press (&ed, ML_KEY_TAB);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (
-		plain_row_is (&l, 3, "  algebra  equations  matrix  vector  la")
+		plain_row_is (&l, 3, "  algebra  lambda  pga2  pga3  boolean")
 	);
 	CHECK (plain_row_is (&l, 4, ":mode "));
 	ml_layout_free (&l);
@@ -336,7 +336,7 @@ static void test_screen (void)
 	press (&ed, ML_KEY_ESCAPE);
 	test_normal (&ed, ":mode ");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (plain_row_is (&l, 3, "  algebra  e"));
+	CHECK (plain_row_is (&l, 3, "  algebra  l"));
 	ml_layout_free (&l);
 
 	ml_screen_free (&s);

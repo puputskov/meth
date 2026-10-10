@@ -18,10 +18,7 @@ Each domain is a mode (see section 3).
 
 | Domain | Scope |
 |---|---|
-| Algebra / calculus | expressions, simplification, derivatives, integrals, limits |
-| Equations | systems of equations (linear first, nonlinear later) |
-| Matrices | arithmetic, inverse, determinant, decompositions, transformations |
-| Vectors | vector math |
+| Algebra | expressions, simplification, derivatives, integrals, limits, **matrices and vectors** (arithmetic, inverse, determinant, decompositions, transformations, dot and cross products) and **equations** (`solve`, systems of equations: linear first, nonlinear later) |
 | Lambda calculus | parsing, reduction, step by step beta reduction |
 | Projective geometric algebra (PGA) | multivectors, geometric products, motors; both 2D `R(2,0,1)` and 3D `R(3,0,1)` |
 | Boolean algebra | expressions, truth tables, simplification |
@@ -204,7 +201,7 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
   - `m:<domain>` math line: `m:matrix A = [[1,2],[3,4]]`
   - `include "path.mlog"` include line (no tag)
   - blank lines are kept as-is and shown as blank.
-  - Domain names: `algebra`, `equations`, `matrix`, `vector`, `lambda`, `pga2`, `pga3`, `boolean`.
+  - Domain names: `algebra`, `lambda`, `pga2`, `pga3`, `boolean`. Matrices, vectors and equations are part of `algebra` (decision of 2026-10-10: their operators mean the same as in algebra, they share the variables, and the matrix, vector and equations domains were never evaluated); `m:matrix`, `m:vector` and `m:equations` in older files read as `algebra`. A domain exists only where the meaning of the operators differs (`*` in PGA, `^` in boolean, application in lambda).
   - A line that fails to parse is still stored; it is shown with its error instead of a result.
 - Saved after every committed line (write to a temp file then rename, so a crash never corrupts the session).
 
@@ -636,7 +633,7 @@ Each task lists its files (headers in `include/matlog/`, sources in `source/matl
    Done when: a small test executable exercises arena, string append and UTF-8 iteration (`π` as multi-byte, combining cases excluded for now).
 2. **Platform layer** (`platform/`): `console.h` (enable raw mode and VT output, UTF-8 code page 65001, read key events incl. arrows/Esc/Ctrl, terminal size, resize notice), `fs.h` (read whole file, atomic write via temp + rename, path join, directory of path).
    Done when: a demo prints each key event decoded as a key code plus modifiers, and Esc is told apart from arrow-key sequences.
-3. **Session model** (`session/session.h`): `Line {kind, domain, text}`, `Session {path, lines[], cursor}`, insert/delete/replace line, domain enum (`algebra`, `equations`, `matrix`, `vector`, `lambda`, `pga2`, `pga3`, `boolean`).
+3. **Session model** (`session/session.h`): `Line {kind, domain, text}`, `Session {path, lines[], cursor}`, insert/delete/replace line, domain enum (`algebra`, `lambda`, `pga2`, `pga3`, `boolean`).
    Done when: unit-style test builds a session in memory and edits it.
 4. **`.mlog` reader/writer** (`session/mlog.h`): parse and write the format from section 4.7 (note `# `, math `m:<domain> `, `include "x"`, blank), CRLF and LF both accepted, unknown tag becomes an error line, atomic save.
    Done when: round trip (read, write, read) of a sample file gives identical lines, and a corrupt file never loses data.
@@ -828,7 +825,7 @@ with exact results and steps on request.
 10. **Solving** (`sym/solve.c`): `solve(f, x)` gives the real solutions of f = 0 as a set `{-2, 2}`: roots of polynomials (rational roots, then the
    quadratic formula), polynomials in x^k, quotients (without the zeros of the denominator, sums of fractions over one line), and polynomials in
    exp(x), ln(x), a power or a root of x. When the second argument is a name that stands for nothing it is this; with matrices it is still the
-   linear system. Not built: systems of equations (the equations domain), complex roots, cubic and quartic formulas, trigonometric equations.
+   linear system. Not built: systems of equations (in the algebra domain), complex roots, cubic and quartic formulas, trigonometric equations.
 11. **Free symbols**: `:symbols on` (or `matlog eval --symbols`) makes a name that stands for nothing a symbol everywhere, so `x + y` is the
    expression `x + y`; off by default so that a mistyped name stays an error. A number defined later hides the symbol.
 

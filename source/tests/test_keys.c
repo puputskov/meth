@@ -68,9 +68,6 @@ static const char *domain_name_of (char key)
 {
 	const char *name = "algebra";
 
-	name = ml_choose (key == 'e', "equations", name);
-	name = ml_choose (key == 'm', "matrix", name);
-	name = ml_choose (key == 'v', "vector", name);
 	name = ml_choose (key == 'l', "lambda", name);
 	name = ml_choose (key == 'b', "boolean", name);
 	name = ml_choose (key == '2', "pga2", name);

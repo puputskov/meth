@@ -11,7 +11,7 @@
  *
  *	:mo       one candidate "mode": ghost text "de", accepting types it
  *	:mode     (accepting adds a space, as the command needs an argument)
- *	:mode     the values of the argument are listed: algebra equations ...
+ *	:mode     the values of the argument are listed: algebra lambda ...
  *	:mode l   only "lambda" is left: ghost text "ambda", no list any more
  *	:mode lambda   nothing to complete
  *

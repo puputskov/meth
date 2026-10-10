@@ -170,8 +170,9 @@ static const char *const syntax_text =
 	"errors have a code\n"
 	"Domains      algebra, boolean and lambda are evaluated (eval --domain "
 	"NAME);\n"
-	"             equations matrix vector pga2 pga3 are stored but not "
-	"evaluated yet\n";
+	"             matrices, vectors and equations are part of algebra; "
+	"pga2 and pga3 are\n"
+	"             stored but not evaluated yet\n";
 
 static const char *const schema_text =
 	"Every result is one JSON object on one line (JSON Lines).\n"
