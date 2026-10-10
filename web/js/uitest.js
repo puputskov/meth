@@ -148,7 +148,50 @@ try {
 
 	check("steps: button", toggle !== null);
 	toggle.click();
-	check("steps: rows", out(2).querySelector("pre.steps") !== null);
+	check("steps: rows", out(2).querySelector(".steps-list") !== null);
+	check("steps: matrices are MathML", out(2).querySelectorAll(".steps-list .step-matrix math mtable").length >= 2 && out(2).querySelector("pre.steps") === null, out(2).querySelectorAll(".step-matrix").length);
+	check("steps: text rows", out(2).querySelector(".steps-list .step-text")?.textContent.startsWith("Eliminate"));
+
+	// the notes of rules stand in one column
+	notebook.load("m:algebra diff (x^3 + sin (x), x)" + String.fromCharCode(10));
+	notebook.stepsOpen.add(0);
+	notebook.render(null);
+	const formulas = [...root.querySelectorAll(".steps-list .step-formula")];
+	const notes = [...root.querySelectorAll(".steps-list .step-note")];
+
+	check("steps: rules with notes", formulas.length === 3 && notes.length === 3 && notes[0].textContent === "(power rule)", [formulas.length, notes.length]);
+	check("steps: notes in one column", new Set(notes.map((n) => Math.round(n.getBoundingClientRect().left))).size === 1, notes.map((n) => n.getBoundingClientRect().left));
+	notebook.stepsOpen.clear();
+	notebook.load("m:algebra a = 3" + String.fromCharCode(10) + "m:algebra a * 2" + String.fromCharCode(10) + "m:algebra det ([[1, 2], [3, 4]])" + String.fromCharCode(10));
+	notebook.toggleAllResults(0);
+
+	// deleting a cell is one step to undo
+	notebook.load("m:algebra a = 1" + String.fromCharCode(10) + "m:algebra a + 1" + String.fromCharCode(10) + "m:algebra a + 2" + String.fromCharCode(10));
+	notebook.deleteCell(0, 2);
+	check("undo cell: deleted", notebook.count === 0 && cells() === 0, notebook.count);
+	notebook.undo();
+	check("undo cell: the whole cell is back", notebook.count === 3 && root.querySelectorAll(".line").length === 3 && notebook.lines[2].text === "a + 2", notebook.count);
+	notebook.redo();
+	check("redo cell: gone again", notebook.count === 0);
+	notebook.undo();
+
+	// the same for the other actions that change several lines
+	notebook.insertCell(3, "math");
+	check("undo insert: a cell is one step", notebook.count === 5 && notebook.lines[3].kind === "blank", notebook.lines.map((l) => l.kind));
+	notebook.undo();
+	check("undo insert: back", notebook.count === 3, notebook.count);
+	area(1).focus();
+	area(1).setSelectionRange(1, 1);
+	press(1, "Enter");
+	check("split: two lines", notebook.count === 4);
+	notebook.undo();
+	check("undo split: one step", notebook.count === 3 && notebook.lines[1].text === "a + 1", [notebook.count, notebook.lines[1].text]);
+	const select2 = root.querySelector("section.cell.code select");
+
+	select2.value = "lambda";
+	select2.dispatchEvent(new Event("change"));
+	notebook.undo();
+	check("undo domain: every line of the cell", notebook.lines.every((l) => l.domain === "algebra"), notebook.lines.map((l) => l.domain));
 
 	// plots
 	notebook.load("m:algebra hist ([1, 2, 2, 3, 3, 3], 3)\nm:algebra plot (x^2, 0, 3)\n");

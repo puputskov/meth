@@ -429,11 +429,13 @@ int32_t ml_line_wants_steps (const MlSession *s, uint64_t idx)
 	return want;
 }
 
-MlLineSteps ml_line_steps (
+/* The steps of line idx; aligned: the notes of the rules in one column. */
+static MlLineSteps line_steps (
 	MlStr           *out,
 	const MlResults *results,
 	const MlSession *s,
-	uint64_t        idx
+	uint64_t        idx,
+	int32_t         aligned
 )
 {
 	MlLineSteps result = {
@@ -492,7 +494,11 @@ MlLineSteps ml_line_steps (
 				);
 			}
 
-			ml_steplog_align (&log);
+			if (aligned)
+			{
+				ml_steplog_align (&log);
+			}
+
 			ml_steplog_trim (&log);
 			result.result = log.status;
 
@@ -522,4 +528,24 @@ MlLineSteps ml_line_steps (
 	}
 
 	return result;
+}
+
+MlLineSteps ml_line_steps (
+	MlStr           *out,
+	const MlResults *results,
+	const MlSession *s,
+	uint64_t        idx
+)
+{
+	return line_steps (out, results, s, idx, 1);
+}
+
+MlLineSteps ml_line_steps_raw (
+	MlStr           *out,
+	const MlResults *results,
+	const MlSession *s,
+	uint64_t        idx
+)
+{
+	return line_steps (out, results, s, idx, 0);
 }

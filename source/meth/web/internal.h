@@ -48,4 +48,11 @@ static inline MlResult flag (MlResult r, MlStr *o, int32_t on)
 	return lit (r, o, ml_choose (on, "true", "false"));
 }
 
+/*
+ * Appends the steps of a line (the raw text of ml_line_steps_raw) as a JSON
+ * array of items: text, rule (a step and its note) and matrix (set as MathML).
+ * See stepitems.c.
+ */
+MlResult web_step_items (MlStr *out, MlSlice raw);
+
 #endif /* METH_WEB_INTERNAL_H */

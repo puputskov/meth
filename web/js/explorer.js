@@ -10,6 +10,10 @@ import { isFilePath, titleOf } from "./workspace.js";
 const ICONS = {
 	file: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 1.5h5l3.5 3.5v9.5H4z M9 1.5V5h3.5 M8 8v4 M6 10h4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
 	folder: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 3.5h4.5l1.5 1.5h7v8.5h-13z M8 7.5v4 M6 9.5h4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
+	// the icons of the tree: a page with a folded corner, a folder, an open one
+	page: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8.5h5 M5.5 11h5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+	dir: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 3.5h4.5l1.5 1.5h7v8h-13z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>',
+	dirOpen: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 13.5v-10h4.5l1.5 1.5h6v2.5 M1.5 13.5l2-6h12l-2 6z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>',
 	collapse: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 5.5l5 5 5-5 M3 2h10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/></svg>',
 };
 
@@ -150,9 +154,11 @@ export class Explorer {
 		}
 
 		const twisty = el("span", "twisty");
+		const icon = el("span", "file-icon");
 
 		twisty.textContent = item.folder ? (open ? "▾" : "▸") : "";
-		row.append(twisty);
+		icon.innerHTML = item.folder ? (open ? ICONS.dirOpen : ICONS.dir) : ICONS.page; // constants of this file
+		row.append(twisty, icon);
 
 		if (this.renaming && this.renaming.path === item.path) {
 			row.append(this.renameInput(item));

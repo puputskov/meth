@@ -136,6 +136,9 @@ export const EDIT = {
 	redo: 4,
 	type: 5,
 	checkpoint: 6,
+	// or'ed into replace, insert or delete: the change belongs to the undo
+	// step of the one before it (Notebook.grouped uses it)
+	join: 16,
 };
 
 export async function loadMeth(url) {

@@ -126,6 +126,24 @@ body.app .bar {
 	text-align: center;
 }
 
+.node .file-icon {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 1.1rem;
+	margin-right: 0.2rem;
+	color: var(--dim);
+}
+
+.node.folder .file-icon {
+	color: color-mix(in srgb, var(--accent) 70%, var(--dim));
+}
+
+.node.active .file-icon,
+.node.selected .file-icon {
+	color: var(--accent);
+}
+
 .node .name {
 	min-width: 0;
 	overflow: hidden;

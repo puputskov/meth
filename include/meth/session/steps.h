@@ -52,4 +52,16 @@ MlLineSteps ml_line_steps (
 	uint64_t        idx
 );
 
+/*
+ * The same, but the notes of the rules ("(power rule)") are left behind a tab
+ * in the line instead of being put in one column with spaces: for a page that
+ * lays the steps out itself (see web/web.h).
+ */
+MlLineSteps ml_line_steps_raw (
+	MlStr           *out,
+	const MlResults *results,
+	const MlSession *s,
+	uint64_t        idx
+);
+
 #endif /* METH_SESSION_STEPS_H */

@@ -76,6 +76,7 @@ export class Notebook {
 		this.collapsed = new Set(); // the first lines of the cells that are folded
 		this.burst = false; // typing since the last checkpoint
 		this.timer = 0;
+		this.group = null; // inside grouped (): how many changes it made
 		this.completion = null; // { index, items, selected, ghost, start }
 		this.charWidth = 0;
 		this.mathCache = new Map(); // "domain + text" -> MathML, or null
@@ -163,13 +164,35 @@ export class Notebook {
 			this.checkpoint();
 		}
 
-		const from = this.applyAnswer(this.meth.edit(op, index, kind, domain, text));
+		// inside an action that changes several lines the first change starts
+		// the undo step and the others join it
+		let flags = op;
+
+		if (this.group !== null) {
+			flags = this.group > 0 ? op | EDIT.join : op;
+			this.group += 1;
+		}
+
+		const from = this.applyAnswer(this.meth.edit(flags, index, kind, domain, text));
 
 		if (op === EDIT.insert || op === EDIT.delete) {
 			this.shiftView(op === EDIT.insert ? 1 : -1, index);
 		}
 
 		return from;
+	}
+
+	// Runs an action that changes several lines of the session as one step of
+	// the undo history: one undo takes the whole of it back.
+	grouped(action) {
+		this.checkpoint();
+		this.group = 0;
+
+		try {
+			action();
+		} finally {
+			this.group = null;
+		}
 	}
 
 	// The lines that were at or after `index` have moved by `by` (a deleted
@@ -686,10 +709,7 @@ export class Notebook {
 			}
 
 			if (result.steps) {
-				const steps = el("pre", "steps");
-
-				steps.textContent = result.steps.join("\n");
-				out.append(steps);
+				out.append(this.stepsElement(result.stepItems, result.steps));
 			}
 
 			this.stepsRows(out, i);
@@ -760,18 +780,21 @@ export class Notebook {
 		}
 
 		if (markup) {
-			// the markup comes from the library, which escapes the text of the
-			// formula; it is parsed as an HTML document, so scripts would not
-			// run in any case
-			const parsed = new DOMParser().parseFromString(markup, "text/html");
-
-			element = parsed.body.firstElementChild
-				? document.importNode(parsed.body.firstElementChild, true)
-				: null;
-
+			element = this.mathFromMarkup(markup);
 		}
 
 		return element;
+	}
+
+	// A <math> element from the markup of the library, which escapes the text
+	// of the formulas; it is parsed as an HTML document, so scripts would not
+	// run in any case.
+	mathFromMarkup(markup) {
+		const parsed = new DOMParser().parseFromString(markup, "text/html");
+
+		return parsed.body.firstElementChild
+			? document.importNode(parsed.body.firstElementChild, true)
+			: null;
 	}
 
 	// The value of a result as a <math> element, or null when it has no
@@ -813,12 +836,51 @@ export class Notebook {
 			const answer = this.meth.steps(i);
 
 			if (answer.found) {
-				const steps = el("pre", "steps");
-
-				steps.textContent = answer.rows.join("\n");
-				out.append(steps);
+				out.append(this.stepsElement(answer.items, answer.rows));
 			}
 		}
+	}
+
+	// The steps: the items of the library (text, rules with their notes in
+	// one column, matrices as MathML); the rows of text when there are none.
+	stepsElement(items, rowsOfText) {
+		let box;
+
+		if (items && items.length > 0) {
+			box = el("div", "steps-list");
+
+			for (const item of items) {
+				if (item.t === "matrix") {
+					const cell = el("div", "step-matrix");
+					const math = this.mathFromMarkup(item.math);
+
+					if (math) {
+						cell.append(math);
+					} else {
+						cell.textContent = item.rows?.join("\n") ?? "";
+					}
+
+					box.append(cell);
+				} else if (item.t === "rule") {
+					const step = el("div", "step-formula");
+					const note = el("div", "step-note");
+
+					step.textContent = item.text;
+					note.textContent = item.note;
+					box.append(step, note);
+				} else {
+					const text = el("div", "step-text");
+
+					text.textContent = item.text;
+					box.append(text);
+				}
+			}
+		} else {
+			box = el("pre", "steps");
+			box.textContent = (rowsOfText ?? []).join("\n");
+		}
+
+		return box;
 	}
 
 	toggleSteps(i) {
@@ -1030,9 +1092,12 @@ export class Notebook {
 		const before = area.value.slice(0, area.selectionStart);
 		const after = area.value.slice(area.selectionEnd);
 
-		this.change(EDIT.replace, i, line.kind, line.domain ?? "", before);
+		let from = 0;
 
-		const from = this.change(EDIT.insert, i + 1, line.kind, line.domain ?? "", after);
+		this.grouped(() => {
+			this.change(EDIT.replace, i, line.kind, line.domain ?? "", before);
+			from = this.change(EDIT.insert, i + 1, line.kind, line.domain ?? "", after);
+		});
 
 		this.render({ line: i + 1, start: 0, end: 0 });
 		this.onChange();
@@ -1049,8 +1114,10 @@ export class Notebook {
 		if (i > line.first) {
 			const above = this.lines[i - 1].text;
 
-			this.change(EDIT.replace, i - 1, line.kind, line.domain ?? "", above + text);
-			this.change(EDIT.delete, i);
+			this.grouped(() => {
+				this.change(EDIT.replace, i - 1, line.kind, line.domain ?? "", above + text);
+				this.change(EDIT.delete, i);
+			});
 			this.render({ line: i - 1, start: above.length, end: above.length });
 			this.onChange();
 		} else if (text === "") {
@@ -1068,29 +1135,29 @@ export class Notebook {
 		const made = { kind, domain: kind === "math" ? domain : undefined };
 		let at = pos;
 
-		this.checkpoint();
+		this.grouped(() => {
+			if (merges(this.lines[at - 1], made)) {
+				this.change(EDIT.insert, at, "blank", "", "");
+				at += 1;
+			}
 
-		if (merges(this.lines[at - 1], made)) {
-			this.change(EDIT.insert, at, "blank", "", "");
-			at += 1;
-		}
+			this.change(EDIT.insert, at, kind, domain, "");
 
-		this.change(EDIT.insert, at, kind, domain, "");
-
-		if (merges(made, this.lines[at + 1])) {
-			this.change(EDIT.insert, at + 1, "blank", "", "");
-		}
+			if (merges(made, this.lines[at + 1])) {
+				this.change(EDIT.insert, at + 1, "blank", "", "");
+			}
+		});
 
 		this.render({ line: at, start: 0, end: 0 });
 		this.onChange();
 	}
 
 	deleteCell(first, last) {
-		this.checkpoint();
-
-		for (let i = last; i >= first; i--) {
-			this.change(EDIT.delete, i);
-		}
+		this.grouped(() => {
+			for (let i = last; i >= first; i--) {
+				this.change(EDIT.delete, i);
+			}
+		});
 
 		this.stepsOpen.clear();
 		this.render(null);
@@ -1098,12 +1165,12 @@ export class Notebook {
 	}
 
 	setDomain(first, last, domain) {
-		this.checkpoint();
 		this.domain = domain;
-
-		for (let i = first; i <= last; i++) {
-			this.change(EDIT.replace, i, "math", domain, this.lines[i].text);
-		}
+		this.grouped(() => {
+			for (let i = first; i <= last; i++) {
+				this.change(EDIT.replace, i, "math", domain, this.lines[i].text);
+			}
+		});
 
 		this.stepsOpen.clear();
 		this.render({ line: first, start: "end", end: "end" });
@@ -1112,11 +1179,10 @@ export class Notebook {
 
 	// Puts the lines of a text (a snippet) after line `after` as a new cell.
 	insertText(after, fileText) {
-		this.checkpoint();
-
 		const parsed = fileText.split("\n").filter((l, k, all) => l !== "" || k < all.length - 1);
 		let at = after + 1;
 
+		this.grouped(() => {
 		for (const raw of parsed) {
 			const math = /^m:(\w+) (.*)$/.exec(raw);
 			const note = /^# ?(.*)$/.exec(raw);
@@ -1131,6 +1197,7 @@ export class Notebook {
 
 			at += 1;
 		}
+		});
 
 		this.render(null);
 		this.onChange();

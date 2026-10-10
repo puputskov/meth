@@ -108,13 +108,34 @@ static MlResult add_plot (MlResult r, MlStr *o, const MlPlotOwned *p)
 	return lit (r, o, "]}");
 }
 
+/* The steps of line i as items (see stepitems.c), or an empty array. */
+static MlResult add_step_items (MlResult r, MlWeb *w, uint64_t i)
+{
+	MlStr       raw;
+	MlLineSteps st = { .result = ML_OK, .found = 0 };
+
+	ml_str_init (&raw);
+	st = ml_line_steps_raw (&raw, &w->results, &w->session, i);
+	r  = ml_choose (r == ML_OK, st.result, r);
+	r  = ml_choose (
+		r == ML_OK && st.found,
+		web_step_items (&w->out, ml_str_view (raw)),
+		lit (r, &w->out, "[]")
+	);
+	ml_str_free (&raw);
+	return r;
+}
+
 static MlResult add_result (
 	MlResult      r,
-	MlStr         *o,
+	MlWeb         *w,
+	uint64_t      i,
 	MlLineView    line,
 	MlResultView  res
 )
 {
+	MlStr *o = &w->out;
+
 	switch (res.kind)
 	{
 		case ML_RESULT_VALUE:
@@ -144,6 +165,8 @@ static MlResult add_result (
 			{
 				r = lit (r, o, ",\"steps\":");
 				r = rows (r, o, res.steps);
+				r = lit (r, o, ",\"stepItems\":");
+				r = add_step_items (r, w, i);
 			}
 
 			if (res.plot != NULL && res.plot->kind != ML_PLOT_NONE)
@@ -204,7 +227,7 @@ static MlResult add_line (MlResult r, MlWeb *w, uint64_t i)
 	r = lit (r, &w->out, ",\"wants_steps\":");
 	r = flag (r, &w->out, ml_line_wants_steps (&w->session, i));
 	r = lit (r, &w->out, ",\"result\":");
-	r = add_result (r, &w->out, line, ml_results_get (&w->results, i));
+	r = add_result (r, w, i, line, ml_results_get (&w->results, i));
 	return lit (r, &w->out, "}");
 }
 
@@ -269,12 +292,13 @@ static MlResult apply (
 	uint64_t   idx,
 	MlLineKind kind,
 	MlDomain   domain,
-	MlSlice    text
+	MlSlice    text,
+	int32_t    join
 )
 {
 	MlResult r = ML_OK;
 
-	if (op != ML_WEB_TYPE)
+	if (op != ML_WEB_TYPE && !join)
 	{
 		ml_session_checkpoint (&w->session);
 	}
@@ -303,22 +327,24 @@ static MlResult apply (
 
 MlResult ml_web_edit (
 	MlWeb     *w,
-	MlWebEdit op,
+	MlWebEdit flags,
 	uint64_t  idx,
 	MlSlice   kind,
 	MlSlice   domain,
 	MlSlice   text
 )
 {
-	MlResult       r    = ML_OK;
-	MlLineKind     k    = kind_from_name (kind);
-	MlDomainResult d    = ml_domain_from_name (domain);
-	uint64_t       from = idx;
-	uint64_t       n    = w->session.lines.len;
+	MlResult       r     = ML_OK;
+	int32_t        join  = ((int32_t)flags & (int32_t)ML_WEB_JOIN) != 0;
+	MlWebEdit      op    = (MlWebEdit)((int32_t)flags & ~(int32_t)ML_WEB_JOIN);
+	MlLineKind     k     = kind_from_name (kind);
+	MlDomainResult d     = ml_domain_from_name (domain);
+	uint64_t       from  = idx;
+	uint64_t       n     = w->session.lines.len;
 	int32_t        typed = op == ML_WEB_REPLACE || op == ML_WEB_TYPE;
-	int32_t        edit = typed || op == ML_WEB_INSERT;
-	int32_t        line = typed || op == ML_WEB_DELETE;
-	int32_t        bad  = (
+	int32_t        edit  = typed || op == ML_WEB_INSERT;
+	int32_t        line  = typed || op == ML_WEB_DELETE;
+	int32_t        bad   = (
 		   (edit && k == ML_LINE_NONE)
 		|| (edit && k == ML_LINE_MATH && d.result != ML_OK)
 		|| (line && idx >= n)
@@ -350,7 +376,7 @@ MlResult ml_web_edit (
 
 	else
 	{
-		r = apply (w, op, idx, k, d.domain, text);
+		r = apply (w, op, idx, k, d.domain, text, join);
 	}
 
 	if (r == ML_OK)
@@ -590,6 +616,22 @@ MlResult ml_web_steps (MlWeb *w, uint64_t idx)
 	r = flag (r, &w->out, st.found);
 	r = lit (r, &w->out, ",\"rows\":");
 	r = rows (r, &w->out, ml_str_view (text));
+
+	if (r == ML_OK && st.found)
+	{
+		MlStr raw;
+
+		ml_str_init (&raw);
+		st = ml_line_steps_raw (&raw, &w->results, &w->session, idx);
+		r  = lit (st.result, &w->out, ",\"items\":");
+		r  = ml_choose (
+			r == ML_OK,
+			web_step_items (&w->out, ml_str_view (raw)),
+			r
+		);
+		ml_str_free (&raw);
+	}
+
 	r = lit (r, &w->out, "}");
 	ml_str_free (&text);
 	return r;

@@ -74,7 +74,8 @@ typedef enum MlWebEdit
 	ML_WEB_UNDO,        /* take back the last group of changes */
 	ML_WEB_REDO,
 	ML_WEB_TYPE,        /* REPLACE, in the group of the last change */
-	ML_WEB_CHECKPOINT   /* starts a new group: what follows is undone apart */
+	ML_WEB_CHECKPOINT,  /* starts a new group: what follows is undone apart */
+	ML_WEB_JOIN = 16    /* or'ed into REPLACE, INSERT, DELETE: no new group */
 } MlWebEdit;
 
 /*
@@ -83,7 +84,11 @@ typedef enum MlWebEdit
  * "include" and domain is the name of a domain (see ml_web_domains), used for
  * math lines. Every call is one step of the undo history, except ML_WEB_TYPE
  * (the text of a line changes while it is typed: all the changes up to the
- * next checkpoint are one step) and ML_WEB_CHECKPOINT (which changes nothing).
+ * next checkpoint are one step), ML_WEB_CHECKPOINT (which changes nothing) and
+ * a call with ML_WEB_JOIN or'ed into the operation, which belongs to the step
+ * of the call before it: an action that changes several lines (deleting a
+ * cell, say) makes its first change as usual and joins the rest to it, so one
+ * undo takes the whole action back.
  */
 MlResult ml_web_edit (
 	MlWeb    *w,

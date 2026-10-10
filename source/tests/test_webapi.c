@@ -10,6 +10,9 @@ static MlSlice lit (const char *s)
 	return ml_slice_cstr (s);
 }
 
+/* a deletion that joins the undo step of the one before it */
+#define DELETE_JOINED ((MlWebEdit)(ML_WEB_DELETE | ML_WEB_JOIN))
+
 static MlResult edit (
 	MlWeb      *w,
 	MlWebEdit  op,
@@ -144,6 +147,29 @@ static void test_edit (void)
 	CHECK (edit (&w, ML_WEB_UNDO, 0, "", "", "") == ML_OK);
 	CHECK (has (&w, "\"text\":\"4\""));
 
+	/* an action that changes several lines is one step when its changes join */
+	CHECK (
+		ml_web_load (
+			&w,
+			lit ("m:algebra a = 1\nm:algebra a + 1\nm:algebra a + 2\n")
+		) == ML_OK
+	);
+	CHECK (edit (&w, ML_WEB_DELETE, 2, "", "", "") == ML_OK);
+	CHECK (edit (&w, DELETE_JOINED, 1, "", "", "") == ML_OK);
+	CHECK (edit (&w, DELETE_JOINED, 0, "", "", "") == ML_OK);
+	CHECK (has (&w, "\"count\":0"));
+	CHECK (edit (&w, ML_WEB_UNDO, 0, "", "", "") == ML_OK);
+	CHECK (has (&w, "\"count\":3"));
+	CHECK (edit (&w, ML_WEB_REDO, 0, "", "", "") == ML_OK);
+	CHECK (has (&w, "\"count\":0"));
+	CHECK (edit (&w, ML_WEB_UNDO, 0, "", "", "") == ML_OK);
+
+	/* without the join every change is a step of its own, as before */
+	CHECK (edit (&w, ML_WEB_DELETE, 2, "", "", "") == ML_OK);
+	CHECK (edit (&w, ML_WEB_DELETE, 1, "", "", "") == ML_OK);
+	CHECK (edit (&w, ML_WEB_UNDO, 0, "", "", "") == ML_OK);
+	CHECK (has (&w, "\"count\":2"));
+
 	/* a name with no value is an error, or a symbol when asked for */
 	CHECK (ml_web_load (&w, lit ("m:algebra y + y\n")) == ML_OK);
 	CHECK (has (&w, "\"kind\":\"error\""));
@@ -218,6 +244,48 @@ static void test_services (void)
 	CHECK (ml_web_steps (&w, 0) == ML_OK);
 	CHECK (has (&w, "\"found\":false"));
 	CHECK (ml_web_steps (&w, 9) == ML_ERR_INVALID);
+
+	/* the steps as items: a matrix is set as a matrix, a rule has its note */
+	CHECK (
+		ml_web_load (
+			&w,
+			lit ("m:algebra A = [[2, 1], [1, 3]]\nm:algebra det (A)\n")
+		) == ML_OK
+	);
+	CHECK (ml_web_steps (&w, 1) == ML_OK);
+	CHECK (
+		has (
+			&w,
+			"\"items\":[{\"t\":\"text\","
+			"\"text\":\"Eliminate below the diagonal:\"}"
+		)
+	);
+	CHECK (
+		has (
+			&w,
+			"{\"t\":\"matrix\",\"math\":"
+			"\"<math><mrow><mo>(</mo><mtable>"
+		)
+	);
+	CHECK (
+		ml_web_load (&w, lit ("m:algebra diff (x^3 + sin (x), x)\n")) == ML_OK
+	);
+	CHECK (ml_web_steps (&w, 0) == ML_OK);
+	CHECK (
+		has (
+			&w,
+			"\"t\":\"rule\",\"text\":\"d/dx (x\xC2\xB3) = 3x\xC2\xB2\","
+			"\"note\":\"(power rule)\""
+		)
+	);
+	CHECK (
+		ml_web_load (
+			&w,
+			lit ("m:algebra steps (det ([[1, 2], [3, 4]]))\n")
+		) == ML_OK
+	);
+	CHECK (has (&w, "\"stepItems\":[{\"t\":\"text\""));
+	CHECK (has (&w, "\"t\":\"matrix\""));
 
 	/* the document */
 	CHECK (ml_web_export (&w, lit ("latex"), lit ("body")) == ML_OK);

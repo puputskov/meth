@@ -485,6 +485,55 @@ pre.block {
 	padding-left: 0;
 }
 
+/* the steps: text, rules with their notes in a column, matrices */
+.steps-list {
+	display: grid;
+	grid-template-columns: max-content max-content;
+	justify-content: start;
+	align-items: baseline;
+	column-gap: 2.5rem;
+	row-gap: 0.45rem;
+	flex-basis: 100%;
+	margin: 0.2rem 0 0.2rem;
+	padding: 0.6rem 0.8rem;
+	max-width: 100%;
+	overflow-x: auto;
+	border-left: 3px solid var(--accent);
+	border-radius: 0 6px 6px 0;
+	background: var(--code-bg);
+	color: var(--fg);
+	font-size: 0.95rem;
+	line-height: 1.5;
+}
+
+.step-text,
+.step-matrix {
+	grid-column: 1 / -1;
+}
+
+.step-text {
+	color: var(--dim);
+	font-family: var(--sans);
+}
+
+.step-formula {
+	font-family: var(--mono);
+	white-space: pre;
+}
+
+.step-note {
+	color: var(--dim);
+	font-family: var(--sans);
+	font-style: italic;
+	white-space: nowrap;
+}
+
+.step-matrix math {
+	math-style: normal;
+	font-size: 1.15em;
+	font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", math, serif;
+}
+
 pre.steps {
 	color: var(--dim);
 	border-left: 3px solid var(--accent);

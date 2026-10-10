@@ -1173,6 +1173,15 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   right of every line `show result` / `hide result` and `steps`, in the corner of the cell `last result` / `all results` (every line) and a fold handle on
   the left border of the card (a folded cell shows its first line and the number of lines). An undefined name has the button `use as a symbol`, and the
   symbols button of the bar says what it did.
+- **Steps as items (built 2026-10-10):** `ml_line_steps_raw` (`session/steps.h`) gives the steps with the notes of the rules behind a tab, and
+  `web_step_items` (`web/stepitems.c`) turns the rows into JSON items: `text`, `rule` (the step and its note) and `matrix` (the rows between bracket pieces,
+  written out as a matrix and set by `ml_math_typeset`; a matrix that cannot be set stays text). `ml_web_steps` answers `items` besides `rows`, and a line that
+  is a `steps (...)` call has `stepItems`. The page shows them as a grid: text across, rules with the notes in a second column (one column for all of
+  them), matrices as MathML; the terminal output is the same as before.
+- **Undo of actions that change several lines:** `ML_WEB_JOIN` (or'ed into replace, insert or delete) makes a change belong to the undo step before it;
+  `Notebook.grouped ()` uses it for deleting or inserting a cell, splitting and joining lines, the domain of a cell and snippets, so one undo takes back the
+  whole action (it used to take back the last line only).
+- The files in the tree have a page icon and the folders a folder icon (open or closed).
 - **Typeset input:** a line that is not being edited shows its formula as MathML (algebra, physics, boolean, lambda; the others keep their source), the line
   with the caret shows the source with its colours; a text that is no formula keeps its source. Results and input are left aligned with `math-style: normal`.
 - The rule names of the steps are aligned, and the matrices of steps have room (line height 1.7, a font with the bracket pieces).
