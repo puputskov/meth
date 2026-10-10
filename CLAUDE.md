@@ -61,7 +61,7 @@ typed containers (`ML_VEC_DEFINE`, `MlStr`) or `ml_heap_alloc`. For leak checks 
   ```
   A pointer star belongs to the name (`char     *data;`). Aligning always uses spaces, never tabs. This also applies to struct members and `#define` values.
 - Use fixed-width types: `int32_t`, `uint32_t`, `uint8_t`, `int64_t`... instead of `int`, `unsigned int`, `unsigned char`, `long long`.
-  Sizes, counts and indices are `uint64_t`, not `size_t` (64 bit targets only, enforced in `meth/core/types.h`). `char` stays for text bytes,
+  Sizes, counts and indices are `uint64_t`, not `size_t` (64 bit targets only, enforced in `meth/core/types.h`; the planned wasm32 web build is the one exception, see `TODO.md` section 9). `char` stays for text bytes,
   and `int main` stays as the C standard requires.
 - Lines are at most 80 columns (a tab counts as 4). Break a long call so that each argument has its own line and the closing
   parenthesis is on a line of its own; wrap comments at 80 too. Long string literals are split into adjacent literals, one per line.
