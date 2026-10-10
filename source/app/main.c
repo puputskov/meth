@@ -269,6 +269,7 @@ static MlResult run (
 	MlStr    look;
 	ThemeWatch watch = { .name = "", .stamp = 0 };
 	uint32_t   idle  = 0;
+	MlKey      asked;
 
 	ml_str_init (&frame);
 	ml_str_init (&path);
@@ -359,6 +360,12 @@ static MlResult run (
 		else if (r == ML_OK)
 		{
 			r = ml_editor_handle_key (ed, k.key);
+		}
+
+		/* keys the editor asks for itself (:tutorial show types an answer) */
+		while (r == ML_OK && ml_editor_take_pending (ed, &asked))
+		{
+			r = ml_editor_handle_key (ed, asked);
 		}
 
 		if (r == ML_OK)
@@ -550,8 +557,19 @@ static int32_t run_interactive (int32_t argc, char **argv)
 	{
 		r = open_session (
 			&ed,
-			ml_slice_cstr (ml_choose (argc > 1, argv [1], DEFAULT_SESSION))
+			ml_slice_cstr (
+				ml_choose (
+					argc > 1 && strcmp (argv [1], "--tutorial") != 0,
+					argv [1],
+					DEFAULT_SESSION
+				)
+			)
 		);
+	}
+
+	if (r == ML_OK && argc > 1 && strcmp (argv [1], "--tutorial") == 0)
+	{
+		r = ml_editor_start_tutorial (&ed, ml_slice ("", 0));
 	}
 
 	if (r == ML_OK)

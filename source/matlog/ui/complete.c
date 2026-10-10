@@ -19,6 +19,7 @@ typedef enum ArgKind
 	ARG_HELP,
 	ARG_EXAMPLE,
 	ARG_SNIPPET,
+	ARG_TUTORIAL,
 	ARG_PATH /* files are not completed yet */
 } ArgKind;
 
@@ -61,6 +62,7 @@ static const Command commands [] =
 	{ .name = "snippet", .arg = ARG_SNIPPET, .needs_arg = 0 },
 	{ .name = "snippets", .arg = ARG_NONE, .needs_arg = 0 },
 	{ .name = "watch", .arg = ARG_ON_OFF,  .needs_arg = 0 },
+	{ .name = "tutorial", .arg = ARG_TUTORIAL, .needs_arg = 0 },
 	{ .name = "set",   .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "config", .arg = ARG_NONE,   .needs_arg = 0 },
 	{ .name = "keys",  .arg = ARG_NONE,    .needs_arg = 0 },
@@ -275,6 +277,16 @@ MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files)
 			{
 				add_candidate (&c, typed, ml_example_sources [i].name);
 			}
+		}
+
+		else if (kind == ARG_TUTORIAL && !more)
+		{
+			add_candidate (&c, typed, "syntax");
+			add_candidate (&c, typed, "show");
+			add_candidate (&c, typed, "next");
+			add_candidate (&c, typed, "back");
+			add_candidate (&c, typed, "off");
+			add_candidate (&c, typed, "reset");
 		}
 
 		else if (kind == ARG_SNIPPET && !more)

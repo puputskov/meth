@@ -214,6 +214,9 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
 - The including file never stores copies of the included file's results.
 
 ### 4.9 Tutorial mode
+Status: built (`tutorial/lessons` as data, `tutorial/tutorial` as the observer of the editor, `ui/tutorialpanel`; F6 skips, Shift+F6 goes back; every
+lesson is played with its key script by the tests). Not built: lessons for PGA, the stage 2 lessons for export, and files (`:w`, `:open`).
+
 An interactive tutorial that teaches the tool by doing, inside the real editor. Started with `matlog --tutorial`, `:tutorial` or on the very first
 run (when no session file exists), and left at any time with `:q` or `:tutorial off`. It has two stages; the second one can be started on its own
 with `:tutorial syntax`. Progress (the last finished lesson) is kept in a small file next to the user's files, so the tutorial can be resumed.

@@ -6,6 +6,7 @@
 #include <matlog/ui/highlight.h>
 #include <matlog/ui/hint.h>
 #include <matlog/ui/markup.h>
+#include <matlog/ui/tutorialpanel.h>
 #include <matlog/ui/watchpanel.h>
 
 #define STYLE_REVERSE "\x1b[7m"
@@ -2577,6 +2578,72 @@ static MlLayout watch_layout (MlScreen *s, const MlEditor *ed, uint32_t panel)
 	return layout;
 }
 
+/*
+ * The layout with the lesson panel of the tutorial above it: the rest is laid
+ * out in the rows that are left (with or without the watch window), and the
+ * rows of the panel come first.
+ */
+static MlLayout tutorial_layout (
+	MlScreen       *s,
+	const MlEditor *ed,
+	uint32_t       height,
+	uint32_t       panel
+)
+{
+	MlLayout layout;
+	MlRowVec top;
+	uint32_t rows = s->rows;
+
+	MlRowVec_init (&top);
+	s->rows = rows - height;
+	layout  = ml_choose (
+		panel > 0,
+		watch_layout (s, ed, panel),
+		editor_layout (s, ed)
+	);
+	s->rows = rows;
+
+	if (layout.result == ML_OK)
+	{
+		layout.result = ml_tutorial_panel (&top, ed, s->cols, height);
+	}
+
+	for (uint32_t r = 0; r < height && layout.result == ML_OK; r++)
+	{
+		MlRowInfo none =
+		{
+			.kind     = 0,
+			.src      = 0,
+			.text_col = 0,
+			.first_col = 0
+		};
+
+		layout.result = MlRowInfoVec_insert (&layout.info, r, none);
+	}
+
+	/* the panel first, then the rows of the editor */
+	for (uint32_t r = 0; r < top.len && layout.result == ML_OK; r++)
+	{
+		layout.result = MlRowVec_insert (&layout.rows, r, top.data [r]);
+	}
+
+	if (layout.result == ML_OK)
+	{
+		layout.cursor.row += height;
+	}
+
+	else
+	{
+		for (uint64_t r = 0; r < top.len; r++)
+		{
+			ml_str_free (&top.data [r]);
+		}
+	}
+
+	MlRowVec_free (&top);
+	return layout;
+}
+
 /* The columns the panel takes now, 0 when the watch window is not shown. */
 static uint32_t watch_columns (const MlScreen *s, const MlEditor *ed)
 {
@@ -2590,11 +2657,17 @@ static uint32_t watch_columns (const MlScreen *s, const MlEditor *ed)
 MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 {
 	MlLayout layout;
-	uint32_t panel = watch_columns (s, ed);
+	uint32_t panel  = watch_columns (s, ed);
+	uint32_t height = ml_tutorial_panel_height (ed, s->rows);
 
 	if (ed->state == ML_STATE_HELP)
 	{
 		layout = help_layout (s, ed);
+	}
+
+	else if (height > 0)
+	{
+		layout = tutorial_layout (s, ed, height, panel);
 	}
 
 	else if (panel > 0)

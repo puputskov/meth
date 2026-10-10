@@ -8,6 +8,7 @@ session, and every math line shows its result as you type. The pages below
 are the same in the tool (`:help`) and on the command line (`matlog docs`).
 
 # Using the tool
+- [The tutorial](tutorial): learn the tool by doing, in small lessons.
 - [The editor and its keys](editor): typing, moving, selecting, blocks,
   folds, undo.
 - [Commands](commands): everything you can type after Ctrl+P.

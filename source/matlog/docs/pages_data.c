@@ -543,6 +543,7 @@ static const char text_index [] =
 	"cs`).\n"
 	"\n"
 	"# Using the tool\n"
+	"- [The tutorial](tutorial): learn the tool by doing, in small lessons.\n"
 	"- [The editor and its keys](editor): typing, moving, selecting, blocks"
 	",\n"
 	"  folds, undo.\n"
@@ -1087,6 +1088,54 @@ static const char text_themes [] =
 	"see [settings](settings) for the file, where it is and the other setti"
 	"ngs.\n";
 
+static const char text_tutorial [] =
+	"id: tutorial\n"
+	"title: The tutorial\n"
+	"summary: Learn the tool by doing, inside the real editor, in small les"
+	"sons.\n"
+	"keywords: tutorial, lesson, learn, start, teach, beginner, practice\n"
+	"see: editor, commands, keys\n"
+	"\n"
+	"The tutorial teaches matlog by doing. A panel at the top of the screen"
+	" shows\n"
+	"the lesson and the task; you do the task in the real editor, below it,"
+	" and\n"
+	"the panel moves on when it sees that you did. Nothing is simulated: th"
+	"e\n"
+	"tutorial only watches the keys and the session, so what you learn is e"
+	"xactly\n"
+	"what the tool does.\n"
+	"\n"
+	"# Starting and leaving\n"
+	"```command\n"
+	":tutorial          start, at the first lesson not finished yet\n"
+	":tutorial syntax   start at the lessons about what to type\n"
+	":tutorial next     skip the step (F6)\n"
+	":tutorial back     go back a step (Shift+F6)\n"
+	":tutorial show     type the model answer for the step\n"
+	":tutorial reset    forget the finished lessons\n"
+	":tutorial off      leave the tutorial; the session stays\n"
+	"```\n"
+	"`matlog --tutorial` starts it from the shell. A command that needs the\n"
+	"session saved first asks; `:tutorial!` starts anyway.\n"
+	"\n"
+	"# The lessons\n"
+	"The first stage is the tool: notes, math lines, moving, selecting and "
+	"undo,\n"
+	"domains and commands, results and steps, help and the watch window. Th"
+	"e\n"
+	"second stage is what to type: numbers and operators, names and functio"
+	"ns,\n"
+	"reading errors, matrices, derivatives and limits, units, complex numbe"
+	"rs,\n"
+	"quaternions and statistics, boolean algebra and lambda calculus.\n"
+	"\n"
+	"A wrong try is never an error. After a few keys the panel shows a hint"
+	", and\n"
+	"the finished lessons are remembered, so the next start continues after"
+	" them.\n"
+	"See [the editor](editor) and [the key bindings](keys).\n";
+
 static const char text_units [] =
 	"id: units\n"
 	"title: Units\n"
@@ -1150,6 +1199,7 @@ const MlDocSource ml_doc_sources [] =
 	{ .name = "symbolic", .text = text_symbolic },
 	{ .name = "syntax", .text = text_syntax },
 	{ .name = "themes", .text = text_themes },
+	{ .name = "tutorial", .text = text_tutorial },
 	{ .name = "units", .text = text_units }
 };
 

@@ -9,6 +9,7 @@
 #include <matlog/platform/path.h>
 #include <matlog/session/options.h>
 #include <matlog/session/settings.h>
+#include <matlog/tutorial/lessons.h>
 
 static const char *const state_names [ML_STATE_COUNT] =
 {
@@ -82,6 +83,10 @@ void ml_editor_init (MlEditor *ed)
 	ed->theme         = ml_theme_default ();
 	ed->colors        = ML_COLORS_24BIT;
 	ml_keymap_init (&ed->keymap);
+	ml_tutorial_init (&ed->tutorial);
+	ml_str_init (&ed->last_command);
+	ed->commands_run = 0;
+	MlKeyVec_init (&ed->pending);
 }
 
 void ml_editor_set_size (MlEditor *ed, uint32_t cols, uint32_t rows)
@@ -107,6 +112,8 @@ void ml_editor_free (MlEditor *ed)
 	lines_free (&ed->yank);
 	ml_str_free (&ed->message);
 	ml_keymap_free (&ed->keymap);
+	ml_str_free (&ed->last_command);
+	MlKeyVec_free (&ed->pending);
 }
 
 static MlResult set_message (MlEditor *ed, const char *text)
@@ -2425,6 +2432,204 @@ static MlResult insert_snippet (MlEditor *ed, MlSlice name)
 	return r;
 }
 
+/* The tutorial's view of the editor after the key. */
+static MlTutorialView tutorial_view (const MlEditor *ed, MlKey key)
+{
+	int32_t editing = ed->state == ML_STATE_MATH;
+	MlTutorialView v =
+	{
+		.action       = ml_keymap_lookup (&ed->keymap, key),
+		.key_code     = key.code,
+		.key_mods     = key.mods,
+		.state        = (int32_t)ed->state,
+		.domain       = ml_choose (editing, ed->edit_domain, ed->session.domain),
+		.session      = &ed->session,
+		.results      = &ed->results,
+		.last_command = ml_str_view (ed->last_command),
+		.commands_run = ed->commands_run,
+		.steps_open   = ed->steps_open,
+		.watch        = ed->watch
+	};
+
+	return v;
+}
+
+/* The states the lessons name are the states of the editor. */
+_Static_assert (ML_TUT_MATH == ML_STATE_MATH, "tutorial state");
+_Static_assert (ML_TUT_NOTE == ML_STATE_NOTE, "tutorial state");
+_Static_assert (ML_TUT_COMMAND == ML_STATE_COMMAND, "tutorial state");
+_Static_assert (ML_TUT_SELECT == ML_STATE_SELECT, "tutorial state");
+_Static_assert (ML_TUT_HELP == ML_STATE_HELP, "tutorial state");
+
+/* The lesson to start with: the one after the last that was finished. */
+static uint64_t tutorial_resume (MlSlice what)
+{
+	uint64_t lesson = 0;
+	MlStr    saved;
+	int32_t  found  = 0;
+
+	ml_str_init (&saved);
+
+	if (
+		   ml_settings_get (
+			   &saved,
+			   ml_slice_cstr ("tutorial"),
+			   ml_slice_cstr ("lesson"),
+			   &found
+		   ) == ML_OK
+		&& found
+		&& ml_lesson_find (ml_str_view (saved)) < ml_lesson_count ()
+	)
+	{
+		lesson = ml_lesson_find (ml_str_view (saved)) + 1;
+	}
+
+	if (lesson >= ml_lesson_count ())
+	{
+		lesson = 0;
+	}
+
+	if (ml_slice_equal (what, ml_slice_cstr ("syntax")))
+	{
+		lesson = ml_choose (
+			lesson >= ml_lesson_first (2),
+			lesson,
+			ml_lesson_first (2)
+		);
+	}
+
+	ml_str_free (&saved);
+	return lesson;
+}
+
+MlResult ml_editor_start_tutorial (MlEditor *ed, MlSlice what)
+{
+	MlResult       r      = ML_OK;
+	uint64_t       lesson = tutorial_resume (what);
+	MlKey          none   = { .code = ML_KEY_NONE };
+	MlTutorialView v;
+
+	ml_session_free (&ed->session);
+	ml_session_init (&ed->session);
+	ed->steps_open = 0;
+	ed->selecting  = 0;
+	ed->picking    = 0;
+	ml_lineedit_clear (&ed->edit);
+	r = ml_results_update (&ed->results, &ed->session, 0);
+
+	if (r == ML_OK)
+	{
+		ed->results_rev = ed->session.revision;
+		r               = ml_editor_begin_note (ed);
+	}
+
+	if (r == ML_OK)
+	{
+		v = tutorial_view (ed, none);
+		ml_tutorial_start (&ed->tutorial, lesson, &v);
+		r = set_message (
+			ed,
+			"tutorial: F6 skips a step, :tutorial off leaves"
+		);
+	}
+
+	return r;
+}
+
+int32_t ml_editor_take_pending (MlEditor *ed, MlKey *key)
+{
+	int32_t any = ed->pending.len > 0;
+
+	if (any)
+	{
+		*key = ed->pending.data [0];
+		MlKeyVec_remove (&ed->pending, 0);
+	}
+
+	return any;
+}
+
+/* Keeps the lesson that was just finished in the settings file. */
+static void tutorial_save_progress (const MlEditor *ed, uint64_t previous)
+{
+	if (ed->tutorial.lesson_done)
+	{
+		ml_settings_set (
+			ml_slice_cstr ("tutorial"),
+			ml_slice_cstr ("lesson"),
+			ml_slice_cstr (ml_lesson_at (previous).id)
+		);
+	}
+}
+
+/*
+ * :tutorial starts it at the next lesson not done, :tutorial syntax at the
+ * syntax lessons; off, next, back, show (types the model answer of the step)
+ * and reset (forget what was done). :tutorial! also leaves a session with
+ * changes behind.
+ */
+static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
+{
+	MlResult       r    = ML_OK;
+	MlKey          none = { .code = ML_KEY_NONE };
+	MlTutorialView v    = tutorial_view (ed, none);
+
+	if (ml_slice_equal (arg, ml_slice_cstr ("off")))
+	{
+		ml_tutorial_stop (&ed->tutorial);
+		r = set_message (ed, "tutorial left");
+	}
+
+	else if (ml_slice_equal (arg, ml_slice_cstr ("next")))
+	{
+		ml_tutorial_skip (&ed->tutorial, &v);
+		ed->tutorial.skip_next = 1;
+	}
+
+	else if (ml_slice_equal (arg, ml_slice_cstr ("back")))
+	{
+		ml_tutorial_back (&ed->tutorial, &v);
+		ed->tutorial.skip_next = 1;
+	}
+
+	else if (ml_slice_equal (arg, ml_slice_cstr ("show")))
+	{
+		r = ml_tutorial_answer (&ed->pending, ml_tutorial_step (&ed->tutorial));
+	}
+
+	else if (ml_slice_equal (arg, ml_slice_cstr ("reset")))
+	{
+		ml_settings_remove (ml_slice_cstr ("tutorial"), ml_slice_cstr ("lesson"));
+		r = set_message (ed, "tutorial: nothing is done yet");
+	}
+
+	else if (arg.len == 0 || ml_slice_equal (arg, ml_slice_cstr ("syntax")))
+	{
+		if (!force && ed->session.dirty && ed->session.lines.len > 0)
+		{
+			r = set_message (
+				ed,
+				"the session has changes: :w it, or :tutorial! to leave it"
+			);
+		}
+
+		else
+		{
+			r = ml_editor_start_tutorial (ed, arg);
+
+			/* the Enter that ran the command is not an answer */
+			ed->tutorial.skip_next = 1;
+		}
+	}
+
+	else
+	{
+		r = set_message (ed, "tutorial: syntax, off, next, back, show or reset");
+	}
+
+	return r;
+}
+
 /* The name of the session file without its folder and its extension. */
 static MlSlice session_stem (const MlSession *s)
 {
@@ -3043,6 +3248,11 @@ static MlResult run_command (MlEditor *ed)
 	cmd = ml_slice_sub (line, 0, split);
 	arg = trim (ml_slice_sub (line, split, line.len - split));
 
+	/* the tutorial looks at the commands that were run */
+	ml_str_clear (&ed->last_command);
+	r = ml_str_append (&ed->last_command, full);
+	ed->commands_run++;
+
 	if (is_cmd (cmd, "q") || is_cmd (cmd, "quit"))
 	{
 		r = quit (ed, 0);
@@ -3153,6 +3363,11 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "watch"))
 	{
 		r = toggle_watch (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "tutorial") || is_cmd (cmd, "tutorial!"))
+	{
+		r = tutorial_command (ed, arg, is_cmd (cmd, "tutorial!"));
 	}
 
 	else if (is_cmd (cmd, "set"))
@@ -5004,12 +5219,30 @@ MlResult ml_editor_refresh (MlEditor *ed)
 
 MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 {
-	MlResult r = ML_OK;
+	MlResult r        = ML_OK;
+	uint64_t previous = ed->tutorial.lesson;
+	int32_t  control  = ed->tutorial.active && key.code == ML_KEY_F6;
 
 	ml_str_clear (&ed->message);
 	ml_session_checkpoint (&ed->session);
 
-	if (key_action (ed, key) == ML_ACT_HELP && ed->state != ML_STATE_HELP)
+	if (control)
+	{
+		/* F6 skips a step of the tutorial, Shift+F6 goes back one */
+		MlTutorialView v = tutorial_view (ed, key);
+
+		if (key.mods & ML_MOD_SHIFT)
+		{
+			ml_tutorial_back (&ed->tutorial, &v);
+		}
+
+		else
+		{
+			ml_tutorial_skip (&ed->tutorial, &v);
+		}
+	}
+
+	else if (key_action (ed, key) == ML_ACT_HELP && ed->state != ML_STATE_HELP)
 	{
 		r = help_key_f1 (ed);
 	}
@@ -5042,6 +5275,20 @@ MlResult ml_editor_handle_key (MlEditor *ed, MlKey key)
 	if (ed->state == ML_STATE_SELECT)
 	{
 		normalize_cursor (ed);
+	}
+
+	if (
+		   r == ML_OK
+		&& !control
+		&& ed->tutorial.active
+		&& key.code != ML_KEY_MOUSE
+		&& key.code != ML_KEY_RESIZE
+	)
+	{
+		MlTutorialView v = tutorial_view (ed, key);
+
+		ml_tutorial_observe (&ed->tutorial, &v);
+		tutorial_save_progress (ed, previous);
 	}
 
 	return r;

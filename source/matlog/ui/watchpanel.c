@@ -52,7 +52,7 @@ uint64_t ml_row_width (MlSlice row)
 }
 
 /* The style the panel uses for a class: the theme's, or dim without one. */
-static MlStyle style_of (const MlEditor *ed, MlClass cls, int32_t dim)
+MlStyle ml_panel_style (const MlEditor *ed, MlClass cls, int32_t dim)
 {
 	MlStyle plain = { .dim = dim };
 
@@ -63,7 +63,7 @@ static MlStyle style_of (const MlEditor *ed, MlClass cls, int32_t dim)
  * Appends text cut or padded to exactly width columns, in a style; a text
  * that does not fit ends in an ellipsis.
  */
-static MlResult cell (
+MlResult ml_panel_cell (
 	MlStr          *out,
 	const MlEditor *ed,
 	MlStyle        style,
@@ -134,7 +134,7 @@ static MlResult header_row (
 {
 	MlStr    text;
 	MlResult r;
-	MlStyle  style = style_of (ed, ML_CLASS_GUTTER, 1);
+	MlStyle  style = ml_panel_style (ed, ML_CLASS_GUTTER, 1);
 
 	ml_str_init (&text);
 	style.bold = 1;
@@ -147,7 +147,7 @@ static MlResult header_row (
 
 	if (r == ML_OK)
 	{
-		r = cell (row, ed, style, ml_str_view (text), width);
+		r = ml_panel_cell (row, ed, style, ml_str_view (text), width);
 	}
 
 	ml_str_free (&text);
@@ -167,19 +167,19 @@ static MlResult entry_row (
 	int32_t  func   = w->type.len > 0 && w->type.data [w->type.len - 1] == ')';
 	MlResult r;
 
-	r = cell (
+	r = ml_panel_cell (
 		row,
 		ed,
-		style_of (ed, ML_CLASS_KEYWORD, 0),
+		ml_panel_style (ed, ML_CLASS_KEYWORD, 0),
 		ml_slice_cstr (ml_choose (w->fresh, "*", " ")),
 		1
 	);
 	r = ml_choose (
 		r == ML_OK,
-		cell (
+		ml_panel_cell (
 			row,
 			ed,
-			style_of (
+			ml_panel_style (
 				ed,
 				ml_choose (func, ML_CLASS_FUNCTION, ML_CLASS_NAME),
 				0
@@ -192,10 +192,10 @@ static MlResult entry_row (
 	r = ml_choose (r == ML_OK, ml_str_append (row, ml_slice_cstr (" ")), r);
 	r = ml_choose (
 		r == ML_OK,
-		cell (
+		ml_panel_cell (
 			row,
 			ed,
-			style_of (ed, ML_CLASS_GUTTER, 1),
+			ml_panel_style (ed, ML_CLASS_GUTTER, 1),
 			ml_str_view (w->type),
 			type_w
 		),
@@ -204,10 +204,10 @@ static MlResult entry_row (
 	r = ml_choose (r == ML_OK, ml_str_append (row, ml_slice_cstr (" ")), r);
 	r = ml_choose (
 		r == ML_OK,
-		cell (
+		ml_panel_cell (
 			row,
 			ed,
-			style_of (ed, ML_CLASS_RESULT, 1),
+			ml_panel_style (ed, ML_CLASS_RESULT, 1),
 			ml_str_view (w->value),
 			value_w
 		),
@@ -262,10 +262,10 @@ MlResult ml_watch_panel (
 			);
 			r = ml_choose (
 				r == ML_OK,
-				cell (
+				ml_panel_cell (
 					&row,
 					ed,
-					style_of (ed, ML_CLASS_GUTTER, 1),
+					ml_panel_style (ed, ML_CLASS_GUTTER, 1),
 					ml_str_view (more),
 					width
 				),
@@ -281,10 +281,10 @@ MlResult ml_watch_panel (
 
 		else
 		{
-			r = cell (
+			r = ml_panel_cell (
 				&row,
 				ed,
-				style_of (ed, ML_CLASS_TEXT, 0),
+				ml_panel_style (ed, ML_CLASS_TEXT, 0),
 				ml_slice ("", 0),
 				width
 			);

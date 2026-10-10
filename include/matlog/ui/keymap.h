@@ -86,6 +86,13 @@ typedef struct MlKeyParse
 /* Reads a key such as `Ctrl+Shift+Z`. Not every key is bindable, see above. */
 MlKeyParse ml_key_parse (MlSlice text);
 
+/*
+ * The same without the rule about which keys can be bound: Enter, Up, `a`
+ * and Ctrl+Enter are all keys. A tutorial or a test writes the keys it
+ * presses this way.
+ */
+MlKeyParse ml_key_parse_any (MlSlice text);
+
 /* Appends the canonical text of a key, such as `Ctrl+Shift+Z`. */
 MlResult ml_key_spec (MlStr *out, MlKey key);
 

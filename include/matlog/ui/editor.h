@@ -5,6 +5,7 @@
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
 #include <matlog/session/steps.h>
+#include <matlog/tutorial/tutorial.h>
 #include <matlog/ui/complete.h>
 #include <matlog/ui/help.h>
 #include <matlog/ui/keymap.h>
@@ -121,6 +122,12 @@ typedef struct MlEditor
 	MlStr        theme_files;
 	MlHelp       help; /* the help viewer, shown in the state HELP */
 	MlKeymap     keymap; /* key to action, see keymap.h */
+	/* the tutorial watches the keys, see tutorial.h */
+	MlTutorial   tutorial;
+	MlStr        last_command; /* the text of the command run last */
+	uint64_t     commands_run;
+	/* keys to handle next (:tutorial show types the model answer) */
+	MlKeyVec     pending;
 } MlEditor;
 
 /* The selected text in text order; valid is 0 when nothing is selected. */
@@ -143,6 +150,20 @@ void ml_editor_init (MlEditor *ed);
  * and told in the message. Also :config reload.
  */
 MlResult ml_editor_load_keys (MlEditor *ed);
+
+/*
+ * Starts the tutorial on a scratch session (the one being edited is given up,
+ * so the caller checks that it is saved). what is "" for the next lesson not
+ * done yet, or "syntax" for the syntax lessons of stage 2. Also :tutorial.
+ */
+MlResult ml_editor_start_tutorial (MlEditor *ed, MlSlice what);
+
+/*
+ * The next key the editor wants handled (the keys of :tutorial show); 1 and
+ * the key, or 0 when there is none. The program handles them as if they were
+ * typed.
+ */
+int32_t ml_editor_take_pending (MlEditor *ed, MlKey *key);
 
 /*
  * Applies the settings of the file (session/options.h) that the file has:

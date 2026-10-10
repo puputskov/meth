@@ -165,7 +165,8 @@ static MlKey normalized (MlKey key)
 	return key;
 }
 
-MlKeyParse ml_key_parse (MlSlice text)
+/* The key a text spells, whether the key can be bound or not. */
+static MlKeyParse parse_any (MlSlice text)
 {
 	MlKeyParse p =
 	{
@@ -231,7 +232,19 @@ MlKeyParse ml_key_parse (MlSlice text)
 		p.problem = "not a key";
 	}
 
-	else
+	return p;
+}
+
+MlKeyParse ml_key_parse_any (MlSlice text)
+{
+	return parse_any (text);
+}
+
+MlKeyParse ml_key_parse (MlSlice text)
+{
+	MlKeyParse p = parse_any (text);
+
+	if (p.result == ML_OK)
 	{
 		int32_t fkey   = p.key.code >= ML_KEY_F1 && p.key.code <= ML_KEY_F12;
 		int32_t strong = (p.key.mods & (ML_MOD_CTRL | ML_MOD_ALT)) != 0;

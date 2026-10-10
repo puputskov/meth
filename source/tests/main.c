@@ -31,6 +31,7 @@ void run_snippets_tests (void);
 void run_watch_tests (void);
 void run_stats_tests (void);
 void run_hyper_tests (void);
+void run_tutorial_tests (void);
 void run_matrix_tests (void);
 void run_steps_tests (void);
 void run_cli_tests (void);
@@ -75,6 +76,7 @@ int main (void)
 	run_watch_tests ();
 	run_stats_tests ();
 	run_hyper_tests ();
+	run_tutorial_tests ();
 	run_matrix_tests ();
 	run_steps_tests ();
 	run_cli_tests ();

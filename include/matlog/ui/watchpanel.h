@@ -33,6 +33,20 @@ MlResult ml_watch_panel (
 	uint32_t       rows
 );
 
+/*
+ * Pieces for the panels (the watch window, the tutorial): the style of a
+ * class (the theme's, or dim without one), and text cut or padded to exactly
+ * width columns in a style, ending in an ellipsis when it does not fit.
+ */
+MlStyle ml_panel_style (const MlEditor *ed, MlClass cls, int32_t dim);
+MlResult ml_panel_cell (
+	MlStr          *out,
+	const MlEditor *ed,
+	MlStyle        style,
+	MlSlice        text,
+	uint64_t       width
+);
+
 /* The columns a row takes on the screen, escape sequences left out. */
 uint64_t ml_row_width (MlSlice row);
 
