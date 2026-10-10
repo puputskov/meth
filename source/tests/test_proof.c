@@ -191,6 +191,27 @@ static void test_reasons (void)
 	);
 }
 
+static void test_calculus (void)
+{
+	/* a derivative is a formula like any other */
+	CHECK (
+		mark_of (
+			"theorem d: diff (x^3, x) = 3x^2\n"
+			"diff (x^3, x) = 3x^2  by simplify\n",
+			1,
+			NULL
+		) == ML_PROOF_VALID
+	);
+	CHECK (
+		mark_of (
+			"theorem d: diff (x^3, x) = 2x^2\n"
+			"diff (x^3, x) = 2x^2  by simplify\n",
+			1,
+			NULL
+		) == ML_PROOF_INVALID
+	);
+}
+
 static void test_broken (void)
 {
 	uint64_t proved = 9;
@@ -454,6 +475,7 @@ void run_proof_tests (void)
 	CHECK (ml_texts_reload ("en", NULL) == ML_OK);
 	test_valid ();
 	test_reasons ();
+	test_calculus ();
 	test_broken ();
 	test_syntax ();
 	test_wrong_step_everywhere ();

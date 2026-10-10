@@ -297,6 +297,17 @@ static const MlSym *call_value (
 		);
 	}
 
+	else if (
+		   ML_WORD_IS (name, DIFF)
+		&& argc == 2
+		&& fn.kind == ML_BIND_NONE
+		&& !b->ctx->raw
+		&& kid (sc, sc->cur, 2)->kind == ML_SYM_VAR
+	)
+	{
+		out = ml_sym_diff (b->ctx, kid (sc, sc->cur, 1), kid (sc, sc->cur, 2));
+	}
+
 	else if (ML_WORD_IS (name, LOG) && argc == 1 && fn.kind == ML_BIND_NONE)
 	{
 		out = ml_sym_div (
