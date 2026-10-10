@@ -518,6 +518,29 @@ the quaternion unit instead of an undefined name; a variable or a parameter of t
   evaluator today has single expression functions). Functions are documented by a comment convention that the help viewer and the completion read.
 - Each function has a test and, where it teaches something, an example (section 4.16).
 
+**Design of the language steps (decided 2026-10-10: functional style, one line bodies with `;`, a new list value).** The evaluator already walks
+the tree with explicit heap stacks and lets a function call itself (late binding), so the language grows by expressions, not by statements and loops.
+Nothing in it can run without end: the depth limit (`ML_EVAL_MAX_DEPTH`) and a step budget per line end every computation with an error, so ghost
+mode stays safe. Built in this order, each step with tests, docs and an example before the next:
+1. **Comparisons, booleans and `if`.** The operators `< > <= >= == !=` (`==` compares, `=` still assigns), the words `and`, `or`, `not`, and the
+   conditional `if (cond, a, b)`, which evaluates only the branch it takes (so a recursive definition ends). A new value kind `bool` (`true`,
+   `false`) shown as such; numbers are not booleans, so `if (1, ...)` is a type error. Exact numbers compare exactly, an approximation with an
+   exact number as approximate; quantities compare when the dimensions agree.
+2. **Local names and several statements.** A body is a list of statements separated by `;`: `f(n) = let a = n^2; let b = a + 1; b * 2`. `let`
+   names are visible in the statements after it and in nothing else, they do not change the environment, and the value of the body is its last
+   expression. The parser makes a `seq` node with one child per statement; the evaluator pushes them as frames like any other children, with the
+   `let` frames adding to the scope of the running function.
+3. **Lists.** A value kind `list` of any length (heap, owned by the arena like matrices) whose items are values: exact and approximate numbers,
+   quantities, booleans, and lists. `[1, 2, 3]` stays a column vector when every item is an exact number and the context is a matrix operation; the
+   list value is made by `range (a, b)`, `list (...)`, `map`, `filter`, `sort`, and a list converts to a vector on demand (`vec (xs)`), so the 64 item
+   limit goes with the matrix limit only when a matrix is wanted. `xs [i]` indexes from 1, `len (xs)`, `xs + ys` and `xs * 2` work item by item.
+4. **Functions as values and the loop-like builtins.** `map (f, xs)`, `filter (f, xs)`, `fold (f, start, xs)`, `sum`, `prod` over a list or over
+   `sum (i, 1, n, expr)`, with `f` a function name or a short `x -> expr` form. A function value is a name and the environment snapshot; there are
+   no closures over local names (an `x -> ...` form sees the names of the line it is written in).
+5. **The library.** A file of definitions in matlog's own language, included first in every session (read only), written with the steps above:
+   `fib`, `isprime`, `factor`, `newton`, `bisect`, `simpson`, `rk4`, `lerp`, `proj`, ... one page and a test for each. Documented by a comment
+   convention that the completion and the help read.
+
 ### 4.19 Export of functions to C, C++ and Python
 
 - A function or a block of definitions can be exported as source code: `:export-code FILE.c|.cpp|.py` or `matlog codegen FILE:LINE --lang c|cpp|python`.
