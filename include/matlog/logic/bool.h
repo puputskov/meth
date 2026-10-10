@@ -31,6 +31,41 @@
 #define ML_BOOL_MAX_VARS  10
 #define ML_BOOL_MAX_TABLE 6
 
+/*
+ * What a piece of text spells in this domain, for the parts of the program
+ * that read a boolean line without evaluating it (the highlighter, the
+ * exporters): an operator, a constant, a bracket or the `=` of a definition.
+ * The words and, or, not, xor, true and false are names for the lexer and
+ * are told by ml_bool_word.
+ */
+typedef enum MlBoolSymbolKind
+{
+	ML_BSYM_NONE = 0,
+	ML_BSYM_AND,
+	ML_BSYM_OR,
+	ML_BSYM_NOT,
+	ML_BSYM_XOR,
+	ML_BSYM_IMPL,
+	ML_BSYM_EQUIV,
+	ML_BSYM_CONST,
+	ML_BSYM_LPAREN,
+	ML_BSYM_RPAREN,
+	ML_BSYM_ASSIGN
+} MlBoolSymbolKind;
+
+typedef struct MlBoolSymbol
+{
+	MlBoolSymbolKind kind;
+	uint64_t         len;   /* bytes of the spelling, 0 when kind is none */
+	int32_t          value; /* ML_BSYM_CONST: 1 for true, 0 for false */
+} MlBoolSymbol;
+
+/* The symbol that starts at pos (the longest spelling), kind none if none. */
+MlBoolSymbol ml_bool_symbol_at (MlSlice text, uint64_t pos);
+
+/* The operator or constant a word spells: and or not xor true false. */
+MlBoolSymbol ml_bool_word (MlSlice word);
+
 /* Runs one line; ML_ERR_NOMEM is the only failure. */
 MlResult ml_bool_run (
 	const MlLogicDefVec *defs,

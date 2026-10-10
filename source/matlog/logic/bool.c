@@ -86,6 +86,43 @@ static const Symbol *symbol_at (MlSlice s, uint64_t pos)
 	return found;
 }
 
+static MlBoolSymbolKind symbol_kind (TokKind kind)
+{
+	MlBoolSymbolKind k = ML_BSYM_NONE;
+
+	k = ml_choose (kind == TK_NOT, ML_BSYM_NOT, k);
+	k = ml_choose (kind == TK_AND, ML_BSYM_AND, k);
+	k = ml_choose (kind == TK_OR, ML_BSYM_OR, k);
+	k = ml_choose (kind == TK_XOR, ML_BSYM_XOR, k);
+	k = ml_choose (kind == TK_IMPL, ML_BSYM_IMPL, k);
+	k = ml_choose (kind == TK_EQUIV, ML_BSYM_EQUIV, k);
+	k = ml_choose (kind == TK_CONST, ML_BSYM_CONST, k);
+	k = ml_choose (kind == TK_LPAREN, ML_BSYM_LPAREN, k);
+	k = ml_choose (kind == TK_RPAREN, ML_BSYM_RPAREN, k);
+	k = ml_choose (kind == TK_ASSIGN, ML_BSYM_ASSIGN, k);
+	return k;
+}
+
+MlBoolSymbol ml_bool_symbol_at (MlSlice text, uint64_t pos)
+{
+	const Symbol *sym = symbol_at (text, pos);
+	MlBoolSymbol  out =
+	{
+		.kind  = ML_BSYM_NONE,
+		.len   = 0,
+		.value = 0
+	};
+
+	if (sym != NULL)
+	{
+		out.kind  = symbol_kind (sym->kind);
+		out.len   = strlen (sym->text);
+		out.value = sym->value;
+	}
+
+	return out;
+}
+
 static int32_t is_name_start (uint8_t c)
 {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
@@ -140,6 +177,26 @@ static Token word_token (MlSlice s, uint64_t start, uint64_t len)
 	}
 
 	return t;
+}
+
+MlBoolSymbol ml_bool_word (MlSlice word)
+{
+	Token        t   = word_token (word, 0, word.len);
+	MlBoolSymbol out =
+	{
+		.kind  = ML_BSYM_NONE,
+		.len   = 0,
+		.value = 0
+	};
+
+	if (t.kind != TK_NAME)
+	{
+		out.kind  = symbol_kind (t.kind);
+		out.len   = word.len;
+		out.value = t.value;
+	}
+
+	return out;
 }
 
 static Token lex (MlSlice s, uint64_t pos)

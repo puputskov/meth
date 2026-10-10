@@ -34,6 +34,20 @@ typedef enum MlMathNotation
  */
 MlResult ml_math_typeset (MlStr *out, MlMathNotation n, MlSlice source);
 
+/*
+ * The same for a line of the boolean domain (lambda 0) or of the lambda
+ * domain (lambda 1), written from its text: ∧ ∨ ¬ ⊕ → ↔ for the operators in
+ * any spelling (&, and, ...), ⊤ and ⊥ for the constants, λ and a dot for a
+ * binder, a thin space between the parts of an application. Text that is not
+ * the syntax is set as it is. ML_ERR_NOMEM is the only failure.
+ */
+MlResult ml_logic_typeset (
+	MlStr          *out,
+	MlMathNotation n,
+	int32_t        lambda,
+	MlSlice        source
+);
+
 /* The symbol between a line and its result: "=", or "≈" when approx. */
 MlResult ml_math_relation (MlStr *out, MlMathNotation n, int32_t approx);
 

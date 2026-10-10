@@ -224,6 +224,7 @@ typedef struct Block
 	MlStr     result;     /* B_MATH: the value, without a leading ≈ */
 	int32_t   has_result;
 	int32_t   approx;
+	int32_t   logic;      /* B_MATH: 0 algebra, 1 boolean, 2 lambda */
 } Block;
 
 ML_VEC_DEFINE (BlockVec, Block)
@@ -246,7 +247,8 @@ static Block block_new (BlockKind kind)
 		.kind       = kind,
 		.level      = 0,
 		.has_result = 0,
-		.approx     = 0
+		.approx     = 0,
+		.logic      = 0
 	};
 
 	ml_str_init (&b.text);
@@ -391,6 +393,57 @@ static MlResult add_math (
 	return r;
 }
 
+/*
+ * Adds the block of a line of the boolean or the lambda domain: the line
+ * and its value typeset, and the rows under it (a truth table, the steps of
+ * a reduction) as code.
+ */
+static MlResult add_logic (
+	BlockVec     *blocks,
+	MlSlice      source,
+	MlResultView res,
+	int32_t      lambda,
+	int32_t      errors
+)
+{
+	MlResult r = ML_OK;
+	Block    b = block_new (
+		ml_choose (res.kind == ML_RESULT_ERROR, B_CODE, B_MATH)
+	);
+
+	/* a line with an error is code, as an algebra line that does not parse */
+	b.logic      = ml_choose (lambda, 2, 1);
+	b.has_result = res.kind == ML_RESULT_VALUE;
+
+	if (b.has_result)
+	{
+		r = ml_str_append (&b.result, res.text);
+	}
+
+	if (r == ML_OK)
+	{
+		r = add_block (blocks, b, source);
+	}
+
+	else
+	{
+		ml_str_free (&b.text);
+		ml_str_free (&b.result);
+	}
+
+	if (r == ML_OK && res.kind == ML_RESULT_VALUE && res.block.len > 0)
+	{
+		r = add_block (blocks, block_new (B_CODE), res.block);
+	}
+
+	if (r == ML_OK && res.kind == ML_RESULT_ERROR && errors)
+	{
+		r = add_block (blocks, block_new (B_ERROR), res.text);
+	}
+
+	return r;
+}
+
 /* The blocks of the lines first..last. */
 static MlResult build_blocks (
 	BlockVec        *blocks,
@@ -460,6 +513,21 @@ static MlResult build_blocks (
 				blocks,
 				v.text,
 				ml_results_get (results, i),
+				o.errors
+			);
+			can_join = 0;
+		}
+
+		else if (
+			   v.kind == ML_LINE_MATH
+			&& (v.domain == ML_DOMAIN_BOOLEAN || v.domain == ML_DOMAIN_LAMBDA)
+		)
+		{
+			r = add_logic (
+				blocks,
+				v.text,
+				ml_results_get (results, i),
+				v.domain == ML_DOMAIN_LAMBDA,
 				o.errors
 			);
 			can_join = 0;
@@ -606,9 +674,18 @@ static MlResult put_note (MlStr *out, MlMathNotation n, MlSlice text)
 }
 
 /* A formula, or the text when it does not parse. */
-static MlResult put_formula (MlStr *out, MlMathNotation n, MlSlice text)
+static MlResult put_formula (
+	MlStr          *out,
+	MlMathNotation n,
+	int32_t        logic,
+	MlSlice        text
+)
 {
-	MlResult r = ml_math_typeset (out, n, text);
+	MlResult r = ml_choose (
+		logic > 0,
+		ml_logic_typeset (out, n, logic == 2, text),
+		ml_math_typeset (out, n, text)
+	);
 
 	if (r == ML_ERR_PARSE)
 	{
@@ -640,11 +717,11 @@ static MlResult put_math_line (MlStr *out, MlMathNotation n, const Block *b)
 
 	ml_str_init (&source);
 	ml_str_init (&result);
-	r = put_formula (&source, n, ml_str_view (b->text));
+	r = put_formula (&source, n, b->logic, ml_str_view (b->text));
 
 	if (r == ML_OK && b->has_result)
 	{
-		r = put_formula (&result, n, ml_str_view (b->result));
+		r = put_formula (&result, n, b->logic, ml_str_view (b->result));
 	}
 
 	if (r == ML_OK)

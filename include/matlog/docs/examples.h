@@ -15,8 +15,8 @@
  *
  * The file name is `area-name.mlog`; the word before the first dash puts it
  * in a group of the table of contents (basics, algebra, calculus, linalg,
- * units, stats, complex, quat, logic, lambda, robotics). The name without `.mlog` is what
- * `:example` and `matlog examples` take.
+ * units, stats, complex, quat, logic, lambda, robotics). The name without
+ * `.mlog` is what `:example` and `matlog examples` take.
  *
  * Every example is a page of the documentation too, with the id `ex-` and its
  * name: the notes are paragraphs, the math lines are code with the results

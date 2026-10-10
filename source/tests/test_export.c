@@ -586,11 +586,148 @@ static void test_cli (void)
 	ml_fs_remove (file);
 }
 
+/* The typeset form of a boolean (lambda 0) or lambda (lambda 1) line. */
+static int32_t logic_is (
+	MlMathNotation n,
+	int32_t        lambda,
+	const char     *source,
+	const char     *expect
+)
+{
+	MlStr   out;
+	int32_t same;
+
+	ml_str_init (&out);
+	same = (
+		   ml_logic_typeset (&out, n, lambda, lit (source)) == ML_OK
+		&& ml_slice_equal (ml_str_view (out), lit (expect))
+	);
+
+	if (!same)
+	{
+		printf (
+			"  \"%s\" gives \"%.*s\", expected \"%s\"\n",
+			source,
+			(int)out.len,
+			out.data,
+			expect
+		);
+	}
+
+	ml_str_free (&out);
+	return same;
+}
+
+static void test_logic_math (void)
+{
+	/* the operators in every spelling are the same symbols */
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a & b", "a\\land b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a and b", "a\\land b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a \xE2\x88\xA7 b", "a\\land b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a | ~b", "a\\lor \\lnot b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a ^ b", "a\\oplus b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a -> b", "a\\rightarrow b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a <-> b", "a\\leftrightarrow b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "a == b", "a\\leftrightarrow b"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "p = (a | b)", "p=(a\\lor b)"));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "true & false", "\\top \\land \\bot "));
+	CHECK (logic_is (ML_MATH_LATEX, 0, "table a", "\\operatorname{table}\\;a"));
+	CHECK (
+		logic_is (
+			ML_MATH_LATEX,
+			0,
+			"abc & x1",
+			"\\mathit{abc}\\land \\mathit{x1}"
+		)
+	);
+
+	/* a lambda term: binders, applications with a thin space, numerals */
+	CHECK (
+		logic_is (
+			ML_MATH_LATEX,
+			1,
+			"\xCE\xBBx. x",
+			"\\lambda x.\\,x"
+		)
+	);
+	CHECK (logic_is (ML_MATH_LATEX, 1, "\\x. x y", "\\lambda x.\\,x\\,y"));
+	CHECK (logic_is (ML_MATH_LATEX, 1, "f (g x)", "f\\,(g\\,x)"));
+	CHECK (logic_is (ML_MATH_LATEX, 1, "plus 2 3", "\\mathit{plus}\\,2\\,3"));
+	CHECK (
+		logic_is (
+			ML_MATH_LATEX,
+			1,
+			"trace f x",
+			"\\operatorname{trace}\\;f\\,x"
+		)
+	);
+	CHECK (logic_is (ML_MATH_LATEX, 1, "x'", "x'"));
+
+	/* MathML */
+	CHECK (
+		logic_is (
+			ML_MATH_MATHML,
+			0,
+			"a & ~b",
+			"<mrow><mi>a</mi><mo>\xE2\x88\xA7</mo><mo>\xC2\xAC</mo>"
+			"<mi>b</mi></mrow>"
+		)
+	);
+	CHECK (
+		logic_is (
+			ML_MATH_MATHML,
+			1,
+			"\xCE\xBBx. x",
+			"<mrow><mo>\xCE\xBB</mo><mi>x</mi><mo>.</mo><mi>x</mi></mrow>"
+		)
+	);
+}
+
+static void test_logic_export (void)
+{
+	MlSession s;
+	MlResults r;
+	MlStr     out;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	ml_str_init (&out);
+	CHECK (
+		ml_mlog_parse (
+			&s,
+			lit ("m:boolean table a & b\nm:lambda succ 1\nm:boolean a &\n")
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+
+	/* the line and the value are typeset, the table stays as code */
+	CHECK (
+		ml_export (&out, &s, &r, ml_export_options (ML_EXPORT_LATEX)) == ML_OK
+	);
+	CHECK (
+		strstr (
+			ml_str_cstr (out),
+			"\\operatorname{table}\\;a\\land b=a\\land b"
+		) != NULL
+	);
+	CHECK (strstr (ml_str_cstr (out), "\\begin{verbatim}\na b") != NULL);
+	CHECK (strstr (ml_str_cstr (out), "\\mathit{succ}\\,1") != NULL);
+
+	/* an error line is left out unless errors are asked for */
+	CHECK (strstr (ml_str_cstr (out), "a\\land \n") == NULL);
+
+	ml_str_free (&out);
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
 void run_export_tests (void)
 {
 	test_editor_command ();
 	test_cli ();
 	test_latex_math ();
+	test_logic_math ();
+	test_logic_export ();
 	test_mathml_math ();
 	test_typeset_errors ();
 	test_escape ();

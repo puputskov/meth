@@ -1,5 +1,6 @@
 #include <matlog/ui/highlight.h>
 
+#include <matlog/logic/bool.h>
 #include <matlog/math/eval.h>
 #include <matlog/math/unit.h>
 #include <matlog/parse/lexer.h>
@@ -147,59 +148,29 @@ static MlResult classify_algebra (
 	return r;
 }
 
-/* A symbol of the boolean domain; longer spellings come first. */
-typedef struct LogicSymbol
+/* The class of a symbol of the boolean domain. */
+static MlClass symbol_class (MlBoolSymbolKind kind)
 {
-	const char *text;
-	MlClass    cls;
-} LogicSymbol;
+	MlClass c = ML_CLASS_ERROR;
 
-static const LogicSymbol logic_symbols [] =
-{
-	{ .text = "\xE2\x88\xA7", .cls = ML_CLASS_LOGIC },
-	{ .text = "\xE2\x88\xA8", .cls = ML_CLASS_LOGIC },
-	{ .text = "\xC2\xAC",     .cls = ML_CLASS_LOGIC },
-	{ .text = "\xE2\x86\x92", .cls = ML_CLASS_LOGIC },
-	{ .text = "\xE2\x86\x94", .cls = ML_CLASS_LOGIC },
-	{ .text = "\xE2\x8A\x95", .cls = ML_CLASS_LOGIC },
-	{ .text = "\xE2\x8A\xA4", .cls = ML_CLASS_CONSTANT },
-	{ .text = "\xE2\x8A\xA5", .cls = ML_CLASS_CONSTANT },
-	{ .text = "<->",          .cls = ML_CLASS_LOGIC },
-	{ .text = "<=>",          .cls = ML_CLASS_LOGIC },
-	{ .text = "==",           .cls = ML_CLASS_LOGIC },
-	{ .text = "->",           .cls = ML_CLASS_LOGIC },
-	{ .text = "=>",           .cls = ML_CLASS_LOGIC },
-	{ .text = "&&",           .cls = ML_CLASS_LOGIC },
-	{ .text = "||",           .cls = ML_CLASS_LOGIC },
-	{ .text = "&",            .cls = ML_CLASS_LOGIC },
-	{ .text = "|",            .cls = ML_CLASS_LOGIC },
-	{ .text = "^",            .cls = ML_CLASS_LOGIC },
-	{ .text = "~",            .cls = ML_CLASS_LOGIC },
-	{ .text = "!",            .cls = ML_CLASS_LOGIC },
-	{ .text = "(",            .cls = ML_CLASS_PAREN },
-	{ .text = ")",            .cls = ML_CLASS_PAREN },
-	{ .text = "=",            .cls = ML_CLASS_OPERATOR }
-};
-
-/* The symbol that starts at pos, or NULL. */
-static const LogicSymbol *logic_symbol_at (MlSlice text, uint64_t pos)
-{
-	const LogicSymbol *found = NULL;
-
-	for (uint64_t i = 0; i < ml_count (logic_symbols) && found == NULL; i++)
-	{
-		uint64_t n = strlen (logic_symbols [i].text);
-
-		if (
-			   pos + n <= text.len
-			&& memcmp (text.data + pos, logic_symbols [i].text, n) == 0
-		)
-		{
-			found = &logic_symbols [i];
-		}
-	}
-
-	return found;
+	c = ml_choose (
+		   kind == ML_BSYM_AND
+		|| kind == ML_BSYM_OR
+		|| kind == ML_BSYM_NOT
+		|| kind == ML_BSYM_XOR
+		|| kind == ML_BSYM_IMPL
+		|| kind == ML_BSYM_EQUIV,
+		ML_CLASS_LOGIC,
+		c
+	);
+	c = ml_choose (kind == ML_BSYM_CONST, ML_CLASS_CONSTANT, c);
+	c = ml_choose (
+		kind == ML_BSYM_LPAREN || kind == ML_BSYM_RPAREN,
+		ML_CLASS_PAREN,
+		c
+	);
+	c = ml_choose (kind == ML_BSYM_ASSIGN, ML_CLASS_OPERATOR, c);
+	return c;
 }
 
 static int32_t is_blank_byte (char c)
@@ -235,7 +206,10 @@ static uint64_t name_end (MlSlice text, uint64_t pos, int32_t stop_at_symbol)
 	while (
 		   end < text.len
 		&& is_name_byte (text.data [end])
-		&& !(stop_at_symbol && logic_symbol_at (text, end) != NULL)
+		&& !(
+			   stop_at_symbol
+			&& ml_bool_symbol_at (text, end).kind != ML_BSYM_NONE
+		)
 		&& !(!stop_at_symbol && is_lambda_at (text, end))
 	)
 	{
@@ -253,19 +227,19 @@ static void classify_boolean (uint8_t *cls, MlSlice text)
 
 	while (pos < text.len)
 	{
-		const LogicSymbol *sym = logic_symbol_at (text, pos);
-		uint64_t          n    = 1;
-		MlClass           c    = ML_CLASS_ERROR;
+		MlBoolSymbol sym = ml_bool_symbol_at (text, pos);
+		uint64_t     n   = 1;
+		MlClass      c   = ML_CLASS_ERROR;
 
 		if (is_blank_byte (text.data [pos]))
 		{
 			c = ML_CLASS_TEXT;
 		}
 
-		else if (sym != NULL)
+		else if (sym.kind != ML_BSYM_NONE)
 		{
-			n = strlen (sym->text);
-			c = sym->cls;
+			n = sym.len;
+			c = symbol_class (sym.kind);
 		}
 
 		else if (text.data [pos] == '0' || text.data [pos] == '1')
@@ -285,16 +259,8 @@ static void classify_boolean (uint8_t *cls, MlSlice text)
 			word = ml_slice_sub (text, pos, n);
 			c    = ML_CLASS_NAME;
 			c    = ml_choose (
-				   is_word (word, "and")
-				|| is_word (word, "or")
-				|| is_word (word, "not")
-				|| is_word (word, "xor"),
-				ML_CLASS_LOGIC,
-				c
-			);
-			c    = ml_choose (
-				is_word (word, "true") || is_word (word, "false"),
-				ML_CLASS_CONSTANT,
+				ml_bool_word (word).kind != ML_BSYM_NONE,
+				symbol_class (ml_bool_word (word).kind),
 				c
 			);
 			c    = ml_choose (

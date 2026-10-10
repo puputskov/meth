@@ -319,7 +319,8 @@ Status: latex, mathml and markdown are built (`export/math` typesets a statement
 blocks from the session and has one writer per format), with `:export[!] FORMAT [body] [errors] [3-12] [path]` in the editor and
 `matlog export FILE FORMAT [words]` on the command line. Not built yet: png and pdf (they need the layout engine), the export panel and its preview,
 options other than the four words (`dark`, `steps`, `includes`, page size), options remembered per session, and the visual selection as the range.
-Math lines of other domains and includes are written as code until their domains are typeset.
+The boolean and the lambda domain are typeset too (`export/logicmath`, from the text of the line, with `ml_bool_symbol_at` shared with the highlighter); the
+lines of the PGA domains and the includes are written as code until their domains are typeset.
 
 ### 4.12 Proofs and their validation
 A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few

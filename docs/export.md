@@ -16,8 +16,14 @@ An existing file is not replaced; `:export!` does.
 - A math line of the algebra domain is typeset from its syntax tree: real
   fractions, roots, powers and matrices. Its result follows as `=` or `≈`.
   A definition shows no result.
-- Other domains and includes are written as code. Errors are left out
-  unless `errors` is given.
+  Complex numbers and quaternions are part of it (`2 i`, `3 j`), and so are
+  vectors and the results of the statistics functions.
+- A line of the boolean or the lambda domain is typeset from its text: `∧ ∨ ¬
+  ⊕ → ↔` for the operators in any spelling, `⊤` and `⊥`, `λx.` and applications
+  with a thin space. A truth table or the steps of a reduction under a line
+  are written as code.
+- The lines of the other domains and the includes are written as code. A line
+  with an error is code too; the error is left out unless `errors` is given.
 
 # Words after the format
 - `body` only the body, to paste into another document.
