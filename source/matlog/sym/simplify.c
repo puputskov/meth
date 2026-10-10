@@ -438,6 +438,89 @@ const MlSym *ml_sym_add (MlSymCtx *ctx, const MlSym *a, const MlSym *b)
 	return ml_sym_sum (ctx, terms, 2);
 }
 
+/*
+ * The number that divides every term of a sum, with the sign of the first
+ * term: 10x + 10 gives 10, -x² + 1 gives -1, x/2 + 1/3 gives 1/6.
+ */
+static MlRat sum_content (MlSymCtx *ctx, const MlSym *sum)
+{
+	MlRat content = ml_rat_zero (ctx->arena);
+
+	for (uint64_t i = 0; i < sum->count; i++)
+	{
+		MlRat c;
+		MlRat a;
+
+		split_term (ctx, sum->kids [i], &c);
+		a       = ml_rat_abs (ctx->arena, c);
+		content = ml_choose (
+			ml_rat_is_zero (content),
+			a,
+			ml_rat_make (
+				ctx->arena,
+				ml_big_gcd (
+					ctx->arena,
+					ml_big_mul (ctx->arena, content.num, a.den),
+					ml_big_mul (ctx->arena, a.num, content.den)
+				),
+				ml_big_mul (ctx->arena, content.den, a.den)
+			)
+		);
+	}
+
+	{
+		MlRat lead;
+
+		split_term (ctx, sum->kids [0], &lead);
+		content = ml_choose (
+			ml_rat_sign (lead) < 0,
+			ml_rat_neg (ctx->arena, content),
+			content
+		);
+	}
+
+	return content;
+}
+
+/* The sum with every term divided by a number. */
+static const MlSym *sum_divided (
+	MlSymCtx    *ctx,
+	const MlSym *sum,
+	MlRat       by
+)
+{
+	SymPtrVec    terms;
+	const MlSym *out;
+
+	SymPtrVec_init (&terms);
+
+	for (uint64_t i = 0; i < sum->count; i++)
+	{
+		MlRat        c;
+		const MlSym *rest = split_term (ctx, sum->kids [i], &c);
+		MlRat        k    = ml_rat_div (ctx->arena, c, by);
+
+		if (
+			SymPtrVec_push (
+				&terms,
+				ml_choose (
+					rest == NULL,
+					ml_sym_num (ctx, k),
+					with_coeff (ctx, k, rest)
+				)
+			) != ML_OK
+		)
+		{
+			ctx->status = ML_ERR_NOMEM;
+		}
+	}
+
+	out = ml_sym_sum (ctx, terms.data, terms.len);
+	SymPtrVec_free (&terms);
+
+	return out;
+}
+
 /* ---- powers ---- */
 
 /* The whole exponent of a power as a small number, if it is one. */
@@ -646,6 +729,59 @@ const MlSym *ml_sym_product (
 		ctx->status = r;
 	}
 
+	/*
+	 * A sum that is a factor of a product (or a power of one) is written
+	 * with its content outside, 10x + 10 as 10(x + 1), so that the same
+	 * product has one form however it was built. A lone sum is the other way
+	 * round: it takes the number in (below).
+	 */
+	for (uint64_t i = 0; i < work.len && ctx->status == ML_OK; i++)
+	{
+		const MlSym *f    = work.data [i];
+		const MlSym *sum  = ml_choose (
+			f->kind == ML_SYM_POW,
+			f->kids [0],
+			f
+		);
+		int64_t     n     = 1;
+		int32_t     whole = (
+			   sum->kind == ML_SYM_ADD
+			&& !(work.len == 1 && f->kind == ML_SYM_ADD)
+			&& (
+				   f->kind == ML_SYM_ADD
+				|| (
+					   f->kids [1]->kind == ML_SYM_NUM
+					&& small_int (f->kids [1], &n)
+				)
+			)
+		);
+
+		if (whole)
+		{
+			MlRat content = sum_content (ctx, sum);
+
+			if (!ml_rat_is_zero (content) && ml_rat_cmp (
+				ctx->arena,
+				content,
+				one_rat (ctx)
+			) != 0)
+			{
+				const MlSym *inner = sum_divided (ctx, sum, content);
+
+				work.data [i] = ml_choose (
+					f->kind == ML_SYM_POW,
+					pow_core (ctx, inner, f->kids [1]),
+					inner
+				);
+				coeff = ml_rat_mul (
+					ctx->arena,
+					coeff,
+					ml_rat_pow (ctx->arena, content, n)
+				);
+			}
+		}
+	}
+
 	sort_syms (ctx, &work, NULL, ORDER_FACTORS);
 
 	if (ml_rat_is_zero (coeff) || work.len == 0)
@@ -790,6 +926,12 @@ const MlSym *ml_sym_pow (MlSymCtx *ctx, const MlSym *a, const MlSym *b)
 	else
 	{
 		result = pow_core (ctx, base, exp);
+
+		if (result->kind == ML_SYM_POW && base->kind == ML_SYM_ADD)
+		{
+			/* a power of a sum is a product of one factor: content out */
+			result = ml_sym_product (ctx, &result, 1);
+		}
 	}
 
 	return ml_choose (ctx->status == ML_OK, result, ml_sym_failed ());

@@ -21,19 +21,3 @@
   example through a pseudo console), and whether the label row is drawn
   while the cursor is on it.
 - **Code:** `ml_screen_render` and `paint_row` in `source/matlog/ui/screen.c`.
-
-## `simplify` of a printed result can differ from the result
-
-- **Seen:** found by the fuzzer (`source/tests/test_fuzz.c`). The result of
-  `simplify` is printed, parsed and simplified again, and the second text is
-  not always the first:
-  - a sign in the denominator: `simplify ((x^2 - 1) / (x/- 1))` gives
-    `-(x² - 1)/x`, and simplifying that text gives `(-x² + 1)/x`.
-  - `simplify (51 / x + .1 / (x + 1))` gives `1/(10(x + 1)) + 51/x`, and
-    simplifying that text gives `1/(10x + 10) + 51/x`.
-- **Not the cause:** a second `ml_sym_simplify` pass over the tree changes
-  nothing, so the difference is between the tree that is built from the
-  input and the one built from the printed text (a negative sign above a
-  quotient, a product with a sum in a denominator).
-- **Code:** `ml_sym_product` and `ml_sym_sum` in `source/matlog/sym/simplify.c`,
-  and the printer in `source/matlog/sym/format.c`.

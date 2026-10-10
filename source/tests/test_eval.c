@@ -809,6 +809,14 @@ static void test_symbolic (void)
 	/* simplify and expand */
 	CHECK (shows (&s, "simplify(x + x)", "2x"));
 	CHECK (shows (&s, "simplify(2 + 3)", "5"));
+	/* a sum in a product keeps its content outside, however it was built */
+	CHECK (shows (&s, "simplify(1/(10(x+1)))", "1/(10(x + 1))"));
+	CHECK (shows (&s, "simplify(1/(10x+10))", "1/(10(x + 1))"));
+	CHECK (shows (&s, "simplify((10x+10)^-1)", "1/(10(x + 1))"));
+	CHECK (shows (&s, "simplify(.1/(x+1))", "1/(10(x + 1))"));
+	CHECK (shows (&s, "simplify(-(x^2-1)/x)", "-(x\xC2\xB2 - 1)/x"));
+	CHECK (shows (&s, "simplify(-((x^2-1)/x))", "-(x\xC2\xB2 - 1)/x"));
+	CHECK (shows (&s, "simplify(10(x+1))", "10x + 10"));
 	CHECK (shows (&s, "simplify(x*y + y*x)", "2x\xC2\xB7y"));
 	CHECK (shows (&s, "expand((x + 1)^2)", "x\xC2\xB2 + 2x + 1"));
 	CHECK (shows (&s, "expand((x - 1)(x + 1))", "x\xC2\xB2 - 1"));

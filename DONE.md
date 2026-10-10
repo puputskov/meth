@@ -586,8 +586,10 @@ Started (group `fuzz`, `source/tests/test_fuzz.c`): a seeded xorshift generator 
 a piece) and runs the parser and the evaluator on 3000 inputs in the normal test build. Checks: nothing crashes, the formatted result of a value is
 produced, and the same input gives the same text twice in fresh environments. `-DFUZZ_RUNS=N` raises the count; 100000 runs under address and
 undefined behaviour sanitizers (`-DML_HEAP_SYSTEM`) found nothing. A second target mutates 10 expressions in x and runs `simplify`, print, parse,
-`simplify` again: crashes fail the run, and a different second text is counted and only fails above 1% of the inputs, because the fuzzer found
-that this happens (`KNOWN_ISSUES.md`). The rest is in `TODO.md`.
+`simplify` again: a crash or a different second text fails. It found that the form of a sum inside a product depended on how the product was
+built (`1/(10(x+1))` against `1/(10x+10)`, `-(x²-1)/x` against `(-x²+1)/x`); now `ml_sym_product` writes a sum that is a factor, or a power of
+one, with its content (gcd of the terms, the sign of the first term) outside, and `ml_sym_pow` sends a power of a sum through it. A sum that is
+alone in its product still takes the number in (`2(x+1)` is `2x + 2`). The rest is in `TODO.md`.
 
 ### 4.25 One table for the words of the syntax
 

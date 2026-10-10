@@ -279,11 +279,7 @@ void run_fuzz_tests (void)
 			}
 		}
 
-		/*
-		 * Known: simplify of a printed result is not always the same text
-		 * (KNOWN_ISSUES.md), so only a rate far above the usual one fails.
-		 */
-		CHECK (bad < FUZZ_RUNS / 100);
+		CHECK (bad == 0);
 		ml_str_free (&call);
 	}
 
