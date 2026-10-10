@@ -316,6 +316,26 @@ static const char text_logic_minimise_circuit [] =
 	"m:boolean a | ~a\n"
 	"m:boolean a & ~a\n";
 
+static const char text_pga_motors [] =
+	"# Moving a point with a translator and a rotor\n"
+	"# In the plane (pga2) a point is the blade e12 + x e20 + y e01. The sa"
+	"ndwich product m * p * reverse (m) moves it.\n"
+	"m:pga2 P = point(1, 2)\n"
+	"# Translate by (3, 4): the point arrives at (4, 6).\n"
+	"m:pga2 T = translator(3, 4)\n"
+	"m:pga2 T * P * reverse(T)\n"
+	"m:pga2 point(4, 6)\n"
+	"# Turn by a quarter turn about the origin: (1, 0) goes to (0, 1).\n"
+	"m:pga2 R = rotor(pi/2)\n"
+	"m:pga2 R * point(1, 0) * reverse(R)\n"
+	"# Two moves are one: the product of the motors (the right one acts fir"
+	"st).\n"
+	"m:pga2 M = R * T\n"
+	"m:pga2 M * P * reverse(M)\n"
+	"# The line through two points, and where two lines cross:\n"
+	"m:pga2 L = join(point(0, 0), point(1, 1))\n"
+	"m:pga2 meet(L, line(1, 0, -2))\n";
+
 static const char text_quat_rotation [] =
 	"# Rotating a vector with a quaternion\n"
 	"# A quaternion q turns a 3D vector v into q v q^-1. With exact numbers"
@@ -533,6 +553,7 @@ const MlDocSource ml_example_sources [] =
 	{ .name = "linalg-linear-system", .text = text_linalg_linear_system },
 	{ .name = "linalg-rotations", .text = text_linalg_rotations },
 	{ .name = "logic-minimise-circuit", .text = text_logic_minimise_circuit },
+	{ .name = "pga-motors", .text = text_pga_motors },
 	{ .name = "quat-rotation", .text = text_quat_rotation },
 	{ .name = "robotics-two-link-arm", .text = text_robotics_two_link_arm },
 	{

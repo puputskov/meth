@@ -480,9 +480,40 @@ static MlResult page_links (
 	return r;
 }
 
+/* The domain of an example: 0 algebra, 1 physics, 2 pga2, 3 pga3. */
+static MlDomain example_domain (int32_t mode)
+{
+	MlDomain d = ML_DOMAIN_ALGEBRA;
+
+	switch (mode)
+	{
+		case 1:
+		{
+			d = ML_DOMAIN_PHYSICS;
+		} break;
+
+		case 2:
+		{
+			d = ML_DOMAIN_PGA2;
+		} break;
+
+		case 3:
+		{
+			d = ML_DOMAIN_PGA3;
+		} break;
+
+		default:
+		{
+			d = ML_DOMAIN_ALGEBRA;
+		} break;
+	}
+
+	return d;
+}
+
 MlResult ml_docs_check_example (
 	MlSlice  example,
-	int32_t  physics,
+	int32_t  mode,
 	MlStr    *report,
 	uint64_t *problems
 )
@@ -534,7 +565,7 @@ MlResult ml_docs_check_example (
 			r = ml_session_append (
 				&s,
 				ML_LINE_MATH,
-				ml_choose (physics, ML_DOMAIN_PHYSICS, ML_DOMAIN_ALGEBRA),
+				example_domain (mode),
 				row
 			);
 		}
@@ -645,7 +676,7 @@ MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems)
 				ml_str_init (&bad);
 				r = ml_docs_check_example (
 					ml_str_view (p->blocks.data [b].text),
-					p->blocks.data [b].level == 1,
+					p->blocks.data [b].level,
 					&bad,
 					&n
 				);

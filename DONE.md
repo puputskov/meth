@@ -1029,3 +1029,13 @@ names in the completion and the highlighting of math lines, which do not exist y
 run, lex, parse, steps, help, syntax, schema, commands, version), line operations and undo, blocks and folds, Markdown in notes, the free form editor
 with selection, mouse, pages and the settings file for folds (section 3). Highlighting and themes (section 4.10) are built except the settings file entry for the theme, the OSC 11 background query and the highlight classes of the other domains; an empty editor shows rotating hints (`ui/hint`). Next: export, documentation, the tutorial, proofs
 (sections 4.9 to 4.14), or milestone 6 (lambda calculus and boolean algebra).
+
+### PGA (projective geometric algebra)
+
+- Domains `pga2` (`R(2,0,1)`) and `pga3` (`R(3,0,1)`); `math/pga.c`. A multivector is `MlMv` (blade bitmask, dense arrays of 16 exact rationals or
+  doubles with an `approx` flag), value kind `ML_VALUE_MV`; a scalar only multivector collapses to a number. Plane based: vectors are lines/planes,
+  a 2D point is `e12 + x e20 + y e01`, a 3D point is `e123 + x e032 + y e013 + z e021`.
+- `*` geometric product, `^` wedge when an operand is a multivector, `/` times the inverse. Functions: reverse, dual, undual, unit, scalar, grade,
+  inner, join, meet, inv, norm, point, line, plane, translator, rotor. Blade names (`e0`, `e12`, `e21` = `-e12`) resolve on pga lines only.
+- Docs: page `pga`, ` ```example pga2|pga3 ` blocks (block level 2 or 3, `ml_docs_check_example` mode), example `pga-motors`, lesson 16.
+

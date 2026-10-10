@@ -29,6 +29,7 @@ are the same in the tool (`:help`) and on the command line (`matlog docs`).
 - [Statistics](statistics): means, spread, correlation, fits, distributions.
 - [Plots](plots): histograms, scatter plots and lines in the side panel.
 - [Complex numbers and quaternions](complex): i, j, k, the Hamilton product, rotations.
+- [Projective geometric algebra](pga): blades, the geometric product, points, lines, motors.
 - [Matrices and vectors](matrices): matrices, determinants, inverses.
 - [Symbolic math](symbolic): simplify, expand, differentiate, integrate,
   limits, equations.

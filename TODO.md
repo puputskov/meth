@@ -13,7 +13,7 @@ When a task is finished: delete it here, and write what was built into its secti
    450 bytes) is copied by `call_target` and `MlScope.func`; the zero fill of the limbs of small big numbers (`limbs_new`, 260 thousand calls for `primes (300)`)
    and `ml_value_none` (a 280 byte clear, 90 thousand calls) are the next costs in the profile. Writing results in place, a smaller value (the kinds that
    exclude each other in a union, after checking that nothing reads a field of another kind) or passing values by index into the value stack would help.
-3. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 4); **PGA** (section 5).
+3. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 4); **PGA rest** (section 5).
 
 ## 2. Not built, per section of DONE.md
 
@@ -25,7 +25,7 @@ Short list of what each built section says it still lacks. The details are in th
   classes for the plot, a panel under the editor for narrow terminals.
 - **Physics domain** (built): load of an old file with units in `m:algebra` lines says nothing once (only the hint on each line); comparisons and lists of quantities
   are not restricted to physics lines; the units in the completion of the editor (the math completion is not wired into the editor yet).
-- **4.9 Tutorial**: lessons for PGA, stage 2 lessons for export, lessons for files (`:w`, `:open`).
+- **4.9 Tutorial**: stage 2 lessons for export, lessons for files (`:w`, `:open`).
 - **4.10 Themes**: the settings file entry for the theme, the OSC 11 background query, highlight classes of the other domains.
 - **4.11 Export**: png and pdf (layout engine, `export/layout`), the export panel and its preview, options other than `dark steps includes` and page size,
   options remembered per session, the visual selection as the range, typeset PGA lines and includes.
@@ -80,13 +80,10 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
 - Tests: a corpus of valid and of broken proofs (a wrong step at each position, a missing hypothesis, a circular lemma, a step that uses a theorem
   proved below it); every valid one must be accepted and every broken one rejected at the right line with the right reason.
 
-## 5. PGA (milestone 7, not built)
+## 5. PGA, rest (the core is built, see DONE.md)
 
-- PGA is implemented generically over a signature `(p, q, r)` (basis blades as bitmasks, metric from the signature).
-  `R(2,0,1)` and `R(3,0,1)` are presets, selectable in PGA mode (e.g. `:pga 2` / `:pga 3`). Same code serves both.
-
-The domain tags `pga2` and `pga3` exist in sessions and files; their lines are only echoed. Everything else (multivectors, the geometric product,
-motors, highlighting, steps, export, docs page, tutorial lesson, examples) is open.
+- Command line `--domain pga2/pga3` for `steps`, typeset export of multivectors (now written as code), `==` between multivectors,
+  steps for PGA lines.
 
 ## 6. Export of functions to C, C++ and Python (4.19, not built)
 

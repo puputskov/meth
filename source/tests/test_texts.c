@@ -486,7 +486,7 @@ static void test_lessons (void)
 
 	ml_texts_reload ("en", NULL);
 	count = ml_lesson_count ();
-	CHECK (count == 15);
+	CHECK (count == 16);
 	CHECK (is (ml_lesson_at (0).id, "notes"));
 	CHECK (is (ml_lesson_at (0).title, "Writing and notes"));
 	CHECK (ml_lesson_first (1) == 0);

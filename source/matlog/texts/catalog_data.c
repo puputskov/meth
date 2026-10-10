@@ -1067,6 +1067,33 @@ static const char text_lessons_en_15_domains2 [] =
 	"domains2.2.answer = <ACTION_COMMAND>mode lambda<Enter><ACTION_BLOCK_NE"
 	"W>(\316\273x. x) y<Enter>\n";
 
+static const char text_lessons_en_16_pga [] =
+	"# Lesson 16: Projective geometric algebra\n"
+	"[lessons]\n"
+	"pga.title = Projective geometric algebra\n"
+	"pga.stage = 2\n"
+	"\n"
+	"pga.1.check = result\n"
+	"pga.1.param = e12\n"
+	"pga.1.text = The pga2 domain has the blades e1 and e2. Switch with\n"
+	"    {ACTION_COMMAND}, mode pga2, then start a block and write e1*e2.\n"
+	"pga.1.answer = <ACTION_COMMAND>mode pga2<Enter><ACTION_BLOCK_NEW>e1*e2"
+	"<Enter>\n"
+	"\n"
+	"pga.2.check = result\n"
+	"pga.2.param = -e12\n"
+	"pga.2.text = The product does not commute: swapping the factors flips "
+	"the\n"
+	"    sign. Write e2*e1.\n"
+	"pga.2.answer = e2*e1<Enter>\n"
+	"\n"
+	"pga.3.check = result\n"
+	"pga.3.param = 6e01 - 4e02 + e12\n"
+	"pga.3.text = A translator moves a point by the sandwich product. Write\n"
+	"    translator(3, 4) * point(1, 2) * reverse(translator(3, 4)).\n"
+	"pga.3.answer = translator(3, 4) * point(1, 2) * reverse(translator(3, "
+	"4))<Enter>\n";
+
 const MlCatalogSource ml_catalog_sources [] =
 {
 	{ .name = "en", .text = text_en },
@@ -1084,7 +1111,8 @@ const MlCatalogSource ml_catalog_sources [] =
 	{ .name = "lessons/en/12-symbolic", .text = text_lessons_en_12_symbolic },
 	{ .name = "lessons/en/13-units", .text = text_lessons_en_13_units },
 	{ .name = "lessons/en/14-numsys", .text = text_lessons_en_14_numsys },
-	{ .name = "lessons/en/15-domains2", .text = text_lessons_en_15_domains2 }
+	{ .name = "lessons/en/15-domains2", .text = text_lessons_en_15_domains2 },
+	{ .name = "lessons/en/16-pga", .text = text_lessons_en_16_pga }
 };
 
 const uint64_t ml_catalog_source_count = ml_count (ml_catalog_sources);

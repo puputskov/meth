@@ -1,0 +1,16 @@
+# Moving a point with a translator and a rotor
+# In the plane (pga2) a point is the blade e12 + x e20 + y e01. The sandwich product m * p * reverse (m) moves it.
+m:pga2 P = point(1, 2)
+# Translate by (3, 4): the point arrives at (4, 6).
+m:pga2 T = translator(3, 4)
+m:pga2 T * P * reverse(T)
+m:pga2 point(4, 6)
+# Turn by a quarter turn about the origin: (1, 0) goes to (0, 1).
+m:pga2 R = rotor(pi/2)
+m:pga2 R * point(1, 0) * reverse(R)
+# Two moves are one: the product of the motors (the right one acts first).
+m:pga2 M = R * T
+m:pga2 M * P * reverse(M)
+# The line through two points, and where two lines cross:
+m:pga2 L = join(point(0, 0), point(1, 1))
+m:pga2 meet(L, line(1, 0, -2))

@@ -1,0 +1,22 @@
+# Lesson 16: Projective geometric algebra
+[lessons]
+pga.title = Projective geometric algebra
+pga.stage = 2
+
+pga.1.check = result
+pga.1.param = e12
+pga.1.text = The pga2 domain has the blades e1 and e2. Switch with
+    {ACTION_COMMAND}, mode pga2, then start a block and write e1*e2.
+pga.1.answer = <ACTION_COMMAND>mode pga2<Enter><ACTION_BLOCK_NEW>e1*e2<Enter>
+
+pga.2.check = result
+pga.2.param = -e12
+pga.2.text = The product does not commute: swapping the factors flips the
+    sign. Write e2*e1.
+pga.2.answer = e2*e1<Enter>
+
+pga.3.check = result
+pga.3.param = 6e01 - 4e02 + e12
+pga.3.text = A translator moves a point by the sandwich product. Write
+    translator(3, 4) * point(1, 2) * reverse(translator(3, 4)).
+pga.3.answer = translator(3, 4) * point(1, 2) * reverse(translator(3, 4))<Enter>

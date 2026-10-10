@@ -141,7 +141,7 @@ static int32_t set_header (
 /*
  * The kind of a fenced block from its info string. "example physics" is an
  * example that is evaluated in the physics domain: level gets 1 for it (the
- * level of a block that is no heading is free).
+ * level of a block that is no heading is free); pga2 gives 2 and pga3 3.
  */
 static MlDocBlockKind fence_kind (MlSlice info, int32_t *ok, int32_t *level)
 {
@@ -156,14 +156,21 @@ static MlDocBlockKind fence_kind (MlSlice info, int32_t *ok, int32_t *level)
 	*ok    = 1;
 	*level = 0;
 
-	if (
-		   cut < info.len
-		&& is_word (ml_slice_sub (info, 0, cut), "example")
-		&& is_word (trim (ml_slice_sub (info, cut, info.len - cut)), "physics")
-	)
+	if (cut < info.len && is_word (ml_slice_sub (info, 0, cut), "example"))
 	{
+		MlSlice mode = trim (ml_slice_sub (info, cut, info.len - cut));
+
 		kind   = ML_DOC_EXAMPLE;
-		*level = 1;
+		*level = ml_choose (
+			is_word (mode, "physics"),
+			1,
+			ml_choose (
+				is_word (mode, "pga2"),
+				2,
+				ml_choose (is_word (mode, "pga3"), 3, 0)
+			)
+		);
+		*ok    = (*level > 0);
 		info   = ml_slice ("", 0);
 	}
 
