@@ -372,7 +372,7 @@ static void test_math (void)
 	CHECK (c.count == 1 && has_item (&c, "speed") && ghost_is (c, "eed"));
 	c = math (&env, "2 + sq");
 	CHECK (has_item (&c, "sqrt") && ghost_is (c, "rt"));
-	c = math (&env, "ps");
+	c = math (&env, "xq");
 	CHECK (c.count == 0 && c.ghost >= ML_MAX_CANDIDATES);
 	c = math (&env, "5 ki");
 	CHECK (has_item (&c, "kilogram") == 0 && c.count == 0);

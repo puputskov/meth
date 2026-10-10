@@ -211,6 +211,85 @@ static const char text_robotics_two_link_arm [] =
 	"m:algebra q2 = acos(3/5)\n"
 	"m:algebra q1 = atan(44/8) - atan(5*sin(q2)/(5 + 5*cos(q2)))\n";
 
+static const char text_stats_coin_and_bell_curve [] =
+	"# Coins and the bell curve\n"
+	"# The chance of heads in ten tosses, and how the normal curve compares"
+	".\n"
+	"# The number of ways to choose 3 of 10 tosses to be heads:\n"
+	"m:algebra binomial(10, 3)\n"
+	"# The chance of exactly 3 heads in 10 fair tosses is binomial_pdf(n, k"
+	", p), exact:\n"
+	"m:algebra binomial_pdf(10, 3, 1/2)\n"
+	"# Of at most 3 heads: add the chances of 0, 1, 2 and 3 heads.\n"
+	"m:algebra binomial_pdf(10, 0, 1/2) + binomial_pdf(10, 1, 1/2) + binomi"
+	"al_pdf(10, 2, 1/2) + binomial_pdf(10, 3, 1/2)\n"
+	"# For many tosses the normal curve with the same mean n p and spread s"
+	"qrt(n p (1 - p)) is close. For 100 tosses, the chance of at most 45 he"
+	"ads:\n"
+	"m:algebra normal_cdf(45.5, 50, 5)\n"
+	"# The value below which 95 percent of a normal variable falls (mean 10"
+	"0, deviation 15):\n"
+	"m:algebra normal_inv(0.95, 100, 15)\n"
+	"# The height of the bell at its centre:\n"
+	"m:algebra normal_pdf(0, 0, 1)\n"
+	"# Events that happen at a rate, like 3 calls an hour: the chance of ex"
+	"actly 2 calls in an hour\n"
+	"m:algebra poisson_pdf(2, 3)\n";
+
+static const char text_stats_describe_data [] =
+	"# Describing a list of numbers\n"
+	"# The mean, the median, the spread and a histogram of eight exam score"
+	"s, all exact.\n"
+	"# Eight scores. A list is written in brackets:\n"
+	"m:algebra scores = [52, 61, 61, 68, 70, 75, 83, 90]\n"
+	"# The centre of the data: the mean is the sum divided by the count, th"
+	"e median is the middle value, the mode the most frequent.\n"
+	"m:algebra mean(scores)\n"
+	"m:algebra median(scores)\n"
+	"m:algebra mode(scores)\n"
+	"# The spread: the sample variance divides by n - 1, the population one"
+	" by n. The standard deviation is the square root, exact when the varia"
+	"nce is a perfect square.\n"
+	"m:algebra var(scores)\n"
+	"m:algebra std(scores)\n"
+	"m:algebra pvar(scores)\n"
+	"# Quartiles cut the sorted data in four, the interquartile range is th"
+	"e middle half:\n"
+	"m:algebra quantile(scores, 1/4)\n"
+	"m:algebra quantile(scores, 3/4)\n"
+	"m:algebra iqr(scores)\n"
+	"# How many scores are in each of four equal bins between the smallest "
+	"and the largest:\n"
+	"m:algebra histogram(scores, 4)\n"
+	"# A z-score says how many standard deviations a value is from the mean"
+	":\n"
+	"m:algebra zscore(90, mean(scores), std(scores))\n";
+
+static const char text_stats_fit_a_line [] =
+	"# Fitting a line to data\n"
+	"# Hours of study against the score: the slope, the intercept, the corr"
+	"elation and a prediction.\n"
+	"# Hours studied (x) and the score (y) of six students:\n"
+	"m:algebra hours = [1, 2, 3, 4, 5, 6]\n"
+	"m:algebra score = [48, 55, 59, 68, 70, 80]\n"
+	"# The line y = a + b x that fits best (least squares): the vector is ["
+	"a, b].\n"
+	"m:algebra fit = linfit(hours, score)\n"
+	"# How well the line explains the scores: r squared is the share of the"
+	" spread it accounts for.\n"
+	"m:algebra rsq(hours, score)\n"
+	"m:algebra corr(hours, score)\n"
+	"# The prediction for 7 hours is a + b * 7 (with the two numbers of the"
+	" vector):\n"
+	"m:algebra 629/15 + 214/35 * 7\n"
+	"# A parabola fits closer (the vector is [c0, c1, c2] of c0 + c1 x + c2"
+	" x^2):\n"
+	"m:algebra polyfit(hours, score, 2)\n"
+	"# For any matrix of unknowns use lstsq: here the same line from the de"
+	"sign matrix.\n"
+	"m:algebra A = [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6]]\n"
+	"m:algebra lstsq(A, score)\n";
+
 static const char text_units_kinetic_energy [] =
 	"# Units in a physics problem\n"
 	"# A car of 1200 kg drives at 90 km/h. How much energy does it have, an"
@@ -249,6 +328,12 @@ const MlDocSource ml_example_sources [] =
 	{ .name = "linalg-rotations", .text = text_linalg_rotations },
 	{ .name = "logic-minimise-circuit", .text = text_logic_minimise_circuit },
 	{ .name = "robotics-two-link-arm", .text = text_robotics_two_link_arm },
+	{
+		.name = "stats-coin-and-bell-curve",
+		.text = text_stats_coin_and_bell_curve
+	},
+	{ .name = "stats-describe-data", .text = text_stats_describe_data },
+	{ .name = "stats-fit-a-line", .text = text_stats_fit_a_line },
 	{ .name = "units-kinetic-energy", .text = text_units_kinetic_energy }
 };
 

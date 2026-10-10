@@ -432,7 +432,7 @@ static void test_errors (void)
 	CHECK (fails (&s, "f()", ML_EVAL_ARITY));
 	CHECK (fails (&s, "sin(1, 2)", ML_EVAL_ARITY));
 	CHECK (fails (&s, "sin()", ML_EVAL_ARITY));
-	CHECK (fails (&s, "min(1)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "min()", ML_EVAL_ARITY));
 	CHECK (fails (&s, "gcd(1, 2, 3)", ML_EVAL_ARITY));
 
 	CHECK (shows (&s, "n = 2", "2"));

@@ -1,0 +1,20 @@
+# Describing a list of numbers
+# The mean, the median, the spread and a histogram of eight exam scores, all exact.
+# Eight scores. A list is written in brackets:
+m:algebra scores = [52, 61, 61, 68, 70, 75, 83, 90]
+# The centre of the data: the mean is the sum divided by the count, the median is the middle value, the mode the most frequent.
+m:algebra mean(scores)
+m:algebra median(scores)
+m:algebra mode(scores)
+# The spread: the sample variance divides by n - 1, the population one by n. The standard deviation is the square root, exact when the variance is a perfect square.
+m:algebra var(scores)
+m:algebra std(scores)
+m:algebra pvar(scores)
+# Quartiles cut the sorted data in four, the interquartile range is the middle half:
+m:algebra quantile(scores, 1/4)
+m:algebra quantile(scores, 3/4)
+m:algebra iqr(scores)
+# How many scores are in each of four equal bins between the smallest and the largest:
+m:algebra histogram(scores, 4)
+# A z-score says how many standard deviations a value is from the mean:
+m:algebra zscore(90, mean(scores), std(scores))

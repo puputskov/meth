@@ -545,6 +545,12 @@ theme classes `watch-name`, `watch-type`, `watch-value` (the panel uses name, fu
 - Visualisation (section 4.6): histogram and scatter plots in braille/block characters. Highlight, completion, docs page, examples
   and tests as for every domain; the results are exact where possible, approximate and marked as `≈` otherwise.
 
+**Built so far (2026-10-10):** `math/stats.h`: sum count mean median mode var std pvar pstd quantile iqr cov corr skew kurt cumsum sort histogram range
+linfit rsq polyfit lstsq binomial perm binomial_pdf poisson_pdf normal_pdf normal_cdf normal_inv zscore, and `min`/`max` of a list; exact while the data is
+exact; the page `statistics` and three examples. Not built: loading data from a CSV file (`load_csv`), a seeded random generator, the `t` and `chi2`
+quantiles and tests, lists longer than 64 numbers (a matrix has at most 64 rows or columns), histogram and scatter plots in the terminal, and data
+given with units.
+
 ### 4.23 Fuzzer
 
 - A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples

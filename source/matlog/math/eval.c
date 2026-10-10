@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include <matlog/math/stats.h>
 #include <matlog/math/vector.h>
 #include <matlog/sym/expr.h>
 
@@ -107,6 +108,10 @@ typedef enum MlBuiltin
 	BUILTIN_DOT,
 	BUILTIN_CROSS,
 	BUILTIN_NORM,
+	/* statistics (math/stats.h) from here on */
+#define BUILTIN_STAT_ENUM(id, name, lo, hi) BUILTIN_STAT_##id,
+	ML_STAT_LIST (BUILTIN_STAT_ENUM)
+#undef BUILTIN_STAT_ENUM
 	BUILTIN_COUNT
 } MlBuiltin;
 
@@ -145,8 +150,8 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_FLOOR] = { .name = "floor", .min = 1, .max = 1 },
 	[BUILTIN_CEIL]  = { .name = "ceil",  .min = 1, .max = 1 },
 	[BUILTIN_ROUND] = { .name = "round", .min = 1, .max = 1 },
-	[BUILTIN_MIN]   = { .name = "min",   .min = 2, .max = ANY_ARGS },
-	[BUILTIN_MAX]   = { .name = "max",   .min = 2, .max = ANY_ARGS },
+	[BUILTIN_MIN]   = { .name = "min",   .min = 1, .max = ANY_ARGS },
+	[BUILTIN_MAX]   = { .name = "max",   .min = 1, .max = ANY_ARGS },
 	[BUILTIN_GCD]   = { .name = "gcd",   .min = 2, .max = 2 },
 	[BUILTIN_LCM]   = { .name = "lcm",   .min = 2, .max = 2 },
 	[BUILTIN_DIM]   = { .name = "dim",   .min = 1, .max = 1 },
@@ -160,7 +165,11 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_IDENTITY]  = { .name = "identity",  .min = 1, .max = 1 },
 	[BUILTIN_DOT]       = { .name = "dot",       .min = 2, .max = 2 },
 	[BUILTIN_CROSS]     = { .name = "cross",     .min = 2, .max = 2 },
-	[BUILTIN_NORM]      = { .name = "norm",      .min = 1, .max = 1 }
+	[BUILTIN_NORM]      = { .name = "norm",      .min = 1, .max = 1 },
+#define BUILTIN_STAT_INFO(id, nm, lo, hi) \
+	[BUILTIN_STAT_##id] = { .name = nm, .min = lo, .max = hi },
+	ML_STAT_LIST (BUILTIN_STAT_INFO)
+#undef BUILTIN_STAT_INFO
 };
 
 static MlBuiltin builtin_find (MlSlice name)
@@ -924,9 +933,28 @@ static MlValue builtin_apply (
 		r = quantity_function (arena, id, args, argc);
 	}
 
+	else if (id >= BUILTIN_STAT_SUM)
+	{
+		r = ml_stats_apply (
+			arena,
+			(MlStat)(id - BUILTIN_STAT_SUM),
+			args,
+			argc
+		);
+	}
+
 	else if (id >= BUILTIN_DET)
 	{
 		r = matrix_function (arena, id, args, argc);
+	}
+
+	else if (
+		   (id == BUILTIN_MIN || id == BUILTIN_MAX)
+		&& argc == 1
+		&& has_matrix
+	)
+	{
+		r = ml_stats_extreme (arena, args [0], id == BUILTIN_MAX);
 	}
 
 	else if (has_matrix)

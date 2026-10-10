@@ -1,0 +1,17 @@
+# Fitting a line to data
+# Hours of study against the score: the slope, the intercept, the correlation and a prediction.
+# Hours studied (x) and the score (y) of six students:
+m:algebra hours = [1, 2, 3, 4, 5, 6]
+m:algebra score = [48, 55, 59, 68, 70, 80]
+# The line y = a + b x that fits best (least squares): the vector is [a, b].
+m:algebra fit = linfit(hours, score)
+# How well the line explains the scores: r squared is the share of the spread it accounts for.
+m:algebra rsq(hours, score)
+m:algebra corr(hours, score)
+# The prediction for 7 hours is a + b * 7 (with the two numbers of the vector):
+m:algebra 629/15 + 214/35 * 7
+# A parabola fits closer (the vector is [c0, c1, c2] of c0 + c1 x + c2 x^2):
+m:algebra polyfit(hours, score, 2)
+# For any matrix of unknowns use lstsq: here the same line from the design matrix.
+m:algebra A = [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6]]
+m:algebra lstsq(A, score)

@@ -2,7 +2,7 @@ id: functions
 title: Functions and constants
 summary: The built in functions of the algebra domain.
 keywords: sqrt, abs, sin, cos, tan, ln, log, exp, floor, ceil, round, min, max, gcd, lcm, pi
-see: syntax, symbolic
+see: syntax, symbolic, statistics
 
 The built in functions take their arguments in parentheses:
 `sqrt(x)`, `max(1, 5, 3)`.
@@ -10,7 +10,7 @@ The built in functions take their arguments in parentheses:
 # Numbers
 - `sqrt abs` the root and the absolute value.
 - `floor ceil round` whole numbers near a value.
-- `min max` the smallest and the largest of their arguments.
+- `min max` the smallest and the largest of their arguments, or of a list.
 - `gcd lcm` the greatest common divisor and the least common multiple.
 
 # Analysis

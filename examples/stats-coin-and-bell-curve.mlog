@@ -1,0 +1,16 @@
+# Coins and the bell curve
+# The chance of heads in ten tosses, and how the normal curve compares.
+# The number of ways to choose 3 of 10 tosses to be heads:
+m:algebra binomial(10, 3)
+# The chance of exactly 3 heads in 10 fair tosses is binomial_pdf(n, k, p), exact:
+m:algebra binomial_pdf(10, 3, 1/2)
+# Of at most 3 heads: add the chances of 0, 1, 2 and 3 heads.
+m:algebra binomial_pdf(10, 0, 1/2) + binomial_pdf(10, 1, 1/2) + binomial_pdf(10, 2, 1/2) + binomial_pdf(10, 3, 1/2)
+# For many tosses the normal curve with the same mean n p and spread sqrt(n p (1 - p)) is close. For 100 tosses, the chance of at most 45 heads:
+m:algebra normal_cdf(45.5, 50, 5)
+# The value below which 95 percent of a normal variable falls (mean 100, deviation 15):
+m:algebra normal_inv(0.95, 100, 15)
+# The height of the bell at its centre:
+m:algebra normal_pdf(0, 0, 1)
+# Events that happen at a rate, like 3 calls an hour: the chance of exactly 2 calls in an hour
+m:algebra poisson_pdf(2, 3)

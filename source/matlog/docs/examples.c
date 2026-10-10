@@ -17,6 +17,7 @@ static const Area areas [] =
 	{ .prefix = "calculus", .title = "Calculus" },
 	{ .prefix = "linalg",   .title = "Linear algebra" },
 	{ .prefix = "units",    .title = "Units" },
+	{ .prefix = "stats",    .title = "Statistics" },
 	{ .prefix = "logic",    .title = "Boolean logic" },
 	{ .prefix = "lambda",   .title = "Lambda calculus" },
 	{ .prefix = "robotics", .title = "Robotics" }
