@@ -623,6 +623,11 @@ no recompile, and the code only holds the stable code name of a text.
 - A value is built for every step of an evaluation: `ml_value_error` clears it in one go (the zero state of a number and a matrix is all zero bytes, checked by
   `test_value.c`), and the complex and quaternion parts are behind a pointer in the arena (`MlValue.hyper`), which took `MlValue` from 504 to 280 bytes.
   Together `len (primes (1000))` went from 0.50 s to 0.33 s.
+- The name of a `ML_NODE_NAME` node is interned once, after a successful parse (`MlNode.name`, `ml_ast_name`), so the evaluator never hashes the characters of
+  a name: `MlRef` (text and number) goes through `name_value`, `call_kind`, `call_target`, `held_value`, `local_find` (index of the local, the value is read
+  only when needed) and `param_find`. The bindings of one name form a chain (`MlBinding.prev`, `MlEnv.newest`), so `ml_env_find` does not scan the
+  environment; `ml_env_kind` and `ml_env_value` read a binding without copying it. `len (primes (1000))` 0.33 s to 0.30 s; the instructions of
+  `len (primes (300))` went from 470 million (before the names were interned) to 263 million.
 
 ### Memory (built 2026-10-10)
 

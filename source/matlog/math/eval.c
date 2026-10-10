@@ -62,6 +62,26 @@ typedef struct MlScope
 	const MlValue *args; /* its arguments, one per parameter */
 } MlScope;
 
+/* A name as written in the tree: its characters and its interned number. */
+typedef struct MlRef
+{
+	MlSlice text;
+	MlName  id;
+} MlRef;
+
+static MlRef ref_of (const MlScope *sc, uint64_t node)
+{
+	MlRef r = {
+		.text = ml_ast_text (&sc->ast, sc->source, node),
+		.id   = ml_ast_name (&sc->ast, node)
+	};
+
+	return r;
+}
+
+/* 1 when the name is the word (ML_WORD_ID_<w>). */
+#define REF_IS(ref, w) (ml_word_of ((ref).id).id == ML_WORD_ID_##w)
+
 /* A local name of a let: visible in the statements after it, in its scope. */
 typedef struct MlLocal
 {
@@ -281,12 +301,9 @@ static void builtins_ready (void)
 	}
 }
 
-static MlBuiltin builtin_find (MlSlice name)
+static MlBuiltin builtin_of (MlName n)
 {
-	MlName n;
-
 	builtins_ready ();
-	n = ml_name_find (name);
 
 	return ml_choose (
 		n < builtin_of_name_len,
@@ -321,11 +338,11 @@ MlSlice ml_function_name_at (uint64_t index)
 }
 
 /* The value of pi or e, ML_VALUE_NONE for any other name. */
-static MlValue constant_find (MlSlice name)
+static MlValue constant_of (MlName name)
 {
 	MlValue v = ml_value_none ();
 
-	switch (ml_word_find (name).id)
+	switch (ml_word_of (name).id)
 	{
 		case ML_WORD_ID_TRUE:
 		{
@@ -1460,14 +1477,12 @@ typedef struct MlParamHit
 	uint64_t index;
 } MlParamHit;
 
-static MlParamHit param_find (const MlScope *sc, MlSlice name)
+static MlParamHit param_find (const MlScope *sc, MlName id)
 {
 	MlParamHit hit = {
 		.found = 0,
 		.index = 0
 	};
-
-	MlName     id  = ml_name_find (name);
 
 	if (sc->func.kind == ML_BIND_FUNC && sc->func.param_ids != NULL)
 	{
@@ -1485,12 +1500,18 @@ static MlParamHit param_find (const MlScope *sc, MlSlice name)
 
 	else if (sc->func.kind == ML_BIND_FUNC)
 	{
-		/* an x -> body written in a scope has no cached names */
+		/* an x -> body written in a scope has no cached names: the nodes of
+		   its parameters carry them */
 		uint64_t n = ml_binding_param_count (sc->func);
 
 		for (uint64_t i = 0; i < n && !hit.found; i++)
 		{
-			if (ml_slice_equal (ml_binding_param (sc->func, i), name))
+			MlName p = ml_ast_name (
+				&sc->func.ast,
+				ml_ast_child (&sc->func.ast, sc->func.params, i)
+			);
+
+			if (id != ML_NAME_NONE && p == id)
 			{
 				hit.found = 1;
 				hit.index = i;
@@ -1513,40 +1534,36 @@ static MlValue unit_value (MlArena *arena, MlSlice name)
 	);
 }
 
-typedef struct MlLocalHit
-{
-	int32_t found;
-	MlValue value;
-} MlLocalHit;
-
-/* The newest local of the scope with this name. */
-static MlLocalHit local_find (
+/*
+ * The newest local of the scope with this name, as its index plus one, 0 when
+ * there is none (the value is read with local_value, only when it is needed).
+ */
+static uint64_t local_find (
 	const MlEvalCtx *cx,
 	const MlScope   *sc,
-	MlSlice         name
+	MlName          id
 )
 {
-	uint64_t   scope = (uint64_t)(sc - cx->scopes.data);
-	MlName     id    = ml_name_find (name);
-	MlLocalHit hit   = {
-		.found = 0,
-		.value = ml_value_none ()
-	};
+	uint64_t scope = (uint64_t)(sc - cx->scopes.data);
+	uint64_t found = 0;
 
-	/* a local is interned when it is made; the scan compares numbers and
-	   copies only the value it finds */
-	for (uint64_t i = cx->locals.len; i > 0 && !hit.found && id != 0; i--)
+	/* a local is interned when it is made; the scan compares numbers */
+	for (uint64_t i = cx->locals.len; i > 0 && found == 0 && id != 0; i--)
 	{
 		const MlLocal *l = &cx->locals.data [i - 1];
 
 		if (l->scope == scope && l->id == id)
 		{
-			hit.found = 1;
-			hit.value = l->value;
+			found = i;
 		}
 	}
 
-	return hit;
+	return found;
+}
+
+static MlValue local_value (const MlEvalCtx *cx, uint64_t at)
+{
+	return cx->locals.data [at - 1].value;
 }
 
 /* Makes a local name of a let, a parameter or a loop variable. */
@@ -1572,15 +1589,15 @@ static MlResult local_push (
 }
 
 /* The value a name stands for: local, parameter, variable or constant. */
-static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
+static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlRef name)
 {
-	MlLocalHit local = local_find (cx, sc, name);
-	MlParamHit hit   = param_find (sc, name);
+	uint64_t   local = local_find (cx, sc, name.id);
+	MlParamHit hit   = param_find (sc, name.id);
 	MlValue    v;
 
-	if (local.found)
+	if (local != 0)
 	{
-		v = local.value;
+		v = local_value (cx, local);
 	}
 
 	else if (hit.found)
@@ -1590,30 +1607,31 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 
 	else
 	{
-		MlBinding b = ml_env_lookup (cx->env, name, cx->snapshot);
+		uint64_t   at   = ml_env_find (cx->env, name.id, cx->snapshot);
+		MlBindKind kind = ml_env_kind (cx->env, at);
 
-		if (b.kind == ML_BIND_VAR)
+		if (kind == ML_BIND_VAR)
 		{
-			v = b.value;
+			v = ml_env_value (cx->env, at);
 		}
 
-		else if (b.kind == ML_BIND_FUNC)
+		else if (kind == ML_BIND_FUNC)
 		{
 			v = error_at (ML_EVAL_NOT_VALUE);
 		}
 
 		else
 		{
-			v = constant_find (name);
+			v = constant_of (name.id);
 
 			if (v.kind == ML_VALUE_NONE)
 			{
-				v = hyper_unit_find (cx->arena, name);
+				v = hyper_unit_find (cx->arena, name.text);
 			}
 
 			if (v.kind == ML_VALUE_NONE)
 			{
-				v = unit_value (cx->arena, name);
+				v = unit_value (cx->arena, name.text);
 			}
 
 			if (
@@ -1625,7 +1643,7 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 				MlSymCtx sctx;
 
 				ml_symctx_init (&sctx, cx->arena);
-				v = ml_value_expr (ml_sym_var (&sctx, name), sctx.status);
+				v = ml_value_expr (ml_sym_var (&sctx, name.text), sctx.status);
 			}
 		}
 	}
@@ -2067,16 +2085,9 @@ static MlValue symbolic_call (
 
 /* ---- calls -------------------------------------------------------------- */
 
-static int32_t is_symbolic_name (MlSlice name)
+static int32_t is_symbolic_name (MlName name)
 {
-	return (
-		   ML_WORD_IS (name, SIMPLIFY)
-		|| ML_WORD_IS (name, EXPAND)
-		|| ML_WORD_IS (name, SUBS)
-		|| ML_WORD_IS (name, DIFF)
-		|| ML_WORD_IS (name, INTEGRATE)
-		|| ML_WORD_IS (name, LIMIT)
-	);
+	return ml_word_of (name).kind == ML_WORD_SYMBOLIC;
 }
 
 /*
@@ -2090,30 +2101,33 @@ static int32_t is_unbound_symbol (
 	uint64_t      node
 )
 {
-	MlSlice name = ml_ast_text (&sc->ast, sc->source, node);
+	MlRef name = ref_of (sc, node);
 
 	return (
 		   ml_ast_node (&sc->ast, node).kind == ML_NODE_NAME
-		&& !param_find (sc, name).found
-		&& !local_find (cx, sc, name).found
-		&& ml_env_lookup (cx->env, name, cx->snapshot).kind == ML_BIND_NONE
-		&& constant_find (name).kind == ML_VALUE_NONE
-		&& !ml_unit_find (name).found
+		&& !param_find (sc, name.id).found
+		&& !local_find (cx, sc, name.id) != 0
+		&& ml_env_kind (
+			cx->env,
+			ml_env_find (cx->env, name.id, cx->snapshot)
+		) == ML_BIND_NONE
+		&& constant_of (name.id).kind == ML_VALUE_NONE
+		&& !ml_unit_find (name.text).found
 	);
 }
 
 /* ---- functions as values ------------------------------------------------ */
 
 /* The value a parameter or a local of the scope holds, none if no name. */
-static MlValue held_value (const MlEvalCtx *cx, const MlScope *sc, MlSlice name)
+static MlValue held_value (const MlEvalCtx *cx, const MlScope *sc, MlRef name)
 {
-	MlLocalHit local = local_find (cx, sc, name);
-	MlParamHit hit   = param_find (sc, name);
+	uint64_t   local = local_find (cx, sc, name.id);
+	MlParamHit hit   = param_find (sc, name.id);
 	MlValue    v     = ml_value_none ();
 
-	if (local.found)
+	if (local != 0)
 	{
-		v = local.value;
+		v = local_value (cx, local);
 	}
 
 	else if (hit.found)
@@ -2190,14 +2204,17 @@ static MlTarget target_of_value (const MlEvalCtx *cx, MlValue v)
 
 /* The function a name stands for: one a parameter or a local holds, else a
    defined one. */
-static MlTarget call_target (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
+static MlTarget call_target (MlEvalCtx *cx, const MlScope *sc, MlRef name)
 {
 	MlValue held = held_value (cx, sc, name);
 	MlTarget t   = target_of_value (cx, held);
 
 	if (!t.found && held.kind == ML_VALUE_NONE)
 	{
-		t.b     = ml_env_lookup (cx->env, name, cx->snapshot);
+		t.b     = ml_env_binding (
+			cx->env,
+			ml_env_find (cx->env, name.id, cx->snapshot)
+		);
 		t.found = t.b.kind == ML_BIND_FUNC;
 	}
 
@@ -2251,29 +2268,32 @@ static int32_t func_argument (
 
 	else if (n.kind == ML_NODE_NAME)
 	{
-		MlSlice   name  = ml_ast_text (&sc->ast, sc->source, node);
-		MlBinding b     = ml_env_lookup (cx->env, name, cx->snapshot);
-		MlBuiltin id    = builtin_find (name);
-		int32_t   taken = (
-			   local_find (cx, sc, name).found
-			|| param_find (sc, name).found
-			|| b.kind == ML_BIND_VAR
+		MlRef      name  = ref_of (sc, node);
+		MlBindKind bound = ml_env_kind (
+			cx->env,
+			ml_env_find (cx->env, name.id, cx->snapshot)
+		);
+		MlBuiltin  id    = builtin_of (name.id);
+		int32_t    taken = (
+			   local_find (cx, sc, name.id) != 0
+			|| param_find (sc, name.id).found
+			|| bound == ML_BIND_VAR
 		);
 
-		if (!taken && b.kind == ML_BIND_FUNC)
+		if (!taken && bound == ML_BIND_FUNC)
 		{
 			out->kind    = ML_VALUE_FUNC;
 			out->fn_kind = ML_FN_USER;
-			out->show    = name;
+			out->show    = name.text;
 			found        = 1;
 		}
 
-		else if (!taken && b.kind == ML_BIND_NONE && plain_builtin (id))
+		else if (!taken && bound == ML_BIND_NONE && plain_builtin (id))
 		{
 			out->kind    = ML_VALUE_FUNC;
 			out->fn_kind = ML_FN_BUILTIN;
 			out->fn_node = (uint64_t)id;
-			out->show    = name;
+			out->show    = name.text;
 			found        = 1;
 		}
 	}
@@ -2281,10 +2301,13 @@ static int32_t func_argument (
 	return found;
 }
 
-static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
+static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlRef name)
 {
-	MlCallKind kind = CALL_UNKNOWN;
-	MlBinding  b    = ml_env_lookup (cx->env, name, cx->snapshot);
+	MlCallKind kind  = CALL_UNKNOWN;
+	MlBindKind bound = ml_env_kind (
+		cx->env,
+		ml_env_find (cx->env, name.id, cx->snapshot)
+	);
 
 	if (held_value (cx, sc, name).kind == ML_VALUE_FUNC)
 	{
@@ -2292,32 +2315,32 @@ static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 	}
 
 	else if (
-		   param_find (sc, name).found
-		|| local_find (cx, sc, name).found
-		|| b.kind == ML_BIND_VAR
+		   param_find (sc, name.id).found
+		|| local_find (cx, sc, name.id) != 0
+		|| bound == ML_BIND_VAR
 	)
 	{
 		kind = CALL_PRODUCT;
 	}
 
-	else if (b.kind == ML_BIND_FUNC)
+	else if (bound == ML_BIND_FUNC)
 	{
 		kind = CALL_USER;
 	}
 
-	else if (is_symbolic_name (name))
+	else if (is_symbolic_name (name.id))
 	{
 		kind = CALL_SYMBOLIC;
 	}
 
-	else if (builtin_find (name) != BUILTIN_NONE)
+	else if (builtin_of (name.id) != BUILTIN_NONE)
 	{
 		kind = CALL_BUILTIN;
 	}
 
 	else if (
-		   constant_find (name).kind != ML_VALUE_NONE
-		|| hyper_unit_find (cx->arena, name).kind != ML_VALUE_NONE
+		   constant_of (name.id).kind != ML_VALUE_NONE
+		|| hyper_unit_find (cx->arena, name.text).kind != ML_VALUE_NONE
 	)
 	{
 		kind = CALL_PRODUCT;
@@ -2379,7 +2402,7 @@ static MlValue leaf_value (
 
 	else if (node.kind == ML_NODE_NAME)
 	{
-		v = name_value (cx, sc, text);
+		v = name_value (cx, sc, ref_of (sc, idx));
 	}
 
 	else
@@ -2870,7 +2893,7 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 	const MlScope *sc     = &cx->scopes.data [f.scope];
 	uint64_t      callee = ml_ast_child (&sc->ast, f.node, 0);
 	MlNode        cnode  = ml_ast_node (&sc->ast, callee);
-	MlSlice       name   = ml_ast_text (&sc->ast, sc->source, callee);
+	MlRef         name   = ref_of (sc, callee);
 	uint64_t      argc   = ml_ast_child_count (&sc->ast, f.node) - 1;
 	MlCallKind    kind   = ml_choose (
 		cnode.kind == ML_NODE_NAME,
@@ -2882,26 +2905,26 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 	if (
 		   kind == CALL_BUILTIN
 		&& argc == 2
-		&& ML_WORD_IS (name, SOLVE)
+		&& REF_IS (name, SOLVE)
 		&& is_unbound_symbol (cx, sc, ml_ast_child (&sc->ast, f.node, 2))
 	)
 	{
 		kind = CALL_SYMBOLIC;
 	}
 
-	if (kind == CALL_BUILTIN && builtin_find (name) == BUILTIN_IF)
+	if (kind == CALL_BUILTIN && builtin_of (name.id) == BUILTIN_IF)
 	{
 		kind = CALL_IF;
 	}
 
-	if (kind == CALL_BUILTIN && is_hof (builtin_find (name), argc))
+	if (kind == CALL_BUILTIN && is_hof (builtin_of (name.id), argc))
 	{
 		kind = CALL_HOF;
 	}
 
 	if (kind == CALL_SYMBOLIC)
 	{
-		r = symbolic_call (cx, sc, f.node, name, argc);
+		r = symbolic_call (cx, sc, f.node, name.text, argc);
 	}
 
 	else if (kind == CALL_UNKNOWN)
@@ -2929,7 +2952,7 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 
 	else if (kind == CALL_BUILTIN || kind == CALL_IF || kind == CALL_HOF)
 	{
-		MlBuiltin id = builtin_find (name);
+		MlBuiltin id = builtin_of (name.id);
 
 		if (
 			   argc < builtins [id].min
@@ -2985,7 +3008,7 @@ static void call_invoke (MlEvalCtx *cx, MlFrame f, MlNode node)
 	MlTarget      t     = call_target (
 		cx,
 		sc,
-		ml_ast_text (&sc->ast, sc->source, ml_ast_child (&sc->ast, f.node, 0))
+		ref_of (sc, ml_ast_child (&sc->ast, f.node, 0))
 	);
 	MlBinding     b     = t.b;
 	MlValue       *args = NULL;
@@ -3186,10 +3209,10 @@ static HofTarget hof_target (
 
 	else if (n.kind == ML_NODE_NAME)
 	{
-		MlSlice   name = ml_ast_text (&sc->ast, sc->source, node);
+		MlRef     name = ref_of (sc, node);
 		MlTarget  held = call_target (cx, sc, name);
 		MlBinding b    = held.b;
-		MlBuiltin id   = builtin_find (name);
+		MlBuiltin id   = builtin_of (name.id);
 
 		if (held.found && held.builtin)
 		{
@@ -3592,12 +3615,8 @@ static void hof_ready (MlEvalCtx *cx, MlFrame f, MlNode node, MlBuiltin id)
 static void step_hof (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
 	const MlScope *sc     = &cx->scopes.data [f.scope];
-	MlSlice       name    = ml_ast_text (
-		&sc->ast,
-		sc->source,
-		ml_ast_child (&sc->ast, f.node, 0)
-	);
-	MlBuiltin     id      = builtin_find (name);
+	MlRef         name    = ref_of (sc, ml_ast_child (&sc->ast, f.node, 0));
+	MlBuiltin     id      = builtin_of (name.id);
 	int32_t       series  = id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD;
 	uint64_t      args_n  = ml_choose (
 		series,
@@ -3677,18 +3696,14 @@ static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
 
 	else if (f.kind == CALL_BUILTIN && f.step == argc)
 	{
-		MlSlice name = ml_ast_text (
-			&sc->ast,
-			sc->source,
-			ml_ast_child (&sc->ast, f.node, 0)
-		);
+		MlRef name = ref_of (sc, ml_ast_child (&sc->ast, f.node, 0));
 
 		finish (
 			cx,
 			argc,
 			builtin_apply (
 				cx->arena,
-				builtin_find (name),
+				builtin_of (name.id),
 				&cx->vals.data [cx->vals.len - argc],
 				argc
 			),

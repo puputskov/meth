@@ -1,6 +1,7 @@
 #ifndef MATLOG_PARSE_PARSER_H
 #define MATLOG_PARSE_PARSER_H
 
+#include <matlog/core/names.h>
 #include <matlog/parse/lexer.h>
 
 /*
@@ -130,6 +131,7 @@ typedef struct MlNode
 	uint64_t   height; /* levels of the subtree: 1 for a leaf, 0 for nil */
 	uint64_t   start;  /* byte range of the whole node in the source */
 	uint64_t   len;
+	MlName     name;   /* ML_NODE_NAME: the interned name (core/names.h) */
 } MlNode;
 
 ML_VEC_DEFINE (MlNodeVec, MlNode)
@@ -208,6 +210,9 @@ uint64_t ml_ast_child_count (const MlAst *ast, uint64_t index);
 
 /* The source text of a node. */
 MlSlice ml_ast_text (const MlAst *ast, MlSlice source, uint64_t index);
+
+/* The name number of a ML_NODE_NAME node, ML_NAME_NONE for any other. */
+MlName ml_ast_name (const MlAst *ast, uint64_t index);
 
 /*
  * The tree as text, e.g. "(+ 1 (* 2 x))": operators as written above,

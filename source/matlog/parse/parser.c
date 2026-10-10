@@ -136,6 +136,13 @@ uint64_t ml_ast_last_child (const MlAst *ast, uint64_t index)
 	);
 }
 
+MlName ml_ast_name (const MlAst *ast, uint64_t index)
+{
+	MlNode n = ml_ast_node (ast, index);
+
+	return ml_choose (n.kind == ML_NODE_NAME, n.name, ML_NAME_NONE);
+}
+
 MlSlice ml_ast_text (const MlAst *ast, MlSlice source, uint64_t index)
 {
 	MlNode node = ml_ast_node (ast, index);
@@ -1611,6 +1618,21 @@ MlParseResult ml_parse (MlSlice source)
 	if (p.failed)
 	{
 		ml_ast_free (&result.ast);
+	}
+
+	else
+	{
+		/* a name is interned once here, so nothing that evaluates the tree
+		   has to look the characters of a name up again */
+		for (uint64_t i = 0; i < result.ast.nodes.len; i++)
+		{
+			MlNode *n = &result.ast.nodes.data [i];
+
+			if (n->kind == ML_NODE_NAME)
+			{
+				n->name = ml_name (ml_slice_sub (source, n->start, n->len));
+			}
+		}
 	}
 
 	ParseFrameVec_free (&p.stack);

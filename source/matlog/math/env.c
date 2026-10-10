@@ -4,6 +4,7 @@ void ml_env_init (MlEnv *env)
 {
 	ml_arena_init (&env->arena, 0);
 	MlBindingVec_init (&env->bindings);
+	MlIndexVec_init (&env->newest);
 	env->free_symbols = 0;
 	env->library      = 0;
 }
@@ -16,6 +17,7 @@ void ml_env_free (MlEnv *env)
 	}
 
 	MlBindingVec_free (&env->bindings);
+	MlIndexVec_free (&env->newest);
 	ml_arena_free (&env->arena);
 }
 
@@ -26,9 +28,13 @@ uint64_t ml_env_snapshot (const MlEnv *env)
 
 void ml_env_truncate (MlEnv *env, uint64_t snapshot)
 {
-	for (uint64_t i = snapshot; i < env->bindings.len; i++)
+	/* newest first, so each name goes back to the binding before it */
+	for (uint64_t i = env->bindings.len; i > snapshot; i--)
 	{
-		ml_ast_free (&env->bindings.data [i].ast);
+		MlBinding *b = &env->bindings.data [i - 1];
+
+		env->newest.data [b->id] = b->prev;
+		ml_ast_free (&b->ast);
 	}
 
 	if (snapshot < env->bindings.len)
@@ -196,6 +202,30 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 	);
 }
 
+/* Adds a binding and links it in front of the other bindings of its name. */
+static MlResult push_binding (MlEnv *env, MlBinding b)
+{
+	MlResult r = ML_OK;
+
+	while (r == ML_OK && env->newest.len <= b.id)
+	{
+		r = MlIndexVec_push (&env->newest, 0);
+	}
+
+	if (r == ML_OK)
+	{
+		b.prev = env->newest.data [b.id];
+		r      = MlBindingVec_push (&env->bindings, b);
+	}
+
+	if (r == ML_OK)
+	{
+		env->newest.data [b.id] = env->bindings.len;
+	}
+
+	return r;
+}
+
 MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 {
 	MlResult  r = ML_OK;
@@ -253,7 +283,7 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		b.id   = ml_name (b.name);
 		r      = ml_choose (
 			b.id != ML_NAME_NONE,
-			MlBindingVec_push (&env->bindings, b),
+			push_binding (env, b),
 			ML_ERR_NOMEM
 		);
 	}
@@ -336,7 +366,7 @@ MlResult ml_env_define_func (MlEnv *env, MlSlice source, const MlAst *ast)
 		b.param_ids = ids;
 		r           = ml_choose (
 			b.id != ML_NAME_NONE && ids != NULL,
-			MlBindingVec_push (&env->bindings, b),
+			push_binding (env, b),
 			ML_ERR_NOMEM
 		);
 	}
@@ -349,31 +379,53 @@ MlResult ml_env_define_func (MlEnv *env, MlSlice source, const MlAst *ast)
 	return r;
 }
 
-MlBinding ml_env_lookup (const MlEnv *env, MlSlice name, uint64_t snapshot)
+uint64_t ml_env_find (const MlEnv *env, MlName id, uint64_t snapshot)
+{
+	uint64_t at = ml_choose (id < env->newest.len, env->newest.data [id], 0);
+
+	/* the binding at index + 1 = at is visible when its index is below the
+	   snapshot, that is when at <= snapshot */
+	while (at > snapshot)
+	{
+		at = env->bindings.data [at - 1].prev;
+	}
+
+	return at;
+}
+
+MlBinding ml_env_binding (const MlEnv *env, uint64_t at)
 {
 	MlBinding found;
-	MlName    id = ml_name_find (name);
-	uint64_t  i  = ml_choose (
-		snapshot < env->bindings.len,
-		snapshot,
-		env->bindings.len
-	);
 
 	memset (&found, 0, sizeof found);
 
-	/* a name that was never interned cannot be bound; the scan compares
-	   numbers and copies only the binding it finds */
-	while (id != ML_NAME_NONE && i > 0 && found.kind == ML_BIND_NONE)
+	if (at > 0)
 	{
-		if (env->bindings.data [i - 1].id == id)
-		{
-			found = env->bindings.data [i - 1];
-		}
-
-		i--;
+		found = env->bindings.data [at - 1];
 	}
 
 	return found;
+}
+
+MlBindKind ml_env_kind (const MlEnv *env, uint64_t at)
+{
+	return ml_choose (at > 0, env->bindings.data [at - 1].kind, ML_BIND_NONE);
+}
+
+MlValue ml_env_value (const MlEnv *env, uint64_t at)
+{
+	return ml_choose (
+		at > 0,
+		env->bindings.data [at - 1].value,
+		ml_value_none ()
+	);
+}
+
+MlBinding ml_env_lookup (const MlEnv *env, MlSlice name, uint64_t snapshot)
+{
+	MlName id = ml_name_find (name);
+
+	return ml_env_binding (env, ml_env_find (env, id, snapshot));
 }
 
 uint64_t ml_binding_param_count (MlBinding b)

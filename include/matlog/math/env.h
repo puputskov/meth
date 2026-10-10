@@ -40,14 +40,18 @@ typedef struct MlBinding
 	const MlName *param_ids; /* the interned names of the parameters */
 	uint64_t   param_n;
 	uint64_t   body;   /* index of the body expression */
+	uint64_t   prev;   /* the binding of this name before it: index + 1 */
 } MlBinding;
 
 ML_VEC_DEFINE (MlBindingVec, MlBinding)
+ML_VEC_DEFINE (MlIndexVec, uint64_t)
 
 typedef struct MlEnv
 {
 	MlArena      arena;
 	MlBindingVec bindings;
+	/* by name number: its newest binding as index + 1, 0 if none */
+	MlIndexVec   newest;
 	/*
 	 * 1: a name that stands for nothing is a symbol, so x + y is the
 	 * expression x + y instead of an error (see :symbols). It is a property
@@ -95,6 +99,20 @@ MlResult ml_env_define_func (MlEnv *env, MlSlice source, const MlAst *ast);
  * there is none.
  */
 MlBinding ml_env_lookup (const MlEnv *env, MlSlice name, uint64_t snapshot);
+
+/*
+ * The same by name number, without copying the binding: the index plus one of
+ * the binding that holds the name at the snapshot, 0 if there is none. The
+ * bindings of one name form a chain (newest first), so this does not scan the
+ * environment. ml_env_binding gives the binding of such a number (a binding of
+ * kind ML_BIND_NONE for 0).
+ */
+uint64_t  ml_env_find (const MlEnv *env, MlName id, uint64_t snapshot);
+MlBinding ml_env_binding (const MlEnv *env, uint64_t at);
+MlBindKind ml_env_kind (const MlEnv *env, uint64_t at);
+
+/* The value of a variable binding (none for 0 or a function). */
+MlValue   ml_env_value (const MlEnv *env, uint64_t at);
 
 /* The number of parameters of a function binding (0 for anything else). */
 uint64_t ml_binding_param_count (MlBinding b);
