@@ -13,4 +13,12 @@
 int snprintf (char *buf, size_t cap, const char *fmt, ...);
 int vsnprintf (char *buf, size_t cap, const char *fmt, va_list ap);
 
+/*
+ * printf writes to the page (the import console_write of the module), the only
+ * output there is; fflush has nothing to do. Used by the tests.
+ */
+#define stdout ((void *)0)
+int printf (const char *fmt, ...);
+int fflush (void *stream);
+
 #endif /* METH_WASM_LIBC_STDIO_H */

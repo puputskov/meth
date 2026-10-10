@@ -76,7 +76,7 @@ def run_native(meth, expression):
     return done.returncode, out.split("\n")[0].strip()
 
 
-def run_browser(browser, port):
+def run_browser(browser, port, page):
     with tempfile.TemporaryDirectory(dir=os.path.join(ROOT, "build")) as profile:
         done = subprocess.run(
             [
@@ -86,7 +86,7 @@ def run_browser(browser, port):
                 "--user-data-dir=" + profile,
                 "--virtual-time-budget=60000",
                 "--dump-dom",
-                "http://127.0.0.1:%d/test.html" % port,
+                "http://127.0.0.1:%d/%s" % (port, page),
             ],
             capture_output=True,
             timeout=180,
@@ -98,13 +98,13 @@ def run_browser(browser, port):
     return json.loads(html.unescape(found.group(1)))
 
 
-def run_browser_retrying(browser, port):
+def run_browser_retrying(browser, port, page):
     """The dump can be taken before the module has loaded (the network is
     not part of the browser's virtual time), so an empty page is tried again."""
     outcome = None
     for _ in range(10):
         if outcome is None:
-            outcome = run_browser(browser, port)
+            outcome = run_browser(browser, port, page)
     if outcome is None:
         raise RuntimeError("the page never gave results")
     return outcome
@@ -139,6 +139,30 @@ def same_result(native, wasm):
     return None
 
 
+def check_groups(groups):
+    """The C test groups run inside the module (web/tests.wasm); returns the
+    number of failures."""
+    failed = 0
+    if groups is None:
+        print("web/tests.wasm is missing: the C test groups were not run")
+    elif "error" in groups:
+        print("the groups page failed: " + groups["error"])
+        failed = 1
+    else:
+        checks = 0
+        for group in groups["groups"]:
+            checks += group["checks"]
+            if "FAIL" in group["output"]:
+                failed += 1
+                print("group %s:" % group["name"])
+                print(group["output"])
+        print("%d groups, %d checks in the module" % (len(groups["groups"]), checks))
+        if groups["failures"]:
+            failed += 1
+            print(groups["output"])
+    return failed
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--build", action="store_true", help="run build_web.bat first")
@@ -166,7 +190,11 @@ def main():
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        wasm = run_browser_retrying(browser, server.server_address[1])
+        port = server.server_address[1]
+        wasm = run_browser_retrying(browser, port, "test.html")
+        groups = None
+        if os.path.exists(os.path.join(WEB, "tests.wasm")):
+            groups = run_browser_retrying(browser, port, "groups.html")
     finally:
         server.shutdown()
 
@@ -190,6 +218,7 @@ def main():
             failed += 1
             print("FAIL %s\n     %s" % (case, why))
     print("%d expressions, %d differ" % (len(cases), failed))
+    failed += check_groups(groups)
     return 1 if failed else 0
 
 

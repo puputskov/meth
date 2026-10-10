@@ -14,6 +14,10 @@
 #define ceil(x)  __builtin_ceil (x)
 #define trunc(x) __builtin_trunc (x)
 
+#define INFINITY  __builtin_inff ()
+#define NAN       __builtin_nanf ("")
+#define HUGE_VAL  __builtin_huge_val ()
+
 #define isnan(x)    __builtin_isnan (x)
 #define isinf(x)    __builtin_isinf (x)
 #define isfinite(x) __builtin_isfinite (x)

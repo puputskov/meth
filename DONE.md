@@ -1101,5 +1101,14 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   `meth eval --format json`, and compares: the same fields, the same text, the same exit code; an approximate value may differ by a rounding of its ninth
   digit (browser `Math` against the C library). The dump of the page is sometimes taken before the module has loaded, so the script tries again (up to
   ten times). Not in `make test` or the test groups.
-- Not built: the notebook page, a session / results API (ghost, steps, completion, highlighting, typeset math, plots, export, help), the C test groups
-  run inside the module (the ones that need no files first: eval, sym, unit, matrix, hyper, proof, integrate, stats, pga), `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.
+- The C test groups inside the module (built 2026-10-10): `build_web.bat` also builds `web/tests.wasm`, the library plus `source/web/tests.c` (a table of the
+  groups, `meth_test_count`, `meth_test_name`, `meth_test_run`, `meth_test_finish`) and the test files of 25 groups: core, session, lineedit, rewrite, brackets,
+  bool, lambda, bigint, rational, value, lexer, parser, eval, stats, plot, hyper, matrix, steps, markup, sym, unit, integrate, words, proof, pga (71 thousand of
+  the 92 thousand checks). `web/groups.html` runs them and `tools/test_web.py` reads the outcome: a group with a `FAIL` line fails the run. What they print goes
+  through the import `console_write` (`printf` is in `libc.c`). The other groups need files, a terminal or the editor helpers (platform, file, editor,
+  complete, ghost, results, cli, export, docs, settings, texts, tutorial, snippets, folds, theme, keymap, options, examples, stdlib, watch, screen, env,
+  fuzz) and run natively only; some could move over once the file layer has an in memory version.
+- What the groups found: `%llu` read a 32 bit argument (on wasm32 `long long` is 64 bits and `long` and `size_t` are 32; `libc.c` now knows `ll`), `%f` was
+  missing (the import is now `format_double (value, conv, precision, ...)` for `f` and `g`), and the reservations were too small: the 100000 item lists of
+  the evaluator need about 60 MB of 280 byte values, so the default arena is 256 MB there (`ML_ARENA_DEFAULT_RESERVE`), the trim slack 8 MB.
+- Not built: the notebook page, a session / results API (ghost, steps, completion, highlighting, typeset math, plots, export, help), `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.

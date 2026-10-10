@@ -6,6 +6,21 @@
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+// printf's %.<prec>f for a double.
+export function formatF(value, precision) {
+	let text;
+
+	if (Number.isNaN(value)) {
+		text = "nan";
+	} else if (!Number.isFinite(value)) {
+		text = value < 0 ? "-inf" : "inf";
+	} else {
+		text = value.toFixed(Math.min(precision, 100));
+	}
+
+	return text;
+}
+
 // printf's %.<prec>g for a double, the way the C library writes it.
 export function formatG(value, precision) {
 	const p = precision === 0 ? 1 : precision;
@@ -43,11 +58,13 @@ export function formatG(value, precision) {
 	return text;
 }
 
-export async function loadMeth(url) {
-	let memory = null;
-	const bytes = () => new Uint8Array(memory.buffer);
+// The functions a module imports from the page: the math functions of Math,
+// %g, and the console. `memory()` gives the memory of the module once it is
+// made; `write` gets what the module prints.
+export function moduleImports(memory, write) {
+	const bytes = () => new Uint8Array(memory().buffer);
 
-	const imports = {
+	return {
 		env: {
 			sin: Math.sin,
 			cos: Math.cos,
@@ -66,24 +83,39 @@ export async function loadMeth(url) {
 			log: Math.log,
 			log10: Math.log10,
 			pow: Math.pow,
-			format_g(value, precision, buffer, capacity) {
-				const data = encoder.encode(formatG(value, precision));
+			format_double(value, conv, precision, buffer, capacity) {
+				const text =
+					conv === 102
+						? formatF(value, precision)
+						: formatG(value, precision);
+				const data = encoder.encode(text);
 				const n = Math.min(data.length, capacity);
 
 				bytes().set(data.subarray(0, n), buffer);
 				return n;
 			},
+			console_write(text, length) {
+				write(decoder.decode(bytes().subarray(text, text + length)));
+			},
 		},
 	};
+}
 
+export async function loadModule(url, write) {
+	let memory = null;
 	const response = await fetch(url);
 	const { instance } = await WebAssembly.instantiate(
 		await response.arrayBuffer(),
-		imports,
+		moduleImports(() => memory, write),
 	);
-	const api = instance.exports;
 
-	memory = api.memory;
+	memory = instance.exports.memory;
+	return instance.exports;
+}
+
+export async function loadMeth(url) {
+	const api = await loadModule(url, () => {});
+	const bytes = () => new Uint8Array(api.memory.buffer);
 
 	return {
 		// `meth eval --format json EXPR`: the exit code and the output text.

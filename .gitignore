@@ -24,3 +24,4 @@ MODULE.bazel.lock
 
 # The WebAssembly module (build_web.bat)
 web/meth.wasm
+web/tests.wasm

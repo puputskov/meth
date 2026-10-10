@@ -51,6 +51,23 @@ if errorlevel 1 exit /b 1
 if not exist web mkdir web
 copy /y build\web\meth.wasm web\meth.wasm >nul
 echo build\web\meth.wasm
+
+rem --- the C test groups that need no files, as a second module ---
+set TFLAGS=%FLAGS% -Isource\tests -Wno-string-concatenation
+set TLIST=build\web\tests.rsp
+copy /y %LIST% %TLIST% >nul
+for %%g in (core session lineedit rewrite brackets bool lambda bigint rational value lexer parser eval stats plot hyper matrix steps markup sym unit integrate words proof pga) do (
+	"!CLANG!" %TFLAGS% -c "source\tests\test_%%g.c" -o "%OBJ%\test_%%g.o"
+	if errorlevel 1 exit /b 1
+	echo build/web/obj/test_%%g.o>>%TLIST%
+)
+"!CLANG!" %TFLAGS% -c "source\web\tests.c" -o "%OBJ%\web_tests.o"
+if errorlevel 1 exit /b 1
+echo build/web/obj/web_tests.o>>%TLIST%
+"!CLANG!" --target=wasm32 -nostdlib -fuse-ld=lld -Wl,--no-entry -Wl,-z,stack-size=4194304 -o build\web\tests.wasm @%TLIST%
+if errorlevel 1 exit /b 1
+copy /y build\web\tests.wasm web\tests.wasm >nul
+echo build\web\tests.wasm
 exit /b 0
 
 :compile

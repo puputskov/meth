@@ -301,9 +301,18 @@ double erfc (double x)
 
 /* ---- printf ------------------------------------------------------------ */
 
-/* The page formats a double like %.<prec>g and writes it into buf. */
-__attribute__ ((import_module ("env"), import_name ("format_g")))
-int32_t format_g (double v, int32_t prec, char *buf, int32_t cap);
+/*
+ * The page formats a double like printf's %.<prec>f or %.<prec>g (conv is the
+ * letter) and writes it into buf; the length comes back.
+ */
+__attribute__ ((import_module ("env"), import_name ("format_double")))
+int32_t format_double (
+	double  v,
+	int32_t conv,
+	int32_t prec,
+	char    *buf,
+	int32_t cap
+);
 
 #define TEXT_MAX 400
 
@@ -320,6 +329,7 @@ typedef struct Spec
 	int32_t zero;  /* 0 */
 	int32_t width;
 	int32_t prec;  /* -1 if none */
+	int32_t wide;  /* ll: the argument is 64 bits, long and size_t are 32 */
 	char    conv;
 } Spec;
 
@@ -379,7 +389,11 @@ static void put_integer (Out *o, const Spec *sp, va_list *ap)
 
 	if (sp->conv == 'd' || sp->conv == 'i')
 	{
-		int64_t s = va_arg (*ap, int);
+		int64_t s = ml_choose (
+			sp->wide,
+			va_arg (*ap, long long),
+			va_arg (*ap, int)
+		);
 
 		neg = s < 0;
 		v   = (uint64_t)ml_choose (neg, -s, s);
@@ -387,7 +401,11 @@ static void put_integer (Out *o, const Spec *sp, va_list *ap)
 
 	else
 	{
-		v = va_arg (*ap, unsigned int);
+		v = ml_choose (
+			sp->wide,
+			va_arg (*ap, unsigned long long),
+			va_arg (*ap, unsigned int)
+		);
 	}
 
 	do
@@ -455,8 +473,11 @@ static const char *read_spec (const char *p, Spec *sp, va_list *ap)
 		}
 	}
 
+	sp->wide = 0;
+
 	while (*p == 'l' || *p == 'z' || *p == 'h')
 	{
+		sp->wide = ml_choose (*p == 'l' && p [-1] == 'l', 1, sp->wide);
 		p++;
 	}
 
@@ -498,18 +519,26 @@ static void put_conversion (Out *o, const Spec *sp, va_list *ap)
 			put_field (o, s, n, sp, ' ');
 		} break;
 
+		case 'f':
 		case 'g':
 		{
 			double  v = va_arg (*ap, double);
 			char    text [TEXT_MAX];
-			int32_t n = format_g (
+			int32_t n = format_double (
 				v,
+				sp->conv,
 				ml_choose (sp->prec < 0, 6, sp->prec),
 				text,
 				TEXT_MAX
 			);
 
-			put_field (o, text, (uint64_t)n, sp, ' ');
+			put_field (
+				o,
+				text,
+				(uint64_t)n,
+				sp,
+				ml_choose (sp->zero && !sp->left, '0', ' ')
+			);
 		} break;
 
 		case '%':
@@ -577,4 +606,39 @@ int snprintf (char *buf, size_t cap, const char *fmt, ...)
 	n = vsnprintf (buf, cap, fmt, ap);
 	va_end (ap);
 	return n;
+}
+
+/* ---- output and the environment ---------------------------------------- */
+
+/* The page shows the text (the only output of a module). */
+__attribute__ ((import_module ("env"), import_name ("console_write")))
+void console_write (const char *text, int32_t len);
+
+#define PRINT_MAX 2048
+
+int printf (const char *fmt, ...)
+{
+	va_list ap;
+	char    text [PRINT_MAX];
+	int     n;
+
+	va_start (ap, fmt);
+	n = vsnprintf (text, PRINT_MAX, fmt, ap);
+	va_end (ap);
+	console_write (text, ml_choose (n < PRINT_MAX, n, PRINT_MAX - 1));
+	return n;
+}
+
+int fflush (void *stream)
+{
+	(void)stream;
+	return 0;
+}
+
+int setenv (const char *name, const char *value, int overwrite)
+{
+	(void)name;
+	(void)value;
+	(void)overwrite;
+	return 0;
 }
