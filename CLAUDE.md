@@ -21,7 +21,7 @@ prints its name and its check count, so the last name on the screen is the group
 
 ## Warnings
 
-Warnings are errors: `warnings "Extra"` with `FatalWarnings` in `premake5.lua` (`/WX`) and `-Wall -Wextra -Werror` in the `Makefile`. Fix the cause of a warning,
+Warnings are errors: `warnings "Extra"` with `fatalwarnings { "All" }` in `premake5.lua` (`/WX`) and `-Wall -Wextra -Werror` in the `Makefile`. Fix the cause of a warning,
 never silence it, and check `make` output for warnings before a commit.
 
 ## Memory

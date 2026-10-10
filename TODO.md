@@ -7,8 +7,8 @@ When a task is finished: delete it here, and write what was built into its secti
 
 ## 1. Next candidates, in a sensible order
 
-1. **Texts in files, the last parts** (4.24): the summaries of the editor commands (`:` commands, `ui/complete.c`), a test that every catalog entry is used by
-   some code, the placeholders of the website build.
+1. **Texts in files, the rest** (4.24): the texts inside the export writers and the docs build (names of the page kinds, `matlog docs` output), and the
+   placeholders of the website build (waits for the website build).
 2. **Faster evaluation, more**: what is left in the profile is the machine itself: `MlValue` (280 bytes) is passed and returned by value at every step
    (`eval_with`, `push_value`, `ml_value_locate`, `finish`), and `MlBinding` (about 450 bytes) is copied by `call_target` and `MlScope.func`. Writing results in place,
    or passing values by index into the value stack, would remove most of the copies; `scale` of a quantity behind a pointer would save 40 bytes more.

@@ -547,6 +547,199 @@ static void test_lessons (void)
 	);
 }
 
+/* ---- every entry of the catalog is used ---------------------------------- */
+
+static const char *const source_folders [] = {
+	"source/app", "source/matlog", "source/matlog/cli", "source/matlog/core",
+	"source/matlog/docs", "source/matlog/export", "source/matlog/logic",
+	"source/matlog/math", "source/matlog/parse", "source/matlog/platform",
+	"source/matlog/session", "source/matlog/sym", "source/matlog/texts",
+	"source/matlog/tutorial", "source/matlog/ui"
+};
+
+/* The text of every .c file of the library, but not the generated tables. */
+static MlResult read_sources (MlStr *all)
+{
+	MlResult r = ML_OK;
+
+	for (uint64_t f = 0; f < ml_count (source_folders) && r == ML_OK; f++)
+	{
+		MlStr    names;
+		uint64_t pos = 0;
+
+		ml_str_init (&names);
+		r = ml_fs_list (&names, lit (source_folders [f]), lit (".c"));
+
+		while (r == ML_OK && pos < names.len)
+		{
+			uint64_t end = pos;
+			MlStr    path;
+			MlStr    text;
+
+			while (end < names.len && names.data [end] != '\n')
+			{
+				end++;
+			}
+
+			ml_str_init (&path);
+			ml_str_init (&text);
+			r = ml_str_appendf (
+				&path,
+				"%s/%.*s",
+				source_folders [f],
+				(int)(end - pos),
+				names.data + pos
+			);
+
+			if (r == ML_OK && strstr (ml_str_cstr (path), "_data.c") == NULL)
+			{
+				r = ml_fs_read_file (&text, ml_str_view (path));
+				r = ml_choose (
+					r == ML_OK,
+					ml_str_append (all, ml_str_view (text)),
+					r
+				);
+			}
+
+			ml_str_free (&path);
+			ml_str_free (&text);
+			pos = end + 1;
+		}
+
+		ml_str_free (&names);
+	}
+
+	return r;
+}
+
+/* 1 when the quoted text "needle" is in the sources. */
+static int32_t quoted_in (const MlStr *all, const char *needle)
+{
+	MlStr    q;
+	int32_t  found;
+
+	ml_str_init (&q);
+	found = (
+		   ml_str_appendf (&q, "\"%s\"", needle) == ML_OK
+		&& strstr (ml_str_cstr (*all), ml_str_cstr (q)) != NULL
+	);
+	ml_str_free (&q);
+	return found;
+}
+
+/* The sections whose codes are made from the names of a table in the code. */
+static int32_t table_section (const char *section)
+{
+	return (
+		   strcmp (section, "errors") == 0
+		|| strcmp (section, "actions") == 0
+		|| strcmp (section, "options") == 0
+		|| strcmp (section, "commands") == 0
+		|| strcmp (section, "cli") == 0
+		|| strcmp (section, "help") == 0
+	);
+}
+
+/*
+ * An entry is used when the C code names it: as the whole code, "messages.
+ * no_help_for", or, for the sections whose code is built from a table (the
+ * error codes, the actions, the options, the commands), as the name in that
+ * table. The hints are numbered and the lessons are checked by their own
+ * test (every lesson is played), so they are left out.
+ */
+/* Counts the entries of the section that no code names. */
+static uint64_t unused_in (const MlStr *all, const char *section)
+{
+	uint64_t unused = 0;
+
+	for (uint64_t n = 0; n < ml_text_count (section); n++)
+	{
+		const char *name = ml_text_nth_name (section, n);
+		MlStr       code;
+		int32_t     used;
+
+		ml_str_init (&code);
+		ml_str_appendf (&code, "%s.%s", section, name);
+		used = (
+			   quoted_in (all, ml_str_cstr (code))
+			|| (table_section (section) && quoted_in (all, name))
+		);
+
+		if (!used)
+		{
+			printf ("  not used by any code: %s\n", ml_str_cstr (code));
+			unused++;
+		}
+
+		ml_str_free (&code);
+	}
+
+	return unused;
+}
+
+/* The names of the [sections] of a catalog text, one per line. */
+static void section_names (MlStr *out, const char *text)
+{
+	for (const char *p = strchr (text, '['); p != NULL; p = strchr (p + 1, '['))
+	{
+		const char *e = strchr (p, ']');
+
+		if ((p == text || p [-1] == '\n') && e != NULL)
+		{
+			ml_str_appendf (out, "%.*s\n", (int)(e - p - 1), p + 1);
+		}
+	}
+}
+
+static void test_every_entry_is_used (void)
+{
+	MlStr    all;
+	MlStr    sections;
+	uint64_t unused = 0;
+	uint64_t pos    = 0;
+
+	ml_str_init (&all);
+	ml_str_init (&sections);
+	CHECK (ml_texts_reload ("en", NULL) == ML_OK);
+
+	for (uint64_t i = 0; i < ml_catalog_source_count; i++)
+	{
+		section_names (&sections, ml_catalog_sources [i].text);
+	}
+
+	/* run from another folder, the sources are not there to read */
+	CHECK (read_sources (&all) == ML_OK && all.len > 100000);
+
+	while (pos < sections.len)
+	{
+		uint64_t end = pos;
+		MlStr    name;
+
+		while (end < sections.len && sections.data [end] != '\n')
+		{
+			end++;
+		}
+
+		ml_str_init (&name);
+		ml_str_append (&name, ml_slice (sections.data + pos, end - pos));
+
+		if (
+			   strcmp (ml_str_cstr (name), "hints") != 0
+			&& strcmp (ml_str_cstr (name), "lessons") != 0
+		)
+		{
+			unused += unused_in (&all, ml_str_cstr (name));
+		}
+
+		ml_str_free (&name);
+		pos = end + 1;
+	}
+
+	CHECK (unused == 0);
+	ml_str_free (&sections);
+	ml_str_free (&all);
+}
+
 void run_texts_tests (void);
 
 void run_texts_tests (void)
@@ -561,4 +754,5 @@ void run_texts_tests (void)
 	test_hints ();
 	test_lessons ();
 	test_lesson_files ();
+	test_every_entry_is_used ();
 }

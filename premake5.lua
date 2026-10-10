@@ -23,7 +23,7 @@ workspace "matlog"
 	cdialect "C11"
 	warnings "Extra"
 	-- a warning is an error (/WX, and -Werror in the Makefile)
-	flags { "FatalWarnings" }
+	fatalwarnings { "All" }
 	staticruntime "Off"
 	defines { "_CRT_SECURE_NO_WARNINGS" }
 	includedirs { "include" }
