@@ -2029,16 +2029,26 @@ static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 			   ed->edit_domain == ML_DOMAIN_ALGEBRA
 			|| ed->edit_domain == ML_DOMAIN_BOOLEAN
 			|| ed->edit_domain == ML_DOMAIN_LAMBDA
+			|| ed->edit_domain == ML_DOMAIN_PROOF
 		)
 	)
 	{
-		preview = ml_ghost_block (
-			&gvalue,
-			&gblock,
-			&ed->results,
-			ed->edit_domain,
-			ed->edit_index,
-			ml_str_view (ed->edit.text)
+		preview = ml_choose (
+			ed->edit_domain == ML_DOMAIN_PROOF,
+			ml_ghost_proof (
+				&gvalue,
+				&ed->session,
+				ed->edit_index,
+				ml_str_view (ed->edit.text)
+			),
+			ml_ghost_block (
+				&gvalue,
+				&gblock,
+				&ed->results,
+				ed->edit_domain,
+				ed->edit_index,
+				ml_str_view (ed->edit.text)
+			)
 		);
 		layout.result = preview.result;
 

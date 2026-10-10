@@ -4,6 +4,7 @@
 #include <matlog/session/mlog.h>
 #include <matlog/session/results.h>
 #include <matlog/texts/texts.h>
+#include <matlog/ui/ghost.h>
 
 #include <string.h>
 
@@ -412,6 +413,40 @@ static void test_domain (void)
 	ml_session_free (&s);
 }
 
+/* The preview of the step being typed. */
+static void test_ghost (void)
+{
+	MlSession s;
+	MlStr     out;
+	MlGhost   g;
+
+	ml_session_init (&s);
+	ml_str_init (&out);
+	CHECK (
+		ml_mlog_parse (&s, lit ("m:proof theorem t: x + x = 2x\n"))
+		== ML_OK
+	);
+
+	g = ml_ghost_proof (&out, &s, 1, lit ("x + x = 2x  by simplify"));
+	CHECK (g.result == ML_OK && g.shown);
+	CHECK ((uint8_t)out.data [0] == 0xE2);
+
+	ml_str_clear (&out);
+	g = ml_ghost_proof (&out, &s, 1, lit ("x + x = 3x  by simplify"));
+	CHECK (g.shown && strstr (ml_str_cstr (out), "x = 2") != NULL);
+
+	/* nothing while the line does not read yet */
+	ml_str_clear (&out);
+	g = ml_ghost_proof (&out, &s, 1, lit ("x + x = 2x  by si"));
+	CHECK (g.shown == 0 || out.data [0] != '\xE2');
+	ml_str_clear (&out);
+	g = ml_ghost_proof (&out, &s, 1, lit ("x + "));
+	CHECK (!g.shown);
+
+	ml_str_free (&out);
+	ml_session_free (&s);
+}
+
 void run_proof_tests (void);
 
 void run_proof_tests (void)
@@ -423,4 +458,5 @@ void run_proof_tests (void)
 	test_syntax ();
 	test_wrong_step_everywhere ();
 	test_domain ();
+	test_ghost ();
 }

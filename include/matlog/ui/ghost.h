@@ -52,4 +52,18 @@ MlGhost ml_ghost_block (
 	MlSlice         text
 );
 
+/*
+ * The preview of a line of the proof domain: the proof lines above line idx
+ * of the session and the text typed are checked together (proof/proof.h) and
+ * the verdict of the typed line is the value: a check mark, a question mark
+ * for a step that is not checked, a cross for one that is not valid. Nothing
+ * is shown for a line that has no verdict yet or does not read yet.
+ */
+MlGhost ml_ghost_proof (
+	MlStr           *out,
+	const MlSession *session,
+	uint64_t        idx,
+	MlSlice         text
+);
+
 #endif /* MATLOG_UI_GHOST_H */
