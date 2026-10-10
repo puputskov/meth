@@ -12,6 +12,8 @@
 #include <matlog/texts/texts.h>
 #include <matlog/tutorial/lessons.h>
 
+#include <stdio.h>
+
 static const char *const state_names [ML_STATE_COUNT] = {
 	[ML_STATE_MATH]    = "MATH",
 	[ML_STATE_NOTE]    = "NOTE",
@@ -121,6 +123,73 @@ static MlResult set_message (MlEditor *ed, const char *text)
 {
 	ml_str_clear (&ed->message);
 	return ml_str_append (&ed->message, ml_slice_cstr (text));
+}
+
+/*
+ * The message from a text of the catalog with its {name} places filled in:
+ * say clears the message first, say_more adds a space and goes on.
+ */
+static MlResult say_text (
+	MlEditor        *ed,
+	int32_t         more,
+	const char      *code,
+	const MlTextArg *args,
+	uint64_t        count
+)
+{
+	MlResult r = ML_OK;
+
+	if (more)
+	{
+		r = ml_str_append (&ed->message, ml_slice_cstr (" "));
+	}
+
+	else
+	{
+		ml_str_clear (&ed->message);
+	}
+
+	return ml_choose (
+		r == ML_OK,
+		ml_text_fill (&ed->message, ml_text (code), args, count),
+		r
+	);
+}
+
+static MlResult say1 (
+	MlEditor   *ed,
+	const char *code,
+	const char *name,
+	MlSlice    value
+)
+{
+	MlTextArg a = { .name = name, .value = value };
+
+	return say_text (ed, 0, code, &a, 1);
+}
+
+static MlResult say2 (
+	MlEditor   *ed,
+	int32_t    more,
+	const char *code,
+	const char *name1,
+	MlSlice    value1,
+	const char *name2,
+	MlSlice    value2
+)
+{
+	MlTextArg a [2] = {
+		{ .name = name1, .value = value1 },
+		{ .name = name2, .value = value2 }
+	};
+
+	return say_text (ed, more, code, a, 2);
+}
+
+/* A number as text in buf (at least 12 bytes). */
+static MlSlice number_text (char *buf, uint32_t n)
+{
+	return ml_slice (buf, (uint64_t)snprintf (buf, 12, "%u", n));
 }
 
 /* Starts typing a line of the given kind, loading text into the buffer. */
@@ -1660,23 +1729,21 @@ static MlResult load_user_theme (MlEditor *ed, MlSlice name)
 			ml_theme_set_name (&t, name);
 			ed->theme     = t;
 			ed->highlight = 1;
-			ml_str_clear (&ed->message);
-			r = ml_str_appendf (
-				&ed->message,
-				"theme: %.*s",
-				(int)name.len,
-				name.data
-			);
+			r = say1 (ed, "messages.theme_set", "name", name);
 		}
 
 		if (r == ML_OK && bad > 0)
 		{
-			r = ml_str_appendf (
-				&ed->message,
-				" (%u ignored, %.*s)",
-				(uint32_t)bad,
-				(int)report.len,
-				report.data
+			char count [12];
+
+			r = say2 (
+				ed,
+				1,
+				"messages.theme_ignored",
+				"count",
+				number_text (count, (uint32_t)bad),
+				"report",
+				ml_str_view (report)
 			);
 		}
 	}
@@ -1706,12 +1773,18 @@ static MlResult set_theme (MlEditor *ed, MlSlice arg)
 
 	if (arg.len == 0)
 	{
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"theme: %s (%s)",
-			ed->theme.name,
-			ml_choose (ed->highlight, "on", "off")
+		r = say2 (
+			ed,
+			0,
+			"messages.theme_now",
+			"name",
+			ml_slice_cstr (ed->theme.name),
+			"state",
+			ml_slice_cstr (
+				ml_text (
+					ml_choose (ed->highlight, "messages.on", "messages.off")
+				)
+			)
 		);
 
 		for (uint64_t i = 0; i < ml_theme_builtin_count () && r == ML_OK; i++)
@@ -1724,16 +1797,15 @@ static MlResult set_theme (MlEditor *ed, MlSlice arg)
 	{
 		ed->theme     = next;
 		ed->highlight = 1;
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"theme: %s%s",
-			next.name,
+		r = say1 (
+			ed,
 			ml_choose (
 				ed->colors == ML_COLORS_OFF,
-				" (colors are off, see :colors)",
-				""
-			)
+				"messages.theme_set_nocolor",
+				"messages.theme_set"
+			),
+			"name",
+			ml_slice_cstr (next.name)
 		);
 	}
 
@@ -1761,11 +1833,11 @@ static MlResult set_colors (MlEditor *ed, MlSlice arg)
 
 	if (arg.len == 0)
 	{
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"colors: %s",
-			ml_color_level_name (ed->colors)
+		r = say1 (
+			ed,
+			"messages.colors_now",
+			"level",
+			ml_slice_cstr (ml_color_level_name (ed->colors))
 		);
 	}
 
@@ -1781,11 +1853,11 @@ static MlResult set_colors (MlEditor *ed, MlSlice arg)
 	{
 		ed->colors    = level;
 		ed->highlight = 1;
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"colors: %s",
-			ml_color_level_name (level)
+		r = say1 (
+			ed,
+			"messages.colors_now",
+			"level",
+			ml_slice_cstr (ml_color_level_name (level))
 		);
 	}
 
@@ -1810,22 +1882,12 @@ static MlResult show_keys (MlEditor *ed)
 
 	if (r == ML_OK)
 	{
-		r = ml_str_appendf (
-			&page,
-			"id: yourkeys\n"
-			"title: Your keys\n"
-			"summary: The key bindings in use.\n"
-			"see: keys\n"
-			"\n"
-			"The action, its keys and what it does. `:map KEY ACTION` "
-			"binds a key, `:unmap KEY` removes one; both are kept in "
-			"the settings file.\n"
-			"\n"
-			"```keys\n"
-			"%s"
-			"```\n",
-			ml_str_cstr (table)
-		);
+		MlTextArg table_arg = {
+			.name  = "table",
+			.value = ml_str_view (table)
+		};
+
+		r = ml_text_fill (&page, ml_text ("pages.yourkeys"), &table_arg, 1);
 	}
 
 	if (r == ML_OK)
@@ -1982,13 +2044,11 @@ MlResult ml_editor_load_keys (MlEditor *ed)
 			first++;
 		}
 
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"settings [keys], %.*s%s",
-			(int)first,
-			report.data,
-			ml_choose (bad > 1, " (and more)", "")
+		r = say1 (
+			ed,
+			ml_choose (bad > 1, "messages.keys_bad_more", "messages.keys_bad"),
+			"first",
+			ml_slice (report.data, first)
 		);
 	}
 
@@ -2195,12 +2255,7 @@ static MlResult set_option (MlEditor *ed, MlSlice arg)
 
 	else if (index >= ml_option_count ())
 	{
-		r = ml_str_appendf (
-			&ed->message,
-			"no such setting: %.*s",
-			(int)name.len,
-			name.data
-		);
+		r = say1 (ed, "messages.no_such_setting_named", "name", name);
 	}
 
 	else if (value.len == 0)
@@ -2233,16 +2288,22 @@ static MlResult set_option (MlEditor *ed, MlSlice arg)
 		{
 			MlOption o = ml_option_at (index);
 
-			r = ml_str_appendf (
-				&ed->message,
-				"%s: not a value%s%s",
-				o.name,
+			r = say2 (
+				ed,
+				0,
 				ml_choose (
 					o.kind == ML_OPTION_CHOICE,
-					", use ",
-					ml_choose (o.kind == ML_OPTION_BOOL, ", use on or off", "")
+					"messages.not_a_value_choice",
+					ml_choose (
+						o.kind == ML_OPTION_BOOL,
+						"messages.not_a_value_bool",
+						"messages.not_a_value"
+					)
 				),
-				ml_choose (o.kind == ML_OPTION_CHOICE, o.values, "")
+				"name",
+				ml_slice_cstr (o.name),
+				"values",
+				ml_slice_cstr (ml_choose (o.values != NULL, o.values, ""))
 			);
 		}
 
@@ -2339,10 +2400,11 @@ static MlResult config_command (MlEditor *ed, MlSlice arg)
 
 		if (r == ML_OK)
 		{
-			r = ml_str_appendf (
-				&ed->message,
-				"settings: %s",
-				ml_str_cstr (path)
+			r = say1 (
+				ed,
+				"messages.settings_path",
+				"path",
+				ml_str_view (path)
 			);
 		}
 
@@ -2418,13 +2480,16 @@ static MlResult put_session_lines (
 	if (r == ML_OK)
 	{
 		ml_session_set_cursor (&ed->session, at);
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"%u lines of %.*s",
-			(uint32_t)src->lines.len,
-			(int)name.len,
-			name.data
+		char count [12];
+
+		r = say2 (
+			ed,
+			0,
+			"messages.example_inserted",
+			"count",
+			number_text (count, (uint32_t)src->lines.len),
+			"name",
+			name
 		);
 	}
 
@@ -2448,13 +2513,7 @@ static MlResult insert_example (MlEditor *ed, MlSlice name)
 
 	else if (idx >= ml_example_count ())
 	{
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"no example %.*s, see :examples",
-			(int)name.len,
-			name.data
-		);
+		r = say1 (ed, "messages.no_example", "name", name);
 	}
 
 	else
@@ -2515,13 +2574,7 @@ static MlResult insert_snippet (MlEditor *ed, MlSlice name)
 
 		if (r == ML_OK && !f.found)
 		{
-			ml_str_clear (&ed->message);
-			r = ml_str_appendf (
-				&ed->message,
-				"no snippet %.*s, see :snippet",
-				(int)name.len,
-				name.data
-			);
+			r = say1 (ed, "messages.no_snippet", "name", name);
 		}
 
 		else if (r == ML_OK)
@@ -2910,13 +2963,7 @@ static MlResult export_command (
 			if (ml_fs_write_file_atomic (ml_str_view (file), ml_str_view (doc))
 				== ML_OK)
 			{
-				ml_str_clear (&ed->message);
-				r = ml_str_appendf (
-					&ed->message,
-					"exported to %.*s",
-					(int)file.len,
-					file.data
-				);
+				r = say1 (ed, "messages.exported", "path", ml_str_view (file));
 			}
 
 			else
@@ -2949,13 +2996,7 @@ static MlResult open_help (MlEditor *ed, MlSlice topic)
 
 	else if (r == ML_ERR_INVALID)
 	{
-		ml_str_clear (&ed->message);
-		r = ml_str_appendf (
-			&ed->message,
-			"no help for %.*s",
-			(int)topic.len,
-			topic.data
-		);
+		r = say1 (ed, "messages.no_help_for", "topic", topic);
 	}
 
 	return r;
@@ -5483,21 +5524,16 @@ MlResult ml_editor_status (MlStr *out, const MlEditor *ed)
 
 	else if (ed->state == ML_STATE_HELP)
 	{
-		r = ml_str_appendf (
-			out,
-			"-- HELP -- %.*s  (Tab links, Enter follow, Backspace back, "
-			"/ search, q close)",
-			(int)ml_choose (
+		MlTextArg title = {
+			.name  = "title",
+			.value = ml_choose (
 				ed->help.results,
-				ed->help.query.len,
-				ed->help.docs.pages.data [ed->help.page].title.len
-			),
-			ml_choose (
-				ed->help.results,
-				ed->help.query.data,
-				ed->help.docs.pages.data [ed->help.page].title.data
+				ml_str_view (ed->help.query),
+				ml_str_view (ed->help.docs.pages.data [ed->help.page].title)
 			)
-		);
+		};
+
+		r = ml_text_fill (out, ml_text ("ui.help_bar"), &title, 1);
 	}
 
 	else if (ed->picking)

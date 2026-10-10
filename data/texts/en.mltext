@@ -126,6 +126,25 @@ symbols_on = symbols: on
 symbols_off = symbols: off
 plot_shown = plot: shown in the panel
 plot_hidden = plot: hidden
+theme_set = theme: {name}
+theme_set_nocolor = theme: {name} (colors are off, see :colors)
+theme_ignored = ({count} ignored, {report})
+theme_now = theme: {name} ({state})
+on = on
+off = off
+colors_now = colors: {level}
+keys_bad = settings [keys], {first}
+keys_bad_more = settings [keys], {first} (and more)
+no_such_setting_named = no such setting: {name}
+not_a_value = {name}: not a value
+not_a_value_bool = {name}: not a value, use on or off
+not_a_value_choice = {name}: not a value, use {values}
+settings_path = settings: {path}
+example_inserted = {count} lines of {name}
+no_example = no example {name}, see :examples
+no_snippet = no snippet {name}, see :snippet
+exported = exported to {path}
+no_help_for = no help for {topic}
 
 # What each action of the editor does, one line (:keys, the page keys).
 [actions]
@@ -404,6 +423,25 @@ session_needs_a_file = --session needs a file
 domain_needs_a_domain_name = --domain needs a domain name
 unknown_option = unknown option
 try_help = try: matlog help
+
+# Labels of the screen. {title} is the title of the help page.
+[ui]
+help_bar = -- HELP -- {title}  (Tab links, Enter follow, Backspace back, / search, q close)
+
+# Pages made while the program runs. {table} is the table of keys.
+[pages]
+yourkeys = <<
+id: yourkeys
+title: Your keys
+summary: The key bindings in use.
+see: keys
+
+The action, its keys and what it does. `:map KEY ACTION` binds a key,
+`:unmap KEY` removes one; both are kept in the settings file.
+
+```keys
+{table}```
+>>
 
 # The lessons of the tutorial are in the files lessons/en/*.mltext, one lesson per
 # file, built into the program in the same way and read in the order of their names.
