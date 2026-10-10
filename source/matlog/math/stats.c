@@ -740,11 +740,12 @@ static MlValue range_value (MlArena *arena, const MlValue *args, uint64_t argc)
 	{
 		MlRat step
 			= ml_choose (argc > 2, args [2].exact, ml_rat_from_i64 (arena, 1));
-		MlRat    at   = args [0].exact;
-		MlRat    stop = args [1].exact;
-		int32_t  up   = ml_rat_sign (step) > 0;
-		uint64_t n = 0;
-		MlValue  *items = ML_ARENA_NEW_ARRAY (arena, MlValue, ML_LIST_MAX);
+		MlRat    stop   = args [1].exact;
+		int32_t  up     = ml_rat_sign (step) > 0;
+		MlRat    at     = args [0].exact;
+		uint64_t n      = 0;
+		uint64_t keep   = 0;
+		MlValue  *items = NULL;
 
 		if (ml_rat_is_zero (step))
 		{
@@ -753,20 +754,25 @@ static MlValue range_value (MlArena *arena, const MlValue *args, uint64_t argc)
 
 		else
 		{
+			/* count first, so only the items that exist are allocated */
 			while (
-				   items != NULL
-				&& n <= ML_LIST_MAX
+				   n <= ML_LIST_MAX
 				&& ml_rat_ok (at)
 				&& ml_rat_cmp (arena, at, stop) * ml_choose (up, 1, -1) <= 0
 			)
 			{
-				if (n < ML_LIST_MAX)
-				{
-					items [n] = ml_value_exact (at);
-				}
-
 				n++;
 				at = ml_rat_add (arena, at, step);
+			}
+
+			keep  = ml_choose (n <= ML_LIST_MAX, n, 0);
+			items = ML_ARENA_NEW_ARRAY (arena, MlValue, keep + 1);
+			at    = args [0].exact;
+
+			for (uint64_t i = 0; i < keep && items != NULL; i++)
+			{
+				items [i] = ml_value_exact (at);
+				at        = ml_rat_add (arena, at, step);
 			}
 
 			r = ml_choose (

@@ -15,7 +15,7 @@ whole, find the section with `grep -n '^### ' DONE.md` and read only that one. `
 ## Build and test on Linux
 
 `make test` builds with gcc into `build/make/` and runs the tests, `make test T=eval` only the group `eval` (`make groups` lists them). Every group
-prints its name and its check count, so the last name on the screen is the group that hangs. The `stdlib` group is known to fail, see `KNOWN_ISSUES.md`.
+prints its name and its check count, so the last name on the screen is the group that hangs.
 
 ## Git
 

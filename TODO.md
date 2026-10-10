@@ -7,13 +7,12 @@ When a task is finished: delete it here, and write what was built into its secti
 
 ## 1. Next candidates, in a sensible order
 
-1. **Fix `primes (n)`** (`KNOWN_ISSUES.md`): functions passed by name as values take huge time and memory; the `stdlib` test group fails on Linux.
-2. **Texts in files, the rest** (4.24): the summaries of the commands, the help of the command line (`cli.c`), the titles and labels of the screen,
+1. **Texts in files, the rest** (4.24): the summaries of the commands, the help of the command line (`cli.c`), the titles and labels of the screen,
    `matlog texts check [FILE]`, the placeholders of the website build.
-3. **Words table, part 2** (4.25): the function names (`eval.c` `builtins`, `stats.h`, `listfn.h`) through `ml_word_find`, `name_class` for functions,
+2. **Words table, part 2** (4.25): the function names (`eval.c` `builtins`, `stats.h`, `listfn.h`) through `ml_word_find`, `name_class` for functions,
    the export table of Greek names, the words of the other domains (`table`, `trace`, the logic words).
-4. **Physics domain** (decided 2026-10-10, section 2 below): units leave the algebra domain.
-5. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 5); **PGA** (section 6).
+3. **Physics domain** (decided 2026-10-10, section 2 below): units leave the algebra domain.
+4. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 5); **PGA** (section 6).
 
 ## 2. Physics domain (decided 2026-10-10, not built)
 
