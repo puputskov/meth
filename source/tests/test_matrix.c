@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/math/matrix.h>
-#include <matlog/math/vector.h>
+#include <meth/math/matrix.h>
+#include <meth/math/vector.h>
 
 #include <string.h>
 

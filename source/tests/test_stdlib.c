@@ -1,9 +1,9 @@
 #include "test.h"
 
-#include <matlog/docs/stdlib.h>
-#include <matlog/session/results.h>
-#include <matlog/session/watch.h>
-#include <matlog/ui/complete.h>
+#include <meth/docs/stdlib.h>
+#include <meth/session/results.h>
+#include <meth/session/watch.h>
+#include <meth/ui/complete.h>
 
 #include <string.h>
 

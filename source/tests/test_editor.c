@@ -1,9 +1,9 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/core/utf8.h>
-#include <matlog/platform/fs.h>
-#include <matlog/ui/editor.h>
+#include <meth/core/utf8.h>
+#include <meth/platform/fs.h>
+#include <meth/ui/editor.h>
 
 #include <string.h>
 
@@ -923,8 +923,8 @@ static void test_commands (void)
 
 static void test_files (void)
 {
-	MlSlice  path  = lit ("matlog_test_editor.tmp");
-	MlSlice  path2 = lit ("matlog_test_editor2.tmp");
+	MlSlice  path  = lit ("meth_test_editor.tmp");
+	MlSlice  path2 = lit ("meth_test_editor2.tmp");
 	MlEditor ed;
 	MlStr    file;
 
@@ -954,7 +954,7 @@ static void test_files (void)
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.dirty);
 
-	test_normal (&ed, ":w matlog_test_editor.tmp");
+	test_normal (&ed, ":w meth_test_editor.tmp");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (!ed.session.dirty);
 	CHECK (ml_fs_read_file (&file, path) == ML_OK);
@@ -984,10 +984,10 @@ static void test_files (void)
 	ed.quit = 0;
 
 	/* :open refuses while dirty, :open! does not */
-	test_normal (&ed, ":open matlog_test_editor2.tmp");
+	test_normal (&ed, ":open meth_test_editor2.tmp");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ml_slice_equal (ml_str_view (ed.session.path), path));
-	test_normal (&ed, ":open! matlog_test_editor2.tmp");
+	test_normal (&ed, ":open! meth_test_editor2.tmp");
 	press (&ed, ML_KEY_ENTER);
 
 	/* a missing file starts a new session with that path */
@@ -996,7 +996,7 @@ static void test_files (void)
 	CHECK (status_is (&ed, "-- NOTE -- algebra>  new file"));
 
 	/* an existing file is loaded, and :e is the short form */
-	test_normal (&ed, ":e matlog_test_editor.tmp");
+	test_normal (&ed, ":e meth_test_editor.tmp");
 	press (&ed, ML_KEY_ENTER);
 	CHECK (ed.session.lines.len == 2);
 	CHECK (line_is   (&ed, 0, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, "x+1"));

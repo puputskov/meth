@@ -1,7 +1,7 @@
-"""matlog: an exact math shell written in C. See BUILD.bazel."""
+"""meth: an exact math shell written in C. See BUILD.bazel."""
 
 module(
-    name = "matlog",
+    name = "meth",
     version = "0.1.0",
 )
 

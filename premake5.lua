@@ -1,9 +1,9 @@
-workspace "matlog"
+workspace "meth"
 	location "build"
 	configurations { "Debug", "Release" }
 	platforms { "x64" }
 	architecture "x86_64"
-	startproject "matlog"
+	startproject "meth"
 	debugdir ""
 
 	filter "configurations:Debug"
@@ -29,28 +29,28 @@ workspace "matlog"
 	includedirs { "include" }
 	targetdir "build/bin/%{cfg.buildcfg}"
 
--- All library code: everything under source/matlog
-project "matlog_lib"
+-- All library code: everything under source/meth
+project "meth_lib"
 	kind "StaticLib"
 	location "build"
-	objdir "build/obj/%{cfg.buildcfg}/matlog_lib"
-	files { "source/matlog/**.c", "include/matlog/**.h" }
+	objdir "build/obj/%{cfg.buildcfg}/meth_lib"
+	files { "source/meth/**.c", "include/meth/**.h" }
 
 	-- OS specific code lives in platform/<os>/, only the matching one is built.
 	-- Linux and macOS share platform/posix/ (termios, poll and POSIX files).
 	filter "system:windows"
-		removefiles { "source/matlog/platform/posix/**", "include/matlog/platform/posix/**" }
+		removefiles { "source/meth/platform/posix/**", "include/meth/platform/posix/**" }
 	filter "system:not windows"
-		removefiles { "source/matlog/platform/win32/**", "include/matlog/platform/win32/**" }
+		removefiles { "source/meth/platform/win32/**", "include/meth/platform/win32/**" }
 	filter {}
 
 -- The interactive shell
-project "matlog"
+project "meth"
 	kind "ConsoleApp"
 	location "build"
-	objdir "build/obj/%{cfg.buildcfg}/matlog"
+	objdir "build/obj/%{cfg.buildcfg}/meth"
 	files { "source/app/**.c" }
-	links { "matlog_lib" }
+	links { "meth_lib" }
 	filter "system:not windows"
 		links { "m" } -- the math functions are in libm outside of Windows
 	filter {}
@@ -61,7 +61,7 @@ project "tests"
 	location "build"
 	objdir "build/obj/%{cfg.buildcfg}/tests"
 	files { "source/tests/**.c", "source/tests/**.h" }
-	links { "matlog_lib" }
+	links { "meth_lib" }
 	filter "system:not windows"
 		links { "m" } -- the math functions are in libm outside of Windows
 	filter {}
@@ -72,7 +72,7 @@ project "keydemo"
 	location "build"
 	objdir "build/obj/%{cfg.buildcfg}/keydemo"
 	files { "source/demo/**.c" }
-	links { "matlog_lib" }
+	links { "meth_lib" }
 	filter "system:not windows"
 		links { "m" } -- the math functions are in libm outside of Windows
 	filter {}

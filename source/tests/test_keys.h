@@ -1,7 +1,7 @@
-#ifndef MATLOG_TEST_KEYS_H
-#define MATLOG_TEST_KEYS_H
+#ifndef METH_TEST_KEYS_H
+#define METH_TEST_KEYS_H
 
-#include <matlog/ui/editor.h>
+#include <meth/ui/editor.h>
 
 /* Presses one key with modifiers. */
 void test_key (MlEditor *ed, MlKeyCode code, uint32_t cp, uint32_t mods);
@@ -31,4 +31,4 @@ int32_t test_editing (const MlEditor *ed);
  */
 void test_normal (MlEditor *ed, const char *keys);
 
-#endif /* MATLOG_TEST_KEYS_H */
+#endif /* METH_TEST_KEYS_H */

@@ -1,15 +1,15 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/cli/cli.h>
-#include <matlog/platform/fs.h>
-#include <matlog/session/options.h>
+#include <meth/cli/cli.h>
+#include <meth/platform/fs.h>
+#include <meth/session/options.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#define CONFIG_DIR  "matlog_test_config/options"
-#define CONFIG_FILE "matlog_test_config/options/settings.mlcfg"
+#define CONFIG_DIR  "meth_test_config/options"
+#define CONFIG_FILE "meth_test_config/options/settings.mlcfg"
 
 static MlSlice lit (const char *s)
 {
@@ -19,9 +19,9 @@ static MlSlice lit (const char *s)
 static void use_test_config (void)
 {
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", CONFIG_DIR);
+	_putenv_s ("METH_CONFIG", CONFIG_DIR);
 #else
-	setenv ("MATLOG_CONFIG", CONFIG_DIR, 1);
+	setenv ("METH_CONFIG", CONFIG_DIR, 1);
 #endif
 	ml_fs_remove (lit (CONFIG_FILE));
 }
@@ -251,7 +251,7 @@ static void test_cli (void)
 	r = run ("help", "config", NULL, NULL);
 	CHECK (r.code == ML_EXIT_OK);
 	CHECK (
-		strstr (ml_str_cstr (r.out), "matlog config set NAME VALUE") != NULL
+		strstr (ml_str_cstr (r.out), "meth config set NAME VALUE") != NULL
 	);
 	run_free (&r);
 

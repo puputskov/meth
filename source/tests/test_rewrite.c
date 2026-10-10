@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/core/utf8.h>
-#include <matlog/ui/rewrite.h>
+#include <meth/core/utf8.h>
+#include <meth/ui/rewrite.h>
 
 #include <string.h>
 

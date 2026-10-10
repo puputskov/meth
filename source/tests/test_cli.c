@@ -1,12 +1,12 @@
 #include "test.h"
 
-#include <matlog/cli/cli.h>
-#include <matlog/core/names.h>
-#include <matlog/math/eval.h>
-#include <matlog/parse/words.h>
-#include <matlog/math/value.h>
-#include <matlog/parse/parser.h>
-#include <matlog/platform/fs.h>
+#include <meth/cli/cli.h>
+#include <meth/core/names.h>
+#include <meth/math/eval.h>
+#include <meth/parse/words.h>
+#include <meth/math/value.h>
+#include <meth/parse/parser.h>
+#include <meth/platform/fs.h>
 
 #include <string.h>
 
@@ -198,7 +198,7 @@ static void test_eval_json (void)
 
 static void test_session_files (void)
 {
-	MlSlice path = lit ("matlog_test_cli.tmp");
+	MlSlice path = lit ("meth_test_cli.tmp");
 	Run     r;
 	MlStr   file;
 
@@ -210,7 +210,7 @@ static void test_session_files (void)
 	);
 
 	/* the definitions of the session are visible, the file is not changed */
-	r = run ("eval", "--session", "matlog_test_cli.tmp", "g(1)", "k", NULL, "");
+	r = run ("eval", "--session", "meth_test_cli.tmp", "g(1)", "k", NULL, "");
 	CHECK (r.code == ML_EXIT_OK);
 	CHECK (out_is (&r, "5\n4\n"));
 	run_free (&r);
@@ -223,7 +223,7 @@ static void test_session_files (void)
 	r = run (
 		"eval",
 		"--session",
-		"matlog_test_cli.tmp",
+		"meth_test_cli.tmp",
 		"--write",
 		"m = k * 2",
 		NULL,
@@ -238,7 +238,7 @@ static void test_session_files (void)
 	ml_str_free (&file);
 
 	/* run prints every line with its result */
-	r = run ("run", "matlog_test_cli.tmp", NULL, NULL, NULL, NULL, "");
+	r = run ("run", "meth_test_cli.tmp", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_OK);
 	CHECK (
 		out_is (
@@ -250,7 +250,7 @@ static void test_session_files (void)
 		)
 	);
 	run_free (&r);
-	r = run ("run", "--format", "json", "matlog_test_cli.tmp", NULL, NULL, "");
+	r = run ("run", "--format", "json", "meth_test_cli.tmp", NULL, NULL, "");
 	CHECK (
 		strstr (ml_str_cstr (r.out), "{\"line\":1,\"kind\":\"note\"")
 		!= NULL
@@ -261,14 +261,14 @@ static void test_session_files (void)
 	CHECK (ml_fs_remove (path) == ML_OK);
 
 	/* a missing file is an I/O error, with or without --write for eval */
-	r = run ("run", "matlog_no_such_file.tmp", NULL, NULL, NULL, NULL, "");
+	r = run ("run", "meth_no_such_file.tmp", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_IO);
-	CHECK (err_has (&r, "cannot read matlog_no_such_file.tmp"));
+	CHECK (err_has (&r, "cannot read meth_no_such_file.tmp"));
 	run_free (&r);
 	r = run (
 		"eval",
 		"--session",
-		"matlog_no_such_file.tmp",
+		"meth_no_such_file.tmp",
 		"1",
 		NULL,
 		NULL,
@@ -383,10 +383,10 @@ static void test_help (void)
 	CHECK (strstr (ml_str_cstr (r.out), "div_zero") != NULL);
 	run_free (&r);
 	r = run ("version", NULL, NULL, NULL, NULL, NULL, "");
-	CHECK (out_is (&r, "matlog 0.3.0\n"));
+	CHECK (out_is (&r, "meth 0.3.0\n"));
 	run_free (&r);
 	r = run ("--version", NULL, NULL, NULL, NULL, NULL, "");
-	CHECK (out_is (&r, "matlog 0.3.0\n"));
+	CHECK (out_is (&r, "meth 0.3.0\n"));
 	run_free (&r);
 	r = run ("commands", "--format", "json", NULL, NULL, NULL, "");
 	CHECK (strstr (ml_str_cstr (r.out), "{\"name\":\"eval\"") != NULL);
@@ -424,7 +424,7 @@ static void test_codes_documented (void)
 
 static void test_steps_command (void)
 {
-	MlSlice path = lit ("matlog_test_steps.tmp");
+	MlSlice path = lit ("meth_test_steps.tmp");
 	Run     r    = run ("steps", "diff(x^2, x)", NULL, NULL, NULL, NULL, "");
 
 	CHECK (r.code == ML_EXIT_OK);
@@ -463,14 +463,14 @@ static void test_steps_command (void)
 			lit ("m:algebra a = 3\nm:algebra simplify(a*x + x)\nm:algebra 7\n")
 		) == ML_OK
 	);
-	r = run ("steps", "matlog_test_steps.tmp:2", NULL, NULL, NULL, NULL, "");
+	r = run ("steps", "meth_test_steps.tmp:2", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_OK);
 	CHECK (strstr (ml_str_cstr (r.out), "Simplify:") != NULL);
 	run_free (&r);
-	r = run ("steps", "matlog_test_steps.tmp:3", NULL, NULL, NULL, NULL, "");
+	r = run ("steps", "meth_test_steps.tmp:3", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_ERROR);
 	run_free (&r);
-	r = run ("steps", "matlog_no_such.tmp:1", NULL, NULL, NULL, NULL, "");
+	r = run ("steps", "meth_no_such.tmp:1", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_IO);
 	run_free (&r);
 	r = run ("steps", NULL, NULL, NULL, NULL, NULL, "");
@@ -634,7 +634,7 @@ static void test_first_use (void)
 
 static void test_texts_check (void)
 {
-	const char *file = "matlog_test_texts.tmp";
+	const char *file = "meth_test_texts.tmp";
 	Run         r;
 
 	CHECK (
@@ -666,7 +666,7 @@ static void test_texts_check (void)
 
 	r = run ("help", "texts", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_OK);
-	CHECK (strstr (ml_str_cstr (r.out), "matlog texts check") != NULL);
+	CHECK (strstr (ml_str_cstr (r.out), "meth texts check") != NULL);
 	run_free (&r);
 
 	ml_fs_remove (lit (file));
@@ -674,7 +674,7 @@ static void test_texts_check (void)
 
 static void test_proof_command (void)
 {
-	const char *file = "matlog_test_proof.tmp";
+	const char *file = "meth_test_proof.tmp";
 	Run         r;
 
 	CHECK (

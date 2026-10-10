@@ -9,10 +9,10 @@ These pages are part of the program. In the editor `:help` opens them,
 line:
 
 ```command
-matlog docs list               the pages: id, title, summary
-matlog docs show ID            one page as text (--format json|markdown)
-matlog docs search WORDS...    the pages that match, the best first
-matlog docs check              check links and the examples
+meth docs list               the pages: id, title, summary
+meth docs show ID            one page as text (--format json|markdown)
+meth docs search WORDS...    the pages that match, the best first
+meth docs check              check links and the examples
 ```
 
 # Searching
@@ -25,6 +25,6 @@ headings, then the text.
 A page is a text file `docs/NAME.md` with a header (`id`, `title`,
 `summary`, `keywords`, `see`) and a body in Markdown with links to other
 pages written `[words](id)`. The examples in the pages are checked
-against the evaluator by `matlog docs check`, so a page cannot show a
+against the evaluator by `meth docs check`, so a page cannot show a
 result that is wrong. `python tools/gen_docs.py` compiles the pages into
 the program.

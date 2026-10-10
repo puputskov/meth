@@ -1,11 +1,11 @@
 id: index
-title: matlog documentation
+title: meth documentation
 summary: Everything about the interactive math shell, in one place.
 keywords: help, contents, start, overview
 
-matlog is an interactive math shell. You write notes and math lines in a
+meth is an interactive math shell. You write notes and math lines in a
 session, and every math line shows its result as you type. The pages below
-are the same in the tool (`:help`) and on the command line (`matlog docs`).
+are the same in the tool (`:help`) and on the command line (`meth docs`).
 
 # Using the tool
 - [The tutorial](tutorial): learn the tool by doing, in small lessons.

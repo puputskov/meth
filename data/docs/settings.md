@@ -5,13 +5,13 @@ keywords: settings, config, set, mlcfg, ghost, highlight, theme, colors, prefere
 see: themes, keys, commands, cli
 
 All settings are kept in one plain text file, `settings.mlcfg`, in the
-settings folder: `%APPDATA%\matlog` on Windows, `$XDG_CONFIG_HOME/matlog`
-or `~/.config/matlog` on Linux, and `~/Library/Application Support/matlog`
-on macOS. `MATLOG_CONFIG` names another folder. A missing file is a valid
+settings folder: `%APPDATA%\meth` on Windows, `$XDG_CONFIG_HOME/meth`
+or `~/.config/meth` on Linux, and `~/Library/Application Support/meth`
+on macOS. `METH_CONFIG` names another folder. A missing file is a valid
 configuration: every setting has a default.
 
 The file has `[sections]` and `key = value` lines, and `#` starts a comment
-line. A line that does not make sense is ignored, and matlog keeps what it
+line. A line that does not make sense is ignored, and meth keeps what it
 does not know when it writes the file:
 
 ```code
@@ -43,7 +43,7 @@ language   en or the name of a texts file, see texts: the language of the messag
 :config reload     read the file again, the key bindings too
 ```
 
-`matlog config` does the same without the screen: `matlog config list`,
-`matlog config get ghost`, `matlog config set ghost off` and
-`matlog config path`. The key bindings have their own section, see
+`meth config` does the same without the screen: `meth config list`,
+`meth config get ghost`, `meth config set ghost off` and
+`meth config path`. The key bindings have their own section, see
 [keys](keys); the folds of your sessions are kept in `[folds]`.

@@ -1,23 +1,23 @@
 #include "test.h"
 
-#include <matlog/logic/logic.h>
-#include <matlog/math/value.h>
-#include <matlog/parse/parser.h>
-#include <matlog/platform/fs.h>
-#include <matlog/session/settings.h>
-#include <matlog/texts/texts.h>
-#include <matlog/tutorial/lessons.h>
-#include <matlog/ui/keymap.h>
-#include <matlog/ui/hint.h>
+#include <meth/logic/logic.h>
+#include <meth/math/value.h>
+#include <meth/parse/parser.h>
+#include <meth/platform/fs.h>
+#include <meth/session/settings.h>
+#include <meth/texts/texts.h>
+#include <meth/tutorial/lessons.h>
+#include <meth/ui/keymap.h>
+#include <meth/ui/hint.h>
 
 #include <string.h>
 
-#define CONFIG_DIR  "matlog_test_config/texts"
-#define CONFIG_FILE "matlog_test_config/texts/settings.mlcfg"
-#define TEXT_FILE   "matlog_test_config/texts/texts/de.mltext"
+#define CONFIG_DIR  "meth_test_config/texts"
+#define CONFIG_FILE "meth_test_config/texts/settings.mlcfg"
+#define TEXT_FILE   "meth_test_config/texts/texts/de.mltext"
 
-#define OWN_FILE  "matlog_test_config/texts/lessons/en/10-mine.mltext"
-#define LATE_FILE "matlog_test_config/texts/lessons/en/20-late.mltext"
+#define OWN_FILE  "meth_test_config/texts/lessons/en/10-mine.mltext"
+#define LATE_FILE "meth_test_config/texts/lessons/en/20-late.mltext"
 
 #define OWN_LESSON \
 	"[lessons]\n" \
@@ -61,9 +61,9 @@ static int32_t is (const char *got, const char *want)
 static void use_test_config (void)
 {
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", CONFIG_DIR);
+	_putenv_s ("METH_CONFIG", CONFIG_DIR);
 #else
-	setenv ("MATLOG_CONFIG", CONFIG_DIR, 1);
+	setenv ("METH_CONFIG", CONFIG_DIR, 1);
 #endif
 }
 
@@ -550,12 +550,12 @@ static void test_lessons (void)
 /* ---- every entry of the catalog is used ---------------------------------- */
 
 static const char *const source_folders [] = {
-	"source/app", "source/matlog", "source/matlog/cli", "source/matlog/core",
-	"source/matlog/docs", "source/matlog/export", "source/matlog/logic",
-	"source/matlog/math", "source/matlog/parse", "source/matlog/platform",
-	"source/matlog/proof",
-	"source/matlog/session", "source/matlog/sym", "source/matlog/texts",
-	"source/matlog/tutorial", "source/matlog/ui"
+	"source/app", "source/meth", "source/meth/cli", "source/meth/core",
+	"source/meth/docs", "source/meth/export", "source/meth/logic",
+	"source/meth/math", "source/meth/parse", "source/meth/platform",
+	"source/meth/proof",
+	"source/meth/session", "source/meth/sym", "source/meth/texts",
+	"source/meth/tutorial", "source/meth/ui"
 };
 
 /* The text of every .c file of the library, but not the generated tables. */

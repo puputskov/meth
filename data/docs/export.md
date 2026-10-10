@@ -31,4 +31,4 @@ An existing file is not replaced; `:export!` does.
 - `3-12` only those lines (1 based).
 - a path to write to instead.
 
-`matlog export FILE FORMAT` does the same from the [command line](cli).
+`meth export FILE FORMAT` does the same from the [command line](cli).

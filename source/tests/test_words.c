@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/math/eval.h>
-#include <matlog/parse/words.h>
+#include <meth/math/eval.h>
+#include <meth/parse/words.h>
 
 static MlSlice lit (const char *s)
 {

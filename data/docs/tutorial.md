@@ -4,7 +4,7 @@ summary: Learn the tool by doing, inside the real editor, in small lessons.
 keywords: tutorial, lesson, learn, start, teach, beginner, practice
 see: editor, commands, keys
 
-The tutorial teaches matlog by doing. A panel at the top of the screen shows
+The tutorial teaches meth by doing. A panel at the top of the screen shows
 the lesson and the task; you do the task in the real editor, below it, and
 the panel moves on when it sees that you did. Nothing is simulated: the
 tutorial only watches the keys and the session, so what you learn is exactly
@@ -20,7 +20,7 @@ what the tool does.
 :tutorial reset    forget the finished lessons
 :tutorial off      leave the tutorial; the session stays
 ```
-`matlog --tutorial` starts it from the shell. A command that needs the
+`meth --tutorial` starts it from the shell. A command that needs the
 session saved first asks; `:tutorial!` starts anyway.
 
 # The lessons

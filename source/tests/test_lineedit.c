@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/ui/lineedit.h>
+#include <meth/ui/lineedit.h>
 
 #include <string.h>
 

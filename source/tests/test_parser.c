@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/parse/parser.h>
+#include <meth/parse/parser.h>
 
 #include <string.h>
 

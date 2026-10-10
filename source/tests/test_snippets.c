@@ -1,18 +1,18 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/docs/snippets.h>
-#include <matlog/platform/fs.h>
-#include <matlog/session/results.h>
+#include <meth/docs/snippets.h>
+#include <meth/platform/fs.h>
+#include <meth/session/results.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#define CONFIG_DIR  "matlog_test_config/snippets"
-#define SNIPPET_DIR "matlog_test_config/snippets/snippets"
-#define MINE_FILE   "matlog_test_config/snippets/snippets/mine.mlog"
+#define CONFIG_DIR  "meth_test_config/snippets"
+#define SNIPPET_DIR "meth_test_config/snippets/snippets"
+#define MINE_FILE   "meth_test_config/snippets/snippets/mine.mlog"
 #define QUAD_FILE \
-	"matlog_test_config/snippets/snippets/algebra-quadratic.mlog"
+	"meth_test_config/snippets/snippets/algebra-quadratic.mlog"
 
 static MlSlice lit (const char *s)
 {
@@ -22,9 +22,9 @@ static MlSlice lit (const char *s)
 static void use_test_config (void)
 {
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", CONFIG_DIR);
+	_putenv_s ("METH_CONFIG", CONFIG_DIR);
 #else
-	setenv ("MATLOG_CONFIG", CONFIG_DIR, 1);
+	setenv ("METH_CONFIG", CONFIG_DIR, 1);
 #endif
 	ml_fs_remove (lit (MINE_FILE));
 	ml_fs_remove (lit (QUAD_FILE));

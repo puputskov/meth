@@ -1,16 +1,16 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/platform/fs.h>
-#include <matlog/tutorial/lessons.h>
-#include <matlog/ui/screen.h>
-#include <matlog/ui/tutorialpanel.h>
+#include <meth/platform/fs.h>
+#include <meth/tutorial/lessons.h>
+#include <meth/ui/screen.h>
+#include <meth/ui/tutorialpanel.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#define CONFIG_DIR  "matlog_test_config/tutorial"
-#define CONFIG_FILE "matlog_test_config/tutorial/settings.mlcfg"
+#define CONFIG_DIR  "meth_test_config/tutorial"
+#define CONFIG_FILE "meth_test_config/tutorial/settings.mlcfg"
 
 static MlSlice lit (const char *s)
 {
@@ -20,9 +20,9 @@ static MlSlice lit (const char *s)
 static void use_test_config (void)
 {
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", CONFIG_DIR);
+	_putenv_s ("METH_CONFIG", CONFIG_DIR);
 #else
-	setenv ("MATLOG_CONFIG", CONFIG_DIR, 1);
+	setenv ("METH_CONFIG", CONFIG_DIR, 1);
 #endif
 	ml_fs_remove (lit (CONFIG_FILE));
 }

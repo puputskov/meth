@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/ui/brackets.h>
+#include <meth/ui/brackets.h>
 
 static MlBracketMatch match (const char *text, uint64_t cursor)
 {

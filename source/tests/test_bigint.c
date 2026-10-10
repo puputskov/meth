@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/core/bigint.h>
+#include <meth/core/bigint.h>
 
 #include <math.h>
 #include <string.h>

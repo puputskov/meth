@@ -1,4 +1,4 @@
-# The English texts of matlog. A text is found by its code, section.name; the
+# The English texts of meth. A text is found by its code, section.name; the
 # codes of the machine readable errors (div_zero ...) are in the code and do
 # not change, only the words here do. {name} is a place for a value.
 # A copy of this file with the texts of another language, named after it
@@ -226,7 +226,7 @@ yank = copy the lines of a range
 move = move the lines of a range to after a line
 copy = copy the lines of a range to after a line
 
-# What each setting does (:set, matlog config).
+# What each setting does (:set, meth config).
 [options]
 theme = the colour theme (a built in one or a name.theme file)
 colors = how many colours the terminal shows
@@ -235,11 +235,11 @@ watch = the watch window with the names and their values
 language = the language of messages, hints and lessons (a texts file)
 ghost = the preview of the result while typing
 
-# The help of the command line (matlog help, matlog syntax, matlog schema):
+# The help of the command line (meth help, meth syntax, meth schema):
 # blocks, the lines as they are.
 [help]
 proof = <<
-matlog proof FILE
+meth proof FILE
 
 Checks the proofs written in FILE (theorem, steps with a reason after `by`,
 qed) and prints a line for every line that has a verdict: its number, then
@@ -247,7 +247,7 @@ valid, not valid (with values that show it), not checked or a syntax error.
 Exit code 1 when a line is not valid or a theorem is not proved.
 >>
 texts = <<
-matlog texts check [FILE]
+meth texts check [FILE]
 
 Compares a translation with the built in English texts: the entries it
 lacks, the entries the program does not know, and the places like {name}
@@ -256,10 +256,10 @@ settings folder (the setting language). A file of one lesson is only blamed
 for the entries of that lesson. Exit code 1 when anything is found.
 >>
 overview = <<
-matlog: an exact math shell. Without a command it opens the interactive editor.
+meth: an exact math shell. Without a command it opens the interactive editor.
 
-usage: matlog [FILE.mlog]
-       matlog COMMAND [OPTIONS] [ARGUMENTS]
+usage: meth [FILE.mlog]
+       meth COMMAND [OPTIONS] [ARGUMENTS]
 
 commands:
   eval EXPR...   evaluate expressions, one result each
@@ -293,7 +293,7 @@ An argument - reads standard input. Exit codes: 0 success, 1 an expression
 was an error, 2 usage error, 3 file error.
 >>
 eval = <<
-matlog eval [--session FILE] [--domain NAME] [--write] [--format text|json] EXPR...
+meth eval [--session FILE] [--domain NAME] [--write] [--format text|json] EXPR...
 
 Evaluates each EXPR in order, as lines of a session: a = 3 defines a for
 the expressions after it. With --session the definitions of that file are
@@ -301,36 +301,36 @@ visible; with --write the new lines are appended to it. An EXPR of - takes
 one expression per line from standard input.
 
 examples:
-  matlog eval "1/3 + 1/6" "sqrt(2)"
-  matlog eval "a = 3" "a^2 + 1" --format json
-  matlog eval "det([[1,2],[3,4]])"
-  matlog eval --domain boolean "a -> b" "table a & b"
-  matlog eval --domain lambda "succ = \x n f. f (n f)" "succ 2"
+  meth eval "1/3 + 1/6" "sqrt(2)"
+  meth eval "a = 3" "a^2 + 1" --format json
+  meth eval "det([[1,2],[3,4]])"
+  meth eval --domain boolean "a -> b" "table a & b"
+  meth eval --domain lambda "succ = \x n f. f (n f)" "succ 2"
 >>
 config = <<
-matlog config list [--format text|json]
-matlog config get NAME [--format text|json]
-matlog config set NAME VALUE
-matlog config path
+meth config list [--format text|json]
+meth config get NAME [--format text|json]
+meth config set NAME VALUE
+meth config path
 
 Reads and changes the settings of settings.mlcfg (theme, colors, highlight,
 ghost). A setting that is not in the file has its default, and the value auto
-means that the terminal decides. MATLOG_CONFIG names another settings folder.
+means that the terminal decides. METH_CONFIG names another settings folder.
 The key bindings are the section [keys] of the file, see the page keys of
-matlog docs.
+meth docs.
 >>
 examples = <<
-matlog examples [--format text|json]
-matlog examples NAME
+meth examples [--format text|json]
+meth examples NAME
 
 Without a name lists the worked examples with their titles. With a name prints
-that example as a session file, to save and open or to run with matlog run:
+that example as a session file, to save and open or to run with meth run:
 
-  matlog examples calculus-newton-sqrt2 > newton.mlog
-  matlog run newton.mlog
+  meth examples calculus-newton-sqrt2 > newton.mlog
+  meth run newton.mlog
 >>
 vars = <<
-matlog vars FILE[:LINE] [--format text|json]
+meth vars FILE[:LINE] [--format text|json]
 
 Prints the names that are defined after line LINE of a session file (1 based;
 the end of the file without it): variables, functions and the definitions of the
@@ -340,13 +340,13 @@ again has one row, its newest value. The JSON form is one object per name:
 the line itself defined or changed.
 >>
 run = <<
-matlog run FILE [--format text|json]
+meth run FILE [--format text|json]
 
 Evaluates a session file and prints every line with its result. Includes
 are followed. Exit code 1 when any line is an error.
 >>
 export = <<
-matlog export FILE FORMAT [WORDS...]
+meth export FILE FORMAT [WORDS...]
 
 Writes the session FILE as a document on standard output. FORMAT is
 latex, mathml (an HTML page) or markdown. The words after it are
@@ -355,19 +355,19 @@ range (3 or 3-12, from 1) and a path: with a path the document is
 written there instead (an existing file is replaced).
 >>
 lex = <<
-matlog lex TEXT [--format text|json]
+meth lex TEXT [--format text|json]
 
 Prints the tokens of TEXT: kind, byte offset, byte length and text.
 >>
 parse = <<
-matlog parse TEXT [--format text|json]
+meth parse TEXT [--format text|json]
 
 Prints the syntax tree of TEXT, e.g. (+ 1 (* 2 x)). Exit code 1 and the place
 of the problem when TEXT is not a valid statement.
 >>
 steps = <<
-matlog steps [--session FILE] [--domain NAME] [--format text|json] EXPR
-matlog steps [--format text|json] FILE:LINE
+meth steps [--session FILE] [--domain NAME] [--format text|json] EXPR
+meth steps [--format text|json] FILE:LINE
 
 Prints the steps of one line: the row operations of a matrix calculation, the
 rule used for each part of a derivative or an integral, the changes made by simplify.
@@ -432,7 +432,7 @@ lambda: lambda_unexpected_character lambda_expected_term
   lambda_no_normal_form lambda_too_big lambda_bad_definition
 >>
 
-# One line for each command of the command line (matlog commands).
+# One line for each command of the command line (meth commands).
 [cli]
 eval = evaluate expressions
 run = evaluate a session file
@@ -456,15 +456,15 @@ version = the version
 # Messages of the command line on standard error (usage mistakes, files).
 # {path} is the file.
 [cli_msg]
-cannot_read_path = matlog: cannot read {path}
-cannot_write_path = matlog: cannot write {path}
-cannot_write_the_session_file = matlog: cannot write the session file
-out_of_memory = matlog: out of memory
-cannot_read_the_file = matlog: cannot read the file
-cannot_read_the_session = matlog: cannot read the session
-no_steps_for_this_line = matlog: no steps for this line
-no_settings_folder = matlog: no settings folder
-cannot_write_settings = matlog: cannot write the settings file
+cannot_read_path = meth: cannot read {path}
+cannot_write_path = meth: cannot write {path}
+cannot_write_the_session_file = meth: cannot write the session file
+out_of_memory = meth: out of memory
+cannot_read_the_file = meth: cannot read the file
+cannot_read_the_session = meth: cannot read the session
+no_steps_for_this_line = meth: no steps for this line
+no_settings_folder = meth: no settings folder
+cannot_write_settings = meth: cannot write the settings file
 eval_needs_an_expression = eval needs an expression
 write_needs_session = --write needs --session
 run_needs_one_file = run needs one file
@@ -492,7 +492,7 @@ format_needs_text_or_json = --format needs text or json
 session_needs_a_file = --session needs a file
 domain_needs_a_domain_name = --domain needs a domain name
 unknown_option = unknown option
-try_help = try: matlog help
+try_help = try: meth help
 texts_needs_check = texts needs check [FILE]
 proof_needs_file = proof needs one FILE
 
@@ -522,7 +522,7 @@ The action, its keys and what it does. `:map KEY ACTION` binds a key,
 {table}```
 >>
 
-# The report of matlog texts check; {key} is the code of an entry, {place}
+# The report of meth texts check; {key} is the code of an entry, {place}
 # a place like {name} of a text.
 [texts_check]
 missing = missing: {key}
@@ -532,7 +532,7 @@ place_extra = {key}: the place {place} is not in the English text
 bad_lines = {count} lines are no entry
 ok = no problems
 
-# The report of matlog docs check; {id} is the page, {detail} what is wrong.
+# The report of meth docs check; {id} is the page, {detail} what is wrong.
 [docs_check]
 see_missing = {id}: see: no such page {detail}
 link_missing = {id}: link: no such page {detail}
@@ -543,7 +543,7 @@ example_bad = {id}: {detail}
 example_differs = example `{text}` gives `{got}`, the page says `{want}`
 no_index = there is no page `index`
 
-# The words for the verdict of a proof line (matlog proof).
+# The words for the verdict of a proof line (meth proof).
 [proof_marks]
 valid = valid
 invalid = not valid
@@ -551,7 +551,7 @@ unchecked = not checked
 sorry = sorry
 syntax = syntax error
 
-# The notes of the proof checker (matlog proofs, the proof domain). A line is
+# The notes of the proof checker (meth proofs, the proof domain). A line is
 # valid, not valid (a reason), not checked (the engine cannot decide) or has a
 # syntax problem.
 [proof]

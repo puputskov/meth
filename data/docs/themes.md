@@ -31,7 +31,7 @@ gutter     = #6e7781
 ```
 A style is a colour `#rrggbb`, a background `on #rrggbb` and the words
 `bold`, `dim`, `underline`, `reverse`; `none` is no style. Classes that are
-left out keep the style of the dark theme. `matlog theme dark` prints a
+left out keep the style of the dark theme. `meth theme dark` prints a
 built in theme in this form to start from; `:theme reload` reads the file
 again, and it is read again by itself when you save it.
 

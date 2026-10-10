@@ -1,8 +1,8 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/ui/hint.h>
-#include <matlog/ui/screen.h>
+#include <meth/ui/hint.h>
+#include <meth/ui/screen.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -1001,7 +1001,7 @@ static void test_help (void)
 	{
 		found = found || strstr (
 			ml_str_cstr (l.rows.data [i]),
-			"matlog documentation"
+			"meth documentation"
 		) != NULL;
 	}
 
@@ -1581,9 +1581,9 @@ static void test_watch_panel (void)
 	MlLayout l;
 
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", "matlog_test_config/screen");
+	_putenv_s ("METH_CONFIG", "meth_test_config/screen");
 #else
-	setenv ("MATLOG_CONFIG", "matlog_test_config/screen", 1);
+	setenv ("METH_CONFIG", "meth_test_config/screen", 1);
 #endif
 	ml_editor_init (&ed);
 	ml_screen_init (&s, 80, 8);
@@ -1655,9 +1655,9 @@ static void test_plot_panel (void)
 	MlLayout l;
 
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", "matlog_test_config/screen");
+	_putenv_s ("METH_CONFIG", "meth_test_config/screen");
 #else
-	setenv ("MATLOG_CONFIG", "matlog_test_config/screen", 1);
+	setenv ("METH_CONFIG", "meth_test_config/screen", 1);
 #endif
 	ml_editor_init (&ed);
 	ml_screen_init (&s, 100, 14);

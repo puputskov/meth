@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/platform/fs.h>
-#include <matlog/session/results.h>
+#include <meth/platform/fs.h>
+#include <meth/session/results.h>
 
 #include <string.h>
 
@@ -307,10 +307,10 @@ static void test_includes (void)
 {
 	MlSession s;
 	MlResults r;
-	MlSlice   consts = lit ("matlog_test_consts.tmp");
-	MlSlice   outer  = lit ("matlog_test_outer.tmp");
-	MlSlice   loop_a = lit ("matlog_test_loop_a.tmp");
-	MlSlice   loop_b = lit ("matlog_test_loop_b.tmp");
+	MlSlice   consts = lit ("meth_test_consts.tmp");
+	MlSlice   outer  = lit ("meth_test_outer.tmp");
+	MlSlice   loop_a = lit ("meth_test_loop_a.tmp");
+	MlSlice   loop_b = lit ("meth_test_loop_b.tmp");
 
 	CHECK (
 		ml_fs_write_file_atomic (
@@ -321,19 +321,19 @@ static void test_includes (void)
 	CHECK (
 		ml_fs_write_file_atomic (
 			outer,
-			lit ("include \"matlog_test_consts.tmp\"\nm:algebra h = k * 2\n")
+			lit ("include \"meth_test_consts.tmp\"\nm:algebra h = k * 2\n")
 		) == ML_OK
 	);
 	CHECK (
 		ml_fs_write_file_atomic (
 			loop_a,
-			lit ("include \"matlog_test_loop_b.tmp\"\n")
+			lit ("include \"meth_test_loop_b.tmp\"\n")
 		) == ML_OK
 	);
 	CHECK (
 		ml_fs_write_file_atomic (
 			loop_b,
-			lit ("include \"matlog_test_loop_a.tmp\"\n")
+			lit ("include \"meth_test_loop_a.tmp\"\n")
 		) == ML_OK
 	);
 
@@ -342,10 +342,10 @@ static void test_includes (void)
 
 	/* definitions of an included file flow into the lines below, also
 	   through a second level of includes */
-	add_include (&s, "matlog_test_outer.tmp");
+	add_include (&s, "meth_test_outer.tmp");
 	add (&s, "g(1)");
 	add (&s, "h");
-	add_include (&s, "matlog_test_missing.tmp");
+	add_include (&s, "meth_test_missing.tmp");
 	add (&s, "k + 1");
 	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 	CHECK (r.lines.len == 5);
@@ -360,7 +360,7 @@ static void test_includes (void)
 	ml_session_free (&s);
 	ml_session_init (&s);
 	ml_results_init (&r);
-	add_include (&s, "matlog_test_loop_a.tmp");
+	add_include (&s, "meth_test_loop_a.tmp");
 	add (&s, "1 + 1");
 	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 	CHECK (is_error (&r, 0, "include cycle"));
@@ -370,14 +370,14 @@ static void test_includes (void)
 	CHECK (
 		ml_fs_write_file_atomic (
 			loop_a,
-			lit ("include \"matlog_test_loop_a.tmp\"\nm:algebra q = 1\n")
+			lit ("include \"meth_test_loop_a.tmp\"\nm:algebra q = 1\n")
 		) == ML_OK
 	);
 	ml_results_free (&r);
 	ml_session_free (&s);
 	ml_session_init (&s);
 	ml_results_init (&r);
-	add_include (&s, "matlog_test_loop_a.tmp");
+	add_include (&s, "meth_test_loop_a.tmp");
 	add (&s, "q");
 	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 	CHECK (is_value (&r, 1, "1"));

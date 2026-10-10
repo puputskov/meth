@@ -41,7 +41,7 @@ The last line gives `λf x. f (f (f (f (f x))))`, the Church numeral 5.
 # Steps
 `trace` before a term shows every beta step under the line, up to 60.
 You do not need to write it: `{ACTION_STEPS}` on a line of the lambda domain shows the
-steps of its reduction, and `matlog steps --domain lambda TERM` prints
+steps of its reduction, and `meth steps --domain lambda TERM` prints
 them.
 
 # While you type

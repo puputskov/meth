@@ -2,10 +2,10 @@
 
 #include "test_keys.h"
 
-#include <matlog/cli/cli.h>
-#include <matlog/docs/examples.h>
-#include <matlog/session/mlog.h>
-#include <matlog/session/results.h>
+#include <meth/cli/cli.h>
+#include <meth/docs/examples.h>
+#include <meth/session/mlog.h>
+#include <meth/session/results.h>
 
 #include <string.h>
 

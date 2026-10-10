@@ -1,7 +1,7 @@
 @echo off
 rem Builds with the Microsoft C compiler directly, no build system.
 rem
-rem 	build.bat [matlog|tests|keydemo|all] [debug|release] [run]
+rem 	build.bat [meth|tests|keydemo|all] [debug|release] [run]
 rem
 rem Run it from any prompt: when cl.exe is not on the path the newest Visual
 rem Studio with the C++ tools is looked up with vswhere. Outputs:
@@ -18,7 +18,7 @@ set RUN=0
 
 :args
 if "%~1"=="" goto args_done
-if /i "%~1"=="matlog"  set TARGET=matlog
+if /i "%~1"=="meth"  set TARGET=meth
 if /i "%~1"=="tests"   set TARGET=tests
 if /i "%~1"=="keydemo" set TARGET=keydemo
 if /i "%~1"=="all"     set TARGET=all
@@ -60,7 +60,7 @@ rem --- the library: one cl call per folder, objects in a folder of their own
 rem (platform\config.c and platform\win32\config.c have the same name) ---
 if not exist "%OBJ%" mkdir "%OBJ%"
 set N=0
-for /r "source\matlog" /d %%d in (*) do (
+for /r "source\meth" /d %%d in (*) do (
 	set "SKIP="
 	echo %%d | findstr /i /c:"\platform\posix" >nul && set SKIP=1
 	if not defined SKIP if exist "%%d\*.c" (
@@ -69,16 +69,16 @@ for /r "source\matlog" /d %%d in (*) do (
 		cl %FLAGS% /c "%%d\*.c" /Fo"%OBJ%\!N!\\" /Fd"%OBJ%\!N!\\" || exit /b 1
 	)
 )
-if exist "source\matlog\*.c" (
+if exist "source\meth\*.c" (
 	set /a N+=1
 	if not exist "%OBJ%\!N!" mkdir "%OBJ%\!N!"
-	cl %FLAGS% /c "source\matlog\*.c" /Fo"%OBJ%\!N!\\" /Fd"%OBJ%\!N!\\" || exit /b 1
+	cl %FLAGS% /c "source\meth\*.c" /Fo"%OBJ%\!N!\\" /Fd"%OBJ%\!N!\\" || exit /b 1
 )
 dir /s /b "%OBJ%\*.obj" > "%OUT%\lib.rsp"
 
 rem --- the programs ---
-if /i "%TARGET%"=="matlog" call :program matlog app || exit /b 1
-if /i "%TARGET%"=="all"    call :program matlog app || exit /b 1
+if /i "%TARGET%"=="meth" call :program meth app || exit /b 1
+if /i "%TARGET%"=="all"    call :program meth app || exit /b 1
 if /i "%TARGET%"=="tests"  call :program tests tests || exit /b 1
 if /i "%TARGET%"=="all"    call :program tests tests || exit /b 1
 if /i "%TARGET%"=="keydemo" call :program keydemo demo || exit /b 1

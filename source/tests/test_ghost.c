@@ -1,8 +1,8 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/ui/ghost.h>
-#include <matlog/ui/screen.h>
+#include <meth/ui/ghost.h>
+#include <meth/ui/screen.h>
 
 #include <string.h>
 

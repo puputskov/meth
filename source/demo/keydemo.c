@@ -1,5 +1,5 @@
-#include <matlog/core/str.h>
-#include <matlog/platform/console.h>
+#include <meth/core/str.h>
+#include <meth/platform/console.h>
 
 /*
  * Prints every key event as it is decoded. Esc and the arrow keys arrive as

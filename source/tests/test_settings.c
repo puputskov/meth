@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/session/settings.h>
+#include <meth/session/settings.h>
 
 static MlSlice lit (const char *text)
 {

@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/ui/markup.h>
+#include <meth/ui/markup.h>
 
 #include <string.h>
 

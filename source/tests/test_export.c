@@ -1,11 +1,11 @@
 #include "test.h"
 
-#include <matlog/export/export.h>
-#include <matlog/export/math.h>
-#include <matlog/cli/cli.h>
-#include <matlog/platform/fs.h>
-#include <matlog/session/mlog.h>
-#include <matlog/ui/editor.h>
+#include <meth/export/export.h>
+#include <meth/export/math.h>
+#include <meth/cli/cli.h>
+#include <meth/platform/fs.h>
+#include <meth/session/mlog.h>
+#include <meth/ui/editor.h>
 
 #include <string.h>
 
@@ -501,7 +501,7 @@ static void test_editor_command (void)
 {
 	MlEditor ed;
 	MlStr    text;
-	MlSlice  file = lit ("matlog_export_test.tmp");
+	MlSlice  file = lit ("meth_export_test.tmp");
 
 	ml_fs_remove (file);
 	ml_str_init (&text);
@@ -521,33 +521,33 @@ static void test_editor_command (void)
 	CHECK (message_has (&ed, "range"));
 
 	/* the file is written, and not replaced by accident */
-	command (&ed, "export markdown matlog_export_test.tmp");
-	CHECK (message_has (&ed, "exported to matlog_export_test.tmp"));
+	command (&ed, "export markdown meth_export_test.tmp");
+	CHECK (message_has (&ed, "exported to meth_export_test.tmp"));
 	CHECK (ml_fs_read_file (&text, file) == ML_OK);
 	CHECK (ml_slice_equal (
 		ml_str_view (text),
 		lit ("# Hi\n\n$$\n\\frac{1}{2}\n$$\n\n")
 	));
 	ml_fs_write_file_atomic (file, lit ("mine"));
-	command (&ed, "export markdown matlog_export_test.tmp");
+	command (&ed, "export markdown meth_export_test.tmp");
 	CHECK (message_has (&ed, "file exists"));
 	ml_str_clear (&text);
 	ml_fs_read_file (&text, file);
 	CHECK (ml_slice_equal (ml_str_view (text), lit ("mine")));
 
 	/* :export! replaces it, a range picks the lines */
-	command (&ed, "export! markdown 2 matlog_export_test.tmp");
+	command (&ed, "export! markdown 2 meth_export_test.tmp");
 	ml_str_clear (&text);
 	ml_fs_read_file (&text, file);
 	CHECK (ml_slice_equal (ml_str_view (text), lit ("$$\n\\frac{1}{2}\n$$\n\n"))
 	);
 
 	/* the default file is the session file with the extension of the format */
-	ml_session_set_path (&ed.session, lit ("matlog_export_test.tmp.mlog"));
+	ml_session_set_path (&ed.session, lit ("meth_export_test.tmp.mlog"));
 	command (&ed, "export latex body");
-	CHECK (message_has (&ed, "exported to matlog_export_test.tmp.tex"));
-	CHECK (ml_fs_exists (lit ("matlog_export_test.tmp.tex")));
-	ml_fs_remove (lit ("matlog_export_test.tmp.tex"));
+	CHECK (message_has (&ed, "exported to meth_export_test.tmp.tex"));
+	CHECK (ml_fs_exists (lit ("meth_export_test.tmp.tex")));
+	ml_fs_remove (lit ("meth_export_test.tmp.tex"));
 	ml_fs_remove (file);
 	ml_str_free (&text);
 	ml_editor_free (&ed);
@@ -582,12 +582,12 @@ static Cli cli (const char *a0, const char *a1, const char *a2, const char *a3)
 
 static void test_cli (void)
 {
-	MlSlice file = lit ("matlog_export_cli.tmp");
+	MlSlice file = lit ("meth_export_cli.tmp");
 	Cli     c;
 
 	ml_fs_write_file_atomic (file, lit ("# # T\nm:algebra 2^3\n"));
 
-	c = cli ("export", "matlog_export_cli.tmp", "markdown", NULL);
+	c = cli ("export", "meth_export_cli.tmp", "markdown", NULL);
 	CHECK (c.code == ML_EXIT_OK);
 	CHECK (ml_slice_equal (
 		ml_str_view (c.out),
@@ -596,7 +596,7 @@ static void test_cli (void)
 	ml_str_free (&c.out);
 	ml_str_free (&c.err);
 
-	c = cli ("export", "matlog_export_cli.tmp", "latex", "body");
+	c = cli ("export", "meth_export_cli.tmp", "latex", "body");
 	CHECK (c.code == ML_EXIT_OK);
 	CHECK (strstr (ml_str_cstr (c.out), "\\section*{T}") != NULL);
 	CHECK (strstr (ml_str_cstr (c.out), "documentclass") == NULL);
@@ -606,18 +606,18 @@ static void test_cli (void)
 	/* with a path the document goes there */
 	c = cli (
 		"export",
-		"matlog_export_cli.tmp",
+		"meth_export_cli.tmp",
 		"html",
-		"matlog_export_cli.tmp.html"
+		"meth_export_cli.tmp.html"
 	);
 	CHECK (c.code == ML_EXIT_OK && c.out.len == 0);
-	CHECK (ml_fs_exists (lit ("matlog_export_cli.tmp.html")));
-	ml_fs_remove (lit ("matlog_export_cli.tmp.html"));
+	CHECK (ml_fs_exists (lit ("meth_export_cli.tmp.html")));
+	ml_fs_remove (lit ("meth_export_cli.tmp.html"));
 	ml_str_free (&c.out);
 	ml_str_free (&c.err);
 
 	/* usage errors */
-	c = cli ("export", "matlog_export_cli.tmp", "pdf", NULL);
+	c = cli ("export", "meth_export_cli.tmp", "pdf", NULL);
 	CHECK (
 		c.code == ML_EXIT_USAGE
 		&& strstr (ml_str_cstr (c.err), "no such format") != NULL

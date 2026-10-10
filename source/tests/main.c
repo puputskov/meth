@@ -1,11 +1,11 @@
 #include "test.h"
 
-#include <matlog/core/heap.h>
-#include <matlog/core/names.h>
-#include <matlog/math/eval.h>
-#include <matlog/parse/words.h>
-#include <matlog/texts/texts.h>
-#include <matlog/tutorial/lessons.h>
+#include <meth/core/heap.h>
+#include <meth/core/names.h>
+#include <meth/math/eval.h>
+#include <meth/parse/words.h>
+#include <meth/texts/texts.h>
+#include <meth/tutorial/lessons.h>
 
 #include <string.h>
 

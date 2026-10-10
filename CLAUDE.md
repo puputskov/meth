@@ -1,4 +1,4 @@
-# matlog
+# meth
 
 Interactive math shell written in C. `TODO.md` is the list of open work (start there), `DONE.md` the design of what is built: do not read it
 whole, find the section with `grep -n '^### ' DONE.md` and read only that one. `KNOWN_ISSUES.md` lists the known bugs.
@@ -8,10 +8,10 @@ whole, find the section with `grep -n '^### ' DONE.md` and read only that one. `
 - Language: C11, no dependencies beyond the C standard library and the OS API.
 - Build: premake5 for VS2022 (`premake5 vs2022`), generated files and all outputs go to `build/`.
 - Sources in `source/`, headers in `include/`. Everything that is data and not code is in `data/`: `docs/` (pages), `examples/`, `snippets/`, `stdlib/`,
-  `texts/`, `lessons/`, `config/` (themes). `tools/gen_docs.py` compiles these into `source/matlog/docs/*_data.c` and `texts/catalog_data.c`: run it after
-  changing a file in `data/` (the tests fail when it was not run). Library code lives in `source/matlog/` and `include/matlog/`, included as `<matlog/x.h>`.
+  `texts/`, `lessons/`, `config/` (themes). `tools/gen_docs.py` compiles these into `source/meth/docs/*_data.c` and `texts/catalog_data.c`: run it after
+  changing a file in `data/` (the tests fail when it was not run). Library code lives in `source/meth/` and `include/meth/`, included as `<meth/x.h>`.
 - Windows first; all OS specific code goes in the `platform` module so other systems can be added later.
-  OS specific files go in a per-OS subfolder, e.g. `source/matlog/platform/win32/key.c` and `include/matlog/platform/win32/key.h`
+  OS specific files go in a per-OS subfolder, e.g. `source/meth/platform/win32/key.c` and `include/meth/platform/win32/key.h`
   (a Linux port would add `platform/linux/`), never as `key_win32.c`. Portable platform code stays directly in `platform/`.
 
 ## Build and test on Linux
@@ -21,10 +21,10 @@ prints its name and its check count, so the last name on the screen is the group
 
 ## Other ways to build
 
-All of them build the same three programs (`matlog`, `tests`, `keydemo`) from the same files, warnings as errors, and none of them needs the others:
+All of them build the same three programs (`meth`, `tests`, `keydemo`) from the same files, warnings as errors, and none of them needs the others:
 `premake5 vs2022` (the Visual Studio solution), `make test` (gcc or clang), `cmake -S . -B build/cmake && cmake --build build/cmake && ctest --test-dir build/cmake`
-(`-DML_SANITIZE=ON` for the sanitizers), `bazel build //:matlog` / `bazel test //:tests`, and the scripts that call the compiler directly,
-`./build.sh [matlog|tests|keydemo|all] [debug|release] [run]` and `build.bat` (same arguments, finds Visual Studio with vswhere) into `build/direct/`.
+(`-DML_SANITIZE=ON` for the sanitizers), `bazel build //:meth` / `bazel test //:tests`, and the scripts that call the compiler directly,
+`./build.sh [meth|tests|keydemo|all] [debug|release] [run]` and `build.bat` (same arguments, finds Visual Studio with vswhere) into `build/direct/`.
 A new source file is found by all of them without a change (they glob the folders); a new OS specific folder needs a change in each.
 
 ## Warnings
@@ -61,7 +61,7 @@ typed containers (`ML_VEC_DEFINE`, `MlStr`) or `ml_heap_alloc`. For leak checks 
   ```
   A pointer star belongs to the name (`char     *data;`). Aligning always uses spaces, never tabs. This also applies to struct members and `#define` values.
 - Use fixed-width types: `int32_t`, `uint32_t`, `uint8_t`, `int64_t`... instead of `int`, `unsigned int`, `unsigned char`, `long long`.
-  Sizes, counts and indices are `uint64_t`, not `size_t` (64 bit targets only, enforced in `matlog/core/types.h`). `char` stays for text bytes,
+  Sizes, counts and indices are `uint64_t`, not `size_t` (64 bit targets only, enforced in `meth/core/types.h`). `char` stays for text bytes,
   and `int main` stays as the C standard requires.
 - Lines are at most 80 columns (a tab counts as 4). Break a long call so that each argument has its own line and the closing
   parenthesis is on a line of its own; wrap comments at 80 too. Long string literals are split into adjacent literals, one per line.
@@ -80,7 +80,7 @@ typed containers (`ML_VEC_DEFINE`, `MlStr`) or `ml_heap_alloc`. For leak checks 
 - In consecutive `CHECK (...)` lines whose first argument is a call, the call names are padded so that their opening parentheses line up
   (a leading `!` counts as part of the name): `CHECK (ml_slice_equal  (...))` / `CHECK (!ml_slice_equal (...))`.
 - Use `ml_count (array)` instead of `sizeof array / sizeof array [0]`.
-- Never use the `?:` operator. Use the `ml_choose (cond, a, b)` macro from `matlog/core/types.h` (same lazy evaluation) and write its arguments one
+- Never use the `?:` operator. Use the `ml_choose (cond, a, b)` macro from `meth/core/types.h` (same lazy evaluation) and write its arguments one
   per line, with the closing parenthesis on its own line. When it is nested in another call, that call's arguments go one per line too:
   ```c
   return ml_choose (

@@ -1,8 +1,8 @@
 #include "test.h"
 
-#include <matlog/docs/docs.h>
-#include <matlog/docs/examples.h>
-#include <matlog/platform/fs.h>
+#include <meth/docs/docs.h>
+#include <meth/docs/examples.h>
+#include <meth/platform/fs.h>
 
 #include <string.h>
 

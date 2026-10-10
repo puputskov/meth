@@ -1,10 +1,10 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/math/eval.h>
-#include <matlog/ui/complete.h>
-#include <matlog/ui/editor.h>
-#include <matlog/ui/screen.h>
+#include <meth/math/eval.h>
+#include <meth/ui/complete.h>
+#include <meth/ui/editor.h>
+#include <meth/ui/screen.h>
 
 #include <string.h>
 

@@ -1,10 +1,10 @@
 #include "test.h"
 
-#include <matlog/proof/proof.h>
-#include <matlog/session/mlog.h>
-#include <matlog/session/results.h>
-#include <matlog/texts/texts.h>
-#include <matlog/ui/ghost.h>
+#include <meth/proof/proof.h>
+#include <meth/session/mlog.h>
+#include <meth/session/results.h>
+#include <meth/texts/texts.h>
+#include <meth/ui/ghost.h>
 
 #include <string.h>
 

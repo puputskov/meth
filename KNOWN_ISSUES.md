@@ -20,4 +20,4 @@
   a POSIX terminal), a trace of the bytes the running program writes (for
   example through a pseudo console), and whether the label row is drawn
   while the cursor is on it.
-- **Code:** `ml_screen_render` and `paint_row` in `source/matlog/ui/screen.c`.
+- **Code:** `ml_screen_render` and `paint_row` in `source/meth/ui/screen.c`.

@@ -1,5 +1,5 @@
 # Simplifying a logic circuit
-# A circuit is a boolean expression. matlog finds the smallest sum of products and a truth table checks it.
+# A circuit is a boolean expression. meth finds the smallest sum of products and a truth table checks it.
 m:boolean f = (a & b) | (a & ~b) | (~a & b)
 # The expression is the same as a OR b. The result above is the minimal form.
 m:boolean table a | b

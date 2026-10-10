@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(matlog C)
+project(meth C)
 
 # The same build as premake5.lua and the Makefile, for CMake:
 #
@@ -20,9 +20,9 @@ endif()
 
 option(ML_SANITIZE "Build with address and undefined behaviour sanitizers" OFF)
 
-# All library code: everything under source/matlog. OS specific code lives in
+# All library code: everything under source/meth. OS specific code lives in
 # platform/<os>/; Linux and macOS share platform/posix/.
-file(GLOB_RECURSE ML_LIB_SOURCES CONFIGURE_DEPENDS source/matlog/*.c)
+file(GLOB_RECURSE ML_LIB_SOURCES CONFIGURE_DEPENDS source/meth/*.c)
 
 if(WIN32)
 	list(FILTER ML_LIB_SOURCES EXCLUDE REGEX "/platform/posix/")
@@ -30,33 +30,33 @@ else()
 	list(FILTER ML_LIB_SOURCES EXCLUDE REGEX "/platform/win32/")
 endif()
 
-add_library(matlog_lib STATIC ${ML_LIB_SOURCES})
-target_include_directories(matlog_lib PUBLIC include)
+add_library(meth_lib STATIC ${ML_LIB_SOURCES})
+target_include_directories(meth_lib PUBLIC include)
 
 # A warning is an error (/WX, -Werror in the Makefile).
 if(MSVC)
-	target_compile_options(matlog_lib PUBLIC /W4 /WX)
-	target_compile_definitions(matlog_lib PUBLIC _CRT_SECURE_NO_WARNINGS)
+	target_compile_options(meth_lib PUBLIC /W4 /WX)
+	target_compile_definitions(meth_lib PUBLIC _CRT_SECURE_NO_WARNINGS)
 else()
-	target_compile_options(matlog_lib PUBLIC -Wall -Wextra -Wno-comment -Werror)
-	target_link_libraries(matlog_lib PUBLIC m) # the math functions
+	target_compile_options(meth_lib PUBLIC -Wall -Wextra -Wno-comment -Werror)
+	target_link_libraries(meth_lib PUBLIC m) # the math functions
 endif()
 
 if(ML_SANITIZE AND NOT MSVC)
-	target_compile_options(matlog_lib PUBLIC
+	target_compile_options(meth_lib PUBLIC
 		-fsanitize=address,undefined -fno-sanitize-recover=undefined -g)
-	target_link_options(matlog_lib PUBLIC -fsanitize=address,undefined)
-	target_compile_definitions(matlog_lib PUBLIC ML_HEAP_SYSTEM)
+	target_link_options(meth_lib PUBLIC -fsanitize=address,undefined)
+	target_compile_definitions(meth_lib PUBLIC ML_HEAP_SYSTEM)
 endif()
 
 # The interactive shell
-add_executable(matlog source/app/main.c)
-target_link_libraries(matlog PRIVATE matlog_lib)
+add_executable(meth source/app/main.c)
+target_link_libraries(meth PRIVATE meth_lib)
 
 # Unit tests; each group is also a test of its own for ctest
 file(GLOB_RECURSE ML_TEST_SOURCES CONFIGURE_DEPENDS source/tests/*.c)
 add_executable(tests ${ML_TEST_SOURCES})
-target_link_libraries(tests PRIVATE matlog_lib)
+target_link_libraries(tests PRIVATE meth_lib)
 
 # The tests read the sources and data, so they run in the source folder.
 # One ctest entry per group, the names are read from source/tests/main.c.
@@ -72,4 +72,4 @@ endforeach()
 
 # Prints decoded key events, for trying out the console layer by hand
 add_executable(keydemo source/demo/keydemo.c)
-target_link_libraries(keydemo PRIVATE matlog_lib)
+target_link_libraries(keydemo PRIVATE meth_lib)

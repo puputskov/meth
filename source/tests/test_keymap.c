@@ -1,17 +1,17 @@
 #include "test.h"
 #include "test_keys.h"
 
-#include <matlog/docs/docs.h>
-#include <matlog/platform/fs.h>
-#include <matlog/tutorial/lessons.h>
-#include <matlog/ui/hint.h>
-#include <matlog/ui/keymap.h>
+#include <meth/docs/docs.h>
+#include <meth/platform/fs.h>
+#include <meth/tutorial/lessons.h>
+#include <meth/ui/hint.h>
+#include <meth/ui/keymap.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#define CONFIG_DIR  "matlog_test_config/keymap"
-#define CONFIG_FILE "matlog_test_config/keymap/settings.mlcfg"
+#define CONFIG_DIR  "meth_test_config/keymap"
+#define CONFIG_FILE "meth_test_config/keymap/settings.mlcfg"
 
 static MlSlice lit (const char *s)
 {
@@ -43,9 +43,9 @@ static MlKey code (MlKeyCode c, uint32_t mods)
 static void use_test_config (void)
 {
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", CONFIG_DIR);
+	_putenv_s ("METH_CONFIG", CONFIG_DIR);
 #else
-	setenv ("MATLOG_CONFIG", CONFIG_DIR, 1);
+	setenv ("METH_CONFIG", CONFIG_DIR, 1);
 #endif
 	ml_fs_remove (lit (CONFIG_FILE));
 }

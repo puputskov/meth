@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/math/env.h>
+#include <meth/math/env.h>
 
 #include <string.h>
 

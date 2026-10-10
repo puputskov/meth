@@ -2,7 +2,7 @@
 # Builds with the C compiler directly, no build system. One compiler call per
 # program, with every source file on the command line.
 #
-#	./build.sh [matlog|tests|keydemo|all] [debug|release] [run]
+#	./build.sh [meth|tests|keydemo|all] [debug|release] [run]
 #
 # CC picks the compiler (default cc). Outputs: build/direct/<config>/<program>.
 # "run" starts the program after the build ("tests" must run in this folder).
@@ -18,11 +18,11 @@ run=0
 
 for arg in "$@"; do
 	case "$arg" in
-		matlog|tests|keydemo|all) target=$arg ;;
+		meth|tests|keydemo|all) target=$arg ;;
 		debug|release) config=$arg ;;
 		run) run=1 ;;
 		*)
-			echo "usage: $0 [matlog|tests|keydemo|all] [debug|release] [run]" >&2
+			echo "usage: $0 [meth|tests|keydemo|all] [debug|release] [run]" >&2
 			exit 2
 			;;
 	esac
@@ -39,7 +39,7 @@ else
 fi
 
 # The platform layer: Linux and macOS use platform/posix, not platform/win32.
-lib=$(find source/matlog -name '*.c' ! -path '*/platform/win32/*' | sort)
+lib=$(find source/meth -name '*.c' ! -path '*/platform/win32/*' | sort)
 
 # A warning is an error, as in the Makefile and premake5.lua.
 flags="-std=gnu11 -Wall -Wextra -Wno-comment -Werror -Iinclude $opt"
@@ -53,7 +53,7 @@ build() {
 }
 
 case "$target" in
-	matlog|all) build matlog source/app/*.c ;;
+	meth|all) build meth source/app/*.c ;;
 esac
 case "$target" in
 	tests|all) build tests source/tests/*.c ;;

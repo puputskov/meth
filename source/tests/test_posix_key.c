@@ -2,8 +2,8 @@
 
 #ifndef _WIN32
 
-#include <matlog/core/utf8.h>
-#include <matlog/platform/posix/key.h>
+#include <meth/core/utf8.h>
+#include <meth/platform/posix/key.h>
 
 static MlVtDecode dec (const char *bytes, uint64_t len, int32_t final)
 {

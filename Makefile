@@ -5,20 +5,20 @@
 #	make test               build and run every test group
 #	make test T=eval        run only the group "eval" (T="eval cli" for more)
 #	make groups             list the names of the groups
-#	make matlog             build the program: build/make/bin/matlog
+#	make meth             build the program: build/make/bin/meth
 
 CC     ?= gcc
 CFLAGS ?= -O1 -g
 CFLAGS += -std=gnu11 -Wall -Wextra -Wno-comment -Werror -Iinclude -MMD -MP
 OUT    := build/make
-LIB    := $(shell find source/matlog -name "*.c" | sort)
-LIB    := $(filter-out source/matlog/platform/win32/%,$(LIB))
+LIB    := $(shell find source/meth -name "*.c" | sort)
+LIB    := $(filter-out source/meth/platform/win32/%,$(LIB))
 LIBOBJ := $(patsubst source/%.c,$(OUT)/%.o,$(LIB))
 TESTS  := $(wildcard source/tests/*.c)
 TSTOBJ := $(patsubst source/%.c,$(OUT)/%.o,$(TESTS))
 APPOBJ := $(patsubst source/%.c,$(OUT)/%.o,$(wildcard source/app/*.c))
 
-.PHONY: test groups matlog clean
+.PHONY: test groups meth clean
 
 test: $(OUT)/bin/tests
 	$(OUT)/bin/tests $(T)
@@ -26,13 +26,13 @@ test: $(OUT)/bin/tests
 groups: $(OUT)/bin/tests
 	@grep -o '\.name = "[a-z_0-9]*"' source/tests/main.c | cut -d'"' -f2
 
-matlog: $(OUT)/bin/matlog
+meth: $(OUT)/bin/meth
 
 $(OUT)/bin/tests: $(TSTOBJ) $(LIBOBJ)
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $^ -lm -o $@
 
-$(OUT)/bin/matlog: $(APPOBJ) $(LIBOBJ)
+$(OUT)/bin/meth: $(APPOBJ) $(LIBOBJ)
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $^ -lm -o $@
 

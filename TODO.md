@@ -1,4 +1,4 @@
-# matlog: what is open
+# meth: what is open
 
 Work from this list. The design of what already exists is in `DONE.md` (read only the section you touch). Rules for the code: `CLAUDE.md`. Bugs
 that are known: `KNOWN_ISSUES.md`. How to build and test on Linux: `make test T=group` (see `CLAUDE.md`).
@@ -27,11 +27,11 @@ Short list of what each built section says it still lacks. The details are in th
 - **4.10 Themes**: the settings file entry for the theme, the OSC 11 background query, highlight classes of the other domains.
 - **4.11 Export**: png and pdf (layout engine, `export/layout`), the export panel and its preview, options other than `dark steps includes` and page size,
   options remembered per session, the visual selection as the range, typeset PGA lines and includes.
-- **4.14 Documentation**: the website build (`matlog docs build site/`), the WebAssembly build, `matlog docs search|show|list` if missing.
+- **4.14 Documentation**: the website build (`meth docs build site/`), the WebAssembly build, `meth docs search|show|list` if missing.
 - **4.15 Settings**: sequences of keys; bindings for the help viewer and the command line; settings without a feature yet (default domain, width of
   the result column, live Markdown preview, undo history size, reopen the last file, confirm before `:q!`); the website build expanding key
   placeholders; the status line and messages naming a key; `F6` of the tutorial as an action.
-- **4.16 Examples**: Tab through snippet placeholders, snippets in the math completion, `matlog snippets`, an example opened as a read only session,
+- **4.16 Examples**: Tab through snippet placeholders, snippets in the math completion, `meth snippets`, an example opened as a read only session,
   examples that need later features (images, PGA motors, full inverse kinematics with approximate matrices).
 - **4.17 Complex numbers**: complex entries in matrices, complex roots from `solve`, `slerp`, `normalize`, quaternion from and to axis angle and
   rotation matrix, LaTeX and MathML export of the new values, steps for the product, completion of the units.
@@ -51,7 +51,7 @@ Defaults chosen in DONE.md section 9.1 (approximate numbers, implicit multiplica
 
 ## 4. Proofs and their validation (4.12, the checker core is built, see DONE.md)
 
-Built: `matlog proof FILE` with simplify, expand, hypothesis, step, lemma and sorry. The `proof` domain works in the editor (results per line). Highlighting, ghost and `by rule` are built. Next: cases and induction (sub-goals), `:why` and `:hint`, inequalities, a tutorial lesson, export.
+Built: `meth proof FILE` with simplify, expand, hypothesis, step, lemma and sorry. The `proof` domain works in the editor (results per line). Highlighting, ghost and `by rule` are built. Next: cases and induction (sub-goals), `:why` and `:hint`, inequalities, a tutorial lesson, export.
 
 A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few
 statement lines, so it lives in the same `.mlog` file as the calculations, with notes between the steps, and it is exported like everything else.
@@ -88,9 +88,9 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
 ## 6. Export of functions to C, C++ and Python (4.19, not built)
 
 
-- A function or a block of definitions can be exported as source code: `:export-code FILE.c|.cpp|.py` or `matlog codegen FILE:LINE --lang c|cpp|python`.
+- A function or a block of definitions can be exported as source code: `:export-code FILE.c|.cpp|.py` or `meth codegen FILE:LINE --lang c|cpp|python`.
   The expression tree of the function is the input; the output is a plain function (doubles, or fixed-size arrays for vectors and matrices) with the
-  names of the parameters, a comment holding the original matlog line, and constants and helper functions it needs from the standard library.
+  names of the parameters, a comment holding the original meth line, and constants and helper functions it needs from the standard library.
 - Targets: C11 (`double`, `<math.h>`), C++17 (`std::array`, `<cmath>`, optionally a small header only vector/matrix type), Python 3 (plain functions,
   optionally with NumPy). Exact rationals become `double` constants (with a note), integers stay integers where the type is known.
 - Symbolic results are exported after simplification, so `diff` and `integrate` results become code (derivatives and Jacobians for the inverse kinematics
@@ -106,9 +106,9 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
 - **Kernels** are small matrices applied by convolution: `conv (img, K)` with the matrices of the matrix domain (blur, sharpen, Sobel edges, Gaussian
   from a function), with the border rules named (`clamp`, `wrap`, `zero`). Also pointwise kernels, written as an expression of `p` (the pixel) and
   `x`, `y`: `map (img, p -> 255 - p)`. Steps show the sum for one chosen pixel, as the matrix product steps do.
-- Kernels written as matlog functions can be exported to C, C++ and Python (section 4.19) as a loop over the pixels.
+- Kernels written as meth functions can be exported to C, C++ and Python (section 4.19) as a loop over the pixels.
 - Limits: images are held on the heap with a size cap (so ghost mode stays fast: ghost never runs a kernel on a large image, it shows the size
-  only); the CLI gets `matlog eval` with image results written to a file. Needs PNG decoding (inflate) and encoding (the export module needs it for
+  only); the CLI gets `meth eval` with image results written to a file. Needs PNG decoding (inflate) and encoding (the export module needs it for
   section 4.11 anyway, so they are shared).
 
 ## 8. Fuzzer (4.23, first target built: parser and evaluator, see DONE.md)

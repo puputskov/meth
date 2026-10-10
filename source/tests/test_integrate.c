@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <matlog/math/eval.h>
+#include <meth/math/eval.h>
 
 /* Integrals beyond the table: partial fractions, substitution, parts. */
 

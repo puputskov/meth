@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/session/results.h>
-#include <matlog/ui/plot.h>
+#include <meth/session/results.h>
+#include <meth/ui/plot.h>
 
 #include <math.h>
 #include <string.h>

@@ -1,7 +1,7 @@
-#ifndef MATLOG_TEST_H
-#define MATLOG_TEST_H
+#ifndef METH_TEST_H
+#define METH_TEST_H
 
-#include <matlog/core/types.h>
+#include <meth/core/types.h>
 #include <stdio.h>
 
 /*
@@ -23,4 +23,4 @@ extern int32_t g_test_checks;
 		} \
 	} while (0)
 
-#endif /* MATLOG_TEST_H */
+#endif /* METH_TEST_H */

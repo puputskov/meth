@@ -1,4 +1,4 @@
-# matlog: what is built (design and history)
+# meth: what is built (design and history)
 
 The design of everything that exists, section by section. **Read only the section you are working on**; what is still open is in `TODO.md`
 (the "Not built" sentences below are the history of each section, `TODO.md` is the list to work from). When a task is finished, remove it from
@@ -11,7 +11,7 @@ Sections: 1 goals, 2 domains, 3 editing and blocks, 4.1 steps, 4.2 ghost mode, 4
 4.17 complex numbers and quaternions, 4.18 standard library, 4.21 watch window, 4.22 statistics, 4.24 texts in files, 4.25 words table,
 5 architecture, 6 coding rules, 7 milestones, 8 to 9e milestone tasks, 11 decisions log.
 
-Matlog is an interactive math shell for quick calculation, beautiful presentation of results, and learning.
+Meth is an interactive math shell for quick calculation, beautiful presentation of results, and learning.
 It is written in C (C11) with no external dependencies, built with premake5 for VS2022.
 
 ## 1. Goals
@@ -165,7 +165,7 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
   asks for its steps: `ml_line_wants_steps` (session/steps.h) finds it with one search for the word, then a parse. `ml_line_steps` explains
   the first operation under the call that has steps (a stack of nodes, no recursion), so `steps (2 * det (A))` shows the determinant. The steps
   are computed with the results (`MlLineResult.steps`, `MlResultView.steps`, recomputed from the changed line down) and used by: the screen
-  (rows under the line, like F3 and without it; F3 on the same line still works), `matlog eval|run` (rows indented four spaces under the result, a
+  (rows under the line, like F3 and without it; F3 on the same line still works), `meth eval|run` (rows indented four spaces under the result, a
   `"steps"` array in the JSON line) and `:export` (a code block after the line; the call is left out of the typeset math). Not built: steps of
   `solve` of an equation in the algebra domain, an export option that adds the steps of every line (`steps` as a word), a marker for other domains.
 - **Ghost under the line (built 2026-10-10):** a matrix preview is typeset under the line being typed, dim, with the same rows a stored result has
@@ -232,7 +232,7 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
 - Everything the user enters is stored to files: lines, their domains, notes. Results are not stored; they are recomputed when a session is opened (keeps files diffable and never stale; steps are regenerated the same way).
 - One session per file. Plain text, human readable, diffable in git and editable by hand.
 - Extension `.mlog`, e.g. `physics.mlog`. Files live wherever the user puts them (no forced folder).
-- `matlog physics.mlog` opens or creates that file. Plain `matlog` opens a scratch session in the current directory.
+- `meth physics.mlog` opens or creates that file. Plain `meth` opens a scratch session in the current directory.
 - In the shell, `:open other.mlog` switches session. A recent files list makes returning easy.
 - File format (UTF-8, CRLF or LF accepted, written with LF): one entry per line, `<tag> <text>`.
   - `#` note line: `# some free text`
@@ -255,7 +255,7 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
 Status: built (`tutorial/lessons` as data, `tutorial/tutorial` as the observer of the editor, `ui/tutorialpanel`; F6 skips, Shift+F6 goes back; every
 lesson is played with its key script by the tests). Not built: lessons for PGA, the stage 2 lessons for export, and files (`:w`, `:open`).
 
-An interactive tutorial that teaches the tool by doing, inside the real editor. Started with `matlog --tutorial`, `:tutorial` or on the very first
+An interactive tutorial that teaches the tool by doing, inside the real editor. Started with `meth --tutorial`, `:tutorial` or on the very first
 run (when no session file exists), and left at any time with `:q` or `:tutorial off`. It has two stages; the second one can be started on its own
 with `:tutorial syntax`. Progress (the last finished lesson) is kept in a small file next to the user's files, so the tutorial can be resumed.
 
@@ -358,21 +358,21 @@ options, a preview of the first rows, and the path), and `:export <format> [path
 
 Status: latex, mathml and markdown are built (`export/math` typesets a statement from its tree with a stack on the heap, `export/export` builds
 blocks from the session and has one writer per format), with `:export[!] FORMAT [body] [errors] [3-12] [path]` in the editor and
-`matlog export FILE FORMAT [words]` on the command line. Not built yet: png and pdf (they need the layout engine), the export panel and its preview,
+`meth export FILE FORMAT [words]` on the command line. Not built yet: png and pdf (they need the layout engine), the export panel and its preview,
 options other than the four words (`dark`, `steps`, `includes`, page size), options remembered per session, and the visual selection as the range.
 The boolean and the lambda domain are typeset too (`export/logicmath`, from the text of the line, with `ml_bool_symbol_at` shared with the highlighter); the
 lines of the PGA domains and the includes are written as code until their domains are typeset.
 
 ### 4.12 Proofs and their validation
 
-Built so far (2026-10-10): the checker core, `proof/proof.h` (`ml_proof_check`), and `matlog proof FILE`. A proof is text: `theorem NAME: LEFT = RIGHT` (with
+Built so far (2026-10-10): the checker core, `proof/proof.h` (`ml_proof_check`), and `meth proof FILE`. A proof is text: `theorem NAME: LEFT = RIGHT` (with
 `given A, B` on the line or on its own line), steps `CLAIM  by REASON`, `qed`. A line that starts with `=` or `...` continues the right hand side of the step above.
 Reasons it decides: `simplify` and `expand` (both sides have the same simplified or expanded form), `hypothesis` (a `given` equation, either way round), `step N` (a valid
 step above), `lemma NAME` (a theorem proved above, without hypotheses), `sorry`. A line has a mark: valid, invalid (the engine found values that refute the step, shown
 as `x = 3: 9 ≠ 6`, or a reference to a step or lemma that does not exist), unchecked (everything it cannot decide: no reason, a reason that does not say it, `rule`),
 sorry, syntax error. `qed` is valid when no step has an error, a sorry or is unchecked, and the valid steps lead from the left side of the claim to its right side
 (compared by expanded form); a closed theorem is a lemma below. The checker says valid only when the simplifier's forms are equal, and invalid only with values that
-differ or a missing reference. The notes are texts (`[proof]`, `[proof_marks]`). `matlog proof` prints `LINE: note` for each line with a mark and exits 1 when a line is
+differ or a missing reference. The notes are texts (`[proof]`, `[proof_marks]`). `meth proof` prints `LINE: note` for each line with a mark and exits 1 when a line is
 not valid or a theorem is not closed. Tests: `test_proof.c` (valid and broken proofs, a wrong step at each position) and `test_cli.c`.
 The domain `proof` (gutter `prf>`, `m:proof` in the file) is built: `run_proofs` in `session/results.c` checks all proof lines of a session as one proof after the normal pass and gives the lines from the changed one down a result (a check mark and note for valid, `? note` for not checked and sorry, an error for not valid and syntax errors); no ghost for the domain. The highlighter knows the domain (`theorem given by qed` and the reason are keywords, the formulas are highlighted as algebra), and ghost mode previews the verdict of the step being typed (`ml_ghost_proof`: the proof lines above and the typed text are checked together; nothing for a line that does not read yet). `diff (f, x)` is a formula in a proof (`sym/build.c`). `by rule NAME` (`proof/rule.c`) is built: the rules are identities in the section `[rules]` of the texts (`distribute`, `square_of_sum`, `pythagoras`, `sin_double` ...; the letters stand for any formula, a texts file of the user can add more). The two sides of the step are read as written (raw trees, sums and products flattened), walked together to the one place where they differ, and that place has to match one side of the rule, the other side equal after expanding; a step that does not fit is not checked, or refuted when values show it false; `test_rule_table` checks that no rule is refuted by sample values. Known limit: the simplifier cancels `x/x` to 1 without asking for `x != 0`, so such a step is valid; a proof is as sound as the simplifier is. Not built: the status mark at the end of the row in its own colour, `:why`, `:hint`, `:test`, induction, cases, contradiction,
 rules with conditions (`a != 0`), inequalities, lemmas with hypotheses, matrix and boolean identities, the tutorial lesson, the export of proofs, a docs page.
@@ -381,13 +381,13 @@ The full text of the plan is in `TODO.md`.
 ### 4.13 Command line interface for scripts and AI agents
 The tool must be usable without the interactive screen, by scripts and by AI agents, through command line parameters. The interactive shell is one
 front end on the same library; the other one is a batch front end that reads, evaluates and prints, and never needs a terminal.
-- Entry points: `matlog eval "<expr>"...` (evaluate expressions or lines, one result per argument, using the optional `--session file.mlog` as the
-  environment), `matlog run file.mlog` (evaluate a session and print every line with its result), `matlog check file.mlog` (the proofs of a session: exit
-  code 0 when every theorem is complete, 1 when something is not valid, 2 when something is only unchecked), `matlog steps file.mlog:LINE` (the steps of
-  one line), `matlog export file.mlog --format latex|mathml|markdown|png|pdf -o out` (section 4.11), `matlog test "<claim>"` (try a claim on
-  values, print counterexamples), `matlog fmt file.mlog` (normalise ASCII to the pretty form), `matlog lex|parse "<text>"` (tokens and tree, for tooling)
-  and `matlog --version`. Reading `-` takes the text from standard input, so lines can be piped in; a file opened with `matlog file.mlog` and no
-  command is the interactive shell as before, and there is `matlog repl --plain` (a line oriented loop with no screen control, one prompt line per input,
+- Entry points: `meth eval "<expr>"...` (evaluate expressions or lines, one result per argument, using the optional `--session file.mlog` as the
+  environment), `meth run file.mlog` (evaluate a session and print every line with its result), `meth check file.mlog` (the proofs of a session: exit
+  code 0 when every theorem is complete, 1 when something is not valid, 2 when something is only unchecked), `meth steps file.mlog:LINE` (the steps of
+  one line), `meth export file.mlog --format latex|mathml|markdown|png|pdf -o out` (section 4.11), `meth test "<claim>"` (try a claim on
+  values, print counterexamples), `meth fmt file.mlog` (normalise ASCII to the pretty form), `meth lex|parse "<text>"` (tokens and tree, for tooling)
+  and `meth --version`. Reading `-` takes the text from standard input, so lines can be piped in; a file opened with `meth file.mlog` and no
+  command is the interactive shell as before, and there is `meth repl --plain` (a line oriented loop with no screen control, one prompt line per input,
   for agents that drive a process through pipes).
 - Output formats: `--format text` (the default, human readable, plain unicode, no colour unless asked), `--format json` (one stable, documented JSON
   object per result: `{"line":3,"domain":"algebra","input":"...","kind":"value|error|none","value":"7/2","exact":true,"approx":null,"block":[...],
@@ -398,8 +398,8 @@ front end on the same library; the other one is a batch front end that reads, ev
   exit codes with a fixed meaning (0 success, 1 a calculation or proof result that is an error or invalid, 2 usage error, 3 file or I/O error), errors
   on standard error as well as in the JSON, no prompts and no questions (an operation that would overwrite needs `--force`), a time limit (`--timeout ms`)
   and the size limits of the evaluator reported as errors rather than hanging, and `--session` files are only read unless `--write` is given.
-- Discoverability for agents: `matlog help` and `matlog help <command>` print complete usage with examples, `matlog syntax` prints the grammar and the list
-  of built in functions, constants and domains, `matlog schema` prints the JSON shapes, and `matlog commands --format json` lists every command with its
+- Discoverability for agents: `meth help` and `meth help <command>` print complete usage with examples, `meth syntax` prints the grammar and the list
+  of built in functions, constants and domains, `meth schema` prints the JSON shapes, and `meth commands --format json` lists every command with its
   parameters, so an agent can learn the whole tool from the tool. The same text feeds the tutorial and the documentation, written once.
 - Placement: a `cli` module with the argument parser and the batch front end (`source/app/` keeps only the wiring), built on the library without the `ui`
   and `platform` console code, so it also works where there is no console. After milestone 3 the first commands are `eval`, `run`, `lex`, `parse` and the
@@ -412,9 +412,9 @@ All user documentation (the syntax of every domain, the commands and keys, the b
 interface, export, proofs, the tutorial's topics) is written once, in `docs/`, and read in two places that behave the same: inside the tool, and as a
 generated static website.
 - Source format: plain text pages in `docs/` in a small, strict markup (headings, paragraphs, lists, code blocks, links between pages by name,
-  definition lists, tables, and a few marked blocks: `example` for a piece of matlog input with its expected result, `keys` for a key binding,
+  definition lists, tables, and a few marked blocks: `example` for a piece of meth input with its expected result, `keys` for a key binding,
   `command` for a `:command` or a CLI command, `syntax` for a grammar rule). One file per topic with a header (`id`, `title`, `summary`, `keywords`,
-  `see also`), grouped in a table of contents file. Math in the pages is written in matlog's own pretty syntax, so a page is also a valid piece of
+  `see also`), grouped in a table of contents file. Math in the pages is written in meth's own pretty syntax, so a page is also a valid piece of
   session. The markup is Markdown-compatible where it can be (so the pages are readable and editable as plain text anywhere) and has a parser in the
   `docs` module of the library, no external tool needed.
 - Examples are live: every `example` block is evaluated by the tool when the docs are built and checked against its written result, so a page can
@@ -430,10 +430,10 @@ generated static website.
   headings, then body, all words must match, case and accent insensitive, prefix matching for the last word), with a result list that shows the page and
   the line of the match. The index is built from the pages at start (a few hundred pages are instant) by plain code in the library, no dependency.
   Typing a function name or a command in the command line completes from the same index, and the autocompletion hints (section 4.3) link to the page.
-- On the command line: `matlog help topic`, `matlog docs search words [--format json]`, `matlog docs show id [--format text|json|markdown]` and
-  `matlog docs list`, so scripts and AI agents read the same documentation, with page ids, titles, summaries and examples as data (section 4.13). The
+- On the command line: `meth help topic`, `meth docs search words [--format json]`, `meth docs show id [--format text|json|markdown]` and
+  `meth docs list`, so scripts and AI agents read the same documentation, with page ids, titles, summaries and examples as data (section 4.13). The
   generated help texts of the command line (usage, `syntax`, `schema`, `commands`) come from these pages instead of being written twice.
-- The website: `matlog docs build site/` writes a static site from the same pages: one HTML file per page, the table of contents as navigation, the
+- The website: `meth docs build site/` writes a static site from the same pages: one HTML file per page, the table of contents as navigation, the
   search index as one JSON file, a small search script and a stylesheet (the themes of section 4.10 as light and dark styles), the syntax highlighting of
   the examples done by the same highlighter and written out as HTML, the maths in MathML (section 4.11). Everything is plain files that any static host
   can serve; it works without scripts for reading and uses a small script for search, keyboard navigation (the same keys as the tool: `/` search, `g`
@@ -450,9 +450,9 @@ generated static website.
   export module (it uses its MathML writer). Each later domain adds its pages as part of its "done when".
 
 ### 4.15 Settings and key bindings
-- One plain text settings file `settings.mlcfg` in the settings folder of the user (Windows `%APPDATA%\matlog`, Linux `$XDG_CONFIG_HOME/matlog` or
-  `~/.config/matlog`, macOS `~/Library/Application Support/matlog`; the folder is found in the `platform` module). The theme file `.theme`, the
-  tutorial progress and the history of the command line live in the same folder. `MATLOG_CONFIG` overrides the folder, which also makes the tests and
+- One plain text settings file `settings.mlcfg` in the settings folder of the user (Windows `%APPDATA%\meth`, Linux `$XDG_CONFIG_HOME/meth` or
+  `~/.config/meth`, macOS `~/Library/Application Support/meth`; the folder is found in the `platform` module). The theme file `.theme`, the
+  tutorial progress and the history of the command line live in the same folder. `METH_CONFIG` overrides the folder, which also makes the tests and
   the CLI independent of the real home of the user.
 - The format is line based, `key = value`, `#` starts a comment, sections in `[brackets]` group the keys (`[editor]`, `[display]`, `[keys]`; the editor has no modes, so one key table serves the
   text and the line selection). A line that does not parse is reported (file, line number, reason) and ignored, so
@@ -469,7 +469,7 @@ generated static website.
   of the documentation. Only keys that cannot be typed as text are bindable (Ctrl or Alt, function keys, Shift+Enter). Not built yet: sequences of keys,
   bindings for the keys of the help viewer and the command line, and the tutorial and docs showing the user's own keys.
 - **Settings are built** (`session/options.h`, one table for the editor and the CLI): `theme`, `colors`, `highlight`, `ghost`; `:set`, `:config`
-  (`path`, `reload`), `matlog config list|get|set|path`, the page `settings`. Not built yet, because the features they switch do not exist: the default
+  (`path`, `reload`), `meth config list|get|set|path`, the page `settings`. Not built yet, because the features they switch do not exist: the default
   domain, the width of the result column, the live Markdown preview, the undo history size, reopening the last file, the confirm before `:q!`.
   Each is one more row in the table when its feature is there.
 - In the tool: `:set key value` changes a setting (Tab completes names and values) and writes it to the file, `:set` alone lists them, `:map state key
@@ -485,12 +485,12 @@ generated static website.
   that no text still contains a literal key name such as `Ctrl+Z`, so a missed string cannot stay.
 - The file is written atomically (temporary file, then rename) and only when the user changed something, with the order and the comments of the
   existing file kept.
-- The CLI (section 4.13) reads the same settings for the display options and ignores the key bindings; `matlog config get|set|list|path` reads and
+- The CLI (section 4.13) reads the same settings for the display options and ignores the key bindings; `meth config get|set|list|path` reads and
   changes settings without the screen, for scripts and agents.
 
 ### 4.16 Examples and snippets
 
-- **Examples** are worked sessions that show how to solve real problems with matlog, written as `.mlog` files in `examples/` with notes that explain each
+- **Examples** are worked sessions that show how to solve real problems with meth, written as `.mlog` files in `examples/` with notes that explain each
   step. They are built in like the documentation pages (compiled in, browsable in the help viewer under an "Examples" entry, searchable), and `:examples`
   opens a table of contents grouped by area; picking one opens it as a read only session that can be copied into the user's own file. Every example is
   evaluated by a test, so it never goes stale.
@@ -507,9 +507,9 @@ generated static website.
 **Snippets are grouped (2026-10-10):** the names start with the area, as those of the examples (`algebra-quadratic`, `calculus-derivative`, `linalg-linear-system`, `units-conversion`, `logic-truth-table`, `lambda-church-numerals`), and the page `snippets` has a heading per area (`ml_area_*` in `docs/examples.h` is the one table of areas). The files of `data/stdlib` have an empty line between the groups of definitions, each group under its comment.
 
 **Built so far (2026-10-10):** `examples/*.mlog` (eleven examples, compiled in, one help page each with the live results, the contents page `examples`,
-`:examples`, `:example NAME` which inserts the lines after the cursor, `matlog examples [NAME]`), `snippets/*.mlog` (nine, plus the user's files in the
+`:examples`, `:example NAME` which inserts the lines after the cursor, `meth examples [NAME]`), `snippets/*.mlog` (nine, plus the user's files in the
 `snippets` folder of the settings folder; `:snippet [NAME]`, the page `snippets`). Every example is run by a test and must not have an error. Not built:
-the Tab through placeholders, snippets in the math completion (section 4.3), `matlog snippets`, opening an example as a read only session, and the
+the Tab through placeholders, snippets in the math completion (section 4.3), `meth snippets`, opening an example as a read only session, and the
 examples that need later features (statistics, images, PGA motors, the full inverse kinematics with approximate matrices: matrices hold exact numbers only).
 
 ### 4.17 More number systems: complex numbers and quaternions
@@ -531,7 +531,7 @@ the quaternion unit instead of an undefined name; a variable or a parameter of t
 
 ### 4.18 Standard library
 
-- A library of useful functions written in matlog's own language and included by default (read only, acyclic includes as in section 4.8, so a user can
+- A library of useful functions written in meth's own language and included by default (read only, acyclic includes as in section 4.8, so a user can
   read and copy them): number theory (`isprime`, `factor`, `fib`, `binomial`), sequences and sums (`sum`, `prod`, `range`), root finding (`newton`,
   `bisect`), numeric integration and ODE steps (`simpson`, `rk4`), interpolation and fits (`lerp`, `polyfit`, `lstsq`), vector helpers (`proj`,
   `gram_schmidt`), geometry (rotation matrices, `deg`, `rad`), physical constants with units, and the stat functions of section 4.22.
@@ -558,7 +558,7 @@ mode stays safe. Built in this order, each step with tests, docs and an example 
 4. **Loops: `map`, `filter`, `fold`, `sum (i, a, b, e)`, `prod (i, a, b, e)` and `x -> expr`** (built 2026-10-10: the function is a name or a lambda that is an argument, not a value; a lambda runs in the scope it is written in; the loops are frames of the evaluator, so nothing recurses). The design text below is the first idea: `map (f, xs)`, `filter (f, xs)`, `fold (f, start, xs)`, `sum`, `prod` over a list or over
    `sum (i, 1, n, expr)`, with `f` a function name or a short `x -> expr` form. A function value is a name and the environment snapshot; there are
    no closures over local names (an `x -> ...` form sees the names of the line it is written in).
-5. **The library** (first part built 2026-10-10: `stdlib/*.mlog` compiled in, loaded into every environment by `ml_stdlib_load`, hidden from the watch window, helpers with an underscore, a test that every function has its note; `mod sign frac trunc lerp clamp hypot deg rad linspace cumprod dotl normalize fib isqrt isprime primes factor divisors totient sigma collatz digits`, the page `library` and the example `algebra-library`. Then: functions as values (a name or a lambda as the argument of a function of the user, called through the parameter; a lambda sees the session variables and its own names, not the locals of where it is written), `approx`, and `newton bisect deriv trapezoid simpson euler rk4 rk4path proj gram_schmidt`). A file of definitions in matlog's own language, included first in every session (read only), written with the steps above:
+5. **The library** (first part built 2026-10-10: `stdlib/*.mlog` compiled in, loaded into every environment by `ml_stdlib_load`, hidden from the watch window, helpers with an underscore, a test that every function has its note; `mod sign frac trunc lerp clamp hypot deg rad linspace cumprod dotl normalize fib isqrt isprime primes factor divisors totient sigma collatz digits`, the page `library` and the example `algebra-library`. Then: functions as values (a name or a lambda as the argument of a function of the user, called through the parameter; a lambda sees the session variables and its own names, not the locals of where it is written), `approx`, and `newton bisect deriv trapezoid simpson euler rk4 rk4path proj gram_schmidt`). A file of definitions in meth's own language, included first in every session (read only), written with the steps above:
    `fib`, `isprime`, `factor`, `newton`, `bisect`, `simpson`, `rk4`, `lerp`, `proj`, ... one page and a test for each. Documented by a comment
    convention that the completion and the help read.
 
@@ -578,10 +578,10 @@ Not built. The full text is in `TODO.md`.
   results already keep), so moving up and down shows how values change, and the names defined or changed by the cursor line are marked.
 - Enter on an entry expands it (a full matrix, a long expression), and `d` jumps to the line that defines it. Sorting by order of definition
   or name, and a filter by typing. The panel is drawn in the screen module with theme classes of its own (`watch-name`, `watch-type`, `watch-value`).
-- The same data is available from the CLI: `matlog vars FILE[:LINE]` prints the table (`--format json` for tools).
+- The same data is available from the CLI: `meth vars FILE[:LINE]` prints the table (`--format json` for tools).
 
 **Built so far (2026-10-10):** the panel at the right (`ui/watchpanel.h`, F4 or `:watch [on|off]`, the setting `watch`), the rows from the results'
-snapshots (`session/watch.h`: variables, functions, boolean and lambda definitions, type, value, a star for what the line changed), `matlog vars
+snapshots (`session/watch.h`: variables, functions, boolean and lambda definitions, type, value, a star for what the line changed), `meth vars
 FILE[:LINE]` with JSON. Not built: moving into the panel, expanding a long value (Enter), `d` to jump to the definition, sorting and filtering, the
 theme classes `watch-name`, `watch-type`, `watch-value` (the panel uses name, function, gutter and result), a panel under the editor for narrow terminals.
 
@@ -630,7 +630,7 @@ the export and the docs, so a change of the syntax (a new constant, another spel
 
 ### 4.24 Texts in files: messages, hints, tutorial, localization
 
-Decided 2026-10-10. **Built so far:** the catalog format and reader (`texts/texts.h`), the English catalog `texts/en.mltext` compiled in, the setting `language` and the user file `texts/<language>.mltext`, the page `texts`, and the error texts of the evaluator, the parser and the boolean and lambda engines, the hints, the messages of the editor, the summaries of the actions and the settings, and the lessons of the tutorial (one file each in `lessons/en/`, also read from `lessons/<language>/` of the settings folder, with their checks, arguments and model answers) moved into it, with tests that the codes of the C tables and the entries agree and that every lesson plays. Also built: the help, syntax and schema of the command line and the messages and summaries of its commands (`[help]`, `[cli]`, `[cli_msg]`; long texts are blocks, `code = <<` ... `>>`), the editor messages that carry values (`{name}` places, `ml_text_fill`, `ml_text_fill2`), the labels of the screen (`[ui]`), the page of your keys (`[pages]`), and `matlog texts check [FILE]` (`ml_texts_check`: missing entries, unknown entries, lost or added places, bad lines). The summaries of the `:` commands (`[commands]`, `ml_command_summary`) are shown in the row above the command line once a command name is typed, and `test_every_entry_is_used` reads the C sources and fails for an entry that no code names (the hints and the lessons have tests of their own). The report of `matlog docs check` (`[docs_check]`, with the places `{id}` and `{detail}`) is data too; the export writers hold no text a user reads (only markup such as the css of the html export). **Not yet:** the placeholders of the website build. Every text a user reads is data in a file, so a typo, a new hint, a new lesson or a translation needs
+Decided 2026-10-10. **Built so far:** the catalog format and reader (`texts/texts.h`), the English catalog `texts/en.mltext` compiled in, the setting `language` and the user file `texts/<language>.mltext`, the page `texts`, and the error texts of the evaluator, the parser and the boolean and lambda engines, the hints, the messages of the editor, the summaries of the actions and the settings, and the lessons of the tutorial (one file each in `lessons/en/`, also read from `lessons/<language>/` of the settings folder, with their checks, arguments and model answers) moved into it, with tests that the codes of the C tables and the entries agree and that every lesson plays. Also built: the help, syntax and schema of the command line and the messages and summaries of its commands (`[help]`, `[cli]`, `[cli_msg]`; long texts are blocks, `code = <<` ... `>>`), the editor messages that carry values (`{name}` places, `ml_text_fill`, `ml_text_fill2`), the labels of the screen (`[ui]`), the page of your keys (`[pages]`), and `meth texts check [FILE]` (`ml_texts_check`: missing entries, unknown entries, lost or added places, bad lines). The summaries of the `:` commands (`[commands]`, `ml_command_summary`) are shown in the row above the command line once a command name is typed, and `test_every_entry_is_used` reads the C sources and fails for an entry that no code names (the hints and the lessons have tests of their own). The report of `meth docs check` (`[docs_check]`, with the places `{id}` and `{detail}`) is data too; the export writers hold no text a user reads (only markup such as the css of the html export). **Not yet:** the placeholders of the website build. Every text a user reads is data in a file, so a typo, a new hint, a new lesson or a translation needs
 no recompile, and the code only holds the stable code name of a text.
 - **One catalog format** (`.mltext`, plain UTF-8, line based like the settings file): `[section]` headings and `code = text` entries, `#` comments, a
   continuation line starts with whitespace, `{name}` placeholders for values (`{ACTION_UNDO}` as in section 4.15, `{name}` for the offending name in an
@@ -642,14 +642,14 @@ no recompile, and the code only holds the stable code name of a text.
   option summaries (`session/options.c`). The machine readable codes (`div_zero`, `parse_too_deep` ...) stay in C: they are part of the CLI contract and
   the key of the catalog; only the human text moves.
 - **Where the files live:** the English catalog is compiled into the program as the default, as the documentation pages are today, so the tool works
-  with nothing next to it; the same files are read from a `texts` folder in the settings folder (or `MATLOG_TEXTS`) when it exists, and an entry there
+  with nothing next to it; the same files are read from a `texts` folder in the settings folder (or `METH_TEXTS`) when it exists, and an entry there
   replaces the built in one. `:set language de` (setting `language`) picks `texts/de.mltext` over the English one, entry by entry. The documentation
   pages, the examples and the lessons follow the same rule (a `de` folder next to `docs/`), so a translation is a folder of files.
 - **Checks:** a test finds every code of the C tables without a text in the English catalog and every catalog entry no code uses; another finds a
-  placeholder without a value; `matlog texts check [FILE]` does both for a translation and reports what is missing, so a translator sees the gaps.
+  placeholder without a value; `meth texts check [FILE]` does both for a translation and reports what is missing, so a translator sees the gaps.
   The width of a text is not assumed: panels and the status line already cut and pad by columns.
 - **Order of work:** the catalog reader and `text (code)` with the built in English file first, then the error texts (smallest, most visible), the
-  hints, the command summaries, the lessons, last the settings file entry `language` and `matlog texts`.
+  hints, the command summaries, the lessons, last the settings file entry `language` and `meth texts`.
 
 ### Interned names (built 2026-10-10)
 
@@ -691,7 +691,7 @@ no recompile, and the code only holds the stable code name of a text.
 
 ## 5. Architecture (proposal)
 
-Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:
+Layers, each a module under `source/meth/` with public headers in `include/meth/`:
 
 1. `platform`: console I/O (raw input, VT output, terminal size), file system, time. The only module allowed to include OS headers.
 2. `core`: memory arena, strings, dynamic arrays, error handling.
@@ -725,8 +725,8 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 - Fixed-width integer types only (`int32_t`, `uint64_t`, ...); sizes and counts are `uint64_t`, not `size_t`.
 - Struct initializers use named entries (`{ .width = 2, .height = 5 }`); enum-indexed tables use `[ENUM] = value` entries; loop variables are declared in the `for`.
 - Avoid pointers where possible (structs by value, indices, typed containers). See `CLAUDE.md` for the full rules.
-- OS specific code lives in `platform/<os>/` (e.g. `source/matlog/platform/win32/`, `include/matlog/platform/win32/`); only the matching folder is built. Portable code stays in `platform/`.
-- Headers go in `include/matlog/`, sources in `source/matlog/`, include as `<matlog/x.h>`.
+- OS specific code lives in `platform/<os>/` (e.g. `source/meth/platform/win32/`, `include/meth/platform/win32/`); only the matching folder is built. Portable code stays in `platform/`.
+- Headers go in `include/meth/`, sources in `source/meth/`, include as `<meth/x.h>`.
 - All build outputs go to `build/`.
 
 ## 7. Milestones (proposal)
@@ -762,9 +762,9 @@ Layers, each a module under `source/matlog/` with public headers in `include/mat
 
 ## 8. Milestone 1 tasks
 
-Goal: run `matlog file.mlog`, type lines in insert/note mode, switch domain, move around in normal mode, and have everything saved and reloaded. Lines are only echoed (no evaluation yet).
+Goal: run `meth file.mlog`, type lines in insert/note mode, switch domain, move around in normal mode, and have everything saved and reloaded. Lines are only echoed (no evaluation yet).
 
-Each task lists its files (headers in `include/matlog/`, sources in `source/matlog/`) and a done-when check.
+Each task lists its files (headers in `include/meth/`, sources in `source/meth/`) and a done-when check.
 
 1. **Core basics** (`core/`): `mem.h` (arena allocator), `str.h` (UTF-8 string builder, code point iteration, display width), `vec.h` (growable array macro/helpers), `err.h` (result codes).
    Done when: a small test executable exercises arena, string append and UTF-8 iteration (`π` as multi-byte, combining cases excluded for now).
@@ -963,7 +963,7 @@ with exact results and steps on request.
    quadratic formula), polynomials in x^k, quotients (without the zeros of the denominator, sums of fractions over one line), and polynomials in
    exp(x), ln(x), a power or a root of x. When the second argument is a name that stands for nothing it is this; with matrices it is still the
    linear system. Not built: systems of equations (in the algebra domain), complex roots, cubic and quartic formulas, trigonometric equations.
-11. **Free symbols**: `:symbols on` (or `matlog eval --symbols`) makes a name that stands for nothing a symbol everywhere, so `x + y` is the
+11. **Free symbols**: `:symbols on` (or `meth eval --symbols`) makes a name that stands for nothing a symbol everywhere, so `x + y` is the
    expression `x + y`; off by default so that a mistyped name stays an error. A number defined later hides the symbol.
 
 ## 9d. Milestone 5 tasks
@@ -1023,7 +1023,7 @@ errors with a byte range.
 4. **Wiring** (`session/results.h`): lines of both domains run in the results; the lambda and boolean pages of the documentation. (done)
 5. **Ghost, highlighting, steps and the command line**: the ghost preview in both domains (`ml_ghost` takes the domain), the classes `logic` and
    `binder` (own scanners in `ui/highlight.c`, entries in all built in themes and their `.theme` files), the steps of a line (`F3`: the beta steps of a
-   lambda term, the truth table of a boolean expression) and `matlog eval|steps --domain boolean|lambda` with the domain name as the JSON `type`.
+   lambda term, the truth table of a boolean expression) and `meth eval|steps --domain boolean|lambda` with the domain name as the JSON `type`.
    (done)
 6. Later: export of both domains, syntax completion of the names defined above. Equivalence proofs for the proof checker (section 4.12) build on the
    boolean engine.

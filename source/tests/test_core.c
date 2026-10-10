@@ -1,12 +1,12 @@
 #include "test.h"
 
-#include <matlog/core/err.h>
-#include <matlog/core/heap.h>
-#include <matlog/core/mem.h>
-#include <matlog/core/slice.h>
-#include <matlog/core/str.h>
-#include <matlog/core/utf8.h>
-#include <matlog/core/vec.h>
+#include <meth/core/err.h>
+#include <meth/core/heap.h>
+#include <meth/core/mem.h>
+#include <meth/core/slice.h>
+#include <meth/core/str.h>
+#include <meth/core/utf8.h>
+#include <meth/core/vec.h>
 
 #include <stdint.h>
 #include <string.h>

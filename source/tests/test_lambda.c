@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/logic/lambda.h>
-#include <matlog/session/session.h>
+#include <meth/logic/lambda.h>
+#include <meth/session/session.h>
 
 #include <string.h>
 

@@ -32,8 +32,8 @@ be added, named or returned. `approx (x)` makes an exact number an approximation
 # Steps
 `steps (e)` has the value of `e`, and marks its line: the steps of the first operation in `e` that
 has some (`det`, `inv`, `rref`, `solve`, a product of matrices, `simplify`, `expand`, `diff`,
-`integrate`, `limit`) are shown under the line without {ACTION_STEPS}, printed by `matlog eval` and
-`matlog run`, and written after the line by `:export`. The call is left out of the typeset math:
+`integrate`, `limit`) are shown under the line without {ACTION_STEPS}, printed by `meth eval` and
+`meth run`, and written after the line by `:export`. The call is left out of the typeset math:
 `steps (det (A))` is exported as det A. Use it to make the lines of a tutorial or a document that
 should show their work.
 

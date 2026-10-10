@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/platform/fs.h>
-#include <matlog/session/mlog.h>
+#include <meth/platform/fs.h>
+#include <meth/session/mlog.h>
 
 #include <string.h>
 
@@ -334,7 +334,7 @@ static void test_round_trip (void)
 
 static void test_files (void)
 {
-	MlSlice   path = lit ("matlog_test_session.tmp");
+	MlSlice   path = lit ("meth_test_session.tmp");
 	MlSession s;
 	MlSession other;
 	MlStr     file;

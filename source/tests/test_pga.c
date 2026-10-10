@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/session/results.h>
-#include <matlog/session/session.h>
+#include <meth/session/results.h>
+#include <meth/session/session.h>
 
 #include <string.h>
 

@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/math/unit.h>
-#include <matlog/math/value.h>
+#include <meth/math/unit.h>
+#include <meth/math/value.h>
 
 #include <string.h>
 

@@ -1,11 +1,11 @@
 #include "test.h"
 
-#include <matlog/core/utf8.h>
-#include <matlog/math/eval.h>
-#include <matlog/session/mlog.h>
-#include <matlog/session/settings.h>
-#include <matlog/ui/editor.h>
-#include <matlog/ui/theme.h>
+#include <meth/core/utf8.h>
+#include <meth/math/eval.h>
+#include <meth/session/mlog.h>
+#include <meth/session/settings.h>
+#include <meth/ui/editor.h>
+#include <meth/ui/theme.h>
 
 #include <string.h>
 

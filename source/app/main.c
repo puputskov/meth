@@ -1,14 +1,14 @@
-#include <matlog/cli/cli.h>
-#include <matlog/platform/config.h>
-#include <matlog/platform/console.h>
-#include <matlog/platform/fs.h>
-#include <matlog/platform/path.h>
-#include <matlog/session/folds.h>
-#include <matlog/session/mlog.h>
-#include <matlog/session/settings.h>
-#include <matlog/ui/editor.h>
-#include <matlog/ui/hint.h>
-#include <matlog/ui/screen.h>
+#include <meth/cli/cli.h>
+#include <meth/platform/config.h>
+#include <meth/platform/console.h>
+#include <meth/platform/fs.h>
+#include <meth/platform/path.h>
+#include <meth/session/folds.h>
+#include <meth/session/mlog.h>
+#include <meth/session/settings.h>
+#include <meth/ui/editor.h>
+#include <meth/ui/hint.h>
+#include <meth/ui/screen.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -590,11 +590,11 @@ static int32_t run_interactive (int32_t argc, char **argv)
 	{
 		fprintf (
 			stderr,
-			"matlog: %s%s\n",
+			"meth: %s%s\n",
 			ml_result_str (r),
 			ml_choose (
 				r == ML_ERR_IO && !con.active,
-				" (run matlog in a console window)",
+				" (run meth in a console window)",
 				""
 			)
 		);

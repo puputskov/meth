@@ -34,7 +34,7 @@ that is defined at the line of the cursor: variables, functions and the
 definitions of the boolean and lambda domains, each with its type and its
 value. Move the cursor up and the panel shows the names as that line left
 them; a star marks what the line itself defined or changed. A terminal under
-70 columns has no room for it. `matlog vars FILE:LINE` prints the same.
+70 columns has no room for it. `meth vars FILE:LINE` prints the same.
 
 # Plots
 A line that gives a plot (`hist`, `scatter`, `plot`, see [plots](plots))

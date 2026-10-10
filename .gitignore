@@ -9,14 +9,14 @@ build/
 *.obj
 *.pdb
 
-# Scratch session created by running matlog without a file
+# Scratch session created by running meth without a file
 scratch.mlog
 
 # Object files and test leftovers
 *.o
 *.a
 *.tmp
-matlog_test_config/
+meth_test_config/
 
 # Bazel
 bazel-*

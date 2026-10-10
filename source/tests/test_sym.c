@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/math/env.h>
-#include <matlog/sym/expr.h>
+#include <meth/math/env.h>
+#include <meth/sym/expr.h>
 
 #include <string.h>
 

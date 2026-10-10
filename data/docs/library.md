@@ -1,6 +1,6 @@
 id: library
 title: The standard library
-summary: Functions written in matlog itself: number theory, helpers, root finding, integration, differential equations.
+summary: Functions written in meth itself: number theory, helpers, root finding, integration, differential equations.
 keywords: library, stdlib, newton, bisect, simpson, trapezoid, euler, rk4, deriv, proj, gram_schmidt, approx, fib, isprime, primes, factor, divisors, totient, sigma, collatz, digits, isqrt, mod, sign, lerp, clamp, hypot, deg, rad, linspace
 see: functions, lists, syntax, ex-algebra-library
 

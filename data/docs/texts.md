@@ -30,14 +30,14 @@ program fills in; in the hints the parts in braces are drawn as keys, and
 `{ACTION_UNDO}` is the key of the action `undo` (see [keys](keys)).
 
 A long text that has its own line breaks and indents, such as the help of the
-command line (`matlog help`), is a block. The entry ends in `= <<`, the lines
+command line (`meth help`), is a block. The entry ends in `= <<`, the lines
 that follow are taken as they are (spaces, `#` and backslashes included), and
 a line that is only `>>` ends it:
 
 ```code
 [help]
 lex = <<
-matlog lex TEXT [--format text|json]
+meth lex TEXT [--format text|json]
 
 Prints the tokens of TEXT.
 >>
@@ -60,7 +60,7 @@ that no file has is shown as the code itself, so a missing text is easy to
 find. A line in your file that is not an entry is ignored.
 
 # Checking a translation
-`matlog texts check FILE` compares a catalog file with the English texts and
+`meth texts check FILE` compares a catalog file with the English texts and
 lists what is wrong: entries the file lacks (only in the sections it has some
 entries of, and for the lessons only the ones it has), entries the program does
 not know, places like `{name}` that the translation lost or added, and lines
@@ -68,7 +68,7 @@ that are no entry. Without FILE it checks `texts/LANGUAGE.mltext` of the
 settings folder. The exit code is 1 when anything is found.
 
 ```code
-matlog texts check de.mltext
+meth texts check de.mltext
 ```
 
 # The lessons

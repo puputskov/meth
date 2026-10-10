@@ -1,8 +1,8 @@
 # The same build as premake5.lua, the Makefile and CMakeLists.txt, for Bazel:
 #
-#	bazel build //:matlog
+#	bazel build //:meth
 #	bazel test //:tests
-#	bazel run //:matlog
+#	bazel run //:meth
 #
 # Outputs go to bazel-bin. The Windows files and the POSIX files of the
 # platform layer are picked by the target platform.
@@ -33,19 +33,19 @@ LINKOPTS = select({
 })
 
 cc_library(
-    name = "matlog_lib",
+    name = "meth_lib",
     srcs = glob(
         [
-            "source/matlog/**/*.c",
-            "source/matlog/**/*.h",
+            "source/meth/**/*.c",
+            "source/meth/**/*.h",
         ],
         exclude = [
-            "source/matlog/platform/posix/**",
-            "source/matlog/platform/win32/**",
+            "source/meth/platform/posix/**",
+            "source/meth/platform/win32/**",
         ],
     ) + select({
-        "@platforms//os:windows": glob(["source/matlog/platform/win32/**/*.c"]),
-        "//conditions:default": glob(["source/matlog/platform/posix/**/*.c"]),
+        "@platforms//os:windows": glob(["source/meth/platform/win32/**/*.c"]),
+        "//conditions:default": glob(["source/meth/platform/posix/**/*.c"]),
     }),
     hdrs = glob(["include/**/*.h"]),
     copts = COPTS,
@@ -55,10 +55,10 @@ cc_library(
 
 # The interactive shell
 cc_binary(
-    name = "matlog",
+    name = "meth",
     srcs = glob(["source/app/**/*.c"]),
     copts = COPTS,
-    deps = [":matlog_lib"],
+    deps = [":meth_lib"],
 )
 
 # Unit tests. They read the sources and the data (the documentation build is
@@ -76,7 +76,7 @@ cc_test(
         "data/**",
         "tools/**",
     ]),
-    deps = [":matlog_lib"],
+    deps = [":meth_lib"],
 )
 
 # Prints decoded key events, for trying out the console layer by hand
@@ -84,5 +84,5 @@ cc_binary(
     name = "keydemo",
     srcs = glob(["source/demo/**/*.c"]),
     copts = COPTS,
-    deps = [":matlog_lib"],
+    deps = [":meth_lib"],
 )

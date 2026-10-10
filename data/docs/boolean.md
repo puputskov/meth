@@ -34,7 +34,7 @@ The first line gives `true`, the second `¬a ∨ b`.
 # Truth tables
 `table` before an expression shows its truth table under the line, with
 the names in alphabetical order (at most 6 names). `{ACTION_STEPS}` on a line shows
-its truth table too, and `matlog steps --domain boolean EXPR` prints it.
+its truth table too, and `meth steps --domain boolean EXPR` prints it.
 
 # While you type
 The result appears dimmed after the expression as soon as it is complete.

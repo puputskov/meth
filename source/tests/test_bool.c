@@ -1,7 +1,7 @@
 #include "test.h"
 
-#include <matlog/logic/bool.h>
-#include <matlog/session/session.h>
+#include <meth/logic/bool.h>
+#include <meth/session/session.h>
 
 #include <string.h>
 

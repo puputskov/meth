@@ -1,15 +1,15 @@
 #include "test.h"
 
-#include <matlog/core/err.h>
-#include <matlog/core/slice.h>
-#include <matlog/core/str.h>
-#include <matlog/platform/console.h>
-#include <matlog/platform/fs.h>
-#include <matlog/platform/key.h>
+#include <meth/core/err.h>
+#include <meth/core/slice.h>
+#include <meth/core/str.h>
+#include <meth/platform/console.h>
+#include <meth/platform/fs.h>
+#include <meth/platform/key.h>
 #ifdef _WIN32
-#include <matlog/platform/win32/key.h>
+#include <meth/platform/win32/key.h>
 #endif
-#include <matlog/platform/path.h>
+#include <meth/platform/path.h>
 
 #include <string.h>
 
@@ -201,8 +201,8 @@ static void test_path (void)
 
 static void test_fs (void)
 {
-	MlSlice path = lit ("matlog_test_file.tmp");
-	MlSlice tmp  = lit ("matlog_test_file.tmp.tmp");
+	MlSlice path = lit ("meth_test_file.tmp");
+	MlSlice tmp  = lit ("meth_test_file.tmp.tmp");
 	MlStr   s;
 	MlStr   big;
 
@@ -257,7 +257,7 @@ static void test_fs (void)
 
 static void test_fs_list (void)
 {
-	MlSlice dir = lit ("matlog_test_dir.tmp");
+	MlSlice dir = lit ("meth_test_dir.tmp");
 	MlStr   names;
 	MlStr   a;
 	MlStr   b;

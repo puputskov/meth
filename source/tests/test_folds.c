@@ -1,12 +1,12 @@
 #include "test.h"
 
-#include <matlog/platform/fs.h>
-#include <matlog/session/folds.h>
+#include <meth/platform/fs.h>
+#include <meth/session/folds.h>
 
 #include <stdlib.h>
 
-#define CONFIG_DIR  "matlog_test_config/nested"
-#define CONFIG_FILE "matlog_test_config/nested/settings.mlcfg"
+#define CONFIG_DIR  "meth_test_config/nested"
+#define CONFIG_FILE "meth_test_config/nested/settings.mlcfg"
 
 static MlSlice lit (const char *s)
 {
@@ -16,9 +16,9 @@ static MlSlice lit (const char *s)
 static void use_test_config (void)
 {
 #ifdef _WIN32
-	_putenv_s ("MATLOG_CONFIG", CONFIG_DIR);
+	_putenv_s ("METH_CONFIG", CONFIG_DIR);
 #else
-	setenv ("MATLOG_CONFIG", CONFIG_DIR, 1);
+	setenv ("METH_CONFIG", CONFIG_DIR, 1);
 #endif
 }
 
