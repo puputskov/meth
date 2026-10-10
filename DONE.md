@@ -1181,6 +1181,10 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
 - **Undo of actions that change several lines:** `ML_WEB_JOIN` (or'ed into replace, insert or delete) makes a change belong to the undo step before it;
   `Notebook.grouped ()` uses it for deleting or inserting a cell, splitting and joining lines, the domain of a cell and snippets, so one undo takes back the
   whole action (it used to take back the last line only).
+- **Publishing (built 2026-10-10):** `.github/workflows/web.yml` runs on every push to `master` (and on pull requests, without publishing): it installs clang and
+  lld, runs `make test`, `./build_web.sh` (the same modules as `build_web.bat`, byte for byte), `make meth` and `tools/test_web.py` with Chrome (`--no-sandbox` when
+  `CI` is set), puts `web/` together without the test pages, `tests.wasm` and `tests/` (about 950 KB), and deploys it with `actions/deploy-pages`. The page uses
+  relative addresses only, so it works under `https://USER.github.io/REPO/`. The settings of the repository need Pages with the source "GitHub Actions" once.
 - The files in the tree have a page icon and the folders a folder icon (open or closed).
 - **Typeset input:** a line that is not being edited shows its formula as MathML (algebra, physics, boolean, lambda; the others keep their source), the line
   with the caret shows the source with its colours; a text that is no formula keeps its source. Results and input are left aligned with `math-style: normal`.

@@ -1,0 +1,70 @@
+# Builds the web editor (the WebAssembly module of the library and the page in
+# web/), tests it, and publishes it as a GitHub Pages site on every push to
+# master. Set Settings > Pages > Source to "GitHub Actions" once.
+
+name: Web editor
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the compiler (clang with the wasm32 target, and lld)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld
+
+      - name: Test the library (native)
+        run: make test
+
+      - name: Build the WebAssembly modules
+        run: ./build_web.sh
+
+      - name: Build the native program the page is compared with
+        run: make meth
+
+      - name: Test the web editor (in the module, and in a headless browser)
+        run: python3 tools/test_web.py --meth build/make/bin/meth --browser "$(command -v google-chrome)"
+
+      - name: Put the site together
+        run: |
+          mkdir -p _site
+          cp -r web/. _site/
+          # the test pages, the test module and the cases are not part of the site
+          rm -rf _site/tests _site/tests.wasm
+          for t in test groups apitest uitest modeltest apptest; do
+            rm -f "_site/$t.html" "_site/js/$t.js"
+          done
+          touch _site/.nojekyll
+          find _site -type f | sort
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

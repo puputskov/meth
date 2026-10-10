@@ -25,6 +25,7 @@ export class App {
 		this.symbols = false;
 		this.empty = empty;
 		this.requestSymbols = requestSymbols;
+		this.listeners = []; // told what the user does in a notebook
 
 		this.explorer = new Explorer(explorer, ws, {
 			open: (path) => this.ws.open(path),
@@ -46,6 +47,16 @@ export class App {
 		});
 		ws.on((event) => this.sync(event));
 		this.sync({ type: "start" });
+	}
+
+	// Something the user did in a notebook or in the page ("steps", "fold",
+	// "domain", "symbols", "help" ...): the tutorial watches these.
+	onEvent(listener) {
+		this.listeners.push(listener);
+	}
+
+	emit(type, detail) {
+		this.listeners.forEach((l) => l(type, detail));
 	}
 
 	// ---- the files --------------------------------------------------------
@@ -186,6 +197,7 @@ export class App {
 			domains: this.domains,
 			say: this.say,
 			enableSymbols: this.requestSymbols,
+			event: (type, detail) => this.emit(type, detail),
 			onChange: () => {
 				clearTimeout(doc.timer);
 				doc.timer = setTimeout(() => this.save(doc.path), SAVE_MS);

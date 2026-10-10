@@ -60,13 +60,14 @@ function isDefinition(line) {
 }
 
 export class Notebook {
-	constructor(meth, root, { domains, onChange, say, enableSymbols }) {
+	constructor(meth, root, { domains, onChange, say, enableSymbols, event }) {
 		this.meth = meth;
 		this.root = root;
 		this.domains = domains;
 		this.onChange = onChange;
 		this.say = say;
 		this.enableSymbols = enableSymbols; // asked for by an undefined name
+		this.event = event ?? (() => {}); // told what the user did (the tutorial watches)
 		this.lines = [];
 		this.domain = "algebra"; // for new cells
 		this.signature = "";
@@ -269,6 +270,7 @@ export class Notebook {
 
 		this.repaintBlock(i);
 		this.onChange();
+		this.event("result", i);
 	}
 
 	// The button of the cell: every result of the cell, or the last one.
@@ -289,6 +291,7 @@ export class Notebook {
 		this.repaintBlock(first);
 		this.onChange();
 		this.render();
+		this.event("all-results", first);
 	}
 
 	toggleFold(first) {
@@ -300,6 +303,7 @@ export class Notebook {
 
 		this.render(null);
 		this.onChange();
+		this.event("fold", first);
 	}
 
 	// Paints again every line of the cell of line i (what is the last
@@ -897,6 +901,10 @@ export class Notebook {
 		if (row) {
 			this.paintResult(row.querySelector(".out"), i);
 		}
+
+		if (this.stepsOpen.has(i)) {
+			this.event("steps", i);
+		}
 	}
 
 	// After a change from line `from`: update the results in place when the
@@ -999,10 +1007,12 @@ export class Notebook {
 
 	undo() {
 		this.afterHistory(this.meth.edit(EDIT.undo, 0));
+		this.event("undo");
 	}
 
 	redo() {
 		this.afterHistory(this.meth.edit(EDIT.redo, 0));
+		this.event("redo");
 	}
 
 	afterHistory(answer) {
@@ -1175,6 +1185,7 @@ export class Notebook {
 		this.stepsOpen.clear();
 		this.render({ line: first, start: "end", end: "end" });
 		this.onChange();
+		this.event("domain", domain);
 	}
 
 	// Puts the lines of a text (a snippet) after line `after` as a new cell.

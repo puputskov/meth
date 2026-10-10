@@ -76,13 +76,21 @@ def run_native(meth, expression):
     return done.returncode, out.split("\n")[0].strip()
 
 
+def browser_flags():
+    """The flags of the headless browser. On a CI machine (CI is set) the
+    sandbox of the browser is not available to a program run as a job."""
+    flags = ["--headless=new", "--disable-gpu"]
+    if os.environ.get("CI"):
+        flags += ["--no-sandbox", "--disable-dev-shm-usage"]
+    return flags
+
+
 def run_browser(browser, port, page):
     with tempfile.TemporaryDirectory(dir=os.path.join(ROOT, "build")) as profile:
         done = subprocess.run(
             [
                 browser,
-                "--headless=new",
-                "--disable-gpu",
+                *browser_flags(),
                 "--user-data-dir=" + profile,
                 "--virtual-time-budget=60000",
                 "--dump-dom",
@@ -107,8 +115,7 @@ def check_boot(browser, port):
             done = subprocess.run(
                 [
                     browser,
-                    "--headless=new",
-                    "--disable-gpu",
+                    *browser_flags(),
                     "--user-data-dir=" + profile,
                     "--virtual-time-budget=30000",
                     "--dump-dom",
@@ -213,7 +220,8 @@ def main():
     args = parser.parse_args()
 
     if args.build:
-        if subprocess.run([os.path.join(ROOT, "build_web.bat")], cwd=ROOT).returncode:
+        script = "build_web.bat" if os.name == "nt" else "build_web.sh"
+        if subprocess.run([os.path.join(ROOT, script)], cwd=ROOT).returncode:
             return 2
     if not os.path.exists(os.path.join(WEB, "meth.wasm")):
         print("web/meth.wasm is missing: run build_web.bat or --build")

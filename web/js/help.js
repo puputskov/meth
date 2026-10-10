@@ -18,8 +18,9 @@ function el(tag, className, text) {
 }
 
 export class Help {
-	constructor(meth, root, { tryExample }) {
+	constructor(meth, root, { tryExample, event }) {
 		this.meth = meth;
+		this.event = event ?? (() => {});
 		this.root = root;
 		this.tryExample = tryExample;
 		this.history = [];
@@ -66,6 +67,7 @@ export class Help {
 	open(id = "index") {
 		this.root.hidden = false;
 		this.show(id);
+		this.event("help", id);
 		this.search.focus();
 	}
 
@@ -89,6 +91,8 @@ export class Help {
 		}
 
 		const hits = this.meth.searchDocs(query.trim());
+
+		this.event("help-search", query.trim());
 		const list = el("ul", "hits");
 
 		this.body.replaceChildren();
