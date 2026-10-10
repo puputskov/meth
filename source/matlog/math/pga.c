@@ -1207,7 +1207,7 @@ MlResult ml_mv_format (MlStr *out, MlArena *arena, const MlMv *m)
 				if (r == ML_OK && m->approx)
 				{
 					r = ml_choose (
-						i != 0 && fabs (m->d [i]) == 1.0,
+						i != 0 && fabs (fabs (m->d [i]) - 1.0) < 1e-12,
 						ML_OK,
 						ml_str_appendf (out, "%.*g", 9, fabs (m->d [i]))
 					);
