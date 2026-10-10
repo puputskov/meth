@@ -1,6 +1,8 @@
 #include "test.h"
 
 #include <matlog/proof/proof.h>
+#include <matlog/session/mlog.h>
+#include <matlog/session/results.h>
 #include <matlog/texts/texts.h>
 
 #include <string.h>
@@ -363,6 +365,53 @@ static void test_wrong_step_everywhere (void)
 	}
 }
 
+/* The proof domain: the verdicts are the results of the lines. */
+static void test_domain (void)
+{
+	MlSession s;
+	MlResults res;
+	MlResultView v;
+
+	ml_session_init (&s);
+	ml_results_init (&res);
+	CHECK (
+		ml_mlog_parse (
+			&s,
+			lit (
+				"m:proof theorem t: x + x = 3x\n"
+				"m:proof x + x = 2x  by simplify\n"
+				"m:proof x + x = 3x  by simplify\n"
+				"m:proof qed\n"
+			)
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&res, &s, 0) == ML_OK);
+	CHECK (ml_results_get (&res, 0).kind == ML_RESULT_NONE);
+	v = ml_results_get (&res, 1);
+	CHECK (v.kind == ML_RESULT_VALUE);
+	CHECK (v.text.len > 0 && (uint8_t)v.text.data [0] == 0xE2);
+	v = ml_results_get (&res, 2);
+	CHECK (v.kind == ML_RESULT_ERROR);
+	CHECK (strstr (v.text.data, "x = 2") != NULL);
+	CHECK (ml_results_get (&res, 3).kind == ML_RESULT_ERROR);
+
+	/* fixing the line from the changed line down gives the verdicts again */
+	CHECK (
+		ml_session_replace (
+			&s,
+			2,
+			ML_LINE_MATH,
+			ML_DOMAIN_PROOF,
+			lit ("x + x = 2x  by simplify")
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&res, &s, 2) == ML_OK);
+	CHECK (ml_results_get (&res, 2).kind == ML_RESULT_VALUE);
+
+	ml_results_free (&res);
+	ml_session_free (&s);
+}
+
 void run_proof_tests (void);
 
 void run_proof_tests (void)
@@ -373,4 +422,5 @@ void run_proof_tests (void)
 	test_broken ();
 	test_syntax ();
 	test_wrong_step_everywhere ();
+	test_domain ();
 }

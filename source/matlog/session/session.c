@@ -8,7 +8,8 @@ static const char *const domain_names [ML_DOMAIN_COUNT] = {
 	[ML_DOMAIN_LAMBDA]    = "lambda",
 	[ML_DOMAIN_PGA2]      = "pga2",
 	[ML_DOMAIN_PGA3]      = "pga3",
-	[ML_DOMAIN_BOOLEAN]   = "boolean"
+	[ML_DOMAIN_BOOLEAN]   = "boolean",
+	[ML_DOMAIN_PROOF]     = "proof"
 };
 
 int32_t ml_domain_units (MlDomain domain)

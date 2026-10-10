@@ -83,13 +83,13 @@ static void test_arguments (void)
 	MlCompletion c = ml_complete_command (lit ("mode "));
 
 	/* the values of the argument are listed, and they start after the space */
-	CHECK (c.count == 6 && c.token_start == 5);
+	CHECK (c.count == 7 && c.token_start == 5);
 	CHECK (has_item (&c, "algebra") && has_item (&c, "pga3"));
 	CHECK (has_item (&c, "boolean") && c.ghost == ML_MAX_CANDIDATES);
 
 	/* typing narrows the list down */
 	c = ml_complete_command (lit ("mode p"));
-	CHECK (c.count == 3 && has_item (&c, "pga2") && has_item (&c, "pga3"));
+	CHECK (c.count == 4 && has_item (&c, "pga2") && has_item (&c, "pga3"));
 	CHECK (has_item (&c, "physics"));
 	CHECK (ghost_is (c, "ga2"));
 
@@ -173,7 +173,7 @@ static void test_editor_keys (void)
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is           (&ed, "mode "));
-	CHECK (ml_editor_completion (&ed).count == 6);
+	CHECK (ml_editor_completion (&ed).count == 7);
 	type (&ed, "l");
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
@@ -283,7 +283,7 @@ static void test_screen (void)
 	MlLayout l;
 
 	ml_editor_init (&ed);
-	ml_screen_init (&s, 50, 5);
+	ml_screen_init (&s, 60, 5);
 
 	/*
 	 * the ghost text follows the typed text in a dim style; the cursor stays
@@ -303,7 +303,11 @@ static void test_screen (void)
 	press (&ed, ML_KEY_TAB);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (
-		plain_row_is (&l, 3, "  algebra  lambda  pga2  pga3  boolean  physics")
+		plain_row_is (
+			&l,
+			3,
+			"  algebra  lambda  pga2  pga3  boolean  physics  proof"
+		)
 	);
 	CHECK (plain_row_is (&l, 4, ":mode "));
 	ml_layout_free (&l);
@@ -311,7 +315,7 @@ static void test_screen (void)
 	/* narrowing the list: the first candidate is marked as the suggestion */
 	type (&ed, "p");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (plain_row_is (&l, 3, "  pga2  pga3  physics"));
+	CHECK (plain_row_is (&l, 3, "  pga2  pga3  physics  proof"));
 	CHECK (
 		strstr (ml_str_cstr (l.rows.data [3]), "\x1b[7m  pga2\x1b[0m") != NULL
 	);

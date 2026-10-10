@@ -51,7 +51,7 @@ Defaults chosen in DONE.md section 9.1 (approximate numbers, implicit multiplica
 
 ## 4. Proofs and their validation (4.12, the checker core is built, see DONE.md)
 
-Built: `matlog proof FILE` with simplify, expand, hypothesis, step, lemma and sorry. Next: the `proof` domain in the editor, then `rule`, cases and induction.
+Built: `matlog proof FILE` with simplify, expand, hypothesis, step, lemma and sorry. The `proof` domain works in the editor (results per line). Next: highlighting and ghost for it, then `rule`, cases and induction.
 
 A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few
 statement lines, so it lives in the same `.mlog` file as the calculations, with notes between the steps, and it is exported like everything else.

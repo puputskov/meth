@@ -760,7 +760,7 @@ static void test_domain_cycle (void)
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ed.session.domain == ML_DOMAIN_ALGEBRA);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
-	CHECK (ed.session.domain == ML_DOMAIN_PHYSICS);
+	CHECK (ed.session.domain == ML_DOMAIN_PROOF);
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	CHECK (ed.session.domain == ML_DOMAIN_ALGEBRA);
 
@@ -786,6 +786,7 @@ static void test_domain_cycle (void)
 	CHECK (ed.edit_domain == ML_DOMAIN_LAMBDA);
 
 	/* the rewrites follow the domain: ^ is an operator in the boolean domain */
+	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);

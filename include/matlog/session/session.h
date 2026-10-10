@@ -20,6 +20,7 @@ typedef enum MlDomain
 	ML_DOMAIN_PGA3,
 	ML_DOMAIN_BOOLEAN,
 	ML_DOMAIN_PHYSICS, /* algebra with unit names, "to" and quantities */
+	ML_DOMAIN_PROOF,   /* theorems and steps, checked line by line */
 	ML_DOMAIN_COUNT
 } MlDomain;
 

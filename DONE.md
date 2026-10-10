@@ -374,7 +374,7 @@ sorry, syntax error. `qed` is valid when no step has an error, a sorry or is unc
 (compared by expanded form); a closed theorem is a lemma below. The checker says valid only when the simplifier's forms are equal, and invalid only with values that
 differ or a missing reference. The notes are texts (`[proof]`, `[proof_marks]`). `matlog proof` prints `LINE: note` for each line with a mark and exits 1 when a line is
 not valid or a theorem is not closed. Tests: `test_proof.c` (valid and broken proofs, a wrong step at each position) and `test_cli.c`.
-Not built: the `proof` domain in the editor (marks at the end of the row, recomputed on edit, ghost), `:why`, `:hint`, `:test`, induction, cases, contradiction,
+The domain `proof` (gutter `prf>`, `m:proof` in the file) is built: `run_proofs` in `session/results.c` checks all proof lines of a session as one proof after the normal pass and gives the lines from the changed one down a result (a check mark and note for valid, `? note` for not checked and sorry, an error for not valid and syntax errors); no ghost for the domain. Not built: the status mark at the end of the row in its own colour, a highlighter for the domain, `:why`, `:hint`, `:test`, induction, cases, contradiction,
 named rewrite rules (`by rule NAME`), inequalities, lemmas with hypotheses, matrix and boolean identities, the tutorial lesson, the export of proofs, a docs page.
 The full text of the plan is in `TODO.md`.
 

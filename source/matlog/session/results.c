@@ -9,6 +9,7 @@
 #include <matlog/math/eval.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
+#include <matlog/proof/proof.h>
 #include <matlog/session/mlog.h>
 
 /* A file being run: the session itself, or a file it includes. */
@@ -628,6 +629,118 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 	return r;
 }
 
+/* 1 when the line is a line of the proof domain. */
+static int32_t is_proof_line (MlLineView view)
+{
+	return view.kind == ML_LINE_MATH && view.domain == ML_DOMAIN_PROOF;
+}
+
+/* The mark and the note of a checked line as the result of its line. */
+static MlResult proof_result (MlLineResult *lr, const MlProofLine *pl)
+{
+	MlResult r = ML_OK;
+
+	switch (pl->mark)
+	{
+		case ML_PROOF_VALID:
+		{
+			r = ml_str_append (&lr->text, ml_slice_cstr ("\xE2\x9C\x93 "));
+			r = ml_choose (
+				r == ML_OK,
+				ml_str_append (&lr->text, ml_str_view (pl->note)),
+				r
+			);
+			lr->kind  = ML_RESULT_VALUE;
+			lr->value = ML_VALUE_EXACT;
+		} break;
+
+		case ML_PROOF_UNCHECKED:
+		case ML_PROOF_SORRY:
+		{
+			r = ml_str_append (&lr->text, ml_slice_cstr ("? "));
+			r = ml_choose (
+				r == ML_OK,
+				ml_str_append (&lr->text, ml_str_view (pl->note)),
+				r
+			);
+			lr->kind  = ML_RESULT_VALUE;
+			lr->value = ML_VALUE_EXACT;
+		} break;
+
+		case ML_PROOF_INVALID:
+		case ML_PROOF_SYNTAX:
+		{
+			r = result_error (
+				lr,
+				ml_str_view (pl->note),
+				ml_choose (
+					pl->mark == ML_PROOF_INVALID,
+					"proof_invalid",
+					"proof_syntax"
+				),
+				0,
+				0
+			);
+		} break;
+
+		default:
+		{
+			r = ML_OK;
+		} break;
+	}
+
+	return r;
+}
+
+/*
+ * Checks the lines of the proof domain as one proof (the state of a theorem
+ * runs from line to line) and gives the lines from `keep` on their verdicts.
+ */
+static MlResult run_proofs (MlResults *res, const MlSession *s, uint64_t keep)
+{
+	MlResult      r     = ML_OK;
+	MlStr         text;
+	MlProofReport rep;
+	int32_t       any   = 0;
+
+	ml_str_init (&text);
+	ml_proof_report_init (&rep);
+
+	for (uint64_t i = 0; i < s->lines.len && r == ML_OK; i++)
+	{
+		MlLineView view = ml_session_get (s, i);
+
+		if (is_proof_line (view))
+		{
+			any = 1;
+			r   = ml_str_append (&text, view.text);
+		}
+
+		r = ml_choose (
+			r == ML_OK,
+			ml_str_append (&text, ml_slice_cstr ("\n")),
+			r
+		);
+	}
+
+	if (r == ML_OK && any)
+	{
+		r = ml_proof_check (&rep, ml_str_view (text));
+	}
+
+	for (uint64_t i = keep; any && i < res->lines.len && r == ML_OK; i++)
+	{
+		if (is_proof_line (ml_session_get (s, i)) && i < rep.lines.len)
+		{
+			r = proof_result (&res->lines.data [i], &rep.lines.data [i]);
+		}
+	}
+
+	ml_proof_report_free (&rep);
+	ml_str_free (&text);
+	return r;
+}
+
 MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from)
 {
 	MlResult res;
@@ -655,6 +768,11 @@ MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from)
 
 	drop_from (r, keep);
 	res = run_all (r, s, keep);
+
+	if (res == ML_OK)
+	{
+		res = run_proofs (r, s, keep);
+	}
 
 	/* a line of steps (...) keeps its steps with its result */
 	for (uint64_t i = keep; i < r->lines.len && res == ML_OK; i++)

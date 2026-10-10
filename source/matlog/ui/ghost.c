@@ -129,7 +129,7 @@ MlGhost ml_ghost_block (
 		g = ghost_logic (out, results, domain, idx, text);
 	}
 
-	else
+	else if (domain != ML_DOMAIN_PROOF)
 	{
 		g = ghost_algebra (out, block, results, idx, text, domain);
 	}

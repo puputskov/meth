@@ -28,7 +28,8 @@ static const char *const math_gutters [ML_DOMAIN_COUNT] = {
 	[ML_DOMAIN_LAMBDA]    = "\xCE\xBB  > ",     /* lambda sign */
 	[ML_DOMAIN_PGA2]      = "pg2> ",
 	[ML_DOMAIN_PGA3]      = "pg3> ",
-	[ML_DOMAIN_BOOLEAN]   = "\xE2\x88\xA7  > "  /* logical and */
+	[ML_DOMAIN_BOOLEAN]   = "\xE2\x88\xA7  > ", /* logical and */
+	[ML_DOMAIN_PROOF]     = "prf> "
 };
 
 void ml_screen_init (MlScreen *s, uint32_t cols, uint32_t rows)
