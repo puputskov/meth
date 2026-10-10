@@ -127,3 +127,8 @@ numbers short.
 The statistics functions and the loops (`map`, `filter`, `fold`, `sum`) are
 built in, see [statistics](statistics) and [lists](lists). Every line has a
 limit of two million steps, so a big argument ends with the error `too_long`.
+
+# Physics
+In the physics domain the library has `kinetic (m, v)`, `momentum (m, v)`,
+`weight (m)` and `speed (d, t)`, which work on quantities:
+`kinetic (2 kg, 3 m/s) to J` is `9 J`.

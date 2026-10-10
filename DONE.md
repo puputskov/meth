@@ -1039,3 +1039,9 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   inner, join, meet, inv, norm, point, line, plane, translator, rotor. Blade names (`e0`, `e12`, `e21` = `-e12`) resolve on pga lines only.
 - Docs: page `pga`, ` ```example pga2|pga3 ` blocks (block level 2 or 3, `ml_docs_check_example` mode), example `pga-motors`, lesson 16.
 
+
+### Library asserts (built 2026-10-10)
+
+- A stdlib file holds `m:<domain> <math>` lines (definitions, any domain, e.g. `m:physics`) and `a:<domain> <math>` lines (asserts). An assert must give
+  `true` or the text after ` => `. `ml_stdlib_check` evaluates them in a session with the library; the `stdlib` test group fails on a wrong one.
+  Files: algebra helpers, numbers, and new `physics.mlog` (kinetic, momentum, weight, speed).

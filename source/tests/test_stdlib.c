@@ -323,10 +323,29 @@ static void test_documented (void)
 	}
 }
 
+/* The asserts of the library files all hold. */
+static void test_asserts (void)
+{
+	MlStr    report;
+	uint64_t problems = 0;
+
+	ml_str_init (&report);
+	CHECK (ml_stdlib_check (&report, &problems) == ML_OK);
+	CHECK (problems == 0);
+
+	if (problems > 0)
+	{
+		printf ("%s", ml_str_cstr (report));
+	}
+
+	ml_str_free (&report);
+}
+
 void run_stdlib_tests (void);
 
 void run_stdlib_tests (void)
 {
+	test_asserts ();
 	test_loads ();
 	test_numbers ();
 	test_numeric ();

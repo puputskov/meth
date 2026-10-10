@@ -9,9 +9,10 @@
  * language, in stdlib/*.mlog, compiled into the program (source/matlog/docs/
  * stdlib_data.c, made by tools/gen_docs.py) and defined in the environment
  * before the first line of every session. A file is a session file: notes
- * and lines of the algebra domain. By convention a function is described by
- * the note above it, `# name (a, b): what it gives`, which the tests compare
- * with the definitions.
+ * and lines of any domain (`m:` lines define, `a:` lines assert). By
+ * convention a function is described by the note above it,
+ * `# name (a, b): what it gives`, which the tests compare with the
+ * definitions.
  *
  * What the library defines is hidden from the watch window and from the
  * variable listing, and the user's own definitions of the same names win, as
@@ -28,5 +29,15 @@ extern const uint64_t    ml_stdlib_source_count;
  * library does not parse (a mistake of the program, found by the tests).
  */
 MlResult ml_stdlib_load (MlEnv *env);
+
+/*
+ * Runs the asserts of the library. A library file may hold, next to the
+ * definitions `m:<domain> <math>`, lines `a:<domain> <math>` that test them:
+ * the text the line gives must be `true`, or the text after ` => ` in the
+ * line (`a:algebra fib(10) => 55`). Each assert is evaluated in a session
+ * that has the library, in its own domain. A line that gives something else
+ * is written to report and counted in problems.
+ */
+MlResult ml_stdlib_check (MlStr *report, uint64_t *problems);
 
 #endif /* MATLOG_DOCS_STDLIB_H */

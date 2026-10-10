@@ -25,3 +25,15 @@ m:algebra sigma(n) = sum(divisors(n))
 m:algebra collatz(n) = if (n == 1, 0, 1 + collatz(if (mod(n, 2) == 0, n / 2, 3 * n + 1)))
 # digits (n): the decimal digits of a whole number n, as a list
 m:algebra digits(n) = if (n < 10, list(n), append(digits(floor(n / 10)), mod(n, 10)))
+# Asserts
+a:algebra fib(10) => 55
+a:algebra isqrt(99) => 9
+a:algebra isprime(97)
+a:algebra isprime(91) => false
+a:algebra primes(20) => [2, 3, 5, 7, 11, 13, 17, 19]
+a:algebra factor(360) => [2, 2, 2, 3, 3, 5]
+a:algebra divisors(12) => [1, 2, 3, 4, 6, 12]
+a:algebra totient(12) => 4
+a:algebra sigma(6) => 12
+a:algebra collatz(6) => 8
+a:algebra digits(1234) => [1, 2, 3, 4]

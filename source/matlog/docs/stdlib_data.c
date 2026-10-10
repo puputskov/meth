@@ -33,7 +33,18 @@ static const char text_helpers [] =
 	"# dotl (xs, ys): the dot product of two lists of one length\n"
 	"m:algebra dotl(xs, ys) = sum(i, 1, len(xs), xs[i] * ys[i])\n"
 	"# normalize (xs): the list divided by its largest absolute value\n"
-	"m:algebra normalize(xs) = xs / fold((m, x) -> max(m, abs(x)), 0, xs)\n";
+	"m:algebra normalize(xs) = xs / fold((m, x) -> max(m, abs(x)), 0, xs)\n"
+	"# Asserts: lines a:<domain> check the library, the tests run them (tru"
+	"e, or the text after =>)\n"
+	"a:algebra mod(-1, 5) == 4\n"
+	"a:algebra sign(-7) => -1\n"
+	"a:algebra frac(5/2) => 1/2\n"
+	"a:algebra trunc(-5/2) => -2\n"
+	"a:algebra lerp(0, 10, 1/4) => 5/2\n"
+	"a:algebra clamp(15, 0, 10) => 10\n"
+	"a:algebra hypot(3, 4) => 5\n"
+	"a:algebra len(linspace(0, 1, 5)) => 5\n"
+	"a:algebra dotl([1, 2, 3], [4, 5, 6]) => 32\n";
 
 static const char text_numbers [] =
 	"# The standard library: number theory\n"
@@ -75,7 +86,19 @@ static const char text_numbers [] =
 	"n / 2, 3 * n + 1)))\n"
 	"# digits (n): the decimal digits of a whole number n, as a list\n"
 	"m:algebra digits(n) = if (n < 10, list(n), append(digits(floor(n / 10)"
-	"), mod(n, 10)))\n";
+	"), mod(n, 10)))\n"
+	"# Asserts\n"
+	"a:algebra fib(10) => 55\n"
+	"a:algebra isqrt(99) => 9\n"
+	"a:algebra isprime(97)\n"
+	"a:algebra isprime(91) => false\n"
+	"a:algebra primes(20) => [2, 3, 5, 7, 11, 13, 17, 19]\n"
+	"a:algebra factor(360) => [2, 2, 2, 3, 3, 5]\n"
+	"a:algebra divisors(12) => [1, 2, 3, 4, 6, 12]\n"
+	"a:algebra totient(12) => 4\n"
+	"a:algebra sigma(6) => 12\n"
+	"a:algebra collatz(6) => 8\n"
+	"a:algebra digits(1234) => [1, 2, 3, 4]\n";
 
 static const char text_numeric [] =
 	"# The standard library: functions that take a function\n"
@@ -127,11 +150,27 @@ static const char text_numeric [] =
 	"m:algebra _gs_sub(v, us) = if (len(us) == 0, v, _gs_sub(v - proj(item("
 	"us, 1), v), drop(us, 1)))\n";
 
+static const char text_physics [] =
+	"# The standard library: physics, in the physics domain (units)\n"
+	"# kinetic (m, v): the kinetic energy, m v^2 / 2\n"
+	"m:physics kinetic(m, v) = m * v^2 / 2\n"
+	"# momentum (m, v): the momentum, m v\n"
+	"m:physics momentum(m, v) = m * v\n"
+	"# weight (m): the force of gravity on a mass m, with g = 9.80665 m/s^2\n"
+	"m:physics weight(m) = m * 9.80665 m/s^2\n"
+	"# speed (d, t): the speed of covering a distance d in a time t\n"
+	"m:physics speed(d, t) = d / t\n"
+	"# Asserts\n"
+	"a:physics kinetic(2 kg, 3 m/s) to J => 9 J\n"
+	"a:physics momentum(2 kg, 3 m/s) => 6 kg\302\267m/s\n"
+	"a:physics speed(100 m, 20 s) => 5 m/s\n";
+
 const MlDocSource ml_stdlib_sources [] =
 {
 	{ .name = "helpers", .text = text_helpers },
 	{ .name = "numbers", .text = text_numbers },
-	{ .name = "numeric", .text = text_numeric }
+	{ .name = "numeric", .text = text_numeric },
+	{ .name = "physics", .text = text_physics }
 };
 
 const uint64_t ml_stdlib_source_count = ml_count (ml_stdlib_sources);

@@ -129,3 +129,10 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
   recurses, so the C stack must not depend on the input), and every allocation failure path is tried by an allocator that fails on the n-th call.
 - Built with the compilers' sanitizers (address, undefined behaviour) where the platform has them; libFuzzer or AFL entry points are a thin wrapper over
   the same target functions, but the program needs no library: the built in driver is enough.
+
+## 8. Asserts and live help (next)
+
+- Library definitions in the boolean and lambda domains (needs functions/definitions there; today only algebra, physics, pga definitions work).
+- Help page examples evaluated live in the help panel, with hidden asserts (`=> ` lines are checked by the tests today, not shown as live results).
+- Doc pages that reference an example from `data/examples` (` ```example @name `) instead of inlining it.
+

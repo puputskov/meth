@@ -25,3 +25,13 @@ m:algebra cumprod(xs) = map(k -> prod(i, 1, k, xs[i]), range(1, len(xs)))
 m:algebra dotl(xs, ys) = sum(i, 1, len(xs), xs[i] * ys[i])
 # normalize (xs): the list divided by its largest absolute value
 m:algebra normalize(xs) = xs / fold((m, x) -> max(m, abs(x)), 0, xs)
+# Asserts: lines a:<domain> check the library, the tests run them (true, or the text after =>)
+a:algebra mod(-1, 5) == 4
+a:algebra sign(-7) => -1
+a:algebra frac(5/2) => 1/2
+a:algebra trunc(-5/2) => -2
+a:algebra lerp(0, 10, 1/4) => 5/2
+a:algebra clamp(15, 0, 10) => 10
+a:algebra hypot(3, 4) => 5
+a:algebra len(linspace(0, 1, 5)) => 5
+a:algebra dotl([1, 2, 3], [4, 5, 6]) => 32

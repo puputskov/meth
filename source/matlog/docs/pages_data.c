@@ -960,7 +960,13 @@ static const char text_library [] =
 	"built in, see [statistics](statistics) and [lists](lists). Every line "
 	"has a\n"
 	"limit of two million steps, so a big argument ends with the error `too"
-	"_long`.\n";
+	"_long`.\n"
+	"\n"
+	"# Physics\n"
+	"In the physics domain the library has `kinetic (m, v)`, `momentum (m, "
+	"v)`,\n"
+	"`weight (m)` and `speed (d, t)`, which work on quantities:\n"
+	"`kinetic (2 kg, 3 m/s) to J` is `9 J`.\n";
 
 static const char text_lists [] =
 	"id: lists\n"
