@@ -113,7 +113,8 @@ MlLineView ml_session_get (const MlSession *s, uint64_t idx)
 			.data = "",
 			.len  = 0
 		},
-		.folded = 0
+		.folded  = 0,
+		.plotted = 0
 	};
 
 	if (idx < s->lines.len)
@@ -123,7 +124,8 @@ MlLineView ml_session_get (const MlSession *s, uint64_t idx)
 		view.kind   = line.kind;
 		view.domain = line.domain;
 		view.text   = ml_str_view (line.text);
-		view.folded = line.folded;
+		view.folded  = line.folded;
+		view.plotted = line.plotted;
 	}
 
 	return view;
@@ -142,6 +144,7 @@ static MlResult line_make (
 	out->kind   = kind;
 	out->domain = domain;
 	out->folded = 0;
+	out->plotted = 0;
 	ml_str_init (&out->text);
 
 	if (
@@ -439,7 +442,8 @@ MlResult ml_session_replace (
 
 	if (r == ML_OK)
 	{
-		r = change (s, op);
+		op.line.plotted = s->lines.data [idx].plotted;
+		r               = change (s, op);
 
 		if (r != ML_OK)
 		{
@@ -621,6 +625,14 @@ void ml_session_set_folded (MlSession *s, uint64_t idx, int32_t folded)
 	if (idx < s->lines.len)
 	{
 		s->lines.data [idx].folded = folded;
+	}
+}
+
+void ml_session_set_plotted (MlSession *s, uint64_t idx, int32_t plotted)
+{
+	if (idx < s->lines.len)
+	{
+		s->lines.data [idx].plotted = plotted;
 	}
 }
 

@@ -12,8 +12,11 @@
  *	notes/physics.mlog = 0 12 40
  *
  * one entry per session path, as it was given to the program, with the first
- * line (0 based) of every folded block of more than one line. Everything else
- * in the file, comments and other sections included, is left as it is. An
+ * line (0 based) of every folded block of more than one line. The lines whose
+ * plot is shown in the plot panel are listed in the same entry with a p in
+ * front (`0 12 40 p3 p7`), so one entry keeps the view of the session.
+ * Everything else in the file, comments and other sections included, is left
+ * as it is. An
  * entry for a line that does not start a block of several lines is ignored,
  * so a file that was edited elsewhere never breaks anything.
  */

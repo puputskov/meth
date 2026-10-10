@@ -2050,6 +2050,38 @@ static MlResult toggle_watch (MlEditor *ed, MlSlice arg)
 }
 
 /*
+ * F7 and :plot show or hide the plot of the cursor line in the plot panel;
+ * :plot on and :plot off say which. A line without a plot says so.
+ */
+static MlResult toggle_plot (MlEditor *ed, MlSlice arg)
+{
+	uint64_t     line = ed->session.cursor;
+	MlResultView v    = ml_results_get (&ed->results, line);
+	int32_t      on   = ml_choose (
+		ml_option_bool (arg) >= 0,
+		ml_option_bool (arg),
+		!ml_session_get (&ed->session, line).plotted
+	);
+	MlResult     r    = ML_OK;
+
+	if (line >= ed->session.lines.len || v.plot == NULL)
+	{
+		r = set_message (ed, "plot: this line has no plot");
+	}
+
+	else
+	{
+		ml_session_set_plotted (&ed->session, line, on);
+		r = set_message (
+			ed,
+			ml_choose (on, "plot: shown in the panel", "plot: hidden")
+		);
+	}
+
+	return r;
+}
+
+/*
  * :set alone lists the settings, :set name shows one, :set name value
  * changes it and keeps it in the settings file.
  */
@@ -3375,6 +3407,11 @@ static MlResult run_command (MlEditor *ed)
 		r = toggle_watch (ed, arg);
 	}
 
+	else if (is_cmd (cmd, "plot"))
+	{
+		r = toggle_plot (ed, arg);
+	}
+
 	else if (is_cmd (cmd, "tutorial") || is_cmd (cmd, "tutorial!"))
 	{
 		r = tutorial_command (ed, arg, is_cmd (cmd, "tutorial!"));
@@ -4448,6 +4485,11 @@ static MlEditResult row_key (MlEditor *ed, MlKey key)
 	else if (act == ML_ACT_WATCH)
 	{
 		res.result = toggle_watch (ed, ml_slice ("", 0));
+	}
+
+	else if (act == ML_ACT_PLOT)
+	{
+		res.result = toggle_plot (ed, ml_slice ("", 0));
 	}
 
 	else

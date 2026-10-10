@@ -19,6 +19,7 @@ iqr (v)                          quantile 3/4 less quantile 1/4
 skew kurt                        skewness (approximate), excess kurtosis
 cumsum sort                      running sums, the data in order
 histogram (v, k)                 how many values are in each of k bins
+hist (v, k)                      the same as a plot, see plots
 range (a, b [, step])            a, a + step, ... up to b
 ```
 

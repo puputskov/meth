@@ -408,3 +408,39 @@ MlResult ml_plot_xy (
 
 	return r;
 }
+
+MlResult ml_plot_draw (
+	MlStr             *out,
+	const MlPlotOwned *plot,
+	uint64_t          width,
+	uint64_t          height
+)
+{
+	MlResult r = ML_OK;
+
+	if (plot->kind == ML_PLOT_HISTOGRAM)
+	{
+		r = ml_plot_histogram (
+			out,
+			&plot->ys,
+			plot->lo,
+			plot->hi,
+			width,
+			height
+		);
+	}
+
+	else if (plot->kind != ML_PLOT_NONE)
+	{
+		r = ml_plot_xy (
+			out,
+			&plot->xs,
+			&plot->ys,
+			plot->kind == ML_PLOT_LINE,
+			width,
+			height
+		);
+	}
+
+	return r;
+}

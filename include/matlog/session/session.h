@@ -39,6 +39,8 @@ typedef struct MlLine
 	MlStr      text;
 	/* the block that starts with this line is shown as one row; not saved */
 	int32_t    folded;
+	/* the plot of this line is shown in the plot panel; not saved */
+	int32_t    plotted;
 } MlLine;
 
 ML_VEC_DEFINE (MlLineVec, MlLine)
@@ -115,6 +117,7 @@ typedef struct MlLineView
 	MlDomain   domain;
 	MlSlice    text;
 	int32_t    folded;
+	int32_t    plotted;
 } MlLineView;
 
 typedef struct MlDomainResult
@@ -208,6 +211,13 @@ MlBlock ml_session_block (const MlSession *s, uint64_t idx);
  * the view: it is not a change (no undo, not dirty) and not saved.
  */
 void ml_session_set_folded (MlSession *s, uint64_t idx, int32_t folded);
+
+/*
+ * Shows (1) or hides (0) the plot of line idx in the plot panel. Like the
+ * folds it belongs to the view: it is not saved with the file, it is not an
+ * undo step, and the line keeps it when its text is replaced.
+ */
+void ml_session_set_plotted (MlSession *s, uint64_t idx, int32_t plotted);
 
 /*
  * Moves the lines first..last (inclusive) so that they start at index dest

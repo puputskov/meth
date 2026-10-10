@@ -6,6 +6,7 @@
 #include <matlog/ui/highlight.h>
 #include <matlog/ui/hint.h>
 #include <matlog/ui/markup.h>
+#include <matlog/ui/plotpanel.h>
 #include <matlog/ui/tutorialpanel.h>
 #include <matlog/ui/watchpanel.h>
 
@@ -2534,12 +2535,25 @@ static MlLayout watch_layout (MlScreen *s, const MlEditor *ed, uint32_t panel)
 
 	if (layout.result == ML_OK)
 	{
-		layout.result = ml_watch_panel (
-			&rows,
-			ed,
-			panel,
-			ml_choose (s->rows > 1, s->rows - 1, 0)
-		);
+		uint32_t height = ml_choose (s->rows > 1, s->rows - 1, 0);
+		uint32_t plots  = 0;
+
+		/* the plots take the upper two thirds, or all, of the panel */
+		if (ml_plot_panel_count (ed) > 0)
+		{
+			plots = ml_choose (ed->watch, height * 2 / 3, height);
+			layout.result = ml_plot_panel (&rows, ed, panel, plots);
+		}
+
+		if (layout.result == ML_OK && plots < height)
+		{
+			layout.result = ml_watch_panel (
+				&rows,
+				ed,
+				panel,
+				height - plots
+			);
+		}
 	}
 
 	for (uint64_t r = 0; r < rows.len && layout.result == ML_OK; r++)
@@ -2644,11 +2658,15 @@ static MlLayout tutorial_layout (
 	return layout;
 }
 
-/* The columns the panel takes now, 0 when the watch window is not shown. */
+/*
+ * The columns the panel takes now, 0 when neither the watch window nor a plot
+ * is shown.
+ */
 static uint32_t watch_columns (const MlScreen *s, const MlEditor *ed)
 {
 	return ml_choose (
-		ed->watch && ed->state != ML_STATE_HELP,
+		(ed->watch || ml_plot_panel_count (ed) > 0)
+			&& ed->state != ML_STATE_HELP,
 		ml_watch_width (s->cols),
 		0
 	);

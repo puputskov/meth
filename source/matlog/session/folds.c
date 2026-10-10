@@ -25,6 +25,20 @@ MlResult ml_folds_format (MlStr *out, const MlSession *s)
 		}
 	}
 
+	for (uint64_t i = 0; i < s->lines.len && r == ML_OK; i++)
+	{
+		if (s->lines.data [i].plotted)
+		{
+			r = ml_str_appendf (
+				out,
+				"%sp%u",
+				ml_choose (first, "", " "),
+				(uint32_t)i
+			);
+			first = 0;
+		}
+	}
+
 	return r;
 }
 
@@ -33,7 +47,8 @@ static int32_t is_digit (char c)
 	return c >= '0' && c <= '9';
 }
 
-/* Folds the blocks that start at the line numbers listed in value. */
+/* Folds the blocks that start at the line numbers listed in value, and shows
+   the plots of the lines listed with a p. */
 static void apply_folds (MlSession *s, MlSlice value)
 {
 	uint64_t pos = 0;
@@ -42,9 +57,11 @@ static void apply_folds (MlSession *s, MlSlice value)
 	{
 		uint64_t n      = 0;
 		int32_t  digits = 0;
+		int32_t  plot   = 0;
 
 		while (pos < value.len && !is_digit (value.data [pos]))
 		{
+			plot = value.data [pos] == 'p';
 			pos++;
 		}
 
@@ -55,7 +72,12 @@ static void apply_folds (MlSession *s, MlSlice value)
 			pos++;
 		}
 
-		if (digits && n < s->lines.len)
+		if (digits && plot && n < s->lines.len)
+		{
+			ml_session_set_plotted (s, n, 1);
+		}
+
+		else if (digits && n < s->lines.len)
 		{
 			MlBlock b = ml_session_block (s, n);
 

@@ -170,9 +170,42 @@ static void test_folds (void)
 	ml_session_free (&s);
 }
 
+static void test_plots (void)
+{
+	MlSession s;
+	MlSession t;
+
+	use_test_config ();
+	ml_fs_remove (lit (CONFIG_FILE));
+
+	/* the lines whose plot is on are listed with a p, after the folds */
+	make_session (&s);
+	ml_session_set_folded (&s, 4, 1);
+	ml_session_set_plotted (&s, 1, 1);
+	ml_session_set_plotted (&s, 3, 1);
+	CHECK (format_is (&s, "4 p1 p3"));
+	CHECK (ml_folds_save (&s) == ML_OK);
+	CHECK (file_is ("[folds]\na.mlog = 4 p1 p3\n"));
+
+	make_session (&t);
+	CHECK (ml_folds_load (&t) == ML_OK);
+	CHECK (format_is (&t, "4 p1 p3"));
+	CHECK (ml_session_get (&t, 1).plotted);
+	CHECK (!ml_session_get (&t, 2).plotted);
+	ml_session_free (&t);
+
+	/* only plots */
+	ml_session_set_folded (&s, 4, 0);
+	CHECK (format_is (&s, "p1 p3"));
+
+	ml_fs_remove (lit (CONFIG_FILE));
+	ml_session_free (&s);
+}
+
 void run_folds_tests (void);
 
 void run_folds_tests (void)
 {
 	test_folds ();
+	test_plots ();
 }

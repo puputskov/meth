@@ -48,4 +48,12 @@ MlResult ml_plot_xy (
 	uint64_t           height
 );
 
+/* The picture of a plot value, by its kind (ML_PLOT_NONE draws nothing). */
+MlResult ml_plot_draw (
+	MlStr             *out,
+	const MlPlotOwned *plot,
+	uint64_t          width,
+	uint64_t          height
+);
+
 #endif /* MATLOG_UI_PLOT_H */

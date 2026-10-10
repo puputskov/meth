@@ -451,6 +451,13 @@ generated static website.
   action` and `:unmap state key` change a binding, `:map` lists them, `:config` shows the path of the file and opens the settings page of the
   documentation, `:config reload` reads the file again. The documentation (section 4.14) and the tutorial show the keys of the user, not the
   defaults, since both read the same table; a generated reference of all actions is a documentation page.
+- **Key names in texts are placeholders** (not built yet): a text that names a key, such as the hints, the status line, the messages, the help
+  and the tutorial prompts (`{Ctrl+Z} undoes, {Ctrl+Y} redoes, {Ctrl+S} saves, {Ctrl+Q} quits`), must not contain the key itself but the action it
+  stands for, written `{ACTION_UNDO}`, `{ACTION_REDO}`, `{ACTION_SAVE}`, `{ACTION_QUIT}` (the enum name of the action in `ui/keymap.h`). One
+  function expands them from the keymap when the text is shown, so the user's own bindings appear (the first key of the action, or its name
+  when it has none), and a changed default key never means going through the strings by hand. The pages of the documentation use the same
+  placeholders, expanded by the viewer and by the website build (with the default table). A test checks that every placeholder names an action and
+  that no text still contains a literal key name such as `Ctrl+Z`, so a missed string cannot stay.
 - The file is written atomically (temporary file, then rename) and only when the user changed something, with the order and the comments of the
   existing file kept.
 - The CLI (section 4.13) reads the same settings for the display options and ignores the key bindings; `matlog config get|set|list|path` reads and

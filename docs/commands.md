@@ -43,6 +43,12 @@ current line and `$` for the last (1 based).
 ```
 See [the editor](editor).
 
+# Plots
+```command
+:plot [on|off]     show or hide the plot of the cursor line in the panel
+```
+See [plots](plots).
+
 # Examples and snippets
 ```command
 :examples          the table of contents of the examples

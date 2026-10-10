@@ -62,6 +62,7 @@ static const Command commands [] =
 	{ .name = "snippet", .arg = ARG_SNIPPET, .needs_arg = 0 },
 	{ .name = "snippets", .arg = ARG_NONE, .needs_arg = 0 },
 	{ .name = "watch", .arg = ARG_ON_OFF,  .needs_arg = 0 },
+	{ .name = "plot",  .arg = ARG_ON_OFF,  .needs_arg = 0 },
 	{ .name = "tutorial", .arg = ARG_TUTORIAL, .needs_arg = 0 },
 	{ .name = "set",   .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "config", .arg = ARG_NONE,   .needs_arg = 0 },

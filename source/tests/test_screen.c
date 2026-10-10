@@ -1554,10 +1554,76 @@ static void test_watch_panel (void)
 	ml_editor_free (&ed);
 }
 
+static void test_plot_panel (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+#ifdef _WIN32
+	_putenv_s ("MATLOG_CONFIG", "matlog_test_config/screen");
+#else
+	setenv ("MATLOG_CONFIG", "matlog_test_config/screen", 1);
+#endif
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 100, 14);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "hist ([1, 2, 2, 3, 3, 3], 3)");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "2 + 3");
+	press (&ed, ML_KEY_ENTER);
+
+	/* the line shows its summary, no panel yet */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_in (&l, 0, "histogram of 6 values in 3 bins"));
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "plot  line") == NULL);
+	ml_layout_free (&l);
+	press (&ed, ML_KEY_ESCAPE);
+	test_normal (&ed, "gg");
+
+	/* F7 draws the plot in the panel at the right of the editor */
+	press (&ed, ML_KEY_F7);
+	CHECK (ml_session_get (&ed.session, 0).plotted);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (l.result == ML_OK && l.rows.len == 14);
+	CHECK (row_in (&l, 0, "│*plot  line 1  histogram of 6"));
+	CHECK (row_in (&l, 1, "│"));
+	CHECK (row_in (&l, 2, "█"));
+	CHECK (row_in (&l, 13, "-- "));
+	ml_layout_free (&l);
+
+	/* F7 again hides it */
+	press (&ed, ML_KEY_F7);
+	CHECK (!ml_session_get (&ed.session, 0).plotted);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "plot  line") == NULL);
+	ml_layout_free (&l);
+
+	/* a line without a plot cannot be switched on */
+	test_normal (&ed, "j");
+	press (&ed, ML_KEY_F7);
+	CHECK (!ml_session_get (&ed.session, 1).plotted);
+
+	/* :plot on, and the watch window under the plots */
+	test_normal (&ed, "gg");
+	test_normal (&ed, ":plot on");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ml_session_get (&ed.session, 0).plotted);
+	press (&ed, ML_KEY_F4);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_in (&l, 0, "plot  line 1"));
+	CHECK (row_in (&l, 8, "watch  line 1"));
+	ml_layout_free (&l);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_hint ();
 	test_watch_panel ();
+	test_plot_panel ();
 	test_empty_gutter ();
 	test_block_start_gutter ();
 	test_themed_rows ();
