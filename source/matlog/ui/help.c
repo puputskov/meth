@@ -135,7 +135,10 @@ MlResult ml_help_open (MlHelp *h, MlSlice topic)
 
 	if (r == ML_OK)
 	{
-		uint64_t page = ml_docs_find (&h->docs, ml_choose (want.len > 0, want, ml_slice_cstr ("index")));
+		uint64_t page = ml_docs_find (
+			&h->docs,
+			ml_choose (want.len > 0, want, ml_slice_cstr ("index"))
+		);
 
 		ml_doc_hits_free (&h->hits);
 		MlDocHitVec_init (&h->hits);
@@ -332,7 +335,11 @@ static MlResult results_key (MlHelp *h, MlKey key)
 
 	else if (key.code == ML_KEY_PAGE_DOWN)
 	{
-		h->hit = ml_choose (h->hit + area < h->hits.len, h->hit + area, h->hits.len - 1);
+		h->hit = ml_choose (
+			h->hit + area < h->hits.len,
+			h->hit + area,
+			h->hits.len - 1
+		);
 	}
 
 	else if (key.code == ML_KEY_HOME)
@@ -445,7 +452,10 @@ static MlResult page_key (MlHelp *h, MlKey key)
 		uint64_t to;
 
 		ml_help_link_place (&lines, h->link, &line, &in_line);
-		to = ml_docs_find (&h->docs, ml_doc_line_target (&lines.data [line], in_line));
+		to = ml_docs_find (
+			&h->docs,
+			ml_doc_line_target (&lines.data [line], in_line)
+		);
 
 		if (to < h->docs.pages.len)
 		{

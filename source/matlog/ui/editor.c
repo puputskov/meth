@@ -2442,7 +2442,11 @@ static MlTutorialView tutorial_view (const MlEditor *ed, MlKey key)
 		.key_code     = key.code,
 		.key_mods     = key.mods,
 		.state        = (int32_t)ed->state,
-		.domain       = ml_choose (editing, ed->edit_domain, ed->session.domain),
+		.domain       = ml_choose (
+			editing,
+			ed->edit_domain,
+			ed->session.domain
+		),
 		.session      = &ed->session,
 		.results      = &ed->results,
 		.last_command = ml_str_view (ed->last_command),
@@ -2599,7 +2603,10 @@ static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
 
 	else if (ml_slice_equal (arg, ml_slice_cstr ("reset")))
 	{
-		ml_settings_remove (ml_slice_cstr ("tutorial"), ml_slice_cstr ("lesson"));
+		ml_settings_remove (
+			ml_slice_cstr ("tutorial"),
+			ml_slice_cstr ("lesson")
+		);
 		r = set_message (ed, "tutorial: nothing is done yet");
 	}
 
@@ -2624,7 +2631,10 @@ static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
 
 	else
 	{
-		r = set_message (ed, "tutorial: syntax, off, next, back, show or reset");
+		r = set_message (
+			ed,
+			"tutorial: syntax, off, next, back, show or reset"
+		);
 	}
 
 	return r;
@@ -5115,7 +5125,10 @@ MlResult ml_editor_mouse (MlEditor *ed, MlKey key, MlHit hit)
 		for (
 			uint64_t i = 0;
 			i < 3 && r == ML_OK
-				&& (action == ML_MOUSE_WHEEL_UP || action == ML_MOUSE_WHEEL_DOWN);
+				&& (
+					action == ML_MOUSE_WHEEL_UP
+					|| action == ML_MOUSE_WHEEL_DOWN
+				);
 			i++
 		)
 		{
@@ -5312,7 +5325,8 @@ MlResult ml_editor_status (MlStr *out, const MlEditor *ed)
 	{
 		r = ml_str_appendf (
 			out,
-			"-- HELP -- %.*s  (Tab links, Enter follow, Backspace back, / search, q close)",
+			"-- HELP -- %.*s  (Tab links, Enter follow, Backspace back, "
+			"/ search, q close)",
 			(int)ml_choose (
 				ed->help.results,
 				ed->help.query.len,
