@@ -537,8 +537,8 @@ static void test_domains (void)
 
 static void test_vars (void)
 {
-	const char *arm   = "examples/robotics-two-link-arm.mlog";
-	const char *line9 = "examples/robotics-two-link-arm.mlog:9";
+	const char *arm   = "data/examples/robotics-two-link-arm.mlog";
+	const char *line9 = "data/examples/robotics-two-link-arm.mlog:9";
 	Run        r    = run ("vars", arm, NULL, NULL, NULL, NULL, "");
 
 	CHECK (r.code == ML_EXIT_OK);

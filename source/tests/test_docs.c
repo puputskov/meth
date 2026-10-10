@@ -431,7 +431,7 @@ static void test_search (void)
 	ml_docs_free (&d);
 }
 
-/* The built in pages are the files of docs/, compiled in. */
+/* The built in pages are the files of data/docs/, compiled in. */
 static void test_pages_are_current (void)
 {
 	for (uint64_t i = 0; i < ml_doc_source_count; i++)
@@ -443,7 +443,7 @@ static void test_pages_are_current (void)
 		ml_str_init (&path);
 		ml_str_init (&file);
 		ml_str_init (&flat);
-		ml_str_appendf (&path, "docs/%s.md", ml_doc_sources [i].name);
+		ml_str_appendf (&path, "data/docs/%s.md", ml_doc_sources [i].name);
 
 		if (ml_fs_exists (ml_str_view (path)))
 		{
@@ -466,7 +466,7 @@ static void test_pages_are_current (void)
 				))
 			{
 				printf (
-					"  docs/%s.md is not what is compiled in: run python "
+					"  data/docs/%s.md is not what is compiled in: run python "
 					"tools/gen_docs.py\n",
 					ml_doc_sources [i].name
 				);

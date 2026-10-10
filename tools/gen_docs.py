@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Compiles the pages of docs/ into the program.
+"""Compiles the pages of data/docs/ into the program.
 
 Usage: python tools/gen_docs.py [--check]
 
-Reads docs/*.md and writes source/matlog/docs/pages_data.c: a table of the
+Reads data/docs/*.md and writes source/matlog/docs/pages_data.c: a table of the
 pages (the file name without .md is the id), each as C string literals, one
-literal per line of the page. The same is done for examples/*.mlog, written to
-source/matlog/docs/examples_data.c, and for snippets/*.mlog (snippets_data.c). With --check nothing is written; the exit
+literal per line of the page. The same is done for data/examples/*.mlog, written to
+source/matlog/docs/examples_data.c, and for data/snippets/*.mlog (snippets_data.c). With --check nothing is written; the exit
 code is 1 when a file on disk is not what would be written (the tests and the
 build use it to find pages that were changed without running this tool).
 """
@@ -15,15 +15,15 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOCS = os.path.join(ROOT, "docs")
+DOCS = os.path.join(ROOT, "data", "docs")
 OUT = os.path.join(ROOT, "source", "matlog", "docs", "pages_data.c")
-EXAMPLES = os.path.join(ROOT, "examples")
+EXAMPLES = os.path.join(ROOT, "data", "examples")
 EXAMPLES_OUT = os.path.join(ROOT, "source", "matlog", "docs", "examples_data.c")
-SNIPPETS = os.path.join(ROOT, "snippets")
+SNIPPETS = os.path.join(ROOT, "data", "snippets")
 SNIPPETS_OUT = os.path.join(ROOT, "source", "matlog", "docs", "snippets_data.c")
-STDLIB = os.path.join(ROOT, "stdlib")
+STDLIB = os.path.join(ROOT, "data", "stdlib")
 STDLIB_OUT = os.path.join(ROOT, "source", "matlog", "docs", "stdlib_data.c")
-TEXTS = os.path.join(ROOT, "texts")
+TEXTS = os.path.join(ROOT, "data", "texts")
 TEXTS_OUT = os.path.join(ROOT, "source", "matlog", "texts", "catalog_data.c")
 
 # A literal line is a tab, quotes and at most this many escaped characters:
@@ -123,27 +123,27 @@ def generate_table(folder, ext, comment, header, prefix, kind="MlDocSource", bas
 
 
 def generate():
-    return generate_table("%s" % DOCS, ".md", "docs/*.md", "docs", "doc")
+    return generate_table("%s" % DOCS, ".md", "data/docs/*.md", "docs", "doc")
 
 
 def generate_snippets():
-    return generate_table(SNIPPETS, ".mlog", "snippets/*.mlog", "snippets", "snippet")
+    return generate_table(SNIPPETS, ".mlog", "data/snippets/*.mlog", "snippets", "snippet")
 
 
 def generate_texts():
     # the English texts, then the lessons of the tutorial, one file each
     return generate_table(
         TEXTS, ".mltext", "texts and lessons", "texts", "catalog",
-        "MlCatalogSource", "texts", extra=[(os.path.join(ROOT, "lessons", "en"), ".mltext", "lessons/en/")]
+        "MlCatalogSource", "texts", extra=[(os.path.join(ROOT, "data", "lessons", "en"), ".mltext", "lessons/en/")]
     )
 
 
 def generate_stdlib():
-    return generate_table(STDLIB, ".mlog", "stdlib/*.mlog", "stdlib", "stdlib")
+    return generate_table(STDLIB, ".mlog", "data/stdlib/*.mlog", "stdlib", "stdlib")
 
 
 def generate_examples():
-    return generate_table(EXAMPLES, ".mlog", "examples/*.mlog", "examples", "example")
+    return generate_table(EXAMPLES, ".mlog", "data/examples/*.mlog", "examples", "example")
 
 
 def differs(path, text):
