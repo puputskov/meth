@@ -229,10 +229,9 @@ static MlResult run_math (
 	MlSlice      source
 )
 {
-	MlResult      r = ML_OK;
-	MlParseResult p = ml_parse (source);
-
-	ml_arena_reset (arena);
+	MlResult      r    = ML_OK;
+	MlParseResult p    = ml_parse (source);
+	MlArenaMark   mark = ml_arena_mark (arena);
 
 	if (is_blank (source))
 	{
@@ -271,6 +270,7 @@ static MlResult run_math (
 		ml_ast_free (&p.ast);
 	}
 
+	ml_arena_rewind (arena, mark);
 	return r;
 }
 
@@ -463,14 +463,14 @@ static MlResult run_line (
 /* Runs the top session from line `from` on, including what it includes. */
 static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 {
-	MlResult r           = ML_OK;
-	FrameVec st;
-	MlArena  arena;
-	Frame    first;
-	uint64_t pending_len = 0;
+	MlResult    r           = ML_OK;
+	FrameVec    st;
+	MlArena     *arena      = ml_arena_app ();
+	MlArenaMark mark        = ml_arena_mark (arena);
+	Frame       first;
+	uint64_t    pending_len = 0;
 
 	FrameVec_init (&st);
-	ml_arena_init (&arena, 0);
 	memset (&first, 0, sizeof first);
 	ml_str_init (&first.path);
 	first.top  = 1;
@@ -512,7 +512,7 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 			);
 
 			st.data [fi].next++;
-			r = run_line (res, &st, &arena, &lr, view);
+			r = run_line (res, &st, arena, &lr, view);
 
 			if (r == ML_OK && is_top)
 			{
@@ -554,7 +554,7 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 	}
 
 	FrameVec_free (&st);
-	ml_arena_free (&arena);
+	ml_arena_rewind (arena, mark);
 	return r;
 }
 

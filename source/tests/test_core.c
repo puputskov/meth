@@ -47,7 +47,7 @@ static void test_arena (void)
 	char    *s;
 	void    *big;
 
-	ml_arena_init (&a, 128);
+	ml_arena_init (&a, 0);
 
 	CHECK (ml_arena_alloc (&a, 0, 1) == NULL);
 	CHECK (ml_arena_alloc (&a, 8, 3) == NULL);
@@ -68,7 +68,7 @@ static void test_arena (void)
 	s = ml_arena_strdup (&a, ml_slice ("hello world", 5));
 	CHECK (s != NULL && strcmp (s, "hello") == 0);
 
-	/* larger than a block, then the earlier data must still be intact */
+	/* a big allocation, then the earlier data must still be intact */
 	big = ml_arena_alloc (&a, 1000, 16);
 	CHECK (big != NULL);
 	CHECK (((uintptr_t)big % 16) == 0);
@@ -78,7 +78,7 @@ static void test_arena (void)
 		CHECK (xs [i] == i);
 	}
 
-	/* many small allocations spill across blocks */
+	/* many small allocations */
 	for (int32_t i = 0; i < 1000; i++)
 	{
 		CHECK (ml_arena_alloc (&a, 24, 8) != NULL);
@@ -87,7 +87,72 @@ static void test_arena (void)
 	ml_arena_reset (&a);
 	CHECK (ml_arena_alloc (&a, 16, 8) != NULL);
 	ml_arena_free (&a);
-	CHECK (a.head == NULL);
+	CHECK (a.base == NULL && a.used == 0 && a.committed == 0);
+}
+
+static void test_arena_vm (void)
+{
+	MlArena     a;
+	MlArenaMark m0;
+	MlArenaMark m1;
+	uint8_t     *p;
+	uint8_t     *q;
+
+	/* a small reservation: pages are committed as needed, no more */
+	ml_arena_init (&a, 4 * ML_ARENA_COMMIT_CHUNK);
+	CHECK (a.base == NULL);
+	p = ml_arena_alloc (&a, 10, 1);
+	CHECK (p != NULL && a.base == p);
+	CHECK (a.committed == ML_ARENA_COMMIT_CHUNK);
+	CHECK (a.reserved >= 4 * ML_ARENA_COMMIT_CHUNK);
+
+	/* growing across commits never moves what is there */
+	memset (p, 0x5A, 10);
+	q = ml_arena_alloc (&a, 3 * ML_ARENA_COMMIT_CHUNK, 64);
+	CHECK (q != NULL && ((uintptr_t)q % 64) == 0);
+	CHECK (a.committed >= 3 * ML_ARENA_COMMIT_CHUNK);
+	q [3 * ML_ARENA_COMMIT_CHUNK - 1] = 1;
+	CHECK (p [0] == 0x5A && p [9] == 0x5A);
+
+	/* the reservation is full: NULL, and the arena stays usable */
+	CHECK (ml_arena_alloc (&a, 4 * ML_ARENA_COMMIT_CHUNK, 1) == NULL);
+	CHECK (ml_arena_alloc (&a, UINT64_MAX, 1) == NULL);
+	CHECK (ml_arena_alloc (&a, 8, 1) != NULL);
+
+	/* marks nest, and a rewind reuses the same memory */
+	ml_arena_reset (&a);
+	m0 = ml_arena_mark (&a);
+	p  = ml_arena_alloc (&a, 100, 8);
+	m1 = ml_arena_mark (&a);
+	q  = ml_arena_alloc (&a, 100, 8);
+	CHECK (p != NULL && q != NULL && q != p);
+	ml_arena_rewind (&a, m1);
+	CHECK (ml_arena_alloc (&a, 100, 8) == q);
+	ml_arena_rewind (&a, m0);
+	CHECK (ml_arena_alloc (&a, 100, 8) == p);
+	CHECK (ml_arena_alloc_zero (&a, 16, 8) != NULL);
+	ml_arena_free (&a);
+
+	/* a large arena gives pages back only when much more is committed than
+	   used, and then only down to a little above what is used */
+	ml_arena_init (&a, 0);
+	m0 = ml_arena_mark (&a);
+	CHECK (ml_arena_alloc (&a, ML_ARENA_TRIM_SLACK / 2, 8) != NULL);
+	ml_arena_rewind (&a, m0);
+	CHECK (a.committed >= ML_ARENA_TRIM_SLACK / 2);
+	CHECK (ml_arena_alloc (&a, 2 * ML_ARENA_TRIM_SLACK, 8) != NULL);
+	ml_arena_rewind (&a, m0);
+	CHECK (a.committed < ML_ARENA_TRIM_SLACK);
+	p = ml_arena_alloc_zero (&a, 1000, 8);
+	CHECK (p != NULL && p [999] == 0);
+	ml_arena_free (&a);
+
+	/* the application arena is one object */
+	CHECK (ml_arena_app () == ml_arena_app ());
+	m0 = ml_arena_mark (ml_arena_app ());
+	CHECK (ml_arena_alloc (ml_arena_app (), 64, 8) != NULL);
+	ml_arena_rewind (ml_arena_app (), m0);
+	CHECK (ml_arena_mark (ml_arena_app ()).used == m0.used);
 }
 
 static void test_vec (void)
@@ -273,6 +338,7 @@ void run_core_tests (void)
 {
 	test_slice ();
 	test_arena ();
+	test_arena_vm ();
 	test_vec ();
 	test_utf8 ();
 	test_str ();

@@ -7,6 +7,8 @@ When a task is finished: delete it here, and write what was built into its secti
 
 ## 1. Next candidates, in a sensible order
 
+0. **One allocator, step 4** (DONE.md "Memory"): vectors, strings and the session lines on the arena instead of `malloc`/`realloc`/`free`, with size
+   class free lists so a grown vector gives its old block back; then no `malloc` is left outside `platform/vm`. 73 vector types, 59 files use `MlStr`.
 1. **Texts in files, the rest** (4.24): the summaries of the commands, the help of the command line (`cli.c`), the titles and labels of the screen,
    `matlog texts check [FILE]`, the placeholders of the website build.
 2. **Words table, part 2** (4.25): the function names (`eval.c` `builtins`, `stats.h`, `listfn.h`) through `ml_word_find`, `name_class` for functions,

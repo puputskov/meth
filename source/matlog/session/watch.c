@@ -183,10 +183,9 @@ static MlResult env_rows (
 	uint64_t        end
 )
 {
-	MlResult r     = ML_OK;
-	MlArena  arena;
-
-	ml_arena_init (&arena, 0);
+	MlResult    r     = ML_OK;
+	MlArena     *arena = ml_arena_app ();
+	MlArenaMark mark  = ml_arena_mark (arena);
 
 	for (uint64_t i = res->env.library; i < end && r == ML_OK; i++)
 	{
@@ -211,7 +210,7 @@ static MlResult env_rows (
 				r = type_of (&type, b.value);
 				r = ml_choose (
 					r == ML_OK,
-					ml_value_format (&value, &arena, b.value),
+					ml_value_format (&value, arena, b.value),
 					r
 				);
 			}
@@ -232,7 +231,7 @@ static MlResult env_rows (
 		}
 	}
 
-	ml_arena_free (&arena);
+	ml_arena_rewind (arena, mark);
 	return r;
 }
 

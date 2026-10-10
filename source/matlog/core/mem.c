@@ -1,114 +1,82 @@
 #include <matlog/core/mem.h>
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include <matlog/platform/vm.h>
+
 #include <string.h>
 
-struct MlArenaBlock
+#define MIN_RESERVE (1ULL << 20)
+
+static uint64_t round_up (uint64_t n, uint64_t unit)
 {
-	MlArenaBlock *next;
-	uint64_t     cap;
-	uint64_t     used;
-	/* forces data to be maximally aligned */
-	union
+	return (n + unit - 1) / unit * unit;
+}
+
+/* Reserves the address space on first use, a smaller range if it must. */
+static void reserve_space (MlArena *a)
+{
+	uint64_t size = round_up (
+		ml_choose (a->want > 0, a->want, ML_ARENA_DEFAULT_RESERVE),
+		ML_VM_GRANULE
+	);
+
+	while (a->base == NULL && size >= MIN_RESERVE)
 	{
-		int64_t ll;
-		double  ld;
-		void    *p;
-	} align_;
-};
+		a->base = ml_vm_reserve (size);
 
-static uint8_t *block_data (MlArenaBlock *b)
-{
-	return (uint8_t *)(b + 1);
-}
-
-static MlArenaBlock *block_new (uint64_t cap)
-{
-	MlArenaBlock *b = malloc (sizeof (MlArenaBlock) + cap);
-
-	if (b)
-	{
-		b->next = NULL;
-		b->cap  = cap;
-		b->used = 0;
-	}
-
-	return b;
-}
-
-/* Bytes to skip so that (base + used + skip) is a multiple of align. */
-static uint64_t pad_for (MlArenaBlock *b, uint64_t align)
-{
-	uintptr_t addr = (uintptr_t)(block_data (b) + b->used);
-
-	return (uint64_t)((align - (addr & (align - 1))) & (align - 1));
-}
-
-static int32_t block_fits (MlArenaBlock *b, uint64_t size, uint64_t align)
-{
-	uint64_t pad  = pad_for (b, align);
-	uint64_t room = b->cap - b->used;
-
-	return size <= room && pad <= room - size;
-}
-
-static void *block_take (MlArenaBlock *b, uint64_t size, uint64_t align)
-{
-	uint64_t pad = pad_for (b, align);
-	void     *p  = block_data (b) + b->used + pad;
-
-	b->used += pad + size;
-	return p;
-}
-
-/*
- * Oversized requests get a block of their own, slotted behind the active one.
- */
-static void *alloc_in_new_block (MlArena *a, uint64_t size, uint64_t align)
-{
-	void *p = NULL;
-
-	if (size <= SIZE_MAX - align)
-	{
-		uint64_t need = size + align;
-		uint64_t cap  = ml_choose (
-			need > a->block_size,
-			need,
-			a->block_size
-		);
-		MlArenaBlock *nb = block_new (cap);
-
-		if (nb)
+		if (a->base != NULL)
 		{
-			if (need > a->block_size && a->head)
-			{
-				nb->next      = a->head->next;
-				a->head->next = nb;
-			}
+			a->reserved = size;
+		}
 
-			else
-			{
-				nb->next = a->head;
-				a->head  = nb;
-			}
+		else
+		{
+			size = round_up (size / 2, ML_VM_GRANULE);
+		}
+	}
+}
 
-			p = block_take (nb, size, align);
+/* Commits pages so that `end` bytes from base can be used. */
+static int32_t commit_to (MlArena *a, uint64_t end)
+{
+	int32_t ok = end <= a->committed;
+
+	if (!ok && end <= a->reserved)
+	{
+		uint64_t target = round_up (end, ML_ARENA_COMMIT_CHUNK);
+
+		target = ml_choose (target < a->reserved, target, a->reserved);
+		ok     = ml_vm_commit (a->base + a->committed, target - a->committed);
+
+		if (ok)
+		{
+			a->committed = target;
 		}
 	}
 
-	return p;
+	return ok;
 }
 
-void ml_arena_init (MlArena *a, uint64_t block_size)
+void ml_arena_init (MlArena *a, uint64_t reserve)
 {
-	a->head       = NULL;
-	a->block_size = ml_choose (
-		block_size,
-		block_size,
-		ML_ARENA_DEFAULT_BLOCK
-	);
+	a->base      = NULL;
+	a->want      = reserve;
+	a->reserved  = 0;
+	a->committed = 0;
+	a->used      = 0;
+}
+
+MlArena *ml_arena_app (void)
+{
+	static MlArena app;
+	static int32_t made = 0;
+
+	if (!made)
+	{
+		ml_arena_init (&app, ML_ARENA_APP_RESERVE);
+		made = 1;
+	}
+
+	return &app;
 }
 
 void *ml_arena_alloc (MlArena *a, uint64_t size, uint64_t align)
@@ -116,16 +84,23 @@ void *ml_arena_alloc (MlArena *a, uint64_t size, uint64_t align)
 	void    *p    = NULL;
 	int32_t valid = size != 0 && align != 0 && (align & (align - 1)) == 0;
 
-	if (valid)
+	if (valid && a->base == NULL)
 	{
-		if (a->head && block_fits (a->head, size, align))
-		{
-			p = block_take (a->head, size, align);
-		}
+		reserve_space (a);
+	}
 
-		else
+	if (valid && a->base != NULL)
+	{
+		/* base is page aligned, so aligning the offset aligns the address
+		   for every align up to the page size */
+		uint64_t at  = (a->used + align - 1) & ~(align - 1);
+		int32_t  fit = at >= a->used && at <= a->reserved
+		              && size <= a->reserved - at;
+
+		if (fit && commit_to (a, at + size))
 		{
-			p = alloc_in_new_block (a, size, align);
+			p       = a->base + at;
+			a->used = at + size;
 		}
 	}
 
@@ -157,35 +132,49 @@ char *ml_arena_strdup (MlArena *a, MlSlice s)
 	return p;
 }
 
-void ml_arena_reset (MlArena *a)
+MlArenaMark ml_arena_mark (const MlArena *a)
 {
-	if (a->head)
+	MlArenaMark m = { .used = a->used };
+
+	return m;
+}
+
+void ml_arena_rewind (MlArena *a, MlArenaMark m)
+{
+	if (m.used <= a->used)
 	{
-		MlArenaBlock *rest = a->head->next;
+		a->used = m.used;
+	}
 
-		a->head->next = NULL;
-		a->head->used = 0;
-		while (rest)
+	/* pages are given back rarely: only when far more is committed than used */
+	if (a->committed > a->used + ML_ARENA_TRIM_SLACK)
+	{
+		uint64_t keep = round_up (
+			a->used + ML_ARENA_TRIM_SLACK / 4,
+			ML_ARENA_COMMIT_CHUNK
+		);
+
+		if (keep < a->committed)
 		{
-			MlArenaBlock *next = rest->next;
-
-			free (rest);
-			rest = next;
+			ml_vm_decommit (a->base + keep, a->committed - keep);
+			a->committed = keep;
 		}
 	}
 }
 
+void ml_arena_reset (MlArena *a)
+{
+	MlArenaMark start = { .used = 0 };
+
+	ml_arena_rewind (a, start);
+}
+
 void ml_arena_free (MlArena *a)
 {
-	MlArenaBlock *b = a->head;
-
-	while (b)
+	if (a->base != NULL)
 	{
-		MlArenaBlock *next = b->next;
-
-		free (b);
-		b = next;
+		ml_vm_release (a->base, a->reserved);
 	}
 
-	a->head = NULL;
+	ml_arena_init (a, a->want);
 }

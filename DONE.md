@@ -609,6 +609,15 @@ no recompile, and the code only holds the stable code name of a text.
 - **Order of work:** the catalog reader and `text (code)` with the built in English file first, then the error texts (smallest, most visible), the
   hints, the command summaries, the lessons, last the settings file entry `language` and `matlog texts`.
 
+### Memory (built 2026-10-10)
+
+- `core/mem.h`: an arena is reserved address space (`platform/vm.h`: `VirtualAlloc` on Windows, `mmap` and `mprotect` on POSIX) with pages committed by
+  1 MB as allocations need them; memory never moves, there is no list of blocks, and pages are given back only when a rewind leaves more than 64 MB
+  committed above what is used. `ml_arena_mark` and `ml_arena_rewind` free everything after a mark.
+- `ml_arena_app ()` is the application arena (16 GB of address space, made on first use) for scratch work: the ghost preview, the watch rows, the steps,
+  the stdlib load and the evaluation of a line take a mark and rewind to it. An object that lives longer (the environment) has an arena of its own.
+- Not built: vectors (`ML_VEC_DEFINE`), strings (`MlStr`), the session lines and a few `calloc` calls still use the C heap; see `TODO.md`.
+
 ## 5. Architecture (proposal)
 
 Layers, each a module under `source/matlog/` with public headers in `include/matlog/`:

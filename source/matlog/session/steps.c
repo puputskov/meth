@@ -342,18 +342,18 @@ MlLineSteps ml_line_steps (
 
 		if (p.error.code == ML_PARSE_OK && p.ast.root != ML_NODE_NIL_INDEX)
 		{
-			MlArena   arena;
-			MlStepLog log;
+			MlArena     *arena = ml_arena_app ();
+			MlArenaMark mark  = ml_arena_mark (arena);
+			MlStepLog   log;
 			uint64_t  core = ml_choose (
 				ml_ast_node (&p.ast, p.ast.root).kind == ML_NODE_ASSIGN,
 				ml_ast_child (&p.ast, p.ast.root, 1),
 				p.ast.root
 			);
 
-			ml_arena_init (&arena, 0);
 			ml_steplog_init (&log);
 			explain (
-				&arena,
+				arena,
 				results,
 				results->lines.data [idx].snapshot,
 				view.text,
@@ -371,7 +371,7 @@ MlLineSteps ml_line_steps (
 			}
 
 			ml_steplog_free (&log);
-			ml_arena_free (&arena);
+			ml_arena_rewind (arena, mark);
 		}
 
 		ml_ast_free (&p.ast);

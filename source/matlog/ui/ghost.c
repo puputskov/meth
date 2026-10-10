@@ -56,10 +56,9 @@ static MlGhost ghost_algebra (
 		.shown  = 0
 	};
 
-	MlParseResult p = ml_parse (text);
-	MlArena       arena;
-
-	ml_arena_init (&arena, 0);
+	MlParseResult p     = ml_parse (text);
+	MlArena       *arena = ml_arena_app ();
+	MlArenaMark   mark  = ml_arena_mark (arena);
 
 	if (p.error.code == ML_PARSE_OK)
 	{
@@ -69,7 +68,7 @@ static MlGhost ghost_algebra (
 			ml_env_snapshot (&results->env)
 		);
 		MlValue v = ml_eval (
-			&arena,
+			arena,
 			&results->env,
 			snapshot,
 			text,
@@ -88,13 +87,13 @@ static MlGhost ghost_algebra (
 			|| v.kind == ML_VALUE_LIST
 		)
 		{
-			g.result = ml_value_format (out, &arena, v);
+			g.result = ml_value_format (out, arena, v);
 			g.shown  = g.result == ML_OK;
 		}
 	}
 
 	ml_ast_free (&p.ast);
-	ml_arena_free (&arena);
+	ml_arena_rewind (arena, mark);
 	return g;
 }
 

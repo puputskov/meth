@@ -34,10 +34,9 @@ static MlResult define_line (MlEnv *env, MlArena *arena, MlSlice line)
 
 MlResult ml_stdlib_load (MlEnv *env)
 {
-	MlResult r = ML_OK;
-	MlArena  arena;
-
-	ml_arena_init (&arena, 0);
+	MlResult    r     = ML_OK;
+	MlArena     *arena = ml_arena_app ();
+	MlArenaMark mark  = ml_arena_mark (arena);
 
 	for (uint64_t i = 0; i < ml_stdlib_source_count && r == ML_OK; i++)
 	{
@@ -68,7 +67,7 @@ MlResult ml_stdlib_load (MlEnv *env)
 			{
 				r = define_line (
 					env,
-					&arena,
+					arena,
 					ml_slice_sub (
 						line,
 						ml_count (TAG) - 1,
@@ -80,7 +79,7 @@ MlResult ml_stdlib_load (MlEnv *env)
 	}
 
 	env->library = ml_env_snapshot (env);
-	ml_arena_free (&arena);
+	ml_arena_rewind (arena, mark);
 
 	return r;
 }

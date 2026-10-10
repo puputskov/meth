@@ -30,11 +30,11 @@ matlog: $(OUT)/bin/matlog
 
 $(OUT)/bin/tests: $(TSTOBJ) $(LIBOBJ)
 	@mkdir -p $(dir $@)
-	$(CC) $^ -lm -o $@
+	$(CC) $(LDFLAGS) $^ -lm -o $@
 
 $(OUT)/bin/matlog: $(APPOBJ) $(LIBOBJ)
 	@mkdir -p $(dir $@)
-	$(CC) $^ -lm -o $@
+	$(CC) $(LDFLAGS) $^ -lm -o $@
 
 $(OUT)/%.o: source/%.c
 	@mkdir -p $(dir $@)
