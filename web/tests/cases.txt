@@ -1,0 +1,94 @@
+# One expression per line, run by tools/test_web.py natively (meth eval) and
+# in the wasm module; the two results must agree. Lines starting with # and
+# empty lines are skipped. Each line is a session of its own.
+
+# exact arithmetic
+1 + 1
+1/3 + 1/6
+(2/3) * (9/4) - 1/2
+7 / 0
+2^10
+2^200
+(-3)^5
+100!
+gcd (84, 126)
+lcm (4, 6)
+
+# floating point and the %g formatting
+sqrt (2)
+sqrt (16)
+exp (1)
+exp (1) * 1e-7
+approx (10^21 * 3)
+approx (7 / 10^9)
+approx (123456789123 / 100)
+0.1 + 0.2
+pi
+e^2
+1/3 + 0.5
+
+# elementary functions
+sin (1)
+cos (2)
+tan (0.5)
+asin (0.3)
+acos (0.3)
+atan (2)
+ln (10)
+log (100)
+2^0.5
+abs (-7/2)
+floor (3.7)
+ceil (3.2)
+round (2.5)
+
+# lists and functions
+len (primes (300))
+sum (primes (50))
+map (x -> x^2, [1, 2, 3, 4])
+fold ((a, b) -> a + b, 0, [1, 2, 3, 4, 5])
+filter (x -> x > 2, [1, 2, 3, 4])
+
+# matrices
+[[1, 2], [3, 4]]^-1
+det ([[1, 2], [3, 4]])
+[[1, 2], [3, 4]] * [[0, 1], [1, 0]]
+transpose ([[1, 2, 3], [4, 5, 6]])
+[[2, 0], [0, 3]]^5
+
+# symbolic
+diff (x^3 + sin (x), x)
+diff (exp (2x) * x, x)
+integrate (x * exp (x), x)
+integrate (x^2, x, 0, 3)
+integrate (sin (x), x, 0, pi)
+limit (sin (x) / x, x, 0)
+solve (x^2 - 5x + 6, x)
+simplify ((x^2 - 1) / (x - 1))
+expand ((x + 1)^3)
+
+# complex numbers and quaternions
+(1 + 2i) * (3 - i)
+abs (3 + 4i)
+sqrt (-4)
+i^2
+
+# statistics and special functions
+mean ([1, 2, 3, 4, 10])
+std ([1, 2, 3, 4, 10])
+pstd ([1, 2, 3, 4, 10])
+median ([5, 1, 4, 2])
+normal_cdf (1.5)
+normal_cdf (-3)
+normal_cdf (0.3, 1, 2)
+normal_pdf (1)
+normal_inv (0.975)
+poisson_pdf (3, 2.5)
+poisson_pdf (40, 35.5)
+binomial_pdf (10, 3, 0.4)
+binomial (10, 3)
+
+# errors must agree too
+1 +
+foo (1, 2)
+[[1, 2], [2, 4]]^-1

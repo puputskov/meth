@@ -1095,5 +1095,11 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   Checked in headless Edge against `meth eval`: exact and approximate numbers, big integers, matrices, `diff`, `integrate` and `primes` give the same
   text as the native program (`python -m http.server` in `web/`, then `msedge --headless --dump-dom http://127.0.0.1:PORT/index.html#EXPR` and read
   `data-result` of the body).
-- Not built: the notebook page, a session / results API (ghost, steps, completion, highlighting, typeset math, plots, export, help), tests in the test
-  groups, `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.
+- Test of the module: `python tools/test_web.py [--build]` evaluates the 73 expressions of `web/tests/cases.txt` (exact arithmetic, big numbers, the
+  elementary functions, lists, matrices, `diff` / `integrate` / `limit` / `solve`, complex numbers, statistics with `erfc` and `lgamma`, errors) in the module
+  with a headless Edge or Chrome (`web/test.html`, `web/js/test.js`; a local server on a free port, the profile in `build/`) and with the native
+  `meth eval --format json`, and compares: the same fields, the same text, the same exit code; an approximate value may differ by a rounding of its ninth
+  digit (browser `Math` against the C library). The dump of the page is sometimes taken before the module has loaded, so the script tries again (up to
+  ten times). Not in `make test` or the test groups.
+- Not built: the notebook page, a session / results API (ghost, steps, completion, highlighting, typeset math, plots, export, help), the C test groups
+  run inside the module (the ones that need no files first: eval, sym, unit, matrix, hyper, proof, integrate, stats, pga), `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.
