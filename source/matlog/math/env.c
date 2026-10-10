@@ -75,6 +75,14 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 		out.matrix = copy_mat (arena, v.matrix);
 	}
 
+	else if (v.kind == ML_VALUE_COMPLEX || v.kind == ML_VALUE_QUAT)
+	{
+		for (uint64_t i = 0; i < 4; i++)
+		{
+			out.hyper.r [i] = ml_rat_copy (arena, v.hyper.r [i]);
+		}
+	}
+
 	else if (v.kind == ML_VALUE_EXPR)
 	{
 		/*
@@ -110,6 +118,8 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		&& value.kind != ML_VALUE_MATRIX
 		&& value.kind != ML_VALUE_EXPR
 		&& value.kind != ML_VALUE_QUANTITY
+		&& value.kind != ML_VALUE_COMPLEX
+		&& value.kind != ML_VALUE_QUAT
 	)
 	{
 		r = ML_ERR_INVALID;

@@ -311,19 +311,19 @@ static void test_pow (void)
 		ML_EVAL_ZERO_POW_ZERO
 	));
 
-	/* a negative number to a fraction is not real */
-	CHECK (is_error (
-		ml_value_pow (&a, int_value (&a, -4), frac (&a, 1, 2)),
-		ML_EVAL_NOT_REAL
-	));
-	CHECK (is_error (
-		ml_value_pow (&a, int_value (&a, -8), frac (&a, 1, 3)),
-		ML_EVAL_NOT_REAL
-	));
-	CHECK (is_error (
-		ml_value_pow (&a, ml_value_approx (-2.0), ml_value_approx (0.5)),
-		ML_EVAL_NOT_REAL
-	));
+	/* a negative number to a fraction is complex */
+	CHECK (
+		ml_value_pow (&a, int_value (&a, -4), frac (&a, 1, 2)).kind
+		== ML_VALUE_COMPLEX
+	);
+	CHECK (
+		ml_value_pow (&a, int_value (&a, -8), frac (&a, 1, 3)).kind
+		== ML_VALUE_COMPLEX
+	);
+	CHECK (
+		ml_value_pow (&a, ml_value_approx (-2.0), ml_value_approx (0.5)).kind
+		== ML_VALUE_COMPLEX
+	);
 
 	/* approximate operands */
 	CHECK (is_text (

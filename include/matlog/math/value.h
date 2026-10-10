@@ -12,6 +12,7 @@
  *	approx   a double; it comes from a result that is not a rational (sqrt (2),
  *	         sin (1), pi) and it spreads: exact with approx gives approx
  *
+ * or a complex number or a quaternion (exact or approximate, see hyper.h),
  * or an exact quantity (a number of coherent SI units with a dimension, see
  * unit.h), or an exact matrix (a vector is a matrix of one column, see
  * matrix.h), or an
@@ -29,6 +30,8 @@ typedef enum MlValueKind
 	ML_VALUE_MATRIX, /* exact cells, see matrix.h */
 	ML_VALUE_EXPR,   /* a symbolic expression, see sym/expr.h */
 	ML_VALUE_QUANTITY, /* exact value in SI units and a dimension */
+	ML_VALUE_COMPLEX,  /* a + b i, see hyper.h */
+	ML_VALUE_QUAT,     /* a + b i + c j + d k, see hyper.h */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -64,6 +67,18 @@ typedef enum MlErrorKind
 	ML_EVAL_KIND_COUNT
 } MlErrorKind;
 
+/*
+ * Complex numbers and quaternions share one shape: four parts, a real part and
+ * the coefficients of i, j and k, all rationals or all doubles. A complex
+ * number has the last two parts zero. See hyper.h for what they do.
+ */
+typedef struct MlHyper
+{
+	int32_t approx; /* 1: the parts are in d, else in r */
+	MlRat   r [4];
+	double  d [4];
+} MlHyper;
+
 typedef struct MlValue
 {
 	MlValueKind kind;
@@ -72,6 +87,7 @@ typedef struct MlValue
 	MlSlice     show;   /* quantity: the unit to show it in (after "to") */
 	MlRat       scale;  /* quantity: SI value of one show, if show is set */
 	MlMat       matrix; /* ML_VALUE_MATRIX */
+	MlHyper     hyper;  /* ML_VALUE_COMPLEX, ML_VALUE_QUAT */
 	const MlSym *sym;   /* ML_VALUE_EXPR */
 	double      approx; /* ML_VALUE_APPROX */
 	MlErrorKind error;  /* ML_VALUE_ERROR */

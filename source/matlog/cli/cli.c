@@ -181,6 +181,9 @@ static const char *const syntax_text =
 	"             inf is infinity; solve gives the real roots of f as a set\n"
 	"             names are symbols inside these: diff(x^3, x) is 3x\xC2\xB2; "
 	"results can be stored\n"
+	"Complex      3 + 4i, i*i = -1, sqrt(-4) = 2i; re im conj abs arg; "
+	"quaternions\n"
+	"             1 + 2i + 3j + 4k, quat (w, x, y, z), rotate (q, v)\n"
 	"Statistics   mean median mode var std quantile cov corr linfit polyfit "
 	"histogram\n"
 	"             binomial_pdf normal_cdf ...; data is a list [2, 4, 5] or "
@@ -563,7 +566,15 @@ static const char *type_name (MlValueKind kind)
 			ml_choose (
 				kind == ML_VALUE_QUANTITY,
 				"quantity",
-				ml_choose (kind == ML_VALUE_APPROX, "approx", "exact")
+				ml_choose (
+					kind == ML_VALUE_COMPLEX,
+					"complex",
+					ml_choose (
+						kind == ML_VALUE_QUAT,
+						"quaternion",
+						ml_choose (kind == ML_VALUE_APPROX, "approx", "exact")
+					)
+				)
 			)
 		)
 	);

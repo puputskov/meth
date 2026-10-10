@@ -2,7 +2,7 @@ id: functions
 title: Functions and constants
 summary: The built in functions of the algebra domain.
 keywords: sqrt, abs, sin, cos, tan, ln, log, exp, floor, ceil, round, min, max, gcd, lcm, pi
-see: syntax, symbolic, statistics
+see: syntax, symbolic, statistics, complex
 
 The built in functions take their arguments in parentheses:
 `sqrt(x)`, `max(1, 5, 3)`.
@@ -18,7 +18,8 @@ The built in functions take their arguments in parentheses:
 - `ln log exp` logarithms and the exponential.
 
 # Constants
-`pi` and `e` (also written `π`). They evaluate to approximations.
+`pi` and `e` (also written `π`). They evaluate to approximations. `i`, `j`
+and `k` are the imaginary units, see [complex](complex).
 
 ```example
 gcd(12, 18)

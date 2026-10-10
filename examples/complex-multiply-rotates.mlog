@@ -1,0 +1,22 @@
+# Multiplying by i turns a point
+# A complex number is a point in the plane, and multiplying turns it and scales it.
+# The point 1 + 2i. Multiplying by i is a quarter turn counter clockwise:
+m:algebra z = 1 + 2i
+m:algebra i*z
+m:algebra i*i*z
+m:algebra i*i*i*i*z
+# A number with modulus 1 only turns. (3 + 4i)/5 turns by the angle whose cosine is 3/5:
+m:algebra u = (3 + 4i)/5
+m:algebra abs(u)
+m:algebra u*z
+# Twice the turn is the square, and the arguments add up:
+m:algebra u^2
+m:algebra arg(u)
+m:algebra arg(u^2)
+# The multiplication of 1 + i with itself eight times: each step turns 45 degrees and scales by sqrt(2).
+m:algebra (1 + i)^2
+m:algebra (1 + i)^4
+m:algebra (1 + i)^8
+# Euler's formula: e^(i pi) is -1 (the tiny error shows as an approximation).
+m:algebra exp(i*pi)
+m:algebra exp(i*pi/2)

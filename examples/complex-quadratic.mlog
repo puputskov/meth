@@ -1,0 +1,22 @@
+# A quadratic with complex roots
+# x^2 + 2x + 5 = 0 has no real root, but two complex ones that are exact.
+# The discriminant b^2 - 4ac is negative, so the real solve finds nothing:
+m:algebra f(x) = x^2 + 2x + 5
+m:algebra d = 2^2 - 4*1*5
+m:algebra solve(f(x), x)
+# The square root of a negative number is a complex number, written with the unit i (i*i is -1):
+m:algebra sqrt(d)
+m:algebra i*i
+# The quadratic formula gives the two roots:
+m:algebra r1 = (-2 + sqrt(d))/2
+m:algebra r2 = (-2 - sqrt(d))/2
+# They are conjugates of each other, and they satisfy the equation:
+m:algebra conj(r1)
+m:algebra f(r1)
+m:algebra f(r2)
+# Their sum is -b/a and their product c/a (Vieta):
+m:algebra r1 + r2
+m:algebra r1*r2
+# The modulus (the distance from 0) is exact when the squares add up to a square:
+m:algebra abs(r1)
+m:algebra abs(3 + 4i)

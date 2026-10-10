@@ -1,0 +1,26 @@
+# Rotating a vector with a quaternion
+# A quaternion q turns a 3D vector v into q v q^-1. With exact numbers the quarter turns are exact.
+# The units i, j and k multiply like the axes: i j = k, j k = i, k i = j, and j i = -k.
+m:algebra i*j
+m:algebra j*i
+m:algebra j*k
+m:algebra k*k
+# The quaternion 1 + k turns by a quarter turn about the z axis (it has the angle 90 degrees; the length does not matter, rotate divides it out).
+m:algebra qz = 1 + k
+m:algebra rotate(qz, [1, 0, 0])
+m:algebra rotate(qz, [0, 1, 0])
+m:algebra rotate(qz, [0, 0, 1])
+# 1 + i is a quarter turn about x:
+m:algebra qx = 1 + i
+m:algebra rotate(qx, [0, 1, 0])
+# Two rotations in a row are one quaternion: the product, with the second rotation on the left.
+m:algebra q = qx*qz
+m:algebra rotate(q, [1, 0, 0])
+m:algebra rotate(qx, rotate(qz, [1, 0, 0]))
+# The order matters: turn about x first, then about z gives another result.
+m:algebra rotate(qz*qx, [1, 0, 0])
+# A quaternion has a conjugate, a norm and an inverse (the opposite turn):
+m:algebra conj(q)
+m:algebra abs(q)
+m:algebra 1/q
+m:algebra q*(1/q)

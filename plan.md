@@ -484,6 +484,13 @@ examples that need later features (statistics, images, PGA motors, the full inve
   parts. They connect to PGA (motors, milestone 7) and to the inverse kinematics example.
 - Both get highlight classes, completion, steps for the product, export in LaTeX and MathML, JSON types `complex` and `quaternion`, and documentation pages.
 
+**Built so far (2026-10-10):** `math/hyper.h`: the value kinds `complex` and `quaternion` with one four part representation (exact or approximate), `+ - * /`
+and powers, the units `i`, `j`, `k`, `sqrt` of a negative number, `re im conj abs arg polar quat rotate`, `exp ln sin cos` of a complex number, the JSON
+types, the watch window types, three examples and the page `complex`. Not built: complex entries in matrices, complex roots from `solve`, `slerp`,
+`normalize`, conversion of a quaternion from and to an axis and angle and to a rotation matrix, the LaTeX and MathML export of the new values, steps for
+the product, and the completion of the units. The names `j` and `k` hide nothing but are values where a value is needed, so a mistyped variable `k` is
+the quaternion unit instead of an undefined name; a variable or a parameter of the name wins.
+
 ### 4.18 Standard library
 
 - A library of useful functions written in matlog's own language and included by default (read only, acyclic includes as in section 4.8, so a user can

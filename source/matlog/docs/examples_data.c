@@ -76,6 +76,63 @@ static const char text_calculus_tangent_line [] =
 	"# The area under the curve between 1 and 2:\n"
 	"m:algebra integrate(f(x), x, 1, 2)\n";
 
+static const char text_complex_multiply_rotates [] =
+	"# Multiplying by i turns a point\n"
+	"# A complex number is a point in the plane, and multiplying turns it a"
+	"nd scales it.\n"
+	"# The point 1 + 2i. Multiplying by i is a quarter turn counter clockwi"
+	"se:\n"
+	"m:algebra z = 1 + 2i\n"
+	"m:algebra i*z\n"
+	"m:algebra i*i*z\n"
+	"m:algebra i*i*i*i*z\n"
+	"# A number with modulus 1 only turns. (3 + 4i)/5 turns by the angle wh"
+	"ose cosine is 3/5:\n"
+	"m:algebra u = (3 + 4i)/5\n"
+	"m:algebra abs(u)\n"
+	"m:algebra u*z\n"
+	"# Twice the turn is the square, and the arguments add up:\n"
+	"m:algebra u^2\n"
+	"m:algebra arg(u)\n"
+	"m:algebra arg(u^2)\n"
+	"# The multiplication of 1 + i with itself eight times: each step turns"
+	" 45 degrees and scales by sqrt(2).\n"
+	"m:algebra (1 + i)^2\n"
+	"m:algebra (1 + i)^4\n"
+	"m:algebra (1 + i)^8\n"
+	"# Euler's formula: e^(i pi) is -1 (the tiny error shows as an approxim"
+	"ation).\n"
+	"m:algebra exp(i*pi)\n"
+	"m:algebra exp(i*pi/2)\n";
+
+static const char text_complex_quadratic [] =
+	"# A quadratic with complex roots\n"
+	"# x^2 + 2x + 5 = 0 has no real root, but two complex ones that are exa"
+	"ct.\n"
+	"# The discriminant b^2 - 4ac is negative, so the real solve finds noth"
+	"ing:\n"
+	"m:algebra f(x) = x^2 + 2x + 5\n"
+	"m:algebra d = 2^2 - 4*1*5\n"
+	"m:algebra solve(f(x), x)\n"
+	"# The square root of a negative number is a complex number, written wi"
+	"th the unit i (i*i is -1):\n"
+	"m:algebra sqrt(d)\n"
+	"m:algebra i*i\n"
+	"# The quadratic formula gives the two roots:\n"
+	"m:algebra r1 = (-2 + sqrt(d))/2\n"
+	"m:algebra r2 = (-2 - sqrt(d))/2\n"
+	"# They are conjugates of each other, and they satisfy the equation:\n"
+	"m:algebra conj(r1)\n"
+	"m:algebra f(r1)\n"
+	"m:algebra f(r2)\n"
+	"# Their sum is -b/a and their product c/a (Vieta):\n"
+	"m:algebra r1 + r2\n"
+	"m:algebra r1*r2\n"
+	"# The modulus (the distance from 0) is exact when the squares add up t"
+	"o a square:\n"
+	"m:algebra abs(r1)\n"
+	"m:algebra abs(3 + 4i)\n";
+
 static const char text_lambda_church_arithmetic [] =
 	"# Arithmetic with nothing but functions\n"
 	"# In the lambda calculus a number is a function that applies f n times"
@@ -174,6 +231,41 @@ static const char text_logic_minimise_circuit [] =
 	"# A tautology and a contradiction:\n"
 	"m:boolean a | ~a\n"
 	"m:boolean a & ~a\n";
+
+static const char text_quat_rotation [] =
+	"# Rotating a vector with a quaternion\n"
+	"# A quaternion q turns a 3D vector v into q v q^-1. With exact numbers"
+	" the quarter turns are exact.\n"
+	"# The units i, j and k multiply like the axes: i j = k, j k = i, k i ="
+	" j, and j i = -k.\n"
+	"m:algebra i*j\n"
+	"m:algebra j*i\n"
+	"m:algebra j*k\n"
+	"m:algebra k*k\n"
+	"# The quaternion 1 + k turns by a quarter turn about the z axis (it ha"
+	"s the angle 90 degrees; the length does not matter, rotate divides it "
+	"out).\n"
+	"m:algebra qz = 1 + k\n"
+	"m:algebra rotate(qz, [1, 0, 0])\n"
+	"m:algebra rotate(qz, [0, 1, 0])\n"
+	"m:algebra rotate(qz, [0, 0, 1])\n"
+	"# 1 + i is a quarter turn about x:\n"
+	"m:algebra qx = 1 + i\n"
+	"m:algebra rotate(qx, [0, 1, 0])\n"
+	"# Two rotations in a row are one quaternion: the product, with the sec"
+	"ond rotation on the left.\n"
+	"m:algebra q = qx*qz\n"
+	"m:algebra rotate(q, [1, 0, 0])\n"
+	"m:algebra rotate(qx, rotate(qz, [1, 0, 0]))\n"
+	"# The order matters: turn about x first, then about z gives another re"
+	"sult.\n"
+	"m:algebra rotate(qz*qx, [1, 0, 0])\n"
+	"# A quaternion has a conjugate, a norm and an inverse (the opposite tu"
+	"rn):\n"
+	"m:algebra conj(q)\n"
+	"m:algebra abs(q)\n"
+	"m:algebra 1/q\n"
+	"m:algebra q*(1/q)\n";
 
 static const char text_robotics_two_link_arm [] =
 	"# A robot arm with two links\n"
@@ -320,6 +412,11 @@ const MlDocSource ml_example_sources [] =
 	{ .name = "calculus-newton-sqrt2", .text = text_calculus_newton_sqrt2 },
 	{ .name = "calculus-tangent-line", .text = text_calculus_tangent_line },
 	{
+		.name = "complex-multiply-rotates",
+		.text = text_complex_multiply_rotates
+	},
+	{ .name = "complex-quadratic", .text = text_complex_quadratic },
+	{
 		.name = "lambda-church-arithmetic",
 		.text = text_lambda_church_arithmetic
 	},
@@ -327,6 +424,7 @@ const MlDocSource ml_example_sources [] =
 	{ .name = "linalg-linear-system", .text = text_linalg_linear_system },
 	{ .name = "linalg-rotations", .text = text_linalg_rotations },
 	{ .name = "logic-minimise-circuit", .text = text_logic_minimise_circuit },
+	{ .name = "quat-rotation", .text = text_quat_rotation },
 	{ .name = "robotics-two-link-arm", .text = text_robotics_two_link_arm },
 	{
 		.name = "stats-coin-and-bell-curve",

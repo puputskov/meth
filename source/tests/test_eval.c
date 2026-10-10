@@ -67,6 +67,8 @@ static int32_t shows (Session *s, const char *text, const char *expected)
 		|| ml_value_is_matrix (v)
 		|| ml_value_is_expr (v)
 		|| ml_value_is_quantity (v)
+		|| v.kind == ML_VALUE_COMPLEX
+		|| v.kind == ML_VALUE_QUAT
 	)
 	{
 		same = (
@@ -342,12 +344,12 @@ static void test_late_binding_and_snapshots (void)
 
 	session_init (&s);
 
-	CHECK (run (&s, "h(x) = x + k").kind == ML_VALUE_NONE);
+	CHECK (run (&s, "h(x) = x + kk").kind == ML_VALUE_NONE);
 	before = ml_env_snapshot (&s.env);
 	CHECK (fails (&s, "h(1)", ML_EVAL_UNDEFINED_NAME));
-	CHECK (shows (&s, "k = 5", "5"));
+	CHECK (shows (&s, "kk = 5", "5"));
 	CHECK (shows (&s, "h(1)", "6"));
-	CHECK (shows (&s, "k = 7", "7"));
+	CHECK (shows (&s, "kk = 7", "7"));
 	CHECK (shows (&s, "h(1)", "8"));
 
 	/* the same line again, in the environment it saw */
@@ -412,8 +414,8 @@ static void test_errors (void)
 	CHECK (fails (&s, "log(0)", ML_EVAL_DOMAIN));
 	CHECK (fails (&s, "asin(2)", ML_EVAL_DOMAIN));
 	CHECK (fails (&s, "acos(-2)", ML_EVAL_DOMAIN));
-	CHECK (fails (&s, "sqrt(-1)", ML_EVAL_NOT_REAL));
-	CHECK (fails (&s, "(-8)^(1/3)", ML_EVAL_NOT_REAL));
+	CHECK (shows (&s, "sqrt(-1)", "i"));
+	CHECK (shows (&s, "(-8)^(1/3)", "\xE2\x89\x88 1 + 1.73205081i"));
 	CHECK (fails (&s, "(1/2)!", ML_EVAL_NOT_INTEGER));
 	CHECK (fails (&s, "sqrt(2)!", ML_EVAL_NOT_INTEGER));
 	CHECK (fails (&s, "(-1)!", ML_EVAL_DOMAIN));

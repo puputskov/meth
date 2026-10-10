@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include <matlog/math/hyper.h>
 #include <matlog/math/stats.h>
 #include <matlog/math/vector.h>
 #include <matlog/sym/expr.h>
@@ -96,6 +97,14 @@ typedef enum MlBuiltin
 	BUILTIN_GCD,
 	BUILTIN_LCM,
 	BUILTIN_DIM,
+	/* complex numbers and quaternions (math/hyper.h) */
+	BUILTIN_RE,
+	BUILTIN_IM,
+	BUILTIN_CONJ,
+	BUILTIN_ARG,
+	BUILTIN_QUAT,
+	BUILTIN_POLAR,
+	BUILTIN_ROTATE,
 	/* matrices and vectors from here on */
 	BUILTIN_DET,
 	BUILTIN_INV,
@@ -155,6 +164,13 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_GCD]   = { .name = "gcd",   .min = 2, .max = 2 },
 	[BUILTIN_LCM]   = { .name = "lcm",   .min = 2, .max = 2 },
 	[BUILTIN_DIM]   = { .name = "dim",   .min = 1, .max = 1 },
+	[BUILTIN_RE]     = { .name = "re",     .min = 1, .max = 1 },
+	[BUILTIN_IM]     = { .name = "im",     .min = 1, .max = 1 },
+	[BUILTIN_CONJ]   = { .name = "conj",   .min = 1, .max = 1 },
+	[BUILTIN_ARG]    = { .name = "arg",    .min = 1, .max = 1 },
+	[BUILTIN_QUAT]   = { .name = "quat",   .min = 4, .max = 4 },
+	[BUILTIN_POLAR]  = { .name = "polar",  .min = 2, .max = 2 },
+	[BUILTIN_ROTATE] = { .name = "rotate", .min = 2, .max = 2 },
 	[BUILTIN_DET]       = { .name = "det",       .min = 1, .max = 1 },
 	[BUILTIN_INV]       = { .name = "inv",       .min = 1, .max = 1 },
 	[BUILTIN_TRANSPOSE] = { .name = "transpose", .min = 1, .max = 1 },
@@ -230,6 +246,36 @@ static MlValue constant_find (MlSlice name)
 	else if (ml_slice_equal (name, ml_slice_cstr ("e")))
 	{
 		v = ml_value_approx (2.71828182845904523536);
+	}
+
+	return v;
+}
+
+/*
+ * The imaginary units i, j and k as values, ML_VALUE_NONE for any other name.
+ * They are looked up after variables and functions (a variable i hides it)
+ * and only where a value is needed: the symbolic functions still read them
+ * as symbols, so diff (k x, k) works.
+ */
+static MlValue hyper_unit_find (MlArena *arena, MlSlice name)
+{
+	MlValue v    = ml_value_none ();
+	MlRat   zero = ml_rat_zero (arena);
+	MlRat   one  = ml_rat_from_i64 (arena, 1);
+
+	if (ml_slice_equal (name, ml_slice_cstr ("i")))
+	{
+		v = ml_hyper_value (ml_hyper_exact (zero, one, zero, zero));
+	}
+
+	else if (ml_slice_equal (name, ml_slice_cstr ("j")))
+	{
+		v = ml_hyper_value (ml_hyper_exact (zero, zero, one, zero));
+	}
+
+	else if (ml_slice_equal (name, ml_slice_cstr ("k")))
+	{
+		v = ml_hyper_value (ml_hyper_exact (zero, zero, zero, one));
 	}
 
 	return v;
@@ -899,6 +945,79 @@ static MlValue dim_value (MlArena *arena, MlValue a)
 	);
 }
 
+/* The functions of complex numbers and quaternions (and numbers among them). */
+static MlValue hyper_builtin (MlArena *arena, MlBuiltin id, const MlValue *args)
+{
+	MlValue r = error_at (ML_EVAL_TYPE);
+
+	if (id == BUILTIN_QUAT)
+	{
+		r = ml_hyper_quat (arena, args);
+	}
+
+	else if (id == BUILTIN_POLAR)
+	{
+		r = ml_hyper_polar (arena, args [0], args [1]);
+	}
+
+	else if (id == BUILTIN_ROTATE)
+	{
+		r = ml_hyper_rotate (arena, args [0], args [1]);
+	}
+
+	else if (id == BUILTIN_RE)
+	{
+		r = ml_hyper_function (arena, ML_HFN_RE, args [0]);
+	}
+
+	else if (id == BUILTIN_IM)
+	{
+		r = ml_hyper_function (arena, ML_HFN_IM, args [0]);
+	}
+
+	else if (id == BUILTIN_CONJ)
+	{
+		r = ml_hyper_function (arena, ML_HFN_CONJ, args [0]);
+	}
+
+	else if (id == BUILTIN_ARG)
+	{
+		r = ml_hyper_function (arena, ML_HFN_ARG, args [0]);
+	}
+
+	else if (id == BUILTIN_ABS)
+	{
+		r = ml_hyper_function (arena, ML_HFN_ABS, args [0]);
+	}
+
+	else if (id == BUILTIN_SQRT)
+	{
+		r = ml_hyper_function (arena, ML_HFN_SQRT, args [0]);
+	}
+
+	else if (id == BUILTIN_EXP)
+	{
+		r = ml_hyper_function (arena, ML_HFN_EXP, args [0]);
+	}
+
+	else if (id == BUILTIN_LN)
+	{
+		r = ml_hyper_function (arena, ML_HFN_LN, args [0]);
+	}
+
+	else if (id == BUILTIN_SIN)
+	{
+		r = ml_hyper_function (arena, ML_HFN_SIN, args [0]);
+	}
+
+	else if (id == BUILTIN_COS)
+	{
+		r = ml_hyper_function (arena, ML_HFN_COS, args [0]);
+	}
+
+	return r;
+}
+
 static MlValue builtin_apply (
 	MlArena       *arena,
 	MlBuiltin     id,
@@ -910,6 +1029,7 @@ static MlValue builtin_apply (
 	int32_t has_matrix = 0;
 	int32_t has_expr   = 0;
 	int32_t has_qty    = 0;
+	int32_t has_hyper  = 0;
 
 	for (uint64_t i = 0; i < argc; i++)
 	{
@@ -918,9 +1038,19 @@ static MlValue builtin_apply (
 		has_qty    = has_qty || ml_value_is_quantity (args [i]);
 	}
 
+	for (uint64_t i = 0; i < argc; i++)
+	{
+		has_hyper = has_hyper || ml_value_is_hyper (args [i]);
+	}
+
 	if (id == BUILTIN_DIM)
 	{
 		r = dim_value (arena, args [0]);
+	}
+
+	else if ((id >= BUILTIN_RE && id <= BUILTIN_ROTATE) || has_hyper)
+	{
+		r = hyper_builtin (arena, id, args);
 	}
 
 	else if (has_expr)
@@ -1118,6 +1248,11 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 		else
 		{
 			v = constant_find (name);
+
+			if (v.kind == ML_VALUE_NONE)
+			{
+				v = hyper_unit_find (cx->arena, name);
+			}
 
 			if (v.kind == ML_VALUE_NONE)
 			{
@@ -1634,7 +1769,10 @@ static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 		kind = CALL_BUILTIN;
 	}
 
-	else if (constant_find (name).kind != ML_VALUE_NONE)
+	else if (
+		   constant_find (name).kind != ML_VALUE_NONE
+		|| hyper_unit_find (cx->arena, name).kind != ML_VALUE_NONE
+	)
 	{
 		kind = CALL_PRODUCT;
 	}
@@ -2464,6 +2602,7 @@ MlResult ml_eval_commit (
 			|| ml_value_is_matrix (value)
 			|| ml_value_is_expr (value)
 			|| ml_value_is_quantity (value)
+			|| ml_value_is_hyper (value)
 		)
 	)
 	{

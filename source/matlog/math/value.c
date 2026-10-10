@@ -2,6 +2,8 @@
 
 #include <math.h>
 
+#include <matlog/math/hyper.h>
+
 /* Approximations are written with this many significant digits. */
 #define APPROX_DIGITS 9
 
@@ -633,6 +635,11 @@ MlValue ml_value_neg (MlArena *arena, MlValue a)
 		result = ml_value_quantity (ml_rat_neg (arena, a.exact), a.dim);
 	}
 
+	else if (ml_value_is_hyper (a))
+	{
+		result = ml_hyper_neg (arena, a);
+	}
+
 	else if (a.kind == ML_VALUE_APPROX)
 	{
 		result = ml_value_approx (-a.approx);
@@ -691,7 +698,12 @@ MlValue ml_value_add (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_quantity (a, b))
+	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	{
+		result = ml_hyper_apply (arena, ML_HYPER_ADD, a, b);
+	}
+
+	else if (involves_quantity (a, b))
 	{
 		result = quantity_op (arena, Q_ADD, a, b);
 	}
@@ -739,7 +751,12 @@ MlValue ml_value_mul (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_quantity (a, b))
+	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	{
+		result = ml_hyper_apply (arena, ML_HYPER_MUL, a, b);
+	}
+
+	else if (involves_quantity (a, b))
 	{
 		result = quantity_op (arena, Q_MUL, a, b);
 	}
@@ -792,7 +809,12 @@ MlValue ml_value_div (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_quantity (a, b))
+	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	{
+		result = ml_hyper_apply (arena, ML_HYPER_DIV, a, b);
+	}
+
+	else if (involves_quantity (a, b))
 	{
 		result = quantity_op (arena, Q_DIV, a, b);
 	}
@@ -861,7 +883,8 @@ static MlValue pow_approx (MlArena *arena, MlValue a, MlValue b)
 
 	else if (x < 0.0 && !whole)
 	{
-		result = ml_value_error (ML_EVAL_NOT_REAL, 0, 0);
+		/* a negative number to a fraction: the principal complex value */
+		result = ml_hyper_pow_negative (arena, a, b);
 	}
 
 	else
@@ -920,7 +943,7 @@ static MlValue pow_exact (MlArena *arena, MlValue a, MlValue b)
 			ml_value_exact (root.value),
 			ml_choose (
 				ml_rat_sign (a.exact) < 0,
-				ml_value_error (ML_EVAL_NOT_REAL, 0, 0),
+				ml_hyper_sqrt_negative (arena, a.exact),
 				pow_approx (arena, a, b)
 			)
 		);
@@ -938,7 +961,12 @@ MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b)
 {
 	MlValue result = first_error (a, b);
 
-	if (involves_quantity (a, b))
+	if (ml_value_is_hyper (a) || ml_value_is_hyper (b))
+	{
+		result = ml_hyper_apply (arena, ML_HYPER_POW, a, b);
+	}
+
+	else if (involves_quantity (a, b))
 	{
 		result = quantity_op (arena, Q_POW, a, b);
 	}
@@ -1041,6 +1069,11 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 	else if (v.kind == ML_VALUE_MATRIX)
 	{
 		r = ml_mat_format (out, v.matrix);
+	}
+
+	else if (ml_value_is_hyper (v))
+	{
+		r = ml_hyper_format (out, arena, v.hyper);
 	}
 
 	else if (v.kind == ML_VALUE_EXPR)

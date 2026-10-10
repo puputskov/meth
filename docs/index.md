@@ -23,6 +23,7 @@ are the same in the tool (`:help`) and on the command line (`matlog docs`).
 - [The algebra syntax](syntax): numbers, operators, names and statements.
 - [Functions](functions): the built in functions and constants.
 - [Statistics](statistics): means, spread, correlation, fits, distributions.
+- [Complex numbers and quaternions](complex): i, j, k, the Hamilton product, rotations.
 - [Matrices and vectors](matrices): matrices, determinants, inverses.
 - [Symbolic math](symbolic): simplify, expand, differentiate, integrate,
   limits, equations.
