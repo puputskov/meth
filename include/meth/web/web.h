@@ -125,6 +125,14 @@ MlResult ml_web_ghost (MlWeb *w, MlSlice domain, uint64_t idx, MlSlice text);
  */
 MlResult ml_web_complete (MlWeb *w, MlSlice domain, uint64_t idx, MlSlice text);
 
+/*
+ * The text of a line or of a value, set as presentation MathML: a <math>
+ * element (fractions, roots, powers, matrices; see export/math.h), as plain
+ * text, not JSON. The domain is the domain of the text, as for ml_web_ghost.
+ * ML_ERR_PARSE when the text is not a formula: the page then shows it as it is.
+ */
+MlResult ml_web_typeset (MlWeb *w, MlSlice domain, MlSlice text);
+
 /* { "found": true, "rows": [...] }: the steps of line idx on request. */
 MlResult ml_web_steps (MlWeb *w, uint64_t idx);
 

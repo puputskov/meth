@@ -4,6 +4,7 @@
 
 #include <meth/core/json.h>
 #include <meth/export/export.h>
+#include <meth/export/math.h>
 #include <meth/session/file.h>
 #include <meth/session/steps.h>
 #include <meth/texts/texts.h>
@@ -536,6 +537,33 @@ MlResult ml_web_complete (MlWeb *w, MlSlice domain, uint64_t idx, MlSlice text)
 	r = lit (r, &w->out, ",\"space\":");
 	r = flag (r, &w->out, c.append_space);
 	return lit (r, &w->out, "}");
+}
+
+MlResult ml_web_typeset (MlWeb *w, MlSlice domain, MlSlice text)
+{
+	MlDomainResult d = ml_domain_from_name (domain);
+	MlResult       r = ML_OK;
+
+	begin (w);
+	r = ml_choose (d.result == ML_OK, ML_OK, ML_ERR_INVALID);
+	r = lit (r, &w->out, "<math>");
+
+	if (r == ML_OK && d.domain == ML_DOMAIN_BOOLEAN)
+	{
+		r = ml_logic_typeset (&w->out, ML_MATH_MATHML, 0, text);
+	}
+
+	else if (r == ML_OK && d.domain == ML_DOMAIN_LAMBDA)
+	{
+		r = ml_logic_typeset (&w->out, ML_MATH_MATHML, 1, text);
+	}
+
+	else if (r == ML_OK)
+	{
+		r = ml_math_typeset (&w->out, ML_MATH_MATHML, text);
+	}
+
+	return lit (r, &w->out, "</math>");
 }
 
 MlResult ml_web_steps (MlWeb *w, uint64_t idx)

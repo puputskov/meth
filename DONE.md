@@ -1149,9 +1149,15 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   mathml / markdown as downloads), Examples and Snippets (menus from the library), undo, redo, symbols, the colour mode and help. The help is a drawer with
   search, the pages with their links and `see also`, and the examples of a page with a button that puts them in the notebook. The page uses its own colour
   palette for light and dark (the library's themes are for terminals; `applyColors` in `theme.js` takes one when it is wanted).
+- **Results as MathML (built 2026-10-10):** `ml_web_typeset (domain, text)` (`meth.typeset`) sets the text of a value as a `<math>` element with
+  `ml_math_typeset` / `ml_logic_typeset` (fractions, roots, powers, matrices, the logic symbols); `ML_ERR_PARSE` (code 6) when the text is no formula. The page
+  shows the value of exact, approximate, symbolic and matrix results and of boolean and lambda lines that way, after `=` or `≈`, in display style, and
+  falls back to the text for the rest (complex numbers, lists, quantities); the plain text is the `title` of the value. A cache maps the text to its markup.
+- **Notes edit in place:** every note line is its own row, like a code line: the line with the caret shows its Markdown, the others stay rendered
+  (headings, lists, `code`, bold, italic), so the text reads as the page it will be. Enter splits a line, Backspace joins, the arrows move between lines.
 - Tests of the page: `web/uitest.html` / `web/js/uitest.js` drive the notebook as a user does (typing, keys, clicks on the buttons, the completion, steps,
   plots, a text cell, the help, an empty notebook), 33 checks, and `tools/test_web.py` also loads `index.html` and checks that the welcome notebook is shown.
 - Not built: the tutorial on the page (the checks of the lessons are about keys of the editor: the page needs its own kind of check from
-  the results); user themes and settings in the browser storage; typeset math (MathML) for results and input; moving cells and selecting several lines; the
+  the results); user themes and settings in the browser storage; typeset math for the input lines (the results are typeset); moving cells and selecting several lines; the
   ghost preview of a new line (the results are live, so only the completion text is shown); the page on a real phone (the headless browser has a minimum
   width); `:why`; `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.

@@ -75,6 +75,17 @@ try {
 	check("export: latex", meth.exportAs("latex", "body").includes("\\begin{"));
 	check("export: markdown", meth.exportAs("markdown").includes("$$"));
 	check("domains", meth.domains().includes("proof"));
+	check("typeset: fraction", meth.typeset("algebra", "1/2").includes("<mfrac>"));
+	check("typeset: logic", meth.typeset("boolean", "a && b").includes("∧"));
+	let notFormula = null;
+
+	try {
+		meth.typeset("algebra", "2 +");
+	} catch (error) {
+		notFormula = error;
+	}
+
+	check("typeset: not a formula throws", notFormula && notFormula.code === 6);
 
 	meth.load("m:proof theorem t: x + x = 2x\nm:proof x + x = 2x\n");
 	check("hint", meth.hint(1).reason === "simplify");

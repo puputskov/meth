@@ -65,6 +65,7 @@ export class Notebook {
 		this.timer = 0;
 		this.completion = null; // { index, items, selected, ghost, start }
 		this.charWidth = 0;
+		this.mathCache = new Map(); // "domain + text" -> MathML, or null
 	}
 
 	// ---- the session ---------------------------------------------------
@@ -325,14 +326,23 @@ export class Notebook {
 
 		area.value = this.lines[i].text;
 		renderNote(view, [this.lines[i].text]);
-		view.addEventListener("click", () => this.focusLine(i, "end"));
-		area.addEventListener("focus", () => {
+		const edit = () => {
 			row.classList.add("editing");
 			grow();
-		});
+		};
+
+		row.edit = edit;
+		view.addEventListener("click", () => this.focusLine(i, "end"));
+		area.addEventListener("focus", edit);
 		area.addEventListener("input", () => {
 			grow();
 			this.typed(i, area);
+
+			// the rendered copy follows the text, so it is right whenever the
+			// line is left
+			if (row.isConnected && this.lines[i]) {
+				renderNote(view, [this.lines[i].text]);
+			}
 		});
 		area.addEventListener("keydown", (event) => this.keydown(event, i, area));
 		area.addEventListener("blur", () => {
@@ -416,8 +426,18 @@ export class Notebook {
 			out.classList.add("error");
 			out.append(result.text);
 		} else if (result.kind === "value") {
+			const math = this.resultMath(line, result);
+
 			if (line.domain === "proof") {
 				out.append(this.proofMark(result.text));
+			} else if (math) {
+				const eq = el("span", "eq");
+				const value = el("span", "math-val");
+
+				eq.textContent = result.text.startsWith("≈") ? "≈" : "=";
+				value.title = result.text;
+				value.append(math);
+				out.append(eq, value);
 			} else {
 				if (!result.block) {
 					const approx = result.text.startsWith("≈");
@@ -458,6 +478,51 @@ export class Notebook {
 
 			this.stepsButton(out, i);
 		}
+	}
+
+	// The value of a result as a <math> element, or null when it has no
+	// typeset form (a list, a text, an error of the typesetting).
+	resultMath(line, result) {
+		const logic = line.domain === "boolean" || line.domain === "lambda";
+		const typeset = logic || ["exact", "approx", "expr", "matrix"].includes(result.type);
+		let element = null;
+
+		if (typeset && line.domain !== "proof") {
+			const text = result.text.replace(/^≈\s*/, "");
+			const domain = logic ? line.domain : "algebra";
+			const key = `${domain}\n${text}`;
+			let markup = this.mathCache.get(key);
+
+			if (markup === undefined) {
+				try {
+					markup = this.meth.typeset(domain, text);
+				} catch {
+					markup = null;
+				}
+
+				if (this.mathCache.size > 2000) {
+					this.mathCache.clear();
+				}
+
+				this.mathCache.set(key, markup);
+			}
+
+			if (markup) {
+				// the markup comes from the library, which escapes the text
+				// of the formula; it is parsed as an HTML document, so scripts
+				// would not run in any case
+				const parsed = new DOMParser().parseFromString(markup, "text/html");
+
+				element = parsed.body.firstElementChild
+					? document.importNode(parsed.body.firstElementChild, true)
+					: null;
+
+				// full size fractions and matrices (display style)
+				element?.setAttribute("display", "block");
+			}
+		}
+
+		return element;
 	}
 
 	proofMark(text) {
@@ -557,6 +622,7 @@ export class Notebook {
 		}
 
 		if (area) {
+			area.closest(".nline")?.edit?.();
 			area.focus();
 
 			const length = area.value.length;

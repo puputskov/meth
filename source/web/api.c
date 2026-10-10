@@ -301,3 +301,20 @@ int32_t meth_theme_text (const uint8_t *theme, uint32_t theme_len)
 {
 	return status (ml_web_theme_text (session (), text (theme, theme_len)));
 }
+
+EXPORT ("meth_typeset")
+int32_t meth_typeset (
+	const uint8_t *domain,
+	uint32_t      domain_len,
+	const uint8_t *line,
+	uint32_t      line_len
+)
+{
+	return status (
+		ml_web_typeset (
+			session (),
+			text (domain, domain_len),
+			text (line, line_len)
+		)
+	);
+}

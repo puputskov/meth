@@ -117,7 +117,12 @@ export async function loadModule(url, write) {
 // (see include/meth/web/web.h for what each answer holds). Every method that
 // can fail throws an Error with the number of the failure in `code` (1 is out
 // of memory, 2 an invalid index or name, 5 a file that cannot be read).
-const FAILURES = { 1: "out of memory", 2: "invalid argument", 5: "cannot read" };
+const FAILURES = {
+	1: "out of memory",
+	2: "invalid argument",
+	5: "cannot read",
+	6: "not a formula",
+};
 
 // type is replace without an undo step of its own (for text that is being
 // typed); checkpoint ends the step, so a burst of typing is undone as one.
@@ -200,6 +205,10 @@ export async function loadMeth(url) {
 		complete: (domain, index, line) =>
 			json("meth_complete", domain, index, line),
 		steps: (index) => json("meth_steps", index),
+
+		// The text of a formula (or of a value) as MathML: a <math> element as
+		// text. Throws (code 6) when the text is not a formula.
+		typeset: (domain, formula) => text("meth_typeset", domain, formula),
 		hint: (index) => json("meth_hint", index),
 		exportAs: (format, words = "") => text("meth_export", format, words),
 		domains: () => json("meth_domains"),

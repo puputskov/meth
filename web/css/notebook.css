@@ -243,6 +243,18 @@
 	overflow-wrap: anywhere;
 }
 
+.out .math-val {
+	font-size: 1.25em;
+	line-height: 1.4;
+	overflow-x: auto;
+	overflow-y: hidden;
+	max-width: 100%;
+}
+
+.out math {
+	font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", math, serif;
+}
+
 .out .kind {
 	margin-left: auto;
 	color: var(--dim);

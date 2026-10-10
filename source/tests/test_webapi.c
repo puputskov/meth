@@ -226,6 +226,22 @@ static void test_services (void)
 	CHECK (has (&w, "$$"));
 	CHECK (ml_web_export (&w, lit ("pdf"), lit ("")) == ML_ERR_INVALID);
 
+	/* a value as MathML */
+	CHECK (ml_web_typeset (&w, lit ("algebra"), lit ("1/2")) == ML_OK);
+	CHECK (has (&w, "<math>") && has (&w, "<mfrac>"));
+	CHECK (
+		ml_web_typeset (&w, lit ("algebra"), lit ("[[1, 2], [3, 4]]")) == ML_OK
+	);
+	CHECK (has (&w, "<mtable>"));
+	CHECK (
+		ml_web_typeset (&w, lit ("algebra"), lit ("3x^2 + sqrt(2)")) == ML_OK
+	);
+	CHECK (has (&w, "<msqrt>") && has (&w, "<msup>"));
+	CHECK (ml_web_typeset (&w, lit ("boolean"), lit ("a && b")) == ML_OK);
+	CHECK (has (&w, "\xE2\x88\xA7"));
+	CHECK (ml_web_typeset (&w, lit ("algebra"), lit ("2 +")) == ML_ERR_PARSE);
+	CHECK (ml_web_typeset (&w, lit ("poetry"), lit ("1")) == ML_ERR_INVALID);
+
 	CHECK (ml_web_domains (&w) == ML_OK);
 	CHECK (has (&w, "[\"algebra\",\"lambda\""));
 	CHECK (has (&w, "\"proof\"]"));

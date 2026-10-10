@@ -119,7 +119,18 @@ try {
 	notebook.load("m:algebra hist ([1, 2, 2, 3, 3, 3], 3)\nm:algebra plot (x^2, 0, 3)\n");
 	check("plot: svg", out(0).querySelector("svg.plot") !== null);
 
+	// results typeset as MathML
+	document.activeElement.blur();
+	notebook.load("m:algebra 1/3 + 1/6" + String.fromCharCode(10) + "m:algebra sqrt (2) * 3" + String.fromCharCode(10) + "m:algebra [[1, 2], [3, 4]]^-1" + String.fromCharCode(10) + "m:algebra foo (1)" + String.fromCharCode(10) + "m:algebra a = 3");
+	check("mathml: fraction", out(0).querySelector("math mfrac") !== null, out(0).innerHTML);
+	check("mathml: approx mark", out(1).querySelector(".eq")?.textContent === "≈" && out(1).querySelector("math") !== null);
+	check("mathml: matrix", out(2).querySelector("math mtable") !== null);
+	check("mathml: error stays text", out(3).querySelector("math") === null && out(3).classList.contains("error"));
+	check("mathml: plain value", out(4).querySelector("math mn") !== null);
+	check("mathml: no ascii art block", out(2).querySelector("pre.block") === null);
+
 	// a text cell: lines shown rendered, the line being edited shows its source
+	document.activeElement.blur();
 	notebook.load("# # Title\n# some *text*\n\nm:algebra 1 + 1\n");
 
 	const noteView = (i) => root.querySelector(`.nline[data-i="${i}"] .view`);
