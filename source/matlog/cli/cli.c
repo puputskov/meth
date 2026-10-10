@@ -194,7 +194,7 @@ static MlResult options_read (
 			if (!is (value, "json") && !is (value, "text")
 				&& !is (value, "markdown"))
 			{
-				o->problem = "--format needs text or json";
+				o->problem = ml_text ("cli_msg.format_needs_text_or_json");
 			}
 		}
 
@@ -208,7 +208,7 @@ static MlResult options_read (
 
 			else
 			{
-				o->problem = "--session needs a file";
+				o->problem = ml_text ("cli_msg.session_needs_a_file");
 			}
 		}
 
@@ -232,7 +232,7 @@ static MlResult options_read (
 
 			else
 			{
-				o->problem = "--domain needs a domain name";
+				o->problem = ml_text ("cli_msg.domain_needs_a_domain_name");
 			}
 		}
 
@@ -248,7 +248,7 @@ static MlResult options_read (
 
 		else if (starts_with (a, "--"))
 		{
-			o->problem = "unknown option";
+			o->problem = ml_text ("cli_msg.unknown_option");
 		}
 
 		else
@@ -260,6 +260,22 @@ static MlResult options_read (
 	}
 
 	return r;
+}
+
+/* A line on standard error, from the texts. */
+static void err_line (MlStr *err, const char *code)
+{
+	add (err, ml_text (code));
+	add (err, "\n");
+}
+
+/* A line on standard error about a file, {path} filled in. */
+static void file_error (MlStr *err, const char *code, MlSlice path)
+{
+	MlTextArg arg = { .name = "path", .value = path };
+
+	ml_text_fill (err, ml_text (code), &arg, 1);
+	add (err, "\n");
 }
 
 /* A usage error: the message on standard error, exit code 2. */
@@ -274,7 +290,9 @@ static int32_t usage_error (MlStr *err, const char *what, MlSlice arg)
 		ml_str_append (err, arg);
 	}
 
-	add (err, "\ntry: matlog help\n");
+	add (err, "\n");
+	add (err, ml_text ("cli_msg.try_help"));
+	add (err, "\n");
 	return ML_EXIT_USAGE;
 }
 
@@ -672,12 +690,20 @@ static int32_t cmd_eval (
 
 	if (o->rest.len == 0)
 	{
-		code = usage_error (err, "eval needs an expression", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.eval_needs_an_expression"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else if (o->write && o->session.len == 0)
 	{
-		code = usage_error (err, "--write needs --session", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.write_needs_session"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else if (o->session.len > 0)
@@ -693,9 +719,7 @@ static int32_t cmd_eval (
 		else if (r != ML_OK)
 		{
 			code = ML_EXIT_IO;
-			add (err, "matlog: cannot read ");
-			ml_str_append (err, o->session);
-			add (err, "\n");
+			file_error (err, "cli_msg.cannot_read_path", o->session);
 		}
 	}
 
@@ -742,14 +766,14 @@ static int32_t cmd_eval (
 		if (r != ML_OK)
 		{
 			code = ML_EXIT_IO;
-			add (err, "matlog: cannot write the session file\n");
+			err_line (err, "cli_msg.cannot_write_the_session_file");
 		}
 	}
 
 	if (r == ML_ERR_NOMEM)
 	{
 		code = ML_EXIT_IO;
-		add (err, "matlog: out of memory\n");
+		err_line (err, "cli_msg.out_of_memory");
 	}
 
 	ml_results_free (&res);
@@ -770,21 +794,23 @@ static int32_t cmd_run (const Options *o, MlStr *out, MlStr *err)
 
 	if (o->rest.len != 1)
 	{
-		code = usage_error (err, "run needs one file", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.run_needs_one_file"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else if (ml_mlog_load (&s, o->rest.data [0]) != ML_OK)
 	{
 		code = ML_EXIT_IO;
-		add (err, "matlog: cannot read ");
-		ml_str_append (err, o->rest.data [0]);
-		add (err, "\n");
+		file_error (err, "cli_msg.cannot_read_path", o->rest.data [0]);
 	}
 
 	else if (ml_results_update (&res, &s, 0) != ML_OK)
 	{
 		code = ML_EXIT_IO;
-		add (err, "matlog: out of memory\n");
+		err_line (err, "cli_msg.out_of_memory");
 	}
 
 	else
@@ -818,7 +844,11 @@ static int32_t cmd_lex (
 
 	if (o->rest.len != 1)
 	{
-		code = usage_error (err, "lex needs one text", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.lex_needs_one_text"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else
@@ -892,7 +922,11 @@ static int32_t cmd_parse (
 
 	if (o->rest.len != 1)
 	{
-		code = usage_error (err, "parse needs one text", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.parse_needs_one_text"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else
@@ -1029,7 +1063,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 	{
 		code = usage_error (
 			err,
-			"steps needs one expression or FILE:LINE",
+			ml_text ("cli_msg.steps_needs_one_expression_or_file_line"),
 			ml_slice ("", 0)
 		);
 	}
@@ -1042,7 +1076,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 		if (r != ML_OK)
 		{
 			code = ML_EXIT_IO;
-			add (err, "matlog: cannot read the file\n");
+			err_line (err, "cli_msg.cannot_read_the_file");
 		}
 
 		idx = num - 1;
@@ -1058,7 +1092,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 		if (r != ML_OK)
 		{
 			code = ML_EXIT_IO;
-			add (err, "matlog: cannot read the session\n");
+			err_line (err, "cli_msg.cannot_read_the_session");
 		}
 
 		idx = s.lines.len;
@@ -1095,7 +1129,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 		else if (!st.found)
 		{
 			code = ML_EXIT_ERROR;
-			add (err, "matlog: no steps for this line\n");
+			err_line (err, "cli_msg.no_steps_for_this_line");
 		}
 
 		else if (o->json)
@@ -1146,7 +1180,11 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 
 	if (o->rest.len > 1)
 	{
-		code = usage_error (err, "help takes one command", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.help_takes_one_command"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else if (o->rest.len == 1)
@@ -1171,7 +1209,7 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 
 		else if (!ml_cli_is_command (name))
 		{
-			code = usage_error (err, "no such command", name);
+			code = usage_error (err, ml_text ("cli_msg.no_such_command"), name);
 		}
 
 		ml_str_free (&key);
@@ -1332,7 +1370,7 @@ static int32_t cmd_docs (const Options *o, MlStr *out, MlStr *err)
 	{
 		code = usage_error (
 			err,
-			"docs needs list, show, search or check",
+			ml_text ("cli_msg.docs_needs_list_show_search_or_check"),
 			ml_slice ("", 0)
 		);
 	}
@@ -1381,7 +1419,11 @@ static int32_t cmd_docs (const Options *o, MlStr *out, MlStr *err)
 
 		if (at >= d.pages.len)
 		{
-			code = usage_error (err, "no such page", o->rest.data [1]);
+			code = usage_error (
+				err,
+				ml_text ("cli_msg.no_such_page"),
+				o->rest.data [1]
+			);
 		}
 
 		else if (o->json)
@@ -1441,7 +1483,7 @@ static int32_t cmd_docs (const Options *o, MlStr *out, MlStr *err)
 	{
 		code = usage_error (
 			err,
-			"docs: list, show ID, search WORDS or check",
+			ml_text ("cli_msg.docs_list_show_id_search_words_or_check"),
 			ml_slice ("", 0)
 		);
 	}
@@ -1486,27 +1528,33 @@ static int32_t cmd_export (const Options *o, MlStr *out, MlStr *err)
 	{
 		code = usage_error (
 			err,
-			"export needs a file and a format",
+			ml_text ("cli_msg.export_needs_a_file_and_a_format"),
 			ml_slice ("", 0)
 		);
 	}
 
 	else if (fmt == ML_EXPORT_COUNT)
 	{
-		code = usage_error (err, "no such format", o->rest.data [1]);
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.no_such_format"),
+			o->rest.data [1]
+		);
 	}
 
 	else if (ml_export_read_words (&opt, ml_str_view (words), &path) != ML_OK)
 	{
-		code = usage_error (err, "bad export option", ml_str_view (words));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.bad_export_option"),
+			ml_str_view (words)
+		);
 	}
 
 	else if (ml_mlog_load (&s, o->rest.data [0]) != ML_OK)
 	{
 		code = ML_EXIT_IO;
-		add (err, "matlog: cannot read ");
-		ml_str_append (err, o->rest.data [0]);
-		add (err, "\n");
+		file_error (err, "cli_msg.cannot_read_path", o->rest.data [0]);
 	}
 
 	else if (
@@ -1515,7 +1563,7 @@ static int32_t cmd_export (const Options *o, MlStr *out, MlStr *err)
 	)
 	{
 		code = ML_EXIT_IO;
-		add (err, "matlog: out of memory\n");
+		err_line (err, "cli_msg.out_of_memory");
 	}
 
 	else if (path.len > 0)
@@ -1523,9 +1571,7 @@ static int32_t cmd_export (const Options *o, MlStr *out, MlStr *err)
 		if (ml_fs_write_file_atomic (path, ml_str_view (doc)) != ML_OK)
 		{
 			code = ML_EXIT_IO;
-			add (err, "matlog: cannot write ");
-			ml_str_append (err, path);
-			add (err, "\n");
+			file_error (err, "cli_msg.cannot_write_path", path);
 		}
 	}
 
@@ -1549,7 +1595,11 @@ static int32_t cmd_theme (const Options *o, MlStr *out, MlStr *err)
 
 	if (o->rest.len > 1)
 	{
-		code = usage_error (err, "theme takes one name", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.theme_takes_one_name"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else if (o->rest.len == 0)
@@ -1571,7 +1621,11 @@ static int32_t cmd_theme (const Options *o, MlStr *out, MlStr *err)
 
 		else
 		{
-			code = usage_error (err, "no such theme", o->rest.data [0]);
+			code = usage_error (
+				err,
+				ml_text ("cli_msg.no_such_theme"),
+				o->rest.data [0]
+			);
 		}
 	}
 
@@ -1680,7 +1734,7 @@ static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
 		{
 			code = ML_EXIT_IO;
 			r    = ML_OK;
-			add (err, "matlog: no settings folder\n");
+			err_line (err, "cli_msg.no_settings_folder");
 		}
 	}
 
@@ -1711,7 +1765,11 @@ static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
 
 		if (index >= ml_option_count ())
 		{
-			code = usage_error (err, "no such setting", o->rest.data [1]);
+			code = usage_error (
+				err,
+				ml_text ("cli_msg.no_such_setting"),
+				o->rest.data [1]
+			);
 		}
 
 		else if (is (sub, "set"))
@@ -1724,7 +1782,7 @@ static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
 			{
 				code = usage_error (
 					err,
-					"not a value for the setting",
+					ml_text ("cli_msg.not_a_value_for_the_setting"),
 					o->rest.data [2]
 				);
 			}
@@ -1741,7 +1799,7 @@ static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
 				{
 					code = ML_EXIT_IO;
 					r    = ML_OK;
-					add (err, "matlog: cannot write the settings file\n");
+					err_line (err, "cli_msg.cannot_write_settings");
 				}
 			}
 
@@ -1774,7 +1832,7 @@ static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
 	{
 		code = usage_error (
 			err,
-			"config needs list, get NAME, set NAME VALUE or path",
+			ml_text ("cli_msg.config_needs_list_get_name_set_name_value_or"),
 			ml_slice ("", 0)
 		);
 	}
@@ -1825,7 +1883,7 @@ static int32_t cmd_vars (const Options *o, MlStr *out, MlStr *err)
 	{
 		code = usage_error (
 			err,
-			"vars needs FILE or FILE:LINE",
+			ml_text ("cli_msg.vars_needs_file_or_file_line"),
 			ml_slice ("", 0)
 		);
 	}
@@ -1835,7 +1893,7 @@ static int32_t cmd_vars (const Options *o, MlStr *out, MlStr *err)
 	)
 	{
 		code = ML_EXIT_IO;
-		add (err, "matlog: cannot read the file\n");
+		err_line (err, "cli_msg.cannot_read_the_file");
 	}
 
 	else
@@ -1914,7 +1972,11 @@ static int32_t cmd_examples (const Options *o, MlStr *out, MlStr *err)
 
 	if (o->rest.len > 1)
 	{
-		code = usage_error (err, "examples takes one name", ml_slice ("", 0));
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.examples_takes_one_name"),
+			ml_slice ("", 0)
+		);
 	}
 
 	else if (o->rest.len == 1)
@@ -1923,7 +1985,11 @@ static int32_t cmd_examples (const Options *o, MlStr *out, MlStr *err)
 
 		if (idx >= ml_example_count ())
 		{
-			code = usage_error (err, "no such example", o->rest.data [0]);
+			code = usage_error (
+				err,
+				ml_text ("cli_msg.no_such_example"),
+				o->rest.data [0]
+			);
 		}
 
 		else
@@ -2021,7 +2087,7 @@ int32_t ml_cli_run (
 	if (options_read (&o, args, 1) != ML_OK)
 	{
 		code = ML_EXIT_IO;
-		add (err, "matlog: out of memory\n");
+		err_line (err, "cli_msg.out_of_memory");
 	}
 
 	else if (o.problem != NULL)
@@ -2111,7 +2177,7 @@ int32_t ml_cli_run (
 
 	else
 	{
-		code = usage_error (err, "unknown command", cmd);
+		code = usage_error (err, ml_text ("cli_msg.unknown_command"), cmd);
 	}
 
 	options_free (&o);

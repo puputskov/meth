@@ -364,5 +364,46 @@ schema = shape of the JSON output
 commands = list of commands
 version = the version
 
+# Messages of the command line on standard error (usage mistakes, files).
+# {path} is the file.
+[cli_msg]
+cannot_read_path = matlog: cannot read {path}
+cannot_write_path = matlog: cannot write {path}
+cannot_write_the_session_file = matlog: cannot write the session file
+out_of_memory = matlog: out of memory
+cannot_read_the_file = matlog: cannot read the file
+cannot_read_the_session = matlog: cannot read the session
+no_steps_for_this_line = matlog: no steps for this line
+no_settings_folder = matlog: no settings folder
+cannot_write_settings = matlog: cannot write the settings file
+eval_needs_an_expression = eval needs an expression
+write_needs_session = --write needs --session
+run_needs_one_file = run needs one file
+lex_needs_one_text = lex needs one text
+parse_needs_one_text = parse needs one text
+steps_needs_one_expression_or_file_line = steps needs one expression or FILE:LINE
+help_takes_one_command = help takes one command
+no_such_command = no such command
+docs_needs_list_show_search_or_check = docs needs list, show, search or check
+no_such_page = no such page
+docs_list_show_id_search_words_or_check = docs: list, show ID, search WORDS or check
+export_needs_a_file_and_a_format = export needs a file and a format
+no_such_format = no such format
+bad_export_option = bad export option
+theme_takes_one_name = theme takes one name
+no_such_theme = no such theme
+no_such_setting = no such setting
+not_a_value_for_the_setting = not a value for the setting
+config_needs_list_get_name_set_name_value_or = config needs list, get NAME, set NAME VALUE or path
+vars_needs_file_or_file_line = vars needs FILE or FILE:LINE
+examples_takes_one_name = examples takes one name
+no_such_example = no such example
+unknown_command = unknown command
+format_needs_text_or_json = --format needs text or json
+session_needs_a_file = --session needs a file
+domain_needs_a_domain_name = --domain needs a domain name
+unknown_option = unknown option
+try_help = try: matlog help
+
 # The lessons of the tutorial are in the files lessons/en/*.mltext, one lesson per
 # file, built into the program in the same way and read in the order of their names.
