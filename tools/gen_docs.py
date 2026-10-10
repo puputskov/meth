@@ -21,6 +21,8 @@ EXAMPLES = os.path.join(ROOT, "examples")
 EXAMPLES_OUT = os.path.join(ROOT, "source", "matlog", "docs", "examples_data.c")
 SNIPPETS = os.path.join(ROOT, "snippets")
 SNIPPETS_OUT = os.path.join(ROOT, "source", "matlog", "docs", "snippets_data.c")
+STDLIB = os.path.join(ROOT, "stdlib")
+STDLIB_OUT = os.path.join(ROOT, "source", "matlog", "docs", "stdlib_data.c")
 
 # A literal line is a tab, quotes and at most this many escaped characters:
 # four columns for the tab, two quotes and the semicolon of the last line.
@@ -120,6 +122,10 @@ def generate_snippets():
     return generate_table(SNIPPETS, ".mlog", "snippets/*.mlog", "snippets", "snippet")
 
 
+def generate_stdlib():
+    return generate_table(STDLIB, ".mlog", "stdlib/*.mlog", "stdlib", "stdlib")
+
+
 def generate_examples():
     return generate_table(EXAMPLES, ".mlog", "examples/*.mlog", "examples", "example")
 
@@ -138,6 +144,7 @@ def main():
         (OUT, generate()),
         (EXAMPLES_OUT, generate_examples()),
         (SNIPPETS_OUT, generate_snippets()),
+        (STDLIB_OUT, generate_stdlib()),
     ]
     if "--check" in sys.argv:
         stale = [p for p, text in outputs if differs(p, text)]

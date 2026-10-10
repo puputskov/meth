@@ -188,7 +188,7 @@ static MlResult env_rows (
 
 	ml_arena_init (&arena, 0);
 
-	for (uint64_t i = 0; i < end && r == ML_OK; i++)
+	for (uint64_t i = res->env.library; i < end && r == ML_OK; i++)
 	{
 		MlBinding b = res->env.bindings.data [i];
 

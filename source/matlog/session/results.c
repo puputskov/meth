@@ -1,5 +1,7 @@
 #include <matlog/session/results.h>
 
+#include <matlog/docs/stdlib.h>
+
 #include <matlog/core/mem.h>
 #include <matlog/logic/bool.h>
 #include <matlog/logic/lambda.h>
@@ -22,6 +24,7 @@ ML_VEC_DEFINE (FrameVec, Frame)
 void ml_results_init (MlResults *r)
 {
 	ml_env_init (&r->env);
+	ml_stdlib_load (&r->env);
 	r->free_symbols = 0;
 	MlLogicDefVec_init (&r->defs);
 	MlLineResultVec_init (&r->lines);
@@ -574,6 +577,7 @@ MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from)
 		/* starting over also gives back the numbers of the old variables */
 		ml_env_free (&r->env);
 		ml_env_init (&r->env);
+		ml_stdlib_load (&r->env);
 		r->env.free_symbols = r->free_symbols;
 		ml_logic_defs_truncate (&r->defs, 0);
 	}

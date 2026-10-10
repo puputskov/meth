@@ -2,6 +2,28 @@
 
 #include <matlog/docs/examples.h>
 
+static const char text_algebra_library [] =
+	"# The standard library\n"
+	"# Functions that are always there: number theory first. A prime and it"
+	"s neighbours:\n"
+	"m:algebra isprime(1000003)\n"
+	"m:algebra primes(50)\n"
+	"# Every whole number is a product of primes:\n"
+	"m:algebra factor(2024)\n"
+	"m:algebra fold((a, b) -> a * b, 1, factor(2024))\n"
+	"# Perfect numbers are the sum of their proper divisors; 28 is one:\n"
+	"m:algebra divisors(28)\n"
+	"m:algebra sigma(28) - 28\n"
+	"# The Fibonacci numbers grow like the golden ratio phi = (1 + sqrt(5))"
+	" / 2:\n"
+	"m:algebra fib(30)\n"
+	"m:algebra fib(31) / fib(30)\n"
+	"# The remainder, and the steps of the 3n + 1 walk:\n"
+	"m:algebra mod(-7, 3)\n"
+	"m:algebra map(collatz, range(1, 10))\n"
+	"# Numbers between two values:\n"
+	"m:algebra linspace(0, 10, 5)\n";
+
 static const char text_algebra_lists [] =
 	"# Lists\n"
 	"# range makes a list of any length; arithmetic goes item by item.\n"
@@ -477,7 +499,9 @@ static const char text_units_kinetic_energy [] =
 	"# Time to stop with a deceleration of 8 m/s^2 from this speed:\n"
 	"m:algebra (v to m/s)/(8 m/s^2)\n";
 
-const MlDocSource ml_example_sources [] = {
+const MlDocSource ml_example_sources [] =
+{
+	{ .name = "algebra-library", .text = text_algebra_library },
 	{ .name = "algebra-lists", .text = text_algebra_lists },
 	{ .name = "algebra-quadratic", .text = text_algebra_quadratic },
 	{

@@ -50,6 +50,12 @@ typedef struct MlEnv
 	 * of the evaluation, not of a binding, and survives ml_env_truncate.
 	 */
 	int32_t      free_symbols;
+	/*
+	 * The bindings below this index are the standard library (see
+	 * docs/stdlib.h): they are not listed as the user's names. 0 for an
+	 * environment that has no library.
+	 */
+	uint64_t     library;
 } MlEnv;
 
 void ml_env_init (MlEnv *env);

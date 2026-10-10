@@ -449,7 +449,13 @@ MlCompletion ml_complete_math (
 	{
 		for (uint64_t i = bound; i > 0; i--)
 		{
-			add_item (&c, typed, env->bindings.data [i - 1].name);
+			MlSlice name = env->bindings.data [i - 1].name;
+
+			/* the helpers of the library start with an underscore */
+			if (name.len > 0 && name.data [0] != '_')
+			{
+				add_item (&c, typed, name);
+			}
 		}
 
 		for (uint64_t i = 0; i < ml_function_name_count (); i++)

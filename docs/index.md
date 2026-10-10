@@ -24,6 +24,7 @@ are the same in the tool (`:help`) and on the command line (`matlog docs`).
 - [The algebra syntax](syntax): numbers, operators, names and statements.
 - [Functions](functions): the built in functions and constants.
 - [Lists](lists): range, list, item, item by item arithmetic.
+- [The standard library](library): fib, isprime, factor, mod, linspace and more.
 - [Statistics](statistics): means, spread, correlation, fits, distributions.
 - [Plots](plots): histograms, scatter plots and lines in the side panel.
 - [Complex numbers and quaternions](complex): i, j, k, the Hamilton product, rotations.

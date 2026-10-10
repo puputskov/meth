@@ -5,6 +5,7 @@ void ml_env_init (MlEnv *env)
 	ml_arena_init (&env->arena, 0);
 	MlBindingVec_init (&env->bindings);
 	env->free_symbols = 0;
+	env->library      = 0;
 }
 
 void ml_env_free (MlEnv *env)

@@ -62,7 +62,8 @@ static const char text_unit_conversion [] =
 	"m:algebra v to m/s\n"
 	"m:algebra 3 ft + 20 cm\n";
 
-const MlDocSource ml_snippet_sources [] = {
+const MlDocSource ml_snippet_sources [] =
+{
 	{ .name = "church-numerals", .text = text_church_numerals },
 	{ .name = "derivative", .text = text_derivative },
 	{ .name = "integral", .text = text_integral },

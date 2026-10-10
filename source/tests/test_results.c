@@ -274,7 +274,7 @@ static void test_edit (void)
 		ml_results_get (&r, 3).snapshot
 		> ml_results_get (&r, 2).snapshot
 	);
-	CHECK (ml_results_get (&r, 0).snapshot == 0);
+	CHECK (ml_results_get (&r, 0).snapshot == r.env.library);
 
 	/* deleting a line */
 	CHECK (ml_session_delete (&s, 0) == ML_OK);

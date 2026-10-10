@@ -1,0 +1,27 @@
+# The standard library: number theory
+# fib (n): the n-th Fibonacci number, fib (0) = 0, fib (1) = 1; exact, also for big n
+m:algebra fib(n) = if (n < 2, n, _fib_from(n, 0, 1))
+m:algebra _fib_from(n, a, b) = if (n == 0, a, _fib_from(n - 1, b, a + b))
+# isqrt (n): the whole number part of the square root of a whole number n, exact
+m:algebra isqrt(n) = if (n < 2, n, _isqrt(n, 1, n))
+m:algebra _isqrt(n, lo, hi) = if (hi - lo <= 1, lo, _isqrt_mid(n, lo, hi, floor((lo + hi) / 2)))
+m:algebra _isqrt_mid(n, lo, hi, m) = if (m * m <= n, _isqrt(n, m, hi), _isqrt(n, lo, m))
+# isprime (n): true when n is a prime; trial division, fast up to about 10^10
+m:algebra isprime(n) = if (n < 4, n > 1, len(filter(d -> mod(n, d) == 0, range(2, isqrt(n)))) == 0)
+# primes (n): the primes up to n
+m:algebra primes(n) = if (n < 2, list(), filter(isprime, range(2, n)))
+# factor (n): the prime factors of n in order, factor (360) is [2, 2, 2, 3, 3, 5]
+m:algebra factor(n) = if (n < 2, list(), _factor_step(n, _smallest_factor(n)))
+m:algebra _factor_step(n, p) = concat(list(p), factor(n / p))
+m:algebra _smallest_factor(n) = if (n < 4, n, _first_or(n, filter(d -> mod(n, d) == 0, range(2, isqrt(n)))))
+m:algebra _first_or(n, ds) = if (len(ds) == 0, n, item(ds, 1))
+# divisors (n): all the numbers that divide n, from 1 to n
+m:algebra divisors(n) = filter(d -> mod(n, d) == 0, range(1, n))
+# totient (n): how many of 1 ... n have no common factor with n
+m:algebra totient(n) = len(filter(k -> gcd(k, n) == 1, range(1, n)))
+# sigma (n): the sum of the divisors of n
+m:algebra sigma(n) = sum(divisors(n))
+# collatz (n): the steps of 3n + 1 (or n / 2 for an even n) until n reaches 1
+m:algebra collatz(n) = if (n == 1, 0, 1 + collatz(if (mod(n, 2) == 0, n / 2, 3 * n + 1)))
+# digits (n): the decimal digits of a whole number n, as a list
+m:algebra digits(n) = if (n < 10, list(n), append(digits(floor(n / 10)), mod(n, 10)))
