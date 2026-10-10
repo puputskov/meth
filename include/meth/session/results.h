@@ -98,6 +98,13 @@ void ml_results_free (MlResults *r);
  */
 MlResult ml_results_update (MlResults *r, const MlSession *s, uint64_t from);
 
+/*
+ * A reason ("simplify", "rule distribute", ...) that makes the proof step on
+ * line `line` of the session valid; empty when the line is not a step of the
+ * proof domain or no reason is found. See ml_proof_hint.
+ */
+MlResult ml_proof_line_hint (MlStr *hint, const MlSession *s, uint64_t line);
+
 /* The result of line idx, valid until the next update. */
 MlResultView ml_results_get (const MlResults *r, uint64_t idx);
 

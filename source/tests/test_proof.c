@@ -565,6 +565,112 @@ static void test_ghost (void)
 	ml_session_free (&s);
 }
 
+/* The hint for line `line` of the source is `want` (empty for none). */
+static int32_t hint_is (const char *source, uint64_t line, const char *want)
+{
+	MlStr   hint;
+	int32_t same;
+
+	ml_str_init (&hint);
+	CHECK (ml_proof_hint (&hint, lit (source), line) == ML_OK);
+	same = strcmp (ml_str_cstr (hint), want) == 0;
+	ml_str_free (&hint);
+	return same;
+}
+
+static void test_hint (void)
+{
+	/* a step with no reason, and one with a reason that is not one */
+	CHECK (hint_is (
+		"theorem a: x + x = 2x\n"
+		"x + x = 2x\n"
+		"qed\n",
+		1,
+		"simplify"
+	));
+	CHECK (hint_is (
+		"theorem a: x + x = 2x\n"
+		"x + x = 2x  by sorry\n",
+		1,
+		"simplify"
+	));
+	CHECK (hint_is (
+		"theorem s: (x + 1)^2 = x^2 + 2x + 1\n"
+		"(x + 1)^2 = (x + 1)(x + 1)  by simplify\n"
+		"= x^2 + 2x + 1\n"
+		"qed\n",
+		2,
+		"expand"
+	));
+
+	/* a hypothesis, a reason after a theorem, a rule */
+	CHECK (hint_is (
+		"theorem h: a = b given a = b\n"
+		"a = b\n",
+		1,
+		"hypothesis"
+	));
+	CHECK (hint_is (
+		"theorem a: x + x = 2x\n"
+		"x + x = 2x  by simplify\n"
+		"qed\n"
+		"theorem b: y + y = 2y\n"
+		"x + x = 2x\n",
+		4,
+		"simplify"
+	));
+	CHECK (hint_is (
+		"theorem r: sin (2x) = 2 sin (x) cos (x)\n"
+		"sin (2x) = 2 sin (x) cos (x)\n",
+		1,
+		"rule sin_double"
+	));
+
+	/* no reason: a false step, a line that is not a step */
+	CHECK (hint_is (
+		"theorem a: x + x = 3x\n"
+		"x + x = 3x\n",
+		1,
+		""
+	));
+	CHECK (hint_is (
+		"theorem a: x + x = 2x\n"
+		"qed\n",
+		1,
+		""
+	));
+	CHECK (hint_is ("x + x = 2x\n", 0, ""));
+}
+
+/* The hint of a line of a session: only for a step of the proof domain. */
+static void test_line_hint (void)
+{
+	MlSession s;
+	MlStr     hint;
+
+	ml_session_init (&s);
+	ml_str_init (&hint);
+	CHECK (
+		ml_file_parse (
+			&s,
+			lit (
+				"1 + 1\n"
+				"m:proof theorem t: x + x = 2x\n"
+				"m:proof x + x = 2x\n"
+			)
+		) == ML_OK
+	);
+	CHECK (ml_proof_line_hint (&hint, &s, 2) == ML_OK);
+	CHECK (strcmp (ml_str_cstr (hint), "simplify") == 0);
+	CHECK (ml_proof_line_hint (&hint, &s, 0) == ML_OK);
+	CHECK (hint.len == 0);
+	CHECK (ml_proof_line_hint (&hint, &s, 1) == ML_OK);
+	CHECK (hint.len == 0);
+
+	ml_str_free (&hint);
+	ml_session_free (&s);
+}
+
 void run_proof_tests (void);
 
 void run_proof_tests (void)
@@ -580,4 +686,6 @@ void run_proof_tests (void)
 	test_wrong_step_everywhere ();
 	test_domain ();
 	test_ghost ();
+	test_hint ();
+	test_line_hint ();
 }

@@ -51,7 +51,7 @@ Defaults chosen in DONE.md section 9.1 (approximate numbers, implicit multiplica
 
 ## 4. Proofs and their validation (4.12, the checker core is built, see DONE.md)
 
-Built: `meth proof FILE` with simplify, expand, hypothesis, step, lemma and sorry. The `proof` domain works in the editor (results per line). Highlighting, ghost and `by rule` are built. Next: cases and induction (sub-goals), `:why` and `:hint`, inequalities, a tutorial lesson, export.
+Built: `meth proof FILE` with simplify, expand, hypothesis, step, lemma and sorry. The `proof` domain works in the editor (results per line). Highlighting, ghost and `by rule` are built. Next: cases and induction (sub-goals), `:why`, inequalities, a tutorial lesson, export.
 
 A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few
 statement lines, so it lives in the same `.meth` file as the calculations, with notes between the steps, and it is exported like everything else.

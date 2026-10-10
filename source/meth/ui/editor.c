@@ -1681,6 +1681,29 @@ static MlResult fix_units (MlEditor *ed, MlSlice arg)
 	return r;
 }
 
+/* :hint, a reason for the proof step under the cursor. */
+static MlResult show_hint (MlEditor *ed)
+{
+	MlStr    hint;
+	MlResult r;
+
+	ml_str_init (&hint);
+	r = ml_proof_line_hint (&hint, &ed->session, ed->session.cursor);
+
+	if (r == ML_OK && hint.len > 0)
+	{
+		r = say1 (ed, "messages.hint", "reason", ml_str_view (hint));
+	}
+
+	else if (r == ML_OK)
+	{
+		r = set_message (ed, ml_text ("messages.no_hint"));
+	}
+
+	ml_str_free (&hint);
+	return r;
+}
+
 static MlResult set_symbols (MlEditor *ed, MlSlice arg)
 {
 	MlResult r = ML_OK;
@@ -3569,6 +3592,11 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "symbols"))
 	{
 		r = set_symbols (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "hint"))
+	{
+		r = show_hint (ed);
 	}
 
 	else if (is_cmd (cmd, "fix"))

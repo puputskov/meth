@@ -153,6 +153,7 @@ static const char text_commands [] =
 	":pga 2|3       the same for the pga domains\n"
 	":steps         show or hide the steps of the line\n"
 	":symbols on|off  names with no value are symbols\n"
+	":hint          a reason (`by ...`) for the proof step of the line\n"
 	":fix units     algebra lines that use units become physics lines\n"
 	":undo  :redo\n"
 	"```\n"

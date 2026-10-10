@@ -53,6 +53,7 @@ static const Command commands [] = {
 	{ .name = "foldall", .arg = ARG_NONE,  .needs_arg = 0 },
 	{ .name = "unfoldall", .arg = ARG_NONE, .needs_arg = 0 },
 	{ .name = "symbols", .arg = ARG_ON_OFF, .needs_arg = 0 },
+	{ .name = "hint", .arg = ARG_NONE,     .needs_arg = 0 },
 	{ .name = "fix", .arg = ARG_NONE, .needs_arg = 1 },
 	{ .name = "help", .arg = ARG_HELP, .needs_arg = 0 },
 	{ .name = "export", .arg = ARG_EXPORT, .needs_arg = 1 },

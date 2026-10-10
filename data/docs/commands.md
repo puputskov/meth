@@ -23,6 +23,7 @@ first argument.
 :pga 2|3       the same for the pga domains
 :steps         show or hide the steps of the line
 :symbols on|off  names with no value are symbols
+:hint          a reason (`by ...`) for the proof step of the line
 :fix units     algebra lines that use units become physics lines
 :undo  :redo
 ```

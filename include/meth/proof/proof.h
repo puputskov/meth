@@ -72,4 +72,13 @@ void ml_proof_report_free (MlProofReport *rep);
 /* Checks the whole text; ML_ERR_NOMEM is the only failure. */
 MlResult ml_proof_check (MlProofReport *rep, MlSlice source);
 
+/*
+ * A reason for the step on line `line` (from 0) of the text: the text after
+ * "by" that makes the step valid, tried in the order simplify, expand,
+ * hypothesis, step N, lemma NAME, rule NAME. hint is empty when none does or
+ * when the line is not a step. Every candidate is checked by the checker, so
+ * a hint is never a guess the checker would not accept.
+ */
+MlResult ml_proof_hint (MlStr *hint, MlSlice source, uint64_t line);
+
 #endif /* METH_PROOF_PROOF_H */

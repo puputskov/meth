@@ -693,18 +693,15 @@ static MlResult proof_result (MlLineResult *lr, const MlProofLine *pl)
 }
 
 /*
- * Checks the lines of the proof domain as one proof (the state of a theorem
- * runs from line to line) and gives the lines from `keep` on their verdicts.
+ * The lines of the proof domain as one text with a line for every line of the
+ * session (the others empty), so a line number of the session is a line
+ * number of the proof. any is 1 when there is a proof line at all.
  */
-static MlResult run_proofs (MlResults *res, const MlSession *s, uint64_t keep)
+static MlResult proof_text (MlStr *text, const MlSession *s, int32_t *any)
 {
-	MlResult      r     = ML_OK;
-	MlStr         text;
-	MlProofReport rep;
-	int32_t       any   = 0;
+	MlResult r = ML_OK;
 
-	ml_str_init (&text);
-	ml_proof_report_init (&rep);
+	*any = 0;
 
 	for (uint64_t i = 0; i < s->lines.len && r == ML_OK; i++)
 	{
@@ -712,16 +709,34 @@ static MlResult run_proofs (MlResults *res, const MlSession *s, uint64_t keep)
 
 		if (is_proof_line (view))
 		{
-			any = 1;
-			r   = ml_str_append (&text, view.text);
+			*any = 1;
+			r    = ml_str_append (text, view.text);
 		}
 
 		r = ml_choose (
 			r == ML_OK,
-			ml_str_append (&text, ml_slice_cstr ("\n")),
+			ml_str_append (text, ml_slice_cstr ("\n")),
 			r
 		);
 	}
+
+	return r;
+}
+
+/*
+ * Checks the lines of the proof domain as one proof (the state of a theorem
+ * runs from line to line) and gives the lines from `keep` on their verdicts.
+ */
+static MlResult run_proofs (MlResults *res, const MlSession *s, uint64_t keep)
+{
+	MlResult      r   = ML_OK;
+	MlStr         text;
+	MlProofReport rep;
+	int32_t       any = 0;
+
+	ml_str_init (&text);
+	ml_proof_report_init (&rep);
+	r = proof_text (&text, s, &any);
 
 	if (r == ML_OK && any)
 	{
@@ -737,6 +752,25 @@ static MlResult run_proofs (MlResults *res, const MlSession *s, uint64_t keep)
 	}
 
 	ml_proof_report_free (&rep);
+	ml_str_free (&text);
+	return r;
+}
+
+MlResult ml_proof_line_hint (MlStr *hint, const MlSession *s, uint64_t line)
+{
+	MlResult r   = ML_OK;
+	MlStr    text;
+	int32_t  any = 0;
+
+	ml_str_init (&text);
+	ml_str_clear (hint);
+	r = proof_text (&text, s, &any);
+
+	if (r == ML_OK && any && is_proof_line (ml_session_get (s, line)))
+	{
+		r = ml_proof_hint (hint, ml_str_view (text), line);
+	}
+
 	ml_str_free (&text);
 	return r;
 }

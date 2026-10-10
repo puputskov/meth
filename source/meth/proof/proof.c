@@ -1191,13 +1191,200 @@ static void check_line (
 	}
 }
 
-MlResult ml_proof_check (MlProofReport *rep, MlSlice source)
+/* ---- hints ------------------------------------------------------------- */
+
+/* What a trial of a reason may change, to put back after the trial. */
+typedef struct Saved
+{
+	uint64_t     steps;
+	int32_t      has_last;
+	const MlSym *last_r;
+	const MlSym *last_rr;
+	uint64_t     errors;
+	uint64_t     sorries;
+	uint64_t     unchecked;
+} Saved;
+
+static Saved save_state (const Checker *c)
+{
+	Saved sv = {
+		.steps     = c->steps.len,
+		.has_last  = c->has_last,
+		.last_r    = c->last_r,
+		.last_rr   = c->last_rr,
+		.errors    = c->errors,
+		.sorries   = c->sorries,
+		.unchecked = c->unchecked
+	};
+
+	return sv;
+}
+
+static void restore_state (Checker *c, Saved sv)
+{
+	c->steps.len  = sv.steps;
+	c->has_last   = sv.has_last;
+	c->last_r     = sv.last_r;
+	c->last_rr    = sv.last_rr;
+	c->errors     = sv.errors;
+	c->sorries    = sv.sorries;
+	c->unchecked  = sv.unchecked;
+}
+
+/*
+ * Tries the step `claim by REASON` and says whether the checker finds it
+ * valid. The state of the checker is as it was before.
+ */
+static int32_t try_reason (Checker *c, MlSlice claim, MlSlice reason)
+{
+	MlStr       text;
+	MlProofLine out = { .mark = ML_PROOF_NONE };
+	Saved       sv  = save_state (c);
+	int32_t     ok  = 0;
+	MlResult    r;
+
+	ml_str_init (&text);
+	ml_str_init (&out.note);
+	r = ml_str_append (&text, claim);
+	r = ml_choose (
+		r == ML_OK,
+		ml_str_append (&text, ml_slice_cstr ("  by ")),
+		r
+	);
+	r = ml_choose (r == ML_OK, ml_str_append (&text, reason), r);
+
+	if (r == ML_OK)
+	{
+		check_step (c, &out, ml_str_view (text));
+		ok = out.mark == ML_PROOF_VALID;
+	}
+
+	c->status = ml_choose (c->status == ML_OK, r, c->status);
+	restore_state (c, sv);
+	ml_str_free (&out.note);
+	ml_str_free (&text);
+	return ok;
+}
+
+/*
+ * Looks for a reason that makes the step on `line` valid: the forms, a
+ * hypothesis, a step above, a lemma, a rule of the table, in that order. It
+ * only proposes: each candidate is checked by the checker itself.
+ */
+static void find_hint (Checker *c, MlSlice line, MlStr *hint)
+{
+	MlSlice  claim = trim (ml_slice_sub (line, 0, find_word (line, "by")));
+	MlStr    cand;
+	uint64_t rules = ml_text_count ("rules");
+	uint64_t total = 3 + c->steps.len + c->lemmas.len + rules;
+
+	ml_str_init (&cand);
+
+	for (
+		uint64_t i = 0;
+		i < total && hint->len == 0 && c->status == ML_OK;
+		i++
+	)
+	{
+		ml_str_clear (&cand);
+
+		switch (ml_choose (i < 3, i, 3))
+		{
+			case 0:
+			{
+				c->status = ml_str_append (&cand, ml_slice_cstr ("simplify"));
+			} break;
+
+			case 1:
+			{
+				c->status = ml_str_append (&cand, ml_slice_cstr ("expand"));
+			} break;
+
+			case 2:
+			{
+				c->status
+					= ml_str_append (&cand, ml_slice_cstr ("hypothesis"));
+			} break;
+
+			default:
+			{
+				uint64_t k = i - 3;
+
+				if (k < c->steps.len)
+				{
+					char buf [ML_TEXT_NUMBER];
+
+					c->status = ml_str_append (&cand, ml_slice_cstr ("step "));
+					c->status = ml_choose (
+						c->status == ML_OK,
+						ml_str_append (
+							&cand,
+							ml_text_number (buf, k + 1)
+						),
+						c->status
+					);
+				}
+
+				else if (k < c->steps.len + c->lemmas.len)
+				{
+					c->status = ml_str_append (&cand, ml_slice_cstr ("lemma "));
+					c->status = ml_choose (
+						c->status == ML_OK,
+						ml_str_append (
+							&cand,
+							c->lemmas.data [k - c->steps.len].name
+						),
+						c->status
+					);
+				}
+
+				else
+				{
+					c->status = ml_str_append (&cand, ml_slice_cstr ("rule "));
+					c->status = ml_choose (
+						c->status == ML_OK,
+						ml_str_append (
+							&cand,
+							ml_slice_cstr (ml_text_nth_name (
+								"rules",
+								k - c->steps.len - c->lemmas.len
+							))
+						),
+						c->status
+					);
+				}
+			} break;
+		}
+
+		if (c->status == ML_OK && try_reason (c, claim, ml_str_view (cand)))
+		{
+			c->status = ml_str_append (hint, ml_str_view (cand));
+		}
+	}
+
+	ml_str_free (&cand);
+}
+
+/* ---- the whole text ---------------------------------------------------- */
+
+/*
+ * Checks the lines up to `target`. For an ordinary check target is past the
+ * end. For a hint the target line is not checked: a reason for it is looked
+ * for and put in `hint`.
+ */
+static MlResult run_check (
+	MlProofReport *rep,
+	MlSlice        source,
+	uint64_t       target,
+	MlStr         *hint
+)
 {
 	MlResult    r   = ML_OK;
 	MlArena    *app = ml_arena_app ();
 	MlArenaMark mk  = ml_arena_mark (app);
 	Checker     c;
 	uint64_t    pos = 0;
+	uint64_t    no  = 0;
 
 	ml_proof_report_free (rep);
 	ml_proof_report_init (rep);
@@ -1215,20 +1402,38 @@ MlResult ml_proof_check (MlProofReport *rep, MlSlice source)
 	c.sorries   = 0;
 	c.unchecked = 0;
 
-	while (r == ML_OK && c.status == ML_OK && pos <= source.len)
+	while (
+		   r == ML_OK
+		&& c.status == ML_OK
+		&& pos <= source.len
+		&& no <= target
+	)
 	{
 		uint64_t    end  = pos;
 		MlProofLine line = { .mark = ML_PROOF_NONE };
+		MlSlice     text;
 
 		while (end < source.len && source.data [end] != '\n')
 		{
 			end++;
 		}
 
+		text = ml_slice_sub (source, pos, end - pos);
 		ml_str_init (&line.note);
-		check_line (&c, rep, ml_slice_sub (source, pos, end - pos), &line);
+
+		if (no == target && c.open && line_kind (trim (text)) == LINE_STEP)
+		{
+			find_hint (&c, trim (text), hint);
+		}
+
+		else if (no < target || hint == NULL)
+		{
+			check_line (&c, rep, text, &line);
+		}
+
 		r   = MlProofLineVec_push (&rep->lines, line);
 		pos = end + 1;
+		no++;
 
 		if (r != ML_OK)
 		{
@@ -1243,5 +1448,22 @@ MlResult ml_proof_check (MlProofReport *rep, MlSlice source)
 	LemmaVec_free (&c.lemmas);
 	ml_env_free (&c.env);
 	ml_arena_rewind (app, mk);
+	return r;
+}
+
+MlResult ml_proof_check (MlProofReport *rep, MlSlice source)
+{
+	return run_check (rep, source, UINT64_MAX, NULL);
+}
+
+MlResult ml_proof_hint (MlStr *hint, MlSlice source, uint64_t line)
+{
+	MlProofReport rep;
+	MlResult      r;
+
+	ml_str_clear (hint);
+	ml_proof_report_init (&rep);
+	r = run_check (&rep, source, line, hint);
+	ml_proof_report_free (&rep);
 	return r;
 }
