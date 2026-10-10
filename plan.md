@@ -189,6 +189,12 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
 ### 4.6 Visualization
 - Show transformations (e.g. matrix applied to a shape/basis vectors) and plots.
 - Terminal only: VT/ANSI escape sequences, unicode math typesetting (fractions, roots, matrices drawn with box characters), plots and transformations drawn with braille/block characters.
+- **Plots** (built, 2026-10-10): a plot is a value (`ML_VALUE_PLOT`, `math/plotdata.h`) made by `hist (v, k)`, `scatter (x, y)` and `plot (x, y)`; it can be
+  named, and the line shows a one line summary. `F7` or `:plot [on|off]` on the line draws it in the plot panel at the right (`ui/plotpanel`), above the
+  watch window when that is on; the drawing is `ui/plot` (blocks for histograms, braille for points and lines). Which plots are on is kept with the folds
+  in the settings file (`p3` in the entry), not in the `.mlog`. Page `plots` and the example `stats-plot-your-data`.
+  Not built: plots of functions (`plot (f, a, b)`), the view of a matrix transformation (basis vectors and a shape), a fitted line over a scatter plot,
+  axis titles, theme classes for the plot (it uses the result colour), a panel under the editor for narrow terminals, the unit names in the completion.
 
 ### 4.7 Persistence and sessions
 - Everything the user enters is stored to files: lines, their domains, notes. Results are not stored; they are recomputed when a session is opened (keeps files diffable and never stale; steps are regenerated the same way).

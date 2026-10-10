@@ -795,7 +795,7 @@ static const char text_plots [] =
 	"nel.\n"
 	"keywords: plot, scatter, hist, histogram, chart, graph, braille, visua"
 	"lization, F7\n"
-	"see: statistics, editor, commands\n"
+	"see: statistics, editor, commands, ex-stats-plot-your-data\n"
 	"\n"
 	"A plot is a value like a number or a matrix. The line shows only a one"
 	" line\n"

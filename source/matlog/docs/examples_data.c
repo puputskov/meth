@@ -382,6 +382,25 @@ static const char text_stats_fit_a_line [] =
 	"m:algebra A = [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6]]\n"
 	"m:algebra lstsq(A, score)\n";
 
+static const char text_stats_plot_your_data [] =
+	"# Plot your data\n"
+	"# A plot is a value: the line shows a summary, F7 on it draws the pict"
+	"ure in the panel.\n"
+	"# Heights of ten plants in centimetres:\n"
+	"m:algebra heights = [12, 15, 14, 10, 18, 15, 16, 13, 15, 17]\n"
+	"# How the heights spread over four bins (switch it on with F7 and look"
+	" at the panel):\n"
+	"m:algebra hist(heights, 4)\n"
+	"# Days since planting, and a straight line fitted to the heights:\n"
+	"m:algebra days = range(1, 9)\n"
+	"m:algebra growth = [2, 4, 5, 7, 9, 10, 12, 13, 15]\n"
+	"# The points themselves:\n"
+	"m:algebra scatter(days, growth)\n"
+	"# The same points joined, to follow the trend:\n"
+	"m:algebra plot(days, growth)\n"
+	"# The fitted line gives the slope and the intercept:\n"
+	"m:algebra linfit(days, growth)\n";
+
 static const char text_units_kinetic_energy [] =
 	"# Units in a physics problem\n"
 	"# A car of 1200 kg drives at 90 km/h. How much energy does it have, an"
@@ -432,6 +451,7 @@ const MlDocSource ml_example_sources [] =
 	},
 	{ .name = "stats-describe-data", .text = text_stats_describe_data },
 	{ .name = "stats-fit-a-line", .text = text_stats_fit_a_line },
+	{ .name = "stats-plot-your-data", .text = text_stats_plot_your_data },
 	{ .name = "units-kinetic-energy", .text = text_units_kinetic_energy }
 };
 

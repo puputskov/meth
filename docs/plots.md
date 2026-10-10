@@ -2,7 +2,7 @@ id: plots
 title: Plots
 summary: Histograms, scatter plots and line plots drawn in the side panel.
 keywords: plot, scatter, hist, histogram, chart, graph, braille, visualization, F7
-see: statistics, editor, commands
+see: statistics, editor, commands, ex-stats-plot-your-data
 
 A plot is a value like a number or a matrix. The line shows only a one line
 summary, so the editor stays clean; the picture is drawn in the panel at the

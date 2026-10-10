@@ -1,0 +1,15 @@
+# Plot your data
+# A plot is a value: the line shows a summary, F7 on it draws the picture in the panel.
+# Heights of ten plants in centimetres:
+m:algebra heights = [12, 15, 14, 10, 18, 15, 16, 13, 15, 17]
+# How the heights spread over four bins (switch it on with F7 and look at the panel):
+m:algebra hist(heights, 4)
+# Days since planting, and a straight line fitted to the heights:
+m:algebra days = range(1, 9)
+m:algebra growth = [2, 4, 5, 7, 9, 10, 12, 13, 15]
+# The points themselves:
+m:algebra scatter(days, growth)
+# The same points joined, to follow the trend:
+m:algebra plot(days, growth)
+# The fitted line gives the slope and the intercept:
+m:algebra linfit(days, growth)
