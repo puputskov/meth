@@ -287,7 +287,7 @@ static MlResult utf8_append_wide (MlStr *out, const WCHAR *text)
 
 	if (n > 1)
 	{
-		char *buf = (char *)malloc ((uint64_t)n);
+		char *buf = (char *)ml_heap_alloc ((uint64_t)n);
 
 		if (buf == NULL)
 		{
@@ -298,7 +298,7 @@ static MlResult utf8_append_wide (MlStr *out, const WCHAR *text)
 		{
 			WideCharToMultiByte (CP_UTF8, 0, text, -1, buf, n, NULL, NULL);
 			r = ml_str_append (out, ml_slice (buf, (uint64_t)n - 1));
-			free (buf);
+			ml_heap_free (buf);
 		}
 	}
 

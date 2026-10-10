@@ -1,5 +1,6 @@
 #include <matlog/ui/highlight.h>
 
+#include <matlog/core/heap.h>
 #include <matlog/logic/bool.h>
 #include <matlog/math/eval.h>
 #include <matlog/math/unit.h>
@@ -368,7 +369,7 @@ MlResult ml_highlight (
 
 	if (text.len > 0)
 	{
-		cls = (uint8_t *)calloc (text.len, 1);
+		cls = (uint8_t *)ml_heap_alloc_zero (text.len);
 		r   = ml_choose (cls != NULL, ML_OK, ML_ERR_NOMEM);
 	}
 
@@ -414,7 +415,7 @@ MlResult ml_highlight (
 		pos       = end;
 	}
 
-	free (cls);
+	ml_heap_free (cls);
 	return r;
 }
 

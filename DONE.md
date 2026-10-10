@@ -616,7 +616,10 @@ no recompile, and the code only holds the stable code name of a text.
   committed above what is used. `ml_arena_mark` and `ml_arena_rewind` free everything after a mark.
 - `ml_arena_app ()` is the application arena (16 GB of address space, made on first use) for scratch work: the ghost preview, the watch rows, the steps,
   the stdlib load and the evaluation of a line take a mark and rewind to it. An object that lives longer (the environment) has an arena of its own.
-- Not built: vectors (`ML_VEC_DEFINE`), strings (`MlStr`), the session lines and a few `calloc` calls still use the C heap; see `TODO.md`.
+- `core/heap.h`: the heap for everything that grows and shrinks (vectors, `MlStr`, the lines of a session): blocks of power of two sizes cut from an
+  arena of its own (256 GB of address space), freed blocks on a list per size and handed out again, so a grown vector gives its old block back. Nothing
+  in the program calls `malloc`, `realloc` or `free`. `-DML_HEAP_SYSTEM` routes it to the C library for the sanitizers and valgrind (leak checks need
+  it); the tests print the blocks still live at the end.
 
 ## 5. Architecture (proposal)
 

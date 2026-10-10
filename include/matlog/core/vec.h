@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include <matlog/core/err.h>
+#include <matlog/core/heap.h>
 
 /*
  * Typed growable array, generated per element type so elements are passed
@@ -48,7 +49,7 @@ static inline void Name##_init (Name *v) \
 \
 static inline void Name##_free (Name *v) \
 { \
-	free (v->data); \
+	ml_heap_free (v->data); \
 	Name##_init (v); \
 } \
 \
@@ -72,7 +73,7 @@ static inline MlResult Name##_reserve (Name *v, uint64_t cap) \
 \
 		else \
 		{ \
-			p = (T *)realloc (v->data, cap * sizeof (T)); \
+			p = (T *)ml_heap_realloc (v->data, cap * sizeof (T)); \
 			if (p) \
 			{ \
 				v->data = p; \

@@ -1,5 +1,6 @@
 #include <matlog/logic/bool.h>
 
+#include <matlog/core/heap.h>
 #include <matlog/core/utf8.h>
 #include <matlog/session/session.h>
 
@@ -856,8 +857,8 @@ static MlResult choose_cover (
 )
 {
 	MlResult r       = ML_OK;
-	uint8_t  *taken  = calloc (primes->len + 1, 1);
-	uint8_t  *done   = calloc (minterms->len + 1, 1);
+	uint8_t  *taken  = ml_heap_alloc_zero (primes->len + 1);
+	uint8_t  *done   = ml_heap_alloc_zero (minterms->len + 1);
 	int32_t  finished = 0;
 
 	if (taken == NULL || done == NULL)
@@ -974,8 +975,8 @@ static MlResult choose_cover (
 		chosen->data [k] = cur;
 	}
 
-	free (taken);
-	free (done);
+	ml_heap_free (taken);
+	ml_heap_free (done);
 	return r;
 }
 

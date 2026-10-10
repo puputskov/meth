@@ -1,6 +1,7 @@
 #include "test.h"
 
 #include <matlog/core/err.h>
+#include <matlog/core/heap.h>
 #include <matlog/core/mem.h>
 #include <matlog/core/slice.h>
 #include <matlog/core/str.h>
@@ -154,6 +155,63 @@ static void test_arena_vm (void)
 	ml_arena_rewind (ml_arena_app (), m0);
 	CHECK (ml_arena_mark (ml_arena_app ()).used == m0.used);
 }
+
+#ifndef ML_HEAP_SYSTEM
+
+static void test_heap (void)
+{
+	uint64_t live = ml_heap_live_blocks ();
+	uint8_t  *a;
+	uint8_t  *b;
+	uint8_t  *c;
+
+	CHECK (ml_heap_alloc (0) == NULL);
+	CHECK (ml_heap_alloc (UINT64_MAX) == NULL);
+	ml_heap_free (NULL);
+
+	a = ml_heap_alloc (100);
+	CHECK (a != NULL && ((uintptr_t)a % 16) == 0);
+	memset (a, 0x11, 100);
+	CHECK (ml_heap_live_blocks () == live + 1);
+
+	/* zero filled, also when the block was used before */
+	memset (a, 0xFF, 100);
+	ml_heap_free (a);
+	b = ml_heap_alloc_zero (100);
+	CHECK (b == a);
+	CHECK (b [0] == 0 && b [99] == 0);
+
+	/* a freed block is handed out again for the same size, not a new one */
+	ml_heap_free (b);
+	c = ml_heap_alloc (90);
+	CHECK (c == b);
+
+	/* realloc keeps the content, stays put while the block has room */
+	memset (c, 0x22, 90);
+	b = ml_heap_realloc (c, 100);
+	CHECK (b == c);
+	b = ml_heap_realloc (c, 5000);
+	CHECK (b != NULL && b [0] == 0x22 && b [89] == 0x22);
+	c = ml_heap_realloc (NULL, 10);
+	CHECK (c != NULL);
+	ml_heap_free (c);
+	CHECK (ml_heap_realloc (b, 0) == NULL);
+
+	/* the old block of the grown vector is on the list for the next one */
+	a = ml_heap_alloc (100);
+	CHECK (a != NULL);
+	ml_heap_free (a);
+
+	/* a double free is counted and does no harm */
+	CHECK (ml_heap_bad_frees () == 0);
+	ml_heap_free (a);
+	CHECK (ml_heap_bad_frees () == 1);
+	ml_heap_free (a);
+	CHECK (ml_heap_bad_frees () == 2);
+	CHECK (ml_heap_live_blocks () == live);
+}
+
+#endif
 
 static void test_vec (void)
 {
@@ -339,6 +397,9 @@ void run_core_tests (void)
 	test_slice ();
 	test_arena ();
 	test_arena_vm ();
+#ifndef ML_HEAP_SYSTEM
+	test_heap ();
+#endif
 	test_vec ();
 	test_utf8 ();
 	test_str ();

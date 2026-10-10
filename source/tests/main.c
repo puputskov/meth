@@ -1,5 +1,7 @@
 #include "test.h"
 
+#include <matlog/core/heap.h>
+
 #include <string.h>
 
 int32_t g_test_failures;
@@ -155,6 +157,7 @@ int main (int argc, char **argv)
 		}
 	}
 
+	printf ("heap: %d blocks live\n", (int32_t)ml_heap_live_blocks ());
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);
 	return ml_choose (
 		g_test_failures || unknown,

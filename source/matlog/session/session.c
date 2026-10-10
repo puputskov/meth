@@ -1,5 +1,7 @@
 #include <matlog/session/session.h>
 
+#include <matlog/core/heap.h>
+
 static const char *const domain_names [ML_DOMAIN_COUNT] = {
 	[ML_DOMAIN_ALGEBRA]   = "algebra",
 	[ML_DOMAIN_LAMBDA]    = "lambda",
@@ -233,7 +235,7 @@ static MlResult move_lines (
 
 	else if (dest != first)
 	{
-		MlLine *block = (MlLine *)malloc (n * sizeof (MlLine));
+		MlLine *block = (MlLine *)ml_heap_alloc (n * sizeof (MlLine));
 
 		if (block == NULL)
 		{
@@ -265,7 +267,7 @@ static MlResult move_lines (
 			}
 
 			memcpy (data + dest, block, n * sizeof (MlLine));
-			free (block);
+			ml_heap_free (block);
 		}
 	}
 

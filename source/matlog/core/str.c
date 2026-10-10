@@ -1,5 +1,6 @@
 #include <matlog/core/str.h>
 
+#include <matlog/core/heap.h>
 #include <matlog/core/utf8.h>
 
 #include <stdarg.h>
@@ -17,7 +18,7 @@ void ml_str_init (MlStr *s)
 
 void ml_str_free (MlStr *s)
 {
-	free (s->data);
+	ml_heap_free (s->data);
 	ml_str_init (s);
 }
 
@@ -79,7 +80,7 @@ MlResult ml_str_reserve (MlStr *s, uint64_t len)
 			);
 		}
 
-		p = realloc (s->data, cap);
+		p = ml_heap_realloc (s->data, cap);
 		if (p)
 		{
 			if (!s->data)

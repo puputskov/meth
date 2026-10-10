@@ -17,6 +17,11 @@ whole, find the section with `grep -n '^### ' DONE.md` and read only that one. `
 `make test` builds with gcc into `build/make/` and runs the tests, `make test T=eval` only the group `eval` (`make groups` lists them). Every group
 prints its name and its check count, so the last name on the screen is the group that hangs.
 
+## Memory
+
+No `malloc`, `realloc`, `calloc` or `free` outside `core/heap.c`. Scratch work uses a mark of `ml_arena_app ()` and rewinds it; things that grow use the
+typed containers (`ML_VEC_DEFINE`, `MlStr`) or `ml_heap_alloc`. For leak checks build with `-DML_HEAP_SYSTEM` and the sanitizers (see `Makefile`).
+
 ## Git
 
 - Always commit directly to `master`. Never create or use other branches, and never open pull requests.
