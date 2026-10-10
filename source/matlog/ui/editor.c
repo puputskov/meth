@@ -9,6 +9,7 @@
 #include <matlog/platform/path.h>
 #include <matlog/session/options.h>
 #include <matlog/session/settings.h>
+#include <matlog/texts/texts.h>
 #include <matlog/tutorial/lessons.h>
 
 static const char *const state_names [ML_STATE_COUNT] = {
@@ -1978,6 +1979,11 @@ static MlResult option_value (const MlEditor *ed, uint64_t index, MlStr *out)
 		);
 	}
 
+	else if (ml_slice_equal (name, ml_slice_cstr ("language")))
+	{
+		r = ml_str_append (out, ml_slice_cstr (ml_texts_language ()));
+	}
+
 	else
 	{
 		int32_t on = ml_choose (
@@ -2010,6 +2016,21 @@ static MlResult apply_option (MlEditor *ed, uint64_t index, MlSlice value)
 	else if (ml_slice_equal (name, ml_slice_cstr ("colors")))
 	{
 		r = set_colors (ed, value);
+	}
+
+	else if (ml_slice_equal (name, ml_slice_cstr ("language")))
+	{
+		MlStr language;
+
+		ml_str_init (&language);
+		r = ml_str_append (&language, value);
+
+		if (r == ML_OK)
+		{
+			r = ml_texts_reload (ml_str_cstr (language), NULL);
+		}
+
+		ml_str_free (&language);
 	}
 
 	else if (ml_slice_equal (name, ml_slice_cstr ("ghost")))
@@ -2243,6 +2264,12 @@ MlResult ml_editor_load_settings (MlEditor *ed)
 
 		ml_str_free (&good);
 		ml_str_free (&value);
+	}
+
+	/* the texts follow the setting, also when it was taken out of the file */
+	if (r == ML_OK)
+	{
+		r = ml_texts_use_settings (NULL);
 	}
 
 	ml_str_clear (&ed->message);

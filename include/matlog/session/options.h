@@ -17,6 +17,8 @@
  *	highlight  [display]  on or off: syntax colours
  *	ghost      [display]  on or off: the preview of the result while typing
  *	watch      [display]  on or off: the watch window
+ *	language   [display]  the name of a texts file, en: the language of the
+ *	                      messages, hints and lessons (see texts/texts.h)
  *
  * Bool settings are written on or off in the file and also read as true,
  * false, yes, no, 1 and 0.

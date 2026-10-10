@@ -30,6 +30,7 @@ colors     24bit, 256, 16 or off; the default follows the terminal
 highlight  on or off: the syntax colours
 ghost      on or off: the dim preview of the result while you type
 watch      on or off: the watch window with the names and their values
+language   en or the name of a texts file, see texts: the language of the messages
 ```
 
 # Changing them

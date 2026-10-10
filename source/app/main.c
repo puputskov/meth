@@ -440,6 +440,7 @@ static int32_t run_command_line (int32_t argc, char **argv)
 
 	if (r == ML_OK)
 	{
+		ml_texts_use_settings (NULL);
 		code = ml_cli_run (&args, ml_str_view (input), &out, &err);
 		fwrite (out.data, 1, out.len, stdout);
 		fwrite (err.data, 1, err.len, stderr);

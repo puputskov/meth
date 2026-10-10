@@ -1,0 +1,83 @@
+# The English texts of matlog. A text is found by its code, section.name; the
+# codes of the machine readable errors (div_zero ...) are in the code and do
+# not change, only the words here do. {name} is a place for a value.
+# A copy of this file with the texts of another language, named after it
+# (de.mltext) in the folder texts of the settings folder, is used with the
+# setting `language`; an entry there replaces the one here.
+
+[errors]
+none = no error
+syntax = syntax error
+div_zero = division by zero
+zero_pow_zero = 0 to the power 0 is undefined
+not_real = the result is not a real number
+domain = argument outside the domain of the function
+not_integer = an integer is needed
+undefined_name = undefined name
+undefined_name_of = undefined name '{name}'
+not_function = not a function
+not_value = a function is not a number
+arity = wrong number of arguments
+too_large = value too large
+depth = recursion too deep
+no_file = included file not found
+include_loop = include cycle
+size = matrix sizes do not fit
+type = these operands cannot be combined
+not_exact = an exact number is needed here
+cannot_integrate = no closed form found
+not_symbolic = not a formula that can be worked on
+singular = matrix is singular
+dimension_mismatch = the units have different dimensions
+unknown_unit = unknown unit
+no_limit = no limit found, or the two sides differ
+cannot_solve = the equation cannot be solved in closed form
+no_memory = out of memory
+too_long = the computation took too many steps
+unknown = unknown error
+parse_unknown = unknown error
+
+parse_ok = no error
+parse_unexpected_end = the expression ends too early
+parse_unexpected_token = unexpected symbol
+parse_expected_expr = an expression is expected here
+parse_bad_character = unknown character
+parse_bad_superscript = a superscript must be an integer
+parse_assign_target = only a name or f(x, ...) can be defined
+parse_duplicate_param = the same parameter name twice
+parse_too_deep = the expression is nested too deeply
+parse_no_memory = out of memory
+
+bool_unexpected_character = unexpected character
+bool_expected_operand = an operand is missing
+bool_expected_operator = an operator is missing
+bool_unbalanced_parenthesis = unbalanced parenthesis
+bool_too_many_names = too many names (at most 10)
+bool_table_too_big = a table needs at most 6 names
+bool_bad_definition = only a name can be defined
+lambda_unexpected_character = unexpected character
+lambda_expected_term = a term is missing
+lambda_expected_parameter = a lambda needs names and then a dot: λx. body
+lambda_unbalanced_parenthesis = unbalanced parenthesis
+lambda_number_too_big = a number is at most 200
+lambda_no_normal_form = no normal form within 5000 steps: the term may not
+    have one
+lambda_too_big = the term got too big
+lambda_bad_definition = only a name can be defined
+
+# The hints shown in an empty editor, one after the other. The parts in braces
+# are drawn in the colour of the keys; {ACTION_NAME} is the key of an action.
+[hints]
+1 = Just type: a line is a note, {ACTION_BLOCK_NEW} starts a math block
+2 = Try {1/3 + 1/6}: results are exact fractions
+3 = {ACTION_COMMAND} opens the command line, {Tab} completes what you type
+4 = {Esc} writes the line you are typing into the session
+5 = Units work too: try {3 km to m}
+6 = {ACTION_STEPS} shows the steps of the line under the cursor
+7 = {ACTION_DOMAIN_PREV} and {ACTION_DOMAIN_NEXT} change the domain of a line
+8 = {:symbols on} lets unknown names stay symbols: x + y
+9 = {ACTION_FOLD} folds and unfolds a block of lines
+10 = {:theme} changes the colours: dark, light, contrast, mono
+11 = {:export latex} writes the session as a LaTeX file next to it
+12 = {ACTION_UNDO} undoes, {ACTION_REDO} redoes, {ACTION_SAVE} saves,
+    {ACTION_QUIT} quits

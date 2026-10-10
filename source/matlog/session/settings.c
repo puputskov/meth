@@ -1,8 +1,11 @@
 #include <matlog/session/settings.h>
 
+#include <matlog/texts/texts.h>
+
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
 #include <matlog/platform/path.h>
+#include <matlog/texts/texts.h>
 
 #define SETTINGS_FILE "settings.mlcfg"
 
@@ -479,4 +482,31 @@ MlResult ml_settings_set (MlSlice section, MlSlice key, MlSlice value)
 MlResult ml_settings_remove (MlSlice section, MlSlice key)
 {
 	return update_file (section, key, ml_slice ("", 0), 0);
+}
+
+MlResult ml_texts_use_settings (uint64_t *bad)
+{
+	MlStr    language;
+	int32_t  found = 0;
+	MlResult r;
+
+	ml_str_init (&language);
+	r = ml_settings_get (
+		&language,
+		ml_slice_cstr ("display"),
+		ml_slice_cstr ("language"),
+		&found
+	);
+
+	if (r == ML_OK)
+	{
+		r = ml_texts_reload (
+			ml_choose (found, ml_str_cstr (language), "en"),
+			bad
+		);
+	}
+
+	ml_str_free (&language);
+
+	return r;
 }

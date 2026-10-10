@@ -36,6 +36,14 @@ static const MlOption options [] = {
 		.summary = "the watch window with the names and their values"
 	},
 	{
+		.name    = "language",
+		.section = "display",
+		.kind    = ML_OPTION_TEXT,
+		.values  = "",
+		.initial = "en",
+		.summary = "the language of messages, hints and lessons (a texts file)"
+	},
+	{
 		.name    = "ghost",
 		.section = "display",
 		.kind    = ML_OPTION_BOOL,

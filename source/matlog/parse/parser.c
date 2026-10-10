@@ -1,5 +1,7 @@
 #include <matlog/parse/parser.h>
 
+#include <matlog/texts/texts.h>
+
 #define NIL ML_NODE_NIL_INDEX
 
 /*
@@ -62,28 +64,6 @@ typedef struct Parser
 	uint64_t       val;   /* the node that MODE_RETURN hands over */
 } Parser;
 
-static const char *const error_texts [ML_PARSE_CODE_COUNT] = {
-	[ML_PARSE_OK]               = "no error",
-	[ML_PARSE_UNEXPECTED_END]   = "the expression ends too early",
-	[ML_PARSE_UNEXPECTED_TOKEN] = "unexpected symbol",
-	[ML_PARSE_EXPECTED_EXPR]    = "an expression is expected here",
-	[ML_PARSE_BAD_CHARACTER]    = "unknown character",
-	[ML_PARSE_BAD_SUPERSCRIPT]  = "a superscript must be an integer",
-	[ML_PARSE_ASSIGN_TARGET]    = "only a name or f(x, ...) can be defined",
-	[ML_PARSE_DUPLICATE_PARAM]  = "the same parameter name twice",
-	[ML_PARSE_TOO_DEEP]         = "the expression is nested too deeply",
-	[ML_PARSE_NO_MEMORY]        = "out of memory"
-};
-
-const char *ml_parse_error_text (MlParseCode code)
-{
-	return ml_choose (
-		(int32_t)code >= 0 && code < ML_PARSE_CODE_COUNT,
-		error_texts [code],
-		"unknown error"
-	);
-}
-
 static const char *const code_names [ML_PARSE_CODE_COUNT] = {
 	[ML_PARSE_OK]                = "parse_ok",
 	[ML_PARSE_UNEXPECTED_END]    = "parse_unexpected_end",
@@ -104,6 +84,11 @@ const char *ml_parse_code_name (MlParseCode code)
 		code_names [code],
 		"parse_unknown"
 	);
+}
+
+const char *ml_parse_error_text (MlParseCode code)
+{
+	return ml_text_in ("errors", ml_parse_code_name (code));
 }
 
 MlNode ml_ast_node (const MlAst *ast, uint64_t index)

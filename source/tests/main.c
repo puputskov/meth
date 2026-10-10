@@ -32,6 +32,7 @@ void run_watch_tests (void);
 void run_stats_tests (void);
 void run_plot_tests (void);
 void run_stdlib_tests (void);
+void run_texts_tests (void);
 void run_hyper_tests (void);
 void run_tutorial_tests (void);
 void run_matrix_tests (void);
@@ -79,6 +80,7 @@ int main (void)
 	run_stats_tests ();
 	run_plot_tests ();
 	run_stdlib_tests ();
+	run_texts_tests ();
 	run_hyper_tests ();
 	run_tutorial_tests ();
 	run_matrix_tests ();

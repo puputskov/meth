@@ -86,4 +86,11 @@ MlResult ml_settings_set (MlSlice section, MlSlice key, MlSlice value);
 /* Removes an entry from the file (only when there is one to remove). */
 MlResult ml_settings_remove (MlSlice section, MlSlice key);
 
+/*
+ * Loads the texts of the language the settings name (en without one): the
+ * built in English texts and the file texts/<language>.mltext over them.
+ * Call it at the start of the program and when the file is read again.
+ */
+MlResult ml_texts_use_settings (uint64_t *bad);
+
 #endif /* MATLOG_SESSION_SETTINGS_H */

@@ -1,50 +1,13 @@
 #include <matlog/math/value.h>
 
+#include <matlog/texts/texts.h>
+
 #include <math.h>
 
 #include <matlog/math/hyper.h>
 
 /* Approximations are written with this many significant digits. */
 #define APPROX_DIGITS 9
-
-static const char *const error_texts [ML_EVAL_KIND_COUNT] = {
-	[ML_EVAL_NONE]           = "no error",
-	[ML_EVAL_SYNTAX]         = "syntax error",
-	[ML_EVAL_DIV_ZERO]       = "division by zero",
-	[ML_EVAL_ZERO_POW_ZERO]  = "0 to the power 0 is undefined",
-	[ML_EVAL_NOT_REAL]       = "the result is not a real number",
-	[ML_EVAL_DOMAIN]         = "argument outside the domain of the function",
-	[ML_EVAL_NOT_INTEGER]    = "an integer is needed",
-	[ML_EVAL_UNDEFINED_NAME] = "undefined name",
-	[ML_EVAL_NOT_FUNCTION]   = "not a function",
-	[ML_EVAL_NOT_VALUE]      = "a function is not a number",
-	[ML_EVAL_ARITY]          = "wrong number of arguments",
-	[ML_EVAL_TOO_LARGE]      = "value too large",
-	[ML_EVAL_DEPTH]          = "recursion too deep",
-	[ML_EVAL_NO_FILE]        = "included file not found",
-	[ML_EVAL_INCLUDE_LOOP]   = "include cycle",
-	[ML_EVAL_SIZE]           = "matrix sizes do not fit",
-	[ML_EVAL_TYPE]           = "these operands cannot be combined",
-	[ML_EVAL_NOT_EXACT]      = "an exact number is needed here",
-	[ML_EVAL_CANNOT_INTEGRATE] = "no closed form found",
-	[ML_EVAL_NOT_SYMBOLIC]   = "not a formula that can be worked on",
-	[ML_EVAL_SINGULAR]       = "matrix is singular",
-	[ML_EVAL_DIMENSION_MISMATCH] = "the units have different dimensions",
-	[ML_EVAL_UNKNOWN_UNIT]   = "unknown unit",
-	[ML_EVAL_NO_LIMIT]       = "no limit found, or the two sides differ",
-	[ML_EVAL_CANNOT_SOLVE]   = "the equation cannot be solved in closed form",
-	[ML_EVAL_NO_MEMORY]      = "out of memory",
-	[ML_EVAL_TOO_LONG]       = "the computation took too many steps"
-};
-
-const char *ml_error_text (MlErrorKind kind)
-{
-	return ml_choose (
-		(int32_t)kind >= 0 && kind < ML_EVAL_KIND_COUNT,
-		error_texts [kind],
-		"unknown error"
-	);
-}
 
 static const char *const error_codes [ML_EVAL_KIND_COUNT] = {
 	[ML_EVAL_NONE]                  = "none",
@@ -83,6 +46,11 @@ const char *ml_error_code (MlErrorKind kind)
 		error_codes [kind],
 		"unknown"
 	);
+}
+
+const char *ml_error_text (MlErrorKind kind)
+{
+	return ml_text_in ("errors", ml_error_code (kind));
 }
 
 MlErrorKind ml_error_from_result (MlResult status)
@@ -1425,30 +1393,32 @@ static int32_t is_word (MlSlice text)
 
 MlResult ml_error_message (MlStr *out, MlValue v, MlSlice source)
 {
-	MlResult r = ml_str_append (out, ml_slice_cstr (ml_error_text (v.error)));
+	MlResult r;
 
 	if (
-		   r == ML_OK
-		&& v.error == ML_EVAL_UNDEFINED_NAME
+		   v.error == ML_EVAL_UNDEFINED_NAME
 		&& v.error_len > 0
 		&& v.error_start + v.error_len <= source.len
 		&& is_word (ml_slice_sub (source, v.error_start, v.error_len))
 	)
 	{
-		r = ml_str_append (out, ml_slice_cstr (" '"));
+		/* the text has a place for the name: undefined name '{name}' */
+		MlTextArg name = {
+			.name  = "name",
+			.value = ml_slice_sub (source, v.error_start, v.error_len)
+		};
 
-		if (r == ML_OK)
-		{
-			r = ml_str_append (
-				out,
-				ml_slice_sub (source, v.error_start, v.error_len)
-			);
-		}
+		r = ml_text_fill (
+			out,
+			ml_text_in ("errors", "undefined_name_of"),
+			&name,
+			1
+		);
+	}
 
-		if (r == ML_OK)
-		{
-			r = ml_str_append (out, ml_slice_cstr ("'"));
-		}
+	else
+	{
+		r = ml_str_append (out, ml_slice_cstr (ml_error_text (v.error)));
 	}
 
 	return r;

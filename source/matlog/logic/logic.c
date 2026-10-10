@@ -1,5 +1,7 @@
 #include <matlog/logic/logic.h>
 
+#include <matlog/texts/texts.h>
+
 static const char *const error_codes [ML_LOGIC_COUNT] = {
 	[ML_LOGIC_OK]                            = "",
 	[ML_LOGIC_BOOL_UNEXPECTED_CHARACTER]     = "bool_unexpected_character",
@@ -19,27 +21,6 @@ static const char *const error_codes [ML_LOGIC_COUNT] = {
 	[ML_LOGIC_LAMBDA_BAD_DEFINITION]         = "lambda_bad_definition"
 };
 
-static const char *const error_texts [ML_LOGIC_COUNT] = {
-	[ML_LOGIC_OK]                            = "",
-	[ML_LOGIC_BOOL_UNEXPECTED_CHARACTER]     = "unexpected character",
-	[ML_LOGIC_BOOL_EXPECTED_OPERAND]         = "an operand is missing",
-	[ML_LOGIC_BOOL_EXPECTED_OPERATOR]        = "an operator is missing",
-	[ML_LOGIC_BOOL_UNBALANCED_PARENTHESIS]   = "unbalanced parenthesis",
-	[ML_LOGIC_BOOL_TOO_MANY_NAMES]           = "too many names (at most 10)",
-	[ML_LOGIC_BOOL_TABLE_TOO_BIG]            = "a table needs at most 6 names",
-	[ML_LOGIC_BOOL_BAD_DEFINITION]           = "only a name can be defined",
-	[ML_LOGIC_LAMBDA_UNEXPECTED_CHARACTER]   = "unexpected character",
-	[ML_LOGIC_LAMBDA_EXPECTED_TERM]          = "a term is missing",
-	[ML_LOGIC_LAMBDA_EXPECTED_PARAMETER]     =
-		"a lambda needs names and then a dot: \xCE\xBBx. body",
-	[ML_LOGIC_LAMBDA_UNBALANCED_PARENTHESIS] = "unbalanced parenthesis",
-	[ML_LOGIC_LAMBDA_NUMBER_TOO_BIG]         = "a number is at most 200",
-	[ML_LOGIC_LAMBDA_NO_NORMAL_FORM]         =
-		"no normal form within 5000 steps: the term may not have one",
-	[ML_LOGIC_LAMBDA_TOO_BIG]                = "the term got too big",
-	[ML_LOGIC_LAMBDA_BAD_DEFINITION]         = "only a name can be defined"
-};
-
 const char *ml_logic_error_code (MlLogicError e)
 {
 	return ml_choose (
@@ -52,8 +33,8 @@ const char *ml_logic_error_code (MlLogicError e)
 const char *ml_logic_error_text (MlLogicError e)
 {
 	return ml_choose (
-		(int32_t)e >= 0 && e < ML_LOGIC_COUNT,
-		error_texts [e],
+		e > ML_LOGIC_OK && e < ML_LOGIC_COUNT,
+		ml_text_in ("errors", error_codes [e]),
 		""
 	);
 }
