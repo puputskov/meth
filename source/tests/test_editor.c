@@ -1906,8 +1906,38 @@ static void test_type_over_selection (void)
 	ml_editor_free (&ed);
 }
 
+/*
+ * A key with a modifier that moves to another line ends the selection (found
+ * by the fuzzer: Ctrl+Enter after a Ctrl+Shift+Right, then Enter, failed).
+ */
+static void test_selection_ends (void)
+{
+	MlEditor ed;
+	MlKey    sel = {
+		.code = ML_KEY_RIGHT,
+		.cp   = 0,
+		.mods = ML_MOD_SHIFT | ML_MOD_CTRL
+	};
+
+	MlKey    ctrl_enter = {
+		.code = ML_KEY_ENTER,
+		.cp   = 0,
+		.mods = ML_MOD_CTRL
+	};
+
+	ml_editor_init (&ed);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "(");
+	CHECK (ml_editor_handle_key (&ed, sel) == ML_OK);
+	CHECK (ml_editor_handle_key (&ed, ctrl_enter) == ML_OK);
+	CHECK (!ml_editor_selection (&ed).valid);
+	press (&ed, ML_KEY_ENTER);
+	ml_editor_free (&ed);
+}
+
 void run_editor_tests (void)
 {
+	test_selection_ends ();
 	test_type_over_selection ();
 	test_fix_units ();
 	test_insert ();

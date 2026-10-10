@@ -4809,7 +4809,7 @@ static int32_t is_selection_key (const MlEditor *ed, MlKey key)
 			&& key.mods == 0
 		)
 		|| key.code == ML_KEY_DELETE
-		|| key.code == ML_KEY_ENTER
+		|| (key.code == ML_KEY_ENTER && key.mods == 0)
 		|| (
 			   key.code == ML_KEY_CHAR
 			&& !(key.mods & (ML_MOD_CTRL | ML_MOD_ALT))

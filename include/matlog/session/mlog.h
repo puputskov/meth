@@ -16,7 +16,7 @@
  * loses data. Lines end with LF or CRLF when reading and with LF when writing
  * (a carriage return left at the end of a line is dropped, so that reading
  * what was written gives the same lines).
- * A leading UTF-8 byte order mark is ignored.
+ * Leading UTF-8 byte order marks are ignored.
  */
 
 /* Appends the lines found in text to s. */

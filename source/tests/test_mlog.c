@@ -80,6 +80,13 @@ static void test_line_endings (void)
 	CHECK (ml_slice_equal (ml_session_get (&s, 2).text, lit ("x")));
 	ml_session_free (&s);
 
+	/* byte order marks are dropped, however many */
+	ml_session_init (&s);
+	CHECK (ml_mlog_parse (&s, lit ("\xEF\xBB\xBF\xEF\xBB\xBF# a")) == ML_OK);
+	CHECK (s.lines.len == 1);
+	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("a")));
+	ml_session_free (&s);
+
 	/* a carriage return left over before the CRLF is dropped too */
 	ml_session_init (&s);
 	CHECK (ml_mlog_parse (&s, lit ("# a\r\r\n# b\r")) == ML_OK);

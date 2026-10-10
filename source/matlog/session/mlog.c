@@ -105,11 +105,15 @@ static MlLineView classify (MlSlice line)
 MlResult ml_mlog_parse (MlSession *s, MlSlice text)
 {
 	MlResult r   = ML_OK;
-	uint64_t pos = ml_choose (
-		starts_with (text, "\xEF\xBB\xBF"),
-		3,
-		0
-	);
+	uint64_t pos = 0;
+
+	/* byte order marks, as many as there are: writing never adds one */
+	while (
+		starts_with (ml_slice_sub (text, pos, text.len - pos), "\xEF\xBB\xBF")
+	)
+	{
+		pos += 3;
+	}
 
 	while (r == ML_OK && pos < text.len)
 	{
