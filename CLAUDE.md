@@ -1,6 +1,7 @@
 # matlog
 
-Interactive math shell written in C. See `plan.md` for the design.
+Interactive math shell written in C. `TODO.md` is the list of open work (start there), `DONE.md` the design of what is built: do not read it
+whole, find the section with `grep -n '^### ' DONE.md` and read only that one. `KNOWN_ISSUES.md` lists the known bugs.
 
 ## Project
 
