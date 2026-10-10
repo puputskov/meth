@@ -1,5 +1,9 @@
 #include <matlog/parse/words.h>
 
+#include <matlog/core/heap.h>
+
+#include <string.h>
+
 /*
  * One row per spelling. listed is 1 for the spellings the completion offers
  * (the ASCII constants pi and e).
@@ -68,20 +72,90 @@ static const WordRow rows [] = {
 #undef SB
 #undef CM
 
-MlWord ml_word_find (MlSlice name)
-{
-	MlWord found = { .kind = ML_WORD_NONE, .id = ML_WORD_ID_NONE };
+/*
+ * The words are interned the first time they are asked for: row_of_name is
+ * indexed by name number and holds the row plus one (0 for a name that is no
+ * word), name_of_id the name of the ASCII spelling of each word. They are made
+ * again when the names were released.
+ */
+static uint32_t *row_of_name;
+static uint64_t row_of_name_len;
+static MlName   name_of_id [ML_WORD_ID_COUNT];
+static uint64_t built_for;
 
-	for (uint64_t i = 0; i < ml_count (rows) && found.kind == ML_WORD_NONE; i++)
+void ml_words_release (void)
+{
+	ml_heap_free (row_of_name);
+	row_of_name     = NULL;
+	row_of_name_len = 0;
+	built_for       = 0;
+}
+
+static void build (void)
+{
+	MlName top = 0;
+
+	ml_words_release ();
+	memset (name_of_id, 0, sizeof name_of_id);
+
+	for (uint64_t i = 0; i < ml_count (rows); i++)
 	{
-		if (ml_slice_equal (name, ml_slice_cstr (rows [i].spelling)))
+		MlName n = ml_name (ml_slice_cstr (rows [i].spelling));
+
+		top = ml_choose (n > top, n, top);
+
+		if (name_of_id [rows [i].id] == ML_NAME_NONE)
 		{
-			found.kind = rows [i].kind;
-			found.id   = rows [i].id;
+			name_of_id [rows [i].id] = n;
 		}
 	}
 
+	row_of_name = (uint32_t *)ml_heap_alloc_zero (
+		((uint64_t)top + 1) * sizeof (uint32_t)
+	);
+
+	if (row_of_name != NULL)
+	{
+		row_of_name_len = (uint64_t)top + 1;
+
+		for (uint64_t i = 0; i < ml_count (rows); i++)
+		{
+			row_of_name [ml_name (ml_slice_cstr (rows [i].spelling))]
+				= (uint32_t)(i + 1);
+		}
+	}
+
+	built_for = ml_names_generation ();
+}
+
+static void ready (void)
+{
+	if (built_for != ml_names_generation ())
+	{
+		build ();
+	}
+}
+
+MlWord ml_word_of (MlName name)
+{
+	MlWord found = { .kind = ML_WORD_NONE, .id = ML_WORD_ID_NONE };
+
+	ready ();
+
+	if (name < row_of_name_len && row_of_name [name] != 0)
+	{
+		found.kind = rows [row_of_name [name] - 1].kind;
+		found.id   = rows [row_of_name [name] - 1].id;
+	}
+
 	return found;
+}
+
+MlWord ml_word_find (MlSlice name)
+{
+	/* the words are interned first, or a first look up finds no name */
+	ready ();
+	return ml_word_of (ml_name_find (name));
 }
 
 int32_t ml_word_is (MlSlice name, MlWordId id)
@@ -89,19 +163,15 @@ int32_t ml_word_is (MlSlice name, MlWordId id)
 	return ml_word_find (name).id == id;
 }
 
+MlName ml_word_name_id (MlWordId id)
+{
+	ready ();
+	return ml_choose (id < ML_WORD_ID_COUNT, name_of_id [id], ML_NAME_NONE);
+}
+
 MlSlice ml_word_name (MlWordId id)
 {
-	MlSlice name = ml_slice_cstr ("");
-
-	for (uint64_t i = 0; i < ml_count (rows) && name.len == 0; i++)
-	{
-		if (rows [i].id == id)
-		{
-			name = ml_slice_cstr (rows [i].spelling);
-		}
-	}
-
-	return name;
+	return ml_name_text (ml_word_name_id (id));
 }
 
 uint64_t ml_word_kind_count (MlWordKind kind)

@@ -126,6 +126,26 @@ static void test_functions (void)
 	CHECK (ml_slice_equal (ML_WORD_NAME (SQRT), lit ("sqrt")));
 }
 
+/* The very first look up after the names were released must still work. */
+static void test_first_lookup (void)
+{
+	ml_words_release ();
+	ml_eval_release ();
+	ml_names_release ();
+	CHECK (find ("sin").id == ML_WORD_ID_SIN);
+
+	ml_words_release ();
+	ml_eval_release ();
+	ml_names_release ();
+	CHECK (ML_WORD_IS (lit ("pi"), PI));
+
+	ml_words_release ();
+	ml_eval_release ();
+	ml_names_release ();
+	CHECK (is_listed_function (lit ("len")));
+	CHECK (find ("zzz_not_a_word").kind == ML_WORD_NONE);
+}
+
 void run_words_tests (void);
 
 void run_words_tests (void)
@@ -134,4 +154,5 @@ void run_words_tests (void)
 	test_ids ();
 	test_rows ();
 	test_functions ();
+	test_first_lookup ();
 }

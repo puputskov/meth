@@ -1,6 +1,7 @@
 #ifndef MATLOG_PARSE_WORDS_H
 #define MATLOG_PARSE_WORDS_H
 
+#include <matlog/core/names.h>
 #include <matlog/core/slice.h>
 
 /*
@@ -66,7 +67,8 @@ typedef enum MlWordId
 	ML_WORD_ID_INTEGRATE,
 	ML_WORD_ID_LIMIT,
 	ML_WORD_ID_TABLE,
-	ML_WORD_ID_TRACE
+	ML_WORD_ID_TRACE,
+	ML_WORD_ID_COUNT
 } MlWordId;
 
 typedef struct MlWord
@@ -75,8 +77,20 @@ typedef struct MlWord
 	MlWordId   id;
 } MlWord;
 
-/* The word with this spelling, kind ML_WORD_NONE for any other name. */
+/*
+ * The word with this spelling, kind ML_WORD_NONE for any other name. The
+ * spellings are interned names (core/names.h), so this is one look up in the
+ * table of names, not a search through the words. ml_word_of is the same for
+ * a name that is already a number.
+ */
 MlWord ml_word_find (MlSlice name);
+MlWord ml_word_of (MlName name);
+
+/* The name number of the ASCII spelling of a word. */
+MlName ml_word_name_id (MlWordId id);
+
+/* Frees the tables built from the names (for the end of a test run). */
+void ml_words_release (void);
 
 /* 1 when name is a spelling of the word id. */
 int32_t ml_word_is (MlSlice name, MlWordId id);

@@ -1,6 +1,9 @@
 #include "test.h"
 
 #include <matlog/cli/cli.h>
+#include <matlog/core/names.h>
+#include <matlog/math/eval.h>
+#include <matlog/parse/words.h>
 #include <matlog/math/value.h>
 #include <matlog/parse/parser.h>
 #include <matlog/platform/fs.h>
@@ -564,6 +567,35 @@ static void test_vars (void)
 	run_free (&r);
 }
 
+/* The first line after the names were released must still find the built in
+   functions, the words and the library. */
+static void test_first_use (void)
+{
+	Run r;
+
+	ml_words_release ();
+	ml_eval_release ();
+	ml_names_release ();
+	r = run ("eval", "len(range(1, 4))", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (out_is (&r, "4\n"));
+	run_free (&r);
+
+	ml_words_release ();
+	ml_eval_release ();
+	ml_names_release ();
+	r = run ("eval", "a = 2", "a * pi", NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	run_free (&r);
+
+	ml_words_release ();
+	ml_eval_release ();
+	ml_names_release ();
+	r = run ("eval", "len(primes(30))", NULL, NULL, NULL, NULL, "");
+	CHECK (out_is (&r, "10\n"));
+	run_free (&r);
+}
+
 static void test_texts_check (void)
 {
 	const char *file = "matlog_test_texts.tmp";
@@ -618,5 +650,6 @@ void run_cli_tests (void)
 	test_usage ();
 	test_help ();
 	test_texts_check ();
+	test_first_use ();
 	test_codes_documented ();
 }

@@ -108,4 +108,7 @@ MlResult ml_eval_commit (
 uint64_t ml_function_name_count (void);
 MlSlice ml_function_name_at (uint64_t index);
 
+/* Frees the tables built from the names (for the end of a test run). */
+void ml_eval_release (void);
+
 #endif /* MATLOG_MATH_EVAL_H */

@@ -1,13 +1,15 @@
 #include <matlog/math/eval.h>
 
-#include <math.h>
-
+#include <matlog/core/heap.h>
+#include <matlog/core/names.h>
 #include <matlog/math/hyper.h>
 #include <matlog/math/listfn.h>
 #include <matlog/math/stats.h>
 #include <matlog/math/vector.h>
 #include <matlog/parse/words.h>
 #include <matlog/sym/expr.h>
+
+#include <math.h>
 
 /* ---- context ------------------------------------------------------------ */
 
@@ -226,19 +228,70 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] = {
 #undef BUILTIN_LISTFN_INFO
 };
 
+/*
+ * The built in function of a name. The names of the table are interned the
+ * first time one is asked for, builtin_of_name is indexed by name number, so
+ * a look up is one hash of the name and one index. Made again when the names
+ * were released.
+ */
+static MlBuiltin *builtin_of_name;
+static uint64_t  builtin_of_name_len;
+static uint64_t  builtin_built_for;
+
+void ml_eval_release (void)
+{
+	ml_heap_free (builtin_of_name);
+	builtin_of_name     = NULL;
+	builtin_of_name_len = 0;
+	builtin_built_for   = 0;
+}
+
+static void builtins_ready (void)
+{
+	if (builtin_built_for != ml_names_generation ())
+	{
+		MlName top = 0;
+
+		ml_eval_release ();
+
+		for (uint64_t i = 1; i < BUILTIN_COUNT; i++)
+		{
+			MlName n = ml_name (ml_slice_cstr (builtins [i].name));
+
+			top = ml_choose (n > top, n, top);
+		}
+
+		builtin_of_name = (MlBuiltin *)ml_heap_alloc_zero (
+			((uint64_t)top + 1) * sizeof (MlBuiltin)
+		);
+
+		if (builtin_of_name != NULL)
+		{
+			builtin_of_name_len = (uint64_t)top + 1;
+
+			for (uint64_t i = 1; i < BUILTIN_COUNT; i++)
+			{
+				builtin_of_name [ml_name (ml_slice_cstr (builtins [i].name))]
+					= (MlBuiltin)i;
+			}
+		}
+
+		builtin_built_for = ml_names_generation ();
+	}
+}
+
 static MlBuiltin builtin_find (MlSlice name)
 {
-	MlBuiltin found = BUILTIN_NONE;
+	MlName n;
 
-	for (uint64_t i = 1; i < BUILTIN_COUNT; i++)
-	{
-		if (ml_slice_equal (name, ml_slice_cstr (builtins [i].name)))
-		{
-			found = (MlBuiltin)i;
-		}
-	}
+	builtins_ready ();
+	n = ml_name_find (name);
 
-	return found;
+	return ml_choose (
+		n < builtin_of_name_len,
+		builtin_of_name [n],
+		BUILTIN_NONE
+	);
 }
 
 uint64_t ml_function_name_count (void)

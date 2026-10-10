@@ -1,6 +1,9 @@
 #include "test.h"
 
 #include <matlog/core/heap.h>
+#include <matlog/core/names.h>
+#include <matlog/math/eval.h>
+#include <matlog/parse/words.h>
 #include <matlog/texts/texts.h>
 #include <matlog/tutorial/lessons.h>
 
@@ -161,6 +164,9 @@ int main (int argc, char **argv)
 
 	/* these are kept for the life of the program */
 	ml_lessons_release ();
+	ml_words_release ();
+	ml_eval_release ();
+	ml_names_release ();
 	ml_texts_clear ();
 	printf ("heap: %d blocks live\n", (int32_t)ml_heap_live_blocks ());
 

@@ -236,7 +236,12 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 	{
 		b.kind = ML_BIND_VAR;
 		b.name = ml_slice (txt, name.len);
-		r      = MlBindingVec_push (&env->bindings, b);
+		b.id   = ml_name (b.name);
+		r      = ml_choose (
+			b.id != ML_NAME_NONE,
+			MlBindingVec_push (&env->bindings, b),
+			ML_ERR_NOMEM
+		);
 	}
 
 	return r;
@@ -296,9 +301,14 @@ MlResult ml_env_define_func (MlEnv *env, MlSlice source, const MlAst *ast)
 			b.source,
 			ml_ast_child (&b.ast, b.ast.root, 0)
 		);
+		b.id     = ml_name (b.name);
 		b.params = ml_ast_child (&b.ast, b.ast.root, 1);
 		b.body   = ml_ast_child (&b.ast, b.ast.root, 2);
-		r        = MlBindingVec_push (&env->bindings, b);
+		r        = ml_choose (
+			b.id != ML_NAME_NONE,
+			MlBindingVec_push (&env->bindings, b),
+			ML_ERR_NOMEM
+		);
 	}
 
 	if (r != ML_OK)
@@ -312,7 +322,8 @@ MlResult ml_env_define_func (MlEnv *env, MlSlice source, const MlAst *ast)
 MlBinding ml_env_lookup (const MlEnv *env, MlSlice name, uint64_t snapshot)
 {
 	MlBinding found;
-	uint64_t  i = ml_choose (
+	MlName    id = ml_name_find (name);
+	uint64_t  i  = ml_choose (
 		snapshot < env->bindings.len,
 		snapshot,
 		env->bindings.len
@@ -320,13 +331,13 @@ MlBinding ml_env_lookup (const MlEnv *env, MlSlice name, uint64_t snapshot)
 
 	memset (&found, 0, sizeof found);
 
-	while (i > 0 && found.kind == ML_BIND_NONE)
+	/* a name that was never interned cannot be bound; the scan compares
+	   numbers and copies only the binding it finds */
+	while (id != ML_NAME_NONE && i > 0 && found.kind == ML_BIND_NONE)
 	{
-		MlBinding b = env->bindings.data [i - 1];
-
-		if (ml_slice_equal (b.name, name))
+		if (env->bindings.data [i - 1].id == id)
 		{
-			found = b;
+			found = env->bindings.data [i - 1];
 		}
 
 		i--;

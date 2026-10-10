@@ -1,6 +1,7 @@
 #ifndef MATLOG_MATH_ENV_H
 #define MATLOG_MATH_ENV_H
 
+#include <matlog/core/names.h>
 #include <matlog/math/value.h>
 #include <matlog/parse/parser.h>
 
@@ -30,6 +31,7 @@ typedef struct MlBinding
 {
 	MlBindKind kind;
 	MlSlice    name;
+	MlName     id;     /* the interned name (core/names.h) */
 	MlValue    value;  /* ML_BIND_VAR */
 	/* ML_BIND_FUNC: the definition, with its own copy of text and tree */
 	MlSlice    source;
