@@ -395,7 +395,7 @@ static void test_help (void)
 	/* what is a command */
 	CHECK (ml_cli_is_command (lit ("eval")));
 	CHECK (ml_cli_is_command (lit ("--version")));
-	CHECK (!ml_cli_is_command (lit ("scratch.mlog")));
+	CHECK (!ml_cli_is_command (lit ("scratch.meth")));
 	CHECK (!ml_cli_is_command (lit ("")));
 }
 
@@ -576,8 +576,8 @@ static void test_domains (void)
 
 static void test_vars (void)
 {
-	const char *arm   = "data/examples/robotics-two-link-arm.mlog";
-	const char *line9 = "data/examples/robotics-two-link-arm.mlog:9";
+	const char *arm   = "data/examples/robotics-two-link-arm.meth";
+	const char *line9 = "data/examples/robotics-two-link-arm.meth:9";
 	Run        r    = run ("vars", arm, NULL, NULL, NULL, NULL, "");
 
 	CHECK (r.code == ML_EXIT_OK);
@@ -595,7 +595,7 @@ static void test_vars (void)
 	CHECK (strstr (ml_str_cstr (r.out), "\"name\":\"p\"") == NULL);
 	run_free (&r);
 
-	r = run ("vars", "no-such-file.mlog", NULL, NULL, NULL, NULL, "");
+	r = run ("vars", "no-such-file.meth", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_IO);
 	run_free (&r);
 	r = run ("vars", NULL, NULL, NULL, NULL, NULL, "");
@@ -707,7 +707,7 @@ static void test_proof_command (void)
 	CHECK (strstr (ml_str_cstr (r.out), "2: not valid: x = 2") != NULL);
 	run_free (&r);
 
-	r = run ("proof", "no_such_file.mlog", NULL, NULL, NULL, NULL, "");
+	r = run ("proof", "no_such_file.meth", NULL, NULL, NULL, NULL, "");
 	CHECK (r.code == ML_EXIT_IO);
 	run_free (&r);
 

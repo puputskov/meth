@@ -26,7 +26,7 @@ static void use_test_config (void)
 static void make_session (MlSession *s)
 {
 	ml_session_init (s);
-	CHECK (ml_session_set_path (s, lit ("a.mlog")) == ML_OK);
+	CHECK (ml_session_set_path (s, lit ("a.meth")) == ML_OK);
 
 	for (uint64_t i = 0; i < 3; i++)
 	{
@@ -108,7 +108,7 @@ static void test_folds (void)
 
 	/* no file yet: it is made, with the folder */
 	CHECK (ml_folds_save (&s) == ML_OK);
-	CHECK (file_is ("[folds]\na.mlog = 0 4\n"));
+	CHECK (file_is ("[folds]\na.meth = 0 4\n"));
 
 	/* the same folds in a new session of the same path */
 	make_session (&t);
@@ -125,8 +125,8 @@ static void test_folds (void)
 				"[editor]\n"
 				"width = 1\n"
 				"[folds]\n"
-				"other.mlog = 2\n"
-				"a.mlog = 9 9\n"
+				"other.meth = 2\n"
+				"a.meth = 9 9\n"
 				"[keys]\n"
 				"x = y\n"
 			)
@@ -139,8 +139,8 @@ static void test_folds (void)
 			"[editor]\n"
 			"width = 1\n"
 			"[folds]\n"
-			"other.mlog = 2\n"
-			"a.mlog = 0 4\n"
+			"other.meth = 2\n"
+			"a.meth = 0 4\n"
 			"[keys]\n"
 			"x = y\n"
 		)
@@ -150,7 +150,7 @@ static void test_folds (void)
 	CHECK (
 		ml_fs_write_file_atomic (
 			lit (CONFIG_FILE),
-			lit ("[folds]\na.mlog = 1 99 x 4 3\n")
+			lit ("[folds]\na.meth = 1 99 x 4 3\n")
 		) == ML_OK
 	);
 	make_session (&t);
@@ -185,7 +185,7 @@ static void test_plots (void)
 	ml_session_set_plotted (&s, 3, 1);
 	CHECK (format_is (&s, "4 p1 p3"));
 	CHECK (ml_folds_save (&s) == ML_OK);
-	CHECK (file_is ("[folds]\na.mlog = 4 p1 p3\n"));
+	CHECK (file_is ("[folds]\na.meth = 4 p1 p3\n"));
 
 	make_session (&t);
 	CHECK (ml_folds_load (&t) == ML_OK);

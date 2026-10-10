@@ -35,7 +35,7 @@ they are drawn one above the other, with a star on the header of the plot of
 the line of the cursor, and what does not fit ends in "+N more". When the
 watch window is on too, the plots take the upper two thirds of the panel.
 Which plots are on is kept with the session in the settings file, like the
-folds, and not in the `.mlog` file. A terminal under 70 columns has no room
+folds, and not in the `.meth` file. A terminal under 70 columns has no room
 for the panel.
 
 A histogram is drawn with block characters, eight levels to a row; scatter

@@ -54,7 +54,7 @@ Defaults chosen in DONE.md section 9.1 (approximate numbers, implicit multiplica
 Built: `meth proof FILE` with simplify, expand, hypothesis, step, lemma and sorry. The `proof` domain works in the editor (results per line). Highlighting, ghost and `by rule` are built. Next: cases and induction (sub-goals), `:why` and `:hint`, inequalities, a tutorial lesson, export.
 
 A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few
-statement lines, so it lives in the same `.mlog` file as the calculations, with notes between the steps, and it is exported like everything else.
+statement lines, so it lives in the same `.meth` file as the calculations, with notes between the steps, and it is exported like everything else.
 - Statements: `theorem name: <claim>` (what is to be shown, with its hypotheses: `given x > 0, y > 0`), then the steps, then `qed`. A step is a claim
   followed by a justification: `x + x = 2x  by simplify`, `... by lemma name`, `... by rule distributive`, `... by hypothesis`, `... by step 3`.
   A line that starts with `=` or `...` continues the previous right hand side, so a chain of equalities reads like on paper
@@ -114,10 +114,10 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
 ## 8. Fuzzer (4.23, first target built: parser and evaluator, see DONE.md)
 
 
-- (Built: parser/evaluator, `simplify`, the `.mlog`, theme and settings readers and the editor on random keys, see DONE.md; not yet: the boolean and lambda engines, units, key and command parsers, docs page parser, export writers, shrinking, allocation failures.) A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples
+- (Built: parser/evaluator, `simplify`, the `.meth`, theme and settings readers and the editor on random keys, see DONE.md; not yet: the boolean and lambda engines, units, key and command parsers, docs page parser, export writers, shrinking, allocation failures.) A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples
   already found a memory bug (a symbolic value read after the arena of its line was reused), the kind of fault a fuzzer finds without help.
 - Targets, each a function from bytes to a result with nothing else to set up: the lexer and the parser of the algebra domain, the evaluator and the
-  symbolic engine (`simplify`, `diff`, `integrate`, `limit`, `solve`), the boolean and lambda engines, the units, the `.mlog` and `.theme` and
+  symbolic engine (`simplify`, `diff`, `integrate`, `limit`, `solve`), the boolean and lambda engines, the units, the `.meth` and `.theme` and
   `settings.mlcfg` readers, the key and command parsers, the docs page parser, the export writers, and the editor itself fed with random key
   sequences (the editor must never crash and must keep its invariants: cursor in range, the session valid UTF-8, undo returns to the start).
 - Inputs: a corpus of the test inputs, the examples (section 4.16) and the docs; mutation (flip, insert, delete, splice, repeat) and generation from

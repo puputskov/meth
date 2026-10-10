@@ -1,6 +1,6 @@
 id: fileformat
 title: The session file
-summary: The .mlog format.
+summary: The .meth format.
 keywords: mlog, file, format, session, include, note, domain
 see: editor, cli
 
@@ -9,7 +9,7 @@ A session is a UTF-8 text file with one entry per line:
 ```code
 # some free text            a note
 m:algebra A = [[1,2],[3,4]] a math line in the given domain
-include "constants.mlog"    another session, run in place
+include "constants.meth"    another session, run in place
 ```
 The domains are `algebra` (numbers, symbols, matrices, vectors, equations),
 `physics` (algebra with units, see [units](units)), `lambda`, `boolean`, `pga2`

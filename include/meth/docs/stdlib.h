@@ -6,7 +6,7 @@
 
 /*
  * The standard library (plan section 4.18): functions written in meth's own
- * language, in stdlib/*.mlog, compiled into the program (source/meth/docs/
+ * language, in stdlib/*.meth, compiled into the program (source/meth/docs/
  * stdlib_data.c, made by tools/gen_docs.py) and defined in the environment
  * before the first line of every session. A file is a session file: notes
  * and lines of any domain (`m:` lines define, `a:` lines assert). By

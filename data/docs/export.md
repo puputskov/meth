@@ -5,7 +5,7 @@ keywords: export, latex, tex, mathml, html, markdown, md, typeset, document
 see: commands, cli
 
 `:export latex` writes the session as a LaTeX file next to it
-(`physics.mlog` gives `physics.tex`); `mathml` writes an HTML page with
+(`physics.meth` gives `physics.tex`); `mathml` writes an HTML page with
 MathML (`physics.html`) and `markdown` a Markdown file (`physics.md`).
 An existing file is not replaced; `:export!` does.
 

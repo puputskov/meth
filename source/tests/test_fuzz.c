@@ -276,7 +276,7 @@ static void show_input (const char *what, MlSlice text)
 
 static const char *mlog_corpus [] = {
 	"# a note\nm:algebra 1 + 2\nm:algebra f(x) = x^2\n\n"
-	"include \"lib.mlog\"\nm:lambda (x. x) y\nm:boolean a and b\n",
+	"include \"lib.meth\"\nm:lambda (x. x) y\nm:boolean a and b\n",
 	"\xEF\xBB\xBF# bom\r\nm:physics 5 m / 2 s\r\nm:pga2 e1 + e2\r\n",
 	"m:algebra 1\nm:algebra\nm:nodomain 3\nstray text\n\n\n# end"
 };

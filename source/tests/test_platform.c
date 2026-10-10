@@ -162,17 +162,17 @@ static void test_path (void)
 
 	ml_str_init (&s);
 
-	CHECK (ml_slice_equal (ml_path_name (lit ("a/b/c.mlog")), lit ("c.mlog")));
+	CHECK (ml_slice_equal (ml_path_name (lit ("a/b/c.meth")), lit ("c.meth")));
 	CHECK (
-		ml_slice_equal (ml_path_name (lit ("a\\b\\c.mlog")), lit ("c.mlog"))
+		ml_slice_equal (ml_path_name (lit ("a\\b\\c.meth")), lit ("c.meth"))
 	);
-	CHECK (ml_slice_equal (ml_path_name (lit ("c.mlog")), lit ("c.mlog")));
+	CHECK (ml_slice_equal (ml_path_name (lit ("c.meth")), lit ("c.meth")));
 	CHECK (ml_path_name   (lit ("dir/")).len == 0);
 
-	CHECK (ml_slice_equal (ml_path_dir (lit ("a/b/c.mlog")), lit ("a/b")));
-	CHECK (ml_slice_equal (ml_path_dir (lit ("a\\c.mlog")), lit ("a")));
-	CHECK (ml_path_dir    (lit ("c.mlog")).len == 0);
-	CHECK (ml_slice_equal (ml_path_dir (lit ("/c.mlog")), lit ("/")));
+	CHECK (ml_slice_equal (ml_path_dir (lit ("a/b/c.meth")), lit ("a/b")));
+	CHECK (ml_slice_equal (ml_path_dir (lit ("a\\c.meth")), lit ("a")));
+	CHECK (ml_path_dir    (lit ("c.meth")).len == 0);
+	CHECK (ml_slice_equal (ml_path_dir (lit ("/c.meth")), lit ("/")));
 	CHECK (ml_slice_equal (ml_path_dir (lit ("dir/")), lit ("dir")));
 
 	CHECK (ml_path_is_absolute  (lit ("/x")));
@@ -181,8 +181,8 @@ static void test_path (void)
 	CHECK (!ml_path_is_absolute (lit ("x/y")));
 	CHECK (!ml_path_is_absolute (lit ("")));
 
-	CHECK (ml_path_join (&s, lit ("a/b"), lit ("c.mlog")) == ML_OK);
-	CHECK (strcmp       (ml_str_cstr (s), "a/b/c.mlog") == 0);
+	CHECK (ml_path_join (&s, lit ("a/b"), lit ("c.meth")) == ML_OK);
+	CHECK (strcmp       (ml_str_cstr (s), "a/b/c.meth") == 0);
 
 	ml_str_clear (&s);
 	CHECK (ml_path_join (&s, lit ("a/b/"), lit ("c")) == ML_OK);

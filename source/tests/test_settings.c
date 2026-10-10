@@ -65,7 +65,7 @@ static void test_get (void)
 	const char *text =
 		"# comment\n"
 		"[folds]\n"
-		"a.mlog = 1 2\n"
+		"a.meth = 1 2\n"
 		"\n"
 		"[display]\n"
 		"theme = light\n"
@@ -73,7 +73,7 @@ static void test_get (void)
 
 	CHECK (get_is (text, "display", "theme", "light"));
 	CHECK (get_is (text, "display", "colors", "256"));
-	CHECK (get_is (text, "folds", "a.mlog", "1 2"));
+	CHECK (get_is (text, "folds", "a.meth", "1 2"));
 
 	/* the section counts, and a missing key is not found */
 	CHECK (get_is (text, "folds", "theme", NULL));
@@ -182,7 +182,7 @@ static void test_remove (void)
 	CHECK (remove_gives ("", "a", "z", ""));
 
 	/* a key may have a '=' in it when the separator is " = " */
-	CHECK (get_is ("[f]\nC:/a=b/x.mlog = 3 4\n", "f", "C:/a=b/x.mlog", "3 4"));
+	CHECK (get_is ("[f]\nC:/a=b/x.meth = 3 4\n", "f", "C:/a=b/x.meth", "3 4"));
 }
 
 void run_settings_tests (void)

@@ -10,7 +10,7 @@ build/
 *.pdb
 
 # Scratch session created by running meth without a file
-scratch.mlog
+scratch.meth
 
 # Object files and test leftovers
 *.o

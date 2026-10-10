@@ -543,7 +543,7 @@ static void test_editor_command (void)
 	);
 
 	/* the default file is the session file with the extension of the format */
-	ml_session_set_path (&ed.session, lit ("meth_export_test.tmp.mlog"));
+	ml_session_set_path (&ed.session, lit ("meth_export_test.tmp.meth"));
 	command (&ed, "export latex body");
 	CHECK (message_has (&ed, "exported to meth_export_test.tmp.tex"));
 	CHECK (ml_fs_exists (lit ("meth_export_test.tmp.tex")));

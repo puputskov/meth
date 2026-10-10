@@ -430,7 +430,7 @@ MlResult ml_examples_contents (MlStr *out)
 			"steps; the results on the page are the ones the program gives "
 			"now. `:example NAME` puts the lines of one into your session "
 			"after the cursor, and `meth examples NAME` prints it as a "
-			".mlog file you can save.\n"
+			".meth file you can save.\n"
 			"\n"
 		)
 	);

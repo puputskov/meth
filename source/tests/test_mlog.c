@@ -40,7 +40,7 @@ static void test_parse (void)
 		lit (
 			"# a note\n"
 			"m:pga2 A = [[1,2],[3,4]]\n"
-			"include \"consts.mlog\"\n"
+			"include \"consts.meth\"\n"
 			"\n"
 			"m:lambda \xCE\xBB" "x.x\n"
 		)
@@ -56,7 +56,7 @@ static void test_parse (void)
 	CHECK (
 		v.kind == ML_LINE_INCLUDE && ml_slice_equal (
 			v.text,
-			lit ("consts.mlog")
+			lit ("consts.meth")
 		)
 	);
 	v = ml_session_get (&s, 3);
@@ -256,7 +256,7 @@ static void test_format (void)
 			&s,
 			ML_LINE_INCLUDE,
 			ML_DOMAIN_ALGEBRA,
-			lit ("a/b.mlog")
+			lit ("a/b.meth")
 		) == ML_OK
 	);
 	CHECK (
@@ -283,7 +283,7 @@ static void test_format (void)
 		"#\n"
 		"m:pga3 v = (1, 2)\n"
 		"m:boolean\n"
-		"include \"a/b.mlog\"\n"
+		"include \"a/b.meth\"\n"
 		"\n"
 		"raw ??\n"
 	) == 0);
@@ -297,7 +297,7 @@ static void test_round_trip (void)
 	MlStr      a;
 	MlStr      b;
 	const char *samples [] = {
-		"# note\nm:pga2 A = [[1,2],[3,4]]\n\ninclude \"x.mlog\"\n"
+		"# note\nm:pga2 A = [[1,2],[3,4]]\n\ninclude \"x.meth\"\n"
 		"m:pga2 e12 * e1\n",
 		"garbage line\nm:nonsense x\n# ok\n",
 		"# \xCF\x80 and \xE2\x88\x9A" "x\nm:lambda \xCE\xBB" "x.x\n",

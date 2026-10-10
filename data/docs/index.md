@@ -38,6 +38,6 @@ are the same in the tool (`:help`) and on the command line (`meth docs`).
 - [Lambda calculus](lambda): terms, reduction, Church numerals.
 
 # Files and scripts
-- [The session file](fileformat): the `.mlog` format.
+- [The session file](fileformat): the `.meth` format.
 - [The command line](cli): evaluate, run, export and read the docs from
   scripts.

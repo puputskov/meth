@@ -4,11 +4,11 @@
 #include <meth/session/session.h>
 
 /*
- * The .mlog session file format: UTF-8 text, one entry per line.
+ * The .meth session file format: UTF-8 text, one entry per line.
  *
  *	# some free text            note
  *	m:algebra A = [[1,2],[3,4]] math line in the given domain
- *	include "constants.mlog"    include another session
+ *	include "constants.meth"    include another session
  *	(empty line)                blank
  *
  * Anything else, including a line that is not valid UTF-8, is kept as an

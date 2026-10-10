@@ -91,12 +91,12 @@ static void test_edit (void)
 			0,
 			ML_LINE_INCLUDE,
 			ML_DOMAIN_ALGEBRA,
-			lit ("consts.mlog")
+			lit ("consts.meth")
 		) == ML_OK
 	);
 	CHECK (s.lines.len == 5);
 	CHECK (ml_session_get (&s, 0).kind == ML_LINE_INCLUDE);
-	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("consts.mlog")));
+	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("consts.meth")));
 	CHECK (ml_session_get (&s, 1).kind == ML_LINE_MATH);
 	CHECK (ml_session_get (&s, 2).kind == ML_LINE_BLANK);
 	CHECK (ml_session_get (&s, 3).kind == ML_LINE_NOTE);
@@ -233,10 +233,10 @@ static void test_misc (void)
 
 	ml_session_init (&s);
 	CHECK (s.path.len == 0);
-	CHECK (ml_session_set_path (&s, lit ("physics.mlog")) == ML_OK);
-	CHECK (ml_slice_equal      (ml_str_view (s.path), lit ("physics.mlog")));
-	CHECK (ml_session_set_path (&s, lit ("other.mlog")) == ML_OK);
-	CHECK (ml_slice_equal      (ml_str_view (s.path), lit ("other.mlog")));
+	CHECK (ml_session_set_path (&s, lit ("physics.meth")) == ML_OK);
+	CHECK (ml_slice_equal      (ml_str_view (s.path), lit ("physics.meth")));
+	CHECK (ml_session_set_path (&s, lit ("other.meth")) == ML_OK);
+	CHECK (ml_slice_equal      (ml_str_view (s.path), lit ("other.meth")));
 
 	CHECK (s.domain == ML_DOMAIN_ALGEBRA);
 	ml_session_set_domain (&s, ML_DOMAIN_PGA2);
@@ -478,7 +478,7 @@ static void test_blocks (void)
 	add_line (&s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, "");
 	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "more");
 	add_line (&s, ML_LINE_NOTE, ML_DOMAIN_ALGEBRA, "text");
-	add_line (&s, ML_LINE_INCLUDE, ML_DOMAIN_ALGEBRA, "x.mlog");
+	add_line (&s, ML_LINE_INCLUDE, ML_DOMAIN_ALGEBRA, "x.meth");
 	add_line (&s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, "");
 	add_line (&s, ML_LINE_BLANK, ML_DOMAIN_ALGEBRA, "");
 

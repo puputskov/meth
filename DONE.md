@@ -224,27 +224,27 @@ tag on every line (`alg>` on each row) by one header per block, and gives the te
 - **Plots** (built, 2026-10-10): a plot is a value (`ML_VALUE_PLOT`, `math/plotdata.h`) made by `hist (v, k)`, `scatter (x, y)` and `plot (x, y)`; it can be
   named, and the line shows a one line summary. `F7` or `:plot [on|off]` on the line draws it in the plot panel at the right (`ui/plotpanel`), above the
   watch window when that is on; the drawing is `ui/plot` (blocks for histograms, braille for points and lines). Which plots are on is kept with the folds
-  in the settings file (`p3` in the entry), not in the `.mlog`. Page `plots` and the example `stats-plot-your-data`.
+  in the settings file (`p3` in the entry), not in the `.meth`. Page `plots` and the example `stats-plot-your-data`.
   Not built: plots of functions (`plot (f, a, b)`), the view of a matrix transformation (basis vectors and a shape), a fitted line over a scatter plot,
   axis titles, theme classes for the plot (it uses the result colour), a panel under the editor for narrow terminals, the unit names in the completion.
 
 ### 4.7 Persistence and sessions
 - Everything the user enters is stored to files: lines, their domains, notes. Results are not stored; they are recomputed when a session is opened (keeps files diffable and never stale; steps are regenerated the same way).
 - One session per file. Plain text, human readable, diffable in git and editable by hand.
-- Extension `.mlog`, e.g. `physics.mlog`. Files live wherever the user puts them (no forced folder).
-- `meth physics.mlog` opens or creates that file. Plain `meth` opens a scratch session in the current directory.
-- In the shell, `:open other.mlog` switches session. A recent files list makes returning easy.
+- Extension `.meth`, e.g. `physics.meth`. Files live wherever the user puts them (no forced folder).
+- `meth physics.meth` opens or creates that file. Plain `meth` opens a scratch session in the current directory.
+- In the shell, `:open other.meth` switches session. A recent files list makes returning easy.
 - File format (UTF-8, CRLF or LF accepted, written with LF): one entry per line, `<tag> <text>`.
   - `#` note line: `# some free text`
   - `m:<domain>` math line: `m:matrix A = [[1,2],[3,4]]`
-  - `include "path.mlog"` include line (no tag)
+  - `include "path.meth"` include line (no tag)
   - blank lines are kept as-is and shown as blank.
   - Domain names: `algebra`, `lambda`, `pga2`, `pga3`, `boolean`. Matrices, vectors and equations are part of `algebra` (decision of 2026-10-10: their operators mean the same as in algebra, they share the variables, and the matrix, vector and equations domains were never evaluated); `m:matrix`, `m:vector` and `m:equations` in older files read as `algebra`. A domain exists only where the meaning of the operators differs (`*` in PGA, `^` in boolean, application in lambda).
   - A line that fails to parse is still stored; it is shown with its error instead of a result.
 - Saved after every committed line (write to a temp file then rename, so a crash never corrupts the session).
 
 ### 4.8 Includes
-- `include "constants.mlog"` runs the other file's lines first, making its variables and functions available.
+- `include "constants.meth"` runs the other file's lines first, making its variables and functions available.
 - Paths are relative to the including file.
 - Includes may not form a cycle. The include stack is tracked and a cycle is reported as an error.
 - Included files are read-only from the including session; edit them by opening them with `:open`.
@@ -260,7 +260,7 @@ run (when no session file exists), and left at any time with `:q` or `:tutorial 
 with `:tutorial syntax`. Progress (the last finished lesson) is kept in a small file next to the user's files, so the tutorial can be resumed.
 
 Shape of a lesson:
-- A tutorial session is an ordinary session (a scratch `.mlog` that is never saved over the user's files) with a lesson panel drawn above the
+- A tutorial session is an ordinary session (a scratch `.meth` that is never saved over the user's files) with a lesson panel drawn above the
   line area: the title, a short text, and the current task ("Press `j` to move down one line").
 - A lesson is a list of steps. Each step has a prompt and a check that watches the real editor: a key event, a state change, the content of a
   line, or the result of the line. The tutorial only observes the editor (through the same key events and session), it has no private input path,
@@ -324,7 +324,7 @@ can no longer be finished (a key was renamed, a syntax changed) fails the build.
 ### 4.11 Export mode
 Export turns the session into a document. It is a mode of its own, in the same sense as the tutorial: `:export` opens an export panel (format, range,
 options, a preview of the first rows, and the path), and `:export <format> [path]` does it in one go. Formats: `latex`, `mathml`, `markdown`, `png`
-(image) and `pdf`. Without a path the file is named after the session (`physics.mlog` gives `physics.tex`, `physics.html`, `physics.md`, `physics.png`,
+(image) and `pdf`. Without a path the file is named after the session (`physics.meth` gives `physics.tex`, `physics.html`, `physics.md`, `physics.png`,
 `physics.pdf`) and is written next to it, atomically like a session file. An existing file is never overwritten without asking (`:export! ...` forces).
 - What is exported: the lines of the session in order, with their results recomputed (the same results as on the screen). Notes become text, math lines
   become typeset math with their result, matrices become real matrices, errors are left out unless `errors` is given, includes are expanded or kept as a
@@ -381,12 +381,12 @@ The full text of the plan is in `TODO.md`.
 ### 4.13 Command line interface for scripts and AI agents
 The tool must be usable without the interactive screen, by scripts and by AI agents, through command line parameters. The interactive shell is one
 front end on the same library; the other one is a batch front end that reads, evaluates and prints, and never needs a terminal.
-- Entry points: `meth eval "<expr>"...` (evaluate expressions or lines, one result per argument, using the optional `--session file.mlog` as the
-  environment), `meth run file.mlog` (evaluate a session and print every line with its result), `meth check file.mlog` (the proofs of a session: exit
-  code 0 when every theorem is complete, 1 when something is not valid, 2 when something is only unchecked), `meth steps file.mlog:LINE` (the steps of
-  one line), `meth export file.mlog --format latex|mathml|markdown|png|pdf -o out` (section 4.11), `meth test "<claim>"` (try a claim on
-  values, print counterexamples), `meth fmt file.mlog` (normalise ASCII to the pretty form), `meth lex|parse "<text>"` (tokens and tree, for tooling)
-  and `meth --version`. Reading `-` takes the text from standard input, so lines can be piped in; a file opened with `meth file.mlog` and no
+- Entry points: `meth eval "<expr>"...` (evaluate expressions or lines, one result per argument, using the optional `--session file.meth` as the
+  environment), `meth run file.meth` (evaluate a session and print every line with its result), `meth check file.meth` (the proofs of a session: exit
+  code 0 when every theorem is complete, 1 when something is not valid, 2 when something is only unchecked), `meth steps file.meth:LINE` (the steps of
+  one line), `meth export file.meth --format latex|mathml|markdown|png|pdf -o out` (section 4.11), `meth test "<claim>"` (try a claim on
+  values, print counterexamples), `meth fmt file.meth` (normalise ASCII to the pretty form), `meth lex|parse "<text>"` (tokens and tree, for tooling)
+  and `meth --version`. Reading `-` takes the text from standard input, so lines can be piped in; a file opened with `meth file.meth` and no
   command is the interactive shell as before, and there is `meth repl --plain` (a line oriented loop with no screen control, one prompt line per input,
   for agents that drive a process through pipes).
 - Output formats: `--format text` (the default, human readable, plain unicode, no colour unless asked), `--format json` (one stable, documented JSON
@@ -490,7 +490,7 @@ generated static website.
 
 ### 4.16 Examples and snippets
 
-- **Examples** are worked sessions that show how to solve real problems with meth, written as `.mlog` files in `examples/` with notes that explain each
+- **Examples** are worked sessions that show how to solve real problems with meth, written as `.meth` files in `examples/` with notes that explain each
   step. They are built in like the documentation pages (compiled in, browsable in the help viewer under an "Examples" entry, searchable), and `:examples`
   opens a table of contents grouped by area; picking one opens it as a read only session that can be copied into the user's own file. Every example is
   evaluated by a test, so it never goes stale.
@@ -506,8 +506,8 @@ generated static website.
 
 **Snippets are grouped (2026-10-10):** the names start with the area, as those of the examples (`algebra-quadratic`, `calculus-derivative`, `linalg-linear-system`, `units-conversion`, `logic-truth-table`, `lambda-church-numerals`), and the page `snippets` has a heading per area (`ml_area_*` in `docs/examples.h` is the one table of areas). The files of `data/stdlib` have an empty line between the groups of definitions, each group under its comment.
 
-**Built so far (2026-10-10):** `examples/*.mlog` (eleven examples, compiled in, one help page each with the live results, the contents page `examples`,
-`:examples`, `:example NAME` which inserts the lines after the cursor, `meth examples [NAME]`), `snippets/*.mlog` (nine, plus the user's files in the
+**Built so far (2026-10-10):** `examples/*.meth` (eleven examples, compiled in, one help page each with the live results, the contents page `examples`,
+`:examples`, `:example NAME` which inserts the lines after the cursor, `meth examples [NAME]`), `snippets/*.meth` (nine, plus the user's files in the
 `snippets` folder of the settings folder; `:snippet [NAME]`, the page `snippets`). Every example is run by a test and must not have an error. Not built:
 the Tab through placeholders, snippets in the math completion (section 4.3), `meth snippets`, opening an example as a read only session, and the
 examples that need later features (statistics, images, PGA motors, the full inverse kinematics with approximate matrices: matrices hold exact numbers only).
@@ -558,7 +558,7 @@ mode stays safe. Built in this order, each step with tests, docs and an example 
 4. **Loops: `map`, `filter`, `fold`, `sum (i, a, b, e)`, `prod (i, a, b, e)` and `x -> expr`** (built 2026-10-10: the function is a name or a lambda that is an argument, not a value; a lambda runs in the scope it is written in; the loops are frames of the evaluator, so nothing recurses). The design text below is the first idea: `map (f, xs)`, `filter (f, xs)`, `fold (f, start, xs)`, `sum`, `prod` over a list or over
    `sum (i, 1, n, expr)`, with `f` a function name or a short `x -> expr` form. A function value is a name and the environment snapshot; there are
    no closures over local names (an `x -> ...` form sees the names of the line it is written in).
-5. **The library** (first part built 2026-10-10: `stdlib/*.mlog` compiled in, loaded into every environment by `ml_stdlib_load`, hidden from the watch window, helpers with an underscore, a test that every function has its note; `mod sign frac trunc lerp clamp hypot deg rad linspace cumprod dotl normalize fib isqrt isprime primes factor divisors totient sigma collatz digits`, the page `library` and the example `algebra-library`. Then: functions as values (a name or a lambda as the argument of a function of the user, called through the parameter; a lambda sees the session variables and its own names, not the locals of where it is written), `approx`, and `newton bisect deriv trapezoid simpson euler rk4 rk4path proj gram_schmidt`). A file of definitions in meth's own language, included first in every session (read only), written with the steps above:
+5. **The library** (first part built 2026-10-10: `stdlib/*.meth` compiled in, loaded into every environment by `ml_stdlib_load`, hidden from the watch window, helpers with an underscore, a test that every function has its note; `mod sign frac trunc lerp clamp hypot deg rad linspace cumprod dotl normalize fib isqrt isprime primes factor divisors totient sigma collatz digits`, the page `library` and the example `algebra-library`. Then: functions as values (a name or a lambda as the argument of a function of the user, called through the parameter; a lambda sees the session variables and its own names, not the locals of where it is written), `approx`, and `newton bisect deriv trapezoid simpson euler rk4 rk4path proj gram_schmidt`). A file of definitions in meth's own language, included first in every session (read only), written with the steps above:
    `fib`, `isprime`, `factor`, `newton`, `bisect`, `simpson`, `rk4`, `lerp`, `proj`, ... one page and a test for each. Documented by a comment
    convention that the completion and the help read.
 
@@ -731,7 +731,7 @@ Layers, each a module under `source/meth/` with public headers in `include/meth/
 
 ## 7. Milestones (proposal)
 
-1. Skeleton: line editor, input states and domain switching, `.mlog` session file, echo. (done)
+1. Skeleton: line editor, input states and domain switching, `.meth` session file, echo. (done)
 2. Arithmetic expression parser and evaluator with ghost mode.
 3. Matrices and vectors with step by step output.
 4. Symbolic simplify, derivative, integral with steps.
@@ -757,12 +757,12 @@ Layers, each a module under `source/meth/` with public headers in `include/meth/
 19. Watch window (section 4.21), after the editor can show a side panel; it only reads the environment snapshots the results keep.
 20. Export of functions to C, C++ and Python (section 4.19), after the standard library, so the helper functions can be exported with the function.
 21. Images and kernels (section 4.20), with the PNG reader and writer shared with the export module (milestone 10).
-22. Fuzzer (section 4.23). The driver and the first targets (lexer, parser, evaluator, `.mlog` reader) can start any time and are worth doing early,
+22. Fuzzer (section 4.23). The driver and the first targets (lexer, parser, evaluator, `.meth` reader) can start any time and are worth doing early,
    since every later feature adds a target.
 
 ## 8. Milestone 1 tasks
 
-Goal: run `meth file.mlog`, type lines in insert/note mode, switch domain, move around in normal mode, and have everything saved and reloaded. Lines are only echoed (no evaluation yet).
+Goal: run `meth file.meth`, type lines in insert/note mode, switch domain, move around in normal mode, and have everything saved and reloaded. Lines are only echoed (no evaluation yet).
 
 Each task lists its files (headers in `include/meth/`, sources in `source/meth/`) and a done-when check.
 
@@ -772,7 +772,7 @@ Each task lists its files (headers in `include/meth/`, sources in `source/meth/`
    Done when: a demo prints each key event decoded as a key code plus modifiers, and Esc is told apart from arrow-key sequences.
 3. **Session model** (`session/session.h`): `Line {kind, domain, text}`, `Session {path, lines[], cursor}`, insert/delete/replace line, domain enum (`algebra`, `lambda`, `pga2`, `pga3`, `boolean`).
    Done when: unit-style test builds a session in memory and edits it.
-4. **`.mlog` reader/writer** (`session/mlog.h`): parse and write the format from section 4.7 (note `# `, math `m:<domain> `, `include "x"`, blank), CRLF and LF both accepted, unknown tag becomes an error line, atomic save.
+4. **`.meth` reader/writer** (`session/mlog.h`): parse and write the format from section 4.7 (note `# `, math `m:<domain> `, `include "x"`, blank), CRLF and LF both accepted, unknown tag becomes an error line, atomic save.
    Done when: round trip (read, write, read) of a sample file gives identical lines, and a corrupt file never loses data.
 5. **Line editor** (`ui/lineedit.h`): single-line UTF-8 buffer with cursor, insert, backspace, delete, left/right/home/end, word jump, by code point, redraw with correct column width.
    Done when: edits work with `π`, `√x`, and wide text without cursor drift.
@@ -878,7 +878,7 @@ of the line being typed. Other domains still only echo their lines.
     complete input shows the result, errors show nothing and the environment is
     unchanged.
 11. **Wiring and acceptance**: results recomputed on edits, ghost text drawn on
-    every keystroke, `scratch.mlog` re-evaluated on open.
+    every keystroke, `scratch.meth` re-evaluated on open.
     Acceptance test (manual): type `a = 3`, `b = a^2 + 1`, `f(x) = 2x + b`,
     `f(a)`, `1/3 + 1/6`, `sqrt(2)`, `10!`; the results are `3`, `10`, `10`, `16`,
     `1/2`, `≈ 1.41421356`, `3628800`; quit, reopen, and see the same results.
@@ -1036,7 +1036,7 @@ errors with a byte range.
 
 - Terminal only (VT/ANSI, unicode, braille plots); Windows first behind a `platform` layer.
 - Exact rationals + bignum; floats only on request.
-- Plain text `.mlog` session files, one session per file, results recomputed on open.
+- Plain text `.meth` session files, one session per file, results recomputed on open.
 - Modal input (normal/insert/note) plus a separate domain mode; variables shared across domains.
 - Steps on request for any line, past or present, regenerated by re-evaluation.
 - ASCII and unicode input equivalent, ASCII auto-rewritten to pretty unicode inline.
@@ -1074,4 +1074,4 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
 
 - A stdlib file holds `m:<domain> <math>` lines (definitions, any domain, e.g. `m:physics`) and `a:<domain> <math>` lines (asserts). An assert must give
   `true` or the text after ` => `. `ml_stdlib_check` evaluates them in a session with the library; the `stdlib` test group fails on a wrong one.
-  Files: algebra helpers, numbers, and new `physics.mlog` (kinetic, momentum, weight, speed).
+  Files: algebra helpers, numbers, and new `physics.meth` (kinetic, momentum, weight, speed).

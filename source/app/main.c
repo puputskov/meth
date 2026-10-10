@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEFAULT_SESSION "scratch.mlog"
+#define DEFAULT_SESSION "scratch.meth"
 
 /*
  * The alternate screen, and the "disambiguate" level of the kitty keyboard

@@ -9,7 +9,7 @@
  * settings folder (platform/config.h), in the section
  *
  *	[folds]
- *	notes/physics.mlog = 0 12 40
+ *	notes/physics.meth = 0 12 40
  *
  * one entry per session path, as it was given to the program, with the first
  * line (0 based) of every folded block of more than one line. The lines whose

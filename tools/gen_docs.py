@@ -5,8 +5,8 @@ Usage: python tools/gen_docs.py [--check]
 
 Reads data/docs/*.md and writes source/meth/docs/pages_data.c: a table of the
 pages (the file name without .md is the id), each as C string literals, one
-literal per line of the page. The same is done for data/examples/*.mlog, written to
-source/meth/docs/examples_data.c, and for data/snippets/*.mlog (snippets_data.c). With --check nothing is written; the exit
+literal per line of the page. The same is done for data/examples/*.meth, written to
+source/meth/docs/examples_data.c, and for data/snippets/*.meth (snippets_data.c). With --check nothing is written; the exit
 code is 1 when a file on disk is not what would be written (the tests and the
 build use it to find pages that were changed without running this tool).
 """
@@ -127,7 +127,7 @@ def generate():
 
 
 def generate_snippets():
-    return generate_table(SNIPPETS, ".mlog", "data/snippets/*.mlog", "snippets", "snippet")
+    return generate_table(SNIPPETS, ".meth", "data/snippets/*.meth", "snippets", "snippet")
 
 
 def generate_texts():
@@ -139,11 +139,11 @@ def generate_texts():
 
 
 def generate_stdlib():
-    return generate_table(STDLIB, ".mlog", "data/stdlib/*.mlog", "stdlib", "stdlib")
+    return generate_table(STDLIB, ".meth", "data/stdlib/*.meth", "stdlib", "stdlib")
 
 
 def generate_examples():
-    return generate_table(EXAMPLES, ".mlog", "data/examples/*.mlog", "examples", "example")
+    return generate_table(EXAMPLES, ".meth", "data/examples/*.meth", "examples", "example")
 
 
 def differs(path, text):

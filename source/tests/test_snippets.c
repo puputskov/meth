@@ -10,9 +10,9 @@
 
 #define CONFIG_DIR  "meth_test_config/snippets"
 #define SNIPPET_DIR "meth_test_config/snippets/snippets"
-#define MINE_FILE   "meth_test_config/snippets/snippets/mine.mlog"
+#define MINE_FILE   "meth_test_config/snippets/snippets/mine.meth"
 #define QUAD_FILE \
-	"meth_test_config/snippets/snippets/algebra-quadratic.mlog"
+	"meth_test_config/snippets/snippets/algebra-quadratic.meth"
 
 static MlSlice lit (const char *s)
 {

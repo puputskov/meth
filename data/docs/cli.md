@@ -4,7 +4,7 @@ summary: Evaluate, run, export and read the docs from scripts.
 keywords: cli, scripts, eval, run, lex, parse, steps, json, exit code, stdin
 see: export, settings, fileformat, docs
 
-`meth` without a command opens the editor (`meth notes.mlog` opens a
+`meth` without a command opens the editor (`meth notes.meth` opens a
 file). With a command it prints on standard output and exits.
 
 ```command

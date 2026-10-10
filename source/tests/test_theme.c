@@ -334,7 +334,7 @@ static void test_highlight (void)
 	CHECK (class_of (ML_DOMAIN_ALGEBRA, "3 km", 2) == ML_CLASS_NAME);
 	CHECK (class_of (ML_DOMAIN_PHYSICS, "3 m to km", 4) == ML_CLASS_KEYWORD);
 	CHECK (class_of (ML_DOMAIN_ALGEBRA, "3 m to km", 4) == ML_CLASS_NAME);
-	CHECK (class_in ("include a.mlog", 0) == ML_CLASS_KEYWORD);
+	CHECK (class_in ("include a.meth", 0) == ML_CLASS_KEYWORD);
 	CHECK (class_in ("\xCF\x80", 0) == ML_CLASS_CONSTANT);
 	CHECK (class_in ("a \xC3\x97 b", 2) == ML_CLASS_OPERATOR);
 	CHECK (class_in ("\xE2\x88\x9A" "4", 0) == ML_CLASS_OPERATOR);

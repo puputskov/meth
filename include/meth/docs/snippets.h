@@ -14,9 +14,9 @@
  *	m:algebra a = 1
  *	m:algebra d = b^2 - 4*a*c
  *
- * The built in snippets are snippets/*.mlog, compiled into the program
+ * The built in snippets are snippets/*.meth, compiled into the program
  * (source/meth/docs/snippets_data.c, made by tools/gen_docs.py). The user's
- * own are name.mlog files in the folder `snippets` of the settings folder; a
+ * own are name.meth files in the folder `snippets` of the settings folder; a
  * file there hides the built in snippet of the same name. A name is made of
  * lower case letters, digits, `-` and `_`.
  */

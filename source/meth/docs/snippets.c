@@ -6,7 +6,7 @@
 #include <meth/platform/path.h>
 #include <meth/session/mlog.h>
 
-#define SNIPPET_SUFFIX ".mlog"
+#define SNIPPET_SUFFIX ".meth"
 
 uint64_t ml_snippet_count (void)
 {
@@ -305,7 +305,7 @@ static MlResult page_text (MlStr *out, int32_t with_user)
 			"`:snippet NAME` puts the lines of a snippet into your session "
 			"after the cursor line, as one change that undo takes back. "
 			"They are a start: change the numbers and names. Your own "
-			"snippets are session files named `NAME.mlog` in the folder "
+			"snippets are session files named `NAME.meth` in the folder "
 			"`snippets` of the settings folder (see [settings](settings)); "
 			"the first note of the file is its summary, and a file hides "
 			"the built in snippet of the same name. The names start with the "
