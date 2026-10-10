@@ -136,3 +136,28 @@ statement lines, so it lives in the same `.meth` file as the calculations, with 
 - Help page examples evaluated live in the help panel, with hidden asserts (`=> ` lines are checked by the tests today, not shown as live results).
 - Doc pages that reference an example from `data/examples` (` ```example @name `) instead of inlining it.
 
+
+## 9. Web editor (not built)
+
+A notebook in the browser with the features of the TUI (the same domains, results, steps, ghost preview, proofs, plots, help and tutorial, export,
+files), laid out the traditional way: cells with a rendered result under each line, something between a Jupyter notebook and Mathematica. More people
+can try meth without building it. It runs the real library, `meth_lib` built to WebAssembly, so there is one implementation and no port of the logic.
+- Everything is in `web/`: `index.html`, CSS, plain JavaScript (ES modules) and the `.wasm` file. No third-party code of any kind: no framework, no
+  bundler, no npm, no CDN, no fonts or icons from elsewhere, no Emscripten glue. The JavaScript glue that loads the module and hands text in and out
+  is written by hand and is small.
+- The build target is a freestanding wasm module made by the C compiler directly (a new build step beside the others in `CLAUDE.md`, output into
+  `build/`). It needs a `platform/wasm/` folder (memory for `core/heap.c` and the arenas from `memory.grow`, no files: the session is kept in the browser
+  storage and offered for download as a `.meth` file, `:open` through a file picker), and the few C library functions the code uses (`memcpy`, `strlen`,
+  the math functions) written in the project or taken from the compiler's builtins. Nothing in the library should depend on the browser.
+- Open point, wasm32 against the 64 bit rule: `meth/core/types.h` asserts a 64 bit `size_t`. A wasm32 module has a 32 bit one, and the 16 GB arena
+  reservation does not fit either. Options: wasm64 (memory64, not in every browser yet), or wasm32 with the assert and the arena sizes relaxed for that
+  target (`uint64_t` stays the type of sizes and counts in the code, only the C library calls narrow). Decide first.
+- A small C API for the page (a handle, `eval line`, results, steps, ghost, completion, highlight classes, typeset math, plot data, export, the texts
+  catalog) that returns text or JSON in a buffer of the module, so the page never reads structures of the library.
+- Typeset math: the page draws the math itself from the typeset output of the export module (MathML is built in browsers, or the box layout drawn in
+  SVG/canvas), and the plots as SVG from the plot data. Themes come from `data/config` (the same `.theme` files, as CSS variables), light and dark.
+- The look is a design task of its own: the notebook column, cells with the input in a monospace font and the result typeset under it, the domain of
+  a cell as a small tag, steps that expand, the proof marks, a help and tutorial panel, keyboard use (the TUI keys optional, normal editing by default).
+- Tests: the same test groups run against the wasm module in a headless run if a runtime is at hand (Node is a tool for the test, not a part of the
+  product), and a page smoke test; otherwise the module is checked by running the C API over the example files and comparing with `meth eval`.
+- Also gives the documentation website (4.14): the pages of `data/docs` are shown by the same page.
