@@ -7,10 +7,14 @@ domains2.1.check = result
 domains2.1.param = true
 domains2.1.text = Other domains have their own syntax. Switch with
     {ACTION_COMMAND}, mode boolean, then start a block and write a | ~a.
+domains2.1.web = Other domains have their own syntax. Change the domain in the corner
+    of a cell to boolean and write a | ~a.
 domains2.1.answer = <ACTION_COMMAND>mode boolean<Enter><ACTION_BLOCK_NEW>a | ~a<Enter>
 
 domains2.2.check = result
 domains2.2.param = y
 domains2.2.text = The lambda calculus: switch with mode lambda, start a
     block and write (λx. x) y. The result is the reduced term.
+domains2.2.web = The lambda calculus: make a new cell (Shift+Enter), change its domain
+    to lambda and write (λx. x) y. The result is the reduced term.
 domains2.2.answer = <ACTION_COMMAND>mode lambda<Enter><ACTION_BLOCK_NEW>(λx. x) y<Enter>

@@ -9,6 +9,9 @@ units.1.text = Units live in the physics domain: there a name like km or m is a
     unit, in algebra it is a name like any other. Switch with
     {ACTION_COMMAND}, mode physics, then start a block and write
     5 km + 300 m.
+units.1.web = Units live in the physics domain: there a name like km or m is a
+    unit, in algebra it is a name like any other. Change the domain in the
+    corner of the cell to physics, then write 5 km + 300 m.
 units.1.answer = <ACTION_COMMAND>mode physics<Enter><ACTION_BLOCK_NEW>5 km + 300 m<Enter>
 
 units.2.check = result

@@ -45,7 +45,18 @@
 	background: transparent;
 }
 
-.help header button:hover {
+.help header button.nav {
+	padding: 0 0.6rem;
+	border: 1px solid var(--line-strong);
+	white-space: nowrap;
+}
+
+.help header button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.help header button:hover:not(:disabled) {
 	background: var(--accent-soft);
 }
 

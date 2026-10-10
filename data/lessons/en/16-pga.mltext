@@ -7,6 +7,8 @@ pga.1.check = result
 pga.1.param = e12
 pga.1.text = The pga2 domain has the blades e1 and e2. Switch with
     {ACTION_COMMAND}, mode pga2, then start a block and write e1*e2.
+pga.1.web = The pga2 domain has the blades e1 and e2. Make a new cell, change its
+    domain to pga2 and write e1*e2.
 pga.1.answer = <ACTION_COMMAND>mode pga2<Enter><ACTION_BLOCK_NEW>e1*e2<Enter>
 
 pga.2.check = result

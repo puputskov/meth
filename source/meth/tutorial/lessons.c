@@ -25,7 +25,9 @@
  * A lesson is an id with a title and a stage; its steps are numbered from 1
  * and a step needs `check` (the kind of check, see lessons.h) and `text`,
  * and has `arg` for the kinds that take one, `param` and `param2` where the
- * check takes text, the `answer` and an optional `hint`. The lessons come in
+ * check takes text, the `answer`, an optional `hint` and an optional `web`
+ * (the text for the page, where a key of the terminal does not exist). The
+ * lessons come in
  * the order of the file, those of stage 1 first. A step the program cannot
  * make sense of (a check or an argument it does not know) is left out.
  */
@@ -207,6 +209,7 @@ static MlStep step_of (const char *id, uint64_t n, int32_t *ok)
 		st.param2 = entry (id, n, "param2");
 		st.hint   = entry (id, n, "hint");
 		st.answer = entry (id, n, "answer");
+		st.web    = entry (id, n, "web");
 	}
 
 	*ok = good;

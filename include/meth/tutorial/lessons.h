@@ -55,6 +55,7 @@ typedef struct MlStep
 	const char *param2;
 	const char *hint;   /* shown after a few keys that did not do it */
 	const char *answer; /* the keys of the model answer */
+	const char *web;    /* the text on the web page, NULL: the same text */
 } MlStep;
 
 typedef struct MlLesson

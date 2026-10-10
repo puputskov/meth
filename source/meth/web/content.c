@@ -216,6 +216,8 @@ static MlResult add_step (MlResult r, MlStr *o, const MlStep *st)
 	r = str (r, o, ml_slice_cstr (ml_choose (st->hint, st->hint, "")));
 	r = lit (r, o, ",\"answer\":");
 	r = str (r, o, ml_slice_cstr (ml_choose (st->answer, st->answer, "")));
+	r = lit (r, o, ",\"web\":");
+	r = str (r, o, ml_slice_cstr (ml_choose (st->web, st->web, "")));
 	return lit (r, o, "}");
 }
 

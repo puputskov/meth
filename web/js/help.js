@@ -27,10 +27,16 @@ export class Help {
 
 		const header = el("header");
 
-		this.back = el("button", "", "←");
-		this.back.title = "Back";
+		this.back = el("button", "nav", "← Back");
+		this.back.title = "Back to the previous page";
 		this.back.setAttribute("aria-label", "Back");
 		this.back.addEventListener("click", () => this.goBack());
+		this.home = el("button", "nav", "Contents");
+		this.home.title = "The list of pages";
+		this.home.addEventListener("click", () => {
+			this.search.value = "";
+			this.show("index");
+		});
 		this.search = el("input");
 		this.search.type = "search";
 		this.search.placeholder = "Search the help";
@@ -42,7 +48,7 @@ export class Help {
 		close.title = "Close (Esc)";
 		close.setAttribute("aria-label", "Close the help");
 		close.addEventListener("click", () => this.close());
-		header.append(this.back, this.search, close);
+		header.append(this.back, this.home, this.search, close);
 		this.body = el("div", "body");
 		this.root.append(header, this.body);
 		this.root.addEventListener("keydown", (event) => {
@@ -77,6 +83,12 @@ export class Help {
 	}
 
 	goBack() {
+		if (this.search.value !== "") {
+			this.search.value = "";
+			this.show(this.history.pop() ?? "index");
+			return;
+		}
+
 		this.history.pop();
 
 		const id = this.history.pop() ?? "index";
@@ -93,6 +105,7 @@ export class Help {
 		const hits = this.meth.searchDocs(query.trim());
 
 		this.event("help-search", query.trim());
+		this.back.disabled = false;
 		const list = el("ul", "hits");
 
 		this.body.replaceChildren();
@@ -128,7 +141,7 @@ export class Help {
 		}
 
 		this.history.push(page.id);
-		this.back.disabled = this.history.length < 2;
+		this.back.disabled = this.history.length < 2 && this.search.value === "";
 		this.body.replaceChildren();
 		this.body.append(el("h1", "", page.title), el("p", "summary", page.summary));
 
