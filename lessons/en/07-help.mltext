@@ -1,0 +1,26 @@
+# Lesson 7: Help and the watch window
+[lessons]
+help.title = Help and the watch window
+help.stage = 1
+
+help.1.check = state
+help.1.arg = help
+help.1.text = {ACTION_HELP} opens the help. Every page of the documentation
+    is there, and it can be searched.
+help.1.answer = <ACTION_HELP>
+
+help.2.check = state_not
+help.2.arg = help
+help.2.text = Press q to close the help.
+help.2.answer = q
+
+help.3.check = watch
+help.3.arg = on
+help.3.text = {ACTION_WATCH} shows the watch window: every name defined at
+    the line of the cursor, with its type and value.
+help.3.answer = <ACTION_WATCH>
+
+help.4.check = watch
+help.4.arg = off
+help.4.text = {ACTION_WATCH} hides it again.
+help.4.answer = <ACTION_WATCH>

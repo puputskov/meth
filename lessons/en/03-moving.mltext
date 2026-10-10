@@ -1,0 +1,25 @@
+# Lesson 3: Moving around
+[lessons]
+moving.title = Moving around
+moving.stage = 1
+
+moving.1.check = action
+moving.1.arg = goto-first
+moving.1.text = {ACTION_GOTO_FIRST} goes to the first line of the session.
+moving.1.answer = <ACTION_GOTO_FIRST>
+
+moving.2.check = action
+moving.2.arg = goto-last
+moving.2.text = {ACTION_GOTO_LAST} goes to the last line.
+moving.2.answer = <ACTION_GOTO_LAST>
+
+moving.3.check = action
+moving.3.arg = block-prev
+moving.3.text = {ACTION_BLOCK_PREV} jumps to the block before,
+    {ACTION_BLOCK_NEXT} to the next one. Press {ACTION_BLOCK_PREV}.
+moving.3.answer = <ACTION_BLOCK_PREV>
+
+moving.4.check = action
+moving.4.arg = block-next
+moving.4.text = {ACTION_BLOCK_NEXT} jumps to the next block.
+moving.4.answer = <ACTION_BLOCK_NEXT>

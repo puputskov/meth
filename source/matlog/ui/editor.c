@@ -1221,7 +1221,10 @@ static MlResult toggle_steps (MlEditor *ed)
 
 		else if (r == ML_OK)
 		{
-			r = set_message (ed, "no steps for this line");
+			r = set_message (
+				ed,
+				ml_text ("messages.no_steps")
+			);
 		}
 	}
 
@@ -1287,7 +1290,10 @@ static MlResult fold_block (MlEditor *ed, int32_t how)
 
 	if (b.kind == ML_BLOCK_NONE || b.last == b.first)
 	{
-		r = set_message (ed, "nothing to fold: the block is one line");
+		r = set_message (
+			ed,
+			ml_text ("messages.nothing_to_fold")
+		);
 	}
 
 	else
@@ -1369,7 +1375,14 @@ static MlResult undo_redo (MlEditor *ed, int32_t redo)
 	if (r == ML_OK && u.did)
 	{
 		ml_session_set_cursor (&ed->session, u.where);
-		r = set_message (ed, ml_choose (redo, "redone", "undone"));
+		r = set_message (
+			ed,
+			ml_choose (
+				redo,
+				ml_text ("messages.redone"),
+				ml_text ("messages.undone")
+			)
+		);
 	}
 
 	else if (r == ML_OK)
@@ -1378,8 +1391,8 @@ static MlResult undo_redo (MlEditor *ed, int32_t redo)
 			ed,
 			ml_choose (
 				redo,
-				"nothing to redo",
-				"nothing to undo"
+				ml_text ("messages.nothing_to_redo"),
+				ml_text ("messages.nothing_to_undo")
 			)
 		);
 	}
@@ -1446,12 +1459,18 @@ static MlResult save (MlEditor *ed, MlSlice path)
 
 	if (r == ML_OK)
 	{
-		r = set_message (ed, "written");
+		r = set_message (
+			ed,
+			ml_text ("messages.written")
+		);
 	}
 
 	else
 	{
-		r = set_message (ed, "cannot write (give a path: :w name.mlog)");
+		r = set_message (
+			ed,
+			ml_text ("messages.cannot_write")
+		);
 	}
 
 	return r;
@@ -1464,12 +1483,18 @@ static MlResult open_session (MlEditor *ed, MlSlice path, int32_t force)
 
 	if (path.len == 0)
 	{
-		r = set_message (ed, "open: give a path");
+		r = set_message (
+			ed,
+			ml_text ("messages.open_needs_path")
+		);
 	}
 
 	else if (ed->session.dirty && !force)
 	{
-		r = set_message (ed, "unsaved changes (:w saves, :open! discards)");
+		r = set_message (
+			ed,
+			ml_text ("messages.unsaved_open")
+		);
 	}
 
 	else
@@ -1493,8 +1518,8 @@ static MlResult open_session (MlEditor *ed, MlSlice path, int32_t force)
 			set_domain (ed, ed->session.domain);
 			r = set_message (ed, ml_choose (
 				loaded == ML_OK,
-				"opened",
-				"new file"
+				ml_text ("messages.opened"),
+				ml_text ("messages.new_file")
 			));
 		}
 	}
@@ -1508,7 +1533,10 @@ static MlResult quit (MlEditor *ed, int32_t force)
 
 	if (ed->session.dirty && !force)
 	{
-		r = set_message (ed, "unsaved changes (:w saves, :q! discards)");
+		r = set_message (
+			ed,
+			ml_text ("messages.unsaved_quit")
+		);
 	}
 
 	else
@@ -1551,8 +1579,8 @@ static MlResult set_symbols (MlEditor *ed, MlSlice arg)
 			ed,
 			ml_choose (
 				ed->results.free_symbols,
-				"symbols: on",
-				"symbols: off"
+				ml_text ("messages.symbols_on"),
+				ml_text ("messages.symbols_off")
 			)
 		);
 	}
@@ -1711,7 +1739,10 @@ static MlResult set_theme (MlEditor *ed, MlSlice arg)
 
 	else if (load_user_theme (ed, name) != ML_OK)
 	{
-		r = set_message (ed, "no such theme");
+		r = set_message (
+			ed,
+			ml_text ("messages.no_such_theme")
+		);
 	}
 
 	return r;
@@ -1740,7 +1771,10 @@ static MlResult set_colors (MlEditor *ed, MlSlice arg)
 
 	else if (level == ML_COLORS_COUNT)
 	{
-		r = set_message (ed, "colors: 24bit, 256, 16 or off");
+		r = set_message (
+			ed,
+			ml_text ("messages.colors_usage")
+		);
 	}
 
 	else
@@ -1867,7 +1901,10 @@ static MlResult map_key (MlEditor *ed, MlSlice arg, int32_t unmap)
 
 	else if (a == ML_ACT_COUNT)
 	{
-		r = set_message (ed, "map KEY ACTION: no such action, see :keys");
+		r = set_message (
+			ed,
+			ml_text ("messages.map_no_such_action")
+		);
 	}
 
 	else
@@ -2088,7 +2125,10 @@ static MlResult toggle_plot (MlEditor *ed, MlSlice arg)
 
 	if (line >= ed->session.lines.len || v.plot == NULL)
 	{
-		r = set_message (ed, "plot: this line has no plot");
+		r = set_message (
+			ed,
+			ml_text ("messages.plot_no_plot")
+		);
 	}
 
 	else
@@ -2096,7 +2136,11 @@ static MlResult toggle_plot (MlEditor *ed, MlSlice arg)
 		ml_session_set_plotted (&ed->session, line, on);
 		r = set_message (
 			ed,
-			ml_choose (on, "plot: shown in the panel", "plot: hidden")
+			ml_choose (
+				on,
+				ml_text ("messages.plot_shown"),
+				ml_text ("messages.plot_hidden")
+			)
 		);
 	}
 
@@ -2304,7 +2348,10 @@ static MlResult config_command (MlEditor *ed, MlSlice arg)
 
 		else
 		{
-			r = set_message (ed, "no settings folder");
+			r = set_message (
+				ed,
+				ml_text ("messages.no_settings_folder")
+			);
 		}
 
 		ml_str_free (&path);
@@ -2321,7 +2368,10 @@ static MlResult config_command (MlEditor *ed, MlSlice arg)
 
 		if (r == ML_OK && ed->message.len == 0)
 		{
-			r = set_message (ed, "settings read");
+			r = set_message (
+				ed,
+				ml_text ("messages.settings_read")
+			);
 		}
 	}
 
@@ -2332,7 +2382,10 @@ static MlResult config_command (MlEditor *ed, MlSlice arg)
 
 	else
 	{
-		r = set_message (ed, "config: path, reload, or nothing for the help");
+		r = set_message (
+			ed,
+			ml_text ("messages.config_usage")
+		);
 	}
 
 	return r;
@@ -2592,7 +2645,7 @@ MlResult ml_editor_start_tutorial (MlEditor *ed, MlSlice what)
 		ml_tutorial_start (&ed->tutorial, lesson, &v);
 		r = set_message (
 			ed,
-			"tutorial: F6 skips a step, :tutorial off leaves"
+			ml_text ("messages.tutorial_keys")
 		);
 	}
 
@@ -2640,7 +2693,10 @@ static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
 	if (ml_slice_equal (arg, ml_slice_cstr ("off")))
 	{
 		ml_tutorial_stop (&ed->tutorial);
-		r = set_message (ed, "tutorial left");
+		r = set_message (
+			ed,
+			ml_text ("messages.tutorial_left")
+		);
 	}
 
 	else if (ml_slice_equal (arg, ml_slice_cstr ("next")))
@@ -2670,7 +2726,10 @@ static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
 			ml_slice_cstr ("tutorial"),
 			ml_slice_cstr ("lesson")
 		);
-		r = set_message (ed, "tutorial: nothing is done yet");
+		r = set_message (
+			ed,
+			ml_text ("messages.tutorial_nothing_done")
+		);
 	}
 
 	else if (arg.len == 0 || ml_slice_equal (arg, ml_slice_cstr ("syntax")))
@@ -2679,7 +2738,7 @@ static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
 		{
 			r = set_message (
 				ed,
-				"the session has changes: :w it, or :tutorial! to leave it"
+				ml_text ("messages.tutorial_session_changed")
 			);
 		}
 
@@ -2696,7 +2755,7 @@ static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
 	{
 		r = set_message (
 			ed,
-			"tutorial: syntax, off, next, back, show or reset"
+			ml_text ("messages.tutorial_usage")
 		);
 	}
 
@@ -2778,7 +2837,10 @@ static MlResult export_command (
 
 	if (fmt == ML_EXPORT_COUNT)
 	{
-		r = set_message (ed, "export: latex, mathml or markdown");
+		r = set_message (
+			ed,
+			ml_text ("messages.export_format")
+		);
 	}
 
 	else if (
@@ -2789,12 +2851,18 @@ static MlResult export_command (
 		) != ML_OK
 	)
 	{
-		r = set_message (ed, "export: body, errors, a range like 3-12, a path");
+		r = set_message (
+			ed,
+			ml_text ("messages.export_options")
+		);
 	}
 
 	else if (path.len == 0 && ed->session.path.len == 0)
 	{
-		r = set_message (ed, "export: give a path (the session has no file)");
+		r = set_message (
+			ed,
+			ml_text ("messages.export_needs_path")
+		);
 	}
 
 	else
@@ -2826,7 +2894,10 @@ static MlResult export_command (
 
 		if (r == ML_OK && ml_fs_exists (ml_str_view (file)) && !force)
 		{
-			r = set_message (ed, "file exists (:export! replaces it)");
+			r = set_message (
+				ed,
+				ml_text ("messages.export_file_exists")
+			);
 		}
 
 		else if (r == ML_OK)
@@ -2850,7 +2921,10 @@ static MlResult export_command (
 
 			else
 			{
-				r = set_message (ed, "cannot write the export file");
+				r = set_message (
+					ed,
+					ml_text ("messages.export_cannot_write")
+				);
 			}
 		}
 	}
@@ -3014,7 +3088,10 @@ static MlResult set_mode (MlEditor *ed, MlSlice name)
 
 	else
 	{
-		r = set_message (ed, "unknown domain");
+		r = set_message (
+			ed,
+			ml_text ("messages.unknown_domain")
+		);
 	}
 
 	return r;
@@ -3188,7 +3265,10 @@ static MlResult move_to (MlEditor *ed, Range rg, MlSlice arg)
 
 	if (!dest.valid || dest.used != arg.len)
 	{
-		r = set_message (ed, "m needs a line number to move after");
+		r = set_message (
+			ed,
+			ml_text ("messages.move_needs_line")
+		);
 	}
 
 	else if (dest.after > rg.last + 1)
@@ -3222,7 +3302,10 @@ static MlResult copy_to (MlEditor *ed, Range rg, MlSlice arg)
 
 	if (!dest.valid || dest.used != arg.len)
 	{
-		r = set_message (ed, "t needs a line number to copy after");
+		r = set_message (
+			ed,
+			ml_text ("messages.copy_needs_line")
+		);
 	}
 
 	else
@@ -3260,7 +3343,10 @@ static MlResult run_range_command (
 
 	if (ed->session.lines.len == 0)
 	{
-		r = set_message (ed, "no lines");
+		r = set_message (
+			ed,
+			ml_text ("messages.no_lines")
+		);
 	}
 
 	else if (which == RC_DELETE)
@@ -3492,7 +3578,10 @@ static MlResult run_command (MlEditor *ed)
 
 	else if (cmd.len > 0)
 	{
-		r = set_message (ed, "unknown command");
+		r = set_message (
+			ed,
+			ml_text ("messages.unknown_command")
+		);
 	}
 
 	return r;
@@ -3927,7 +4016,10 @@ static MlResult row_copy (MlEditor *ed)
 
 	if (r == ML_OK)
 	{
-		r = set_message (ed, "copied");
+		r = set_message (
+			ed,
+			ml_text ("messages.copied")
+		);
 	}
 
 	return r;
@@ -3971,7 +4063,10 @@ static MlResult row_paste (MlEditor *ed)
 
 	if (ed->yank.len == 0)
 	{
-		r = set_message (ed, "nothing to paste");
+		r = set_message (
+			ed,
+			ml_text ("messages.nothing_to_paste")
+		);
 	}
 
 	else if (ed->yank_text)
@@ -4933,7 +5028,10 @@ static MlResult select_key (MlEditor *ed, MlKey key)
 
 		if (r == ML_OK)
 		{
-			r = set_message (ed, "lines copied");
+			r = set_message (
+				ed,
+				ml_text ("messages.lines_copied")
+			);
 		}
 	}
 

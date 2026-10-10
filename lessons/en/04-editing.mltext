@@ -1,0 +1,32 @@
+# Lesson 4: Selecting, copying, undo
+[lessons]
+editing.title = Selecting, copying, undo
+editing.stage = 1
+
+editing.1.check = action
+editing.1.arg = select-line
+editing.1.text = Go up one line and press {ACTION_SELECT_LINE} to select the
+    whole line.
+editing.1.hint = Press Up, then hold Ctrl and press L.
+editing.1.answer = <Up><ACTION_SELECT_LINE>
+
+editing.2.check = action
+editing.2.arg = copy
+editing.2.text = {ACTION_COPY} copies the selected lines.
+editing.2.answer = <ACTION_COPY>
+
+editing.3.check = action
+editing.3.arg = paste
+editing.3.text = Press Down to leave the selection, then {ACTION_PASTE} to
+    paste the copy below.
+editing.3.answer = <Down><ACTION_PASTE>
+
+editing.4.check = action
+editing.4.arg = undo
+editing.4.text = {ACTION_UNDO} undoes the last change. Try it.
+editing.4.answer = <ACTION_UNDO>
+
+editing.5.check = action
+editing.5.arg = redo
+editing.5.text = {ACTION_REDO} redoes what was undone.
+editing.5.answer = <ACTION_REDO>

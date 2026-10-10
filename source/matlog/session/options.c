@@ -1,5 +1,7 @@
 #include <matlog/session/options.h>
 
+#include <matlog/texts/texts.h>
+
 #include <string.h>
 
 static const MlOption options [] = {
@@ -8,48 +10,42 @@ static const MlOption options [] = {
 		.section = "display",
 		.kind    = ML_OPTION_TEXT,
 		.values  = "",
-		.initial = "auto",
-		.summary = "the colour theme (a built in one or a name.theme file)"
+		.initial = "auto"
 	},
 	{
 		.name    = "colors",
 		.section = "display",
 		.kind    = ML_OPTION_CHOICE,
 		.values  = "24bit|256|16|off",
-		.initial = "auto",
-		.summary = "how many colours the terminal shows"
+		.initial = "auto"
 	},
 	{
 		.name    = "highlight",
 		.section = "display",
 		.kind    = ML_OPTION_BOOL,
 		.values  = "",
-		.initial = "on",
-		.summary = "syntax colours in the editor"
+		.initial = "on"
 	},
 	{
 		.name    = "watch",
 		.section = "display",
 		.kind    = ML_OPTION_BOOL,
 		.values  = "",
-		.initial = "off",
-		.summary = "the watch window with the names and their values"
+		.initial = "off"
 	},
 	{
 		.name    = "language",
 		.section = "display",
 		.kind    = ML_OPTION_TEXT,
 		.values  = "",
-		.initial = "en",
-		.summary = "the language of messages, hints and lessons (a texts file)"
+		.initial = "en"
 	},
 	{
 		.name    = "ghost",
 		.section = "display",
 		.kind    = ML_OPTION_BOOL,
 		.values  = "",
-		.initial = "on",
-		.summary = "the preview of the result while typing"
+		.initial = "on"
 	}
 };
 
@@ -60,7 +56,12 @@ uint64_t ml_option_count (void)
 
 MlOption ml_option_at (uint64_t index)
 {
-	return options [ml_choose (index < ml_count (options), index, 0)];
+	MlOption o = options [ml_choose (index < ml_count (options), index, 0)];
+
+	/* the words of the summary are in the texts */
+	o.summary = ml_text_in ("options", o.name);
+
+	return o;
 }
 
 uint64_t ml_option_find (MlSlice name)

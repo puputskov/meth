@@ -1,0 +1,24 @@
+# Lesson 9: Names and functions
+[lessons]
+names.title = Names and functions
+names.stage = 2
+
+names.1.check = value
+names.1.param = g(2)
+names.1.param2 = 7
+names.1.text = Define a function g so that g(2) is 7. A function is written
+    g(x) = ...
+names.1.hint = For example g(x) = 3x + 1.
+names.1.answer = g(x) = 3x + 1<Enter>
+
+names.2.check = result
+names.2.param = 12
+names.2.text = A name is a whole word: 2x is 2 times x, but xy is one name.
+    Define x = 4, then write 3x on the next line.
+names.2.answer = x = 4<Enter>3x<Enter>
+
+names.3.check = result
+names.3.param = ≈ 3.14159265
+names.3.text = pi and e are constants. Write a line whose result is the
+    approximation of pi.
+names.3.answer = pi<Enter>

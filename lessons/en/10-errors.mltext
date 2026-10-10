@@ -1,0 +1,15 @@
+# Lesson 10: Reading errors
+[lessons]
+errors.title = Reading errors
+errors.stage = 2
+
+errors.1.check = error
+errors.1.param = 
+errors.1.text = Write a line with a mistake, 2 +, and press Enter. The
+    message says what is wrong and the place is marked.
+errors.1.answer = 2 +<Enter>
+
+errors.2.check = result
+errors.2.param = 4
+errors.2.text = Write the line right: a line whose result is 4.
+errors.2.answer = 2 + 2<Enter>

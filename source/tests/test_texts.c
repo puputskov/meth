@@ -16,6 +16,25 @@
 #define CONFIG_FILE "matlog_test_config/texts/settings.mlcfg"
 #define TEXT_FILE   "matlog_test_config/texts/texts/de.mltext"
 
+#define OWN_FILE  "matlog_test_config/texts/lessons/en/10-mine.mltext"
+#define LATE_FILE "matlog_test_config/texts/lessons/en/20-late.mltext"
+
+#define OWN_LESSON \
+	"[lessons]\n" \
+	"mine.title = Mine\n" \
+	"mine.stage = 2\n" \
+	"mine.1.check = steps\n" \
+	"mine.1.text = Show the steps.\n" \
+	"mine.1.answer = <F3>\n"
+
+#define LATE_LESSON \
+	"[lessons]\n" \
+	"zlate.title = Late\n" \
+	"zlate.stage = 2\n" \
+	"zlate.1.check = steps\n" \
+	"zlate.1.text = Again.\n" \
+	"zlate.1.answer = <F3>\n"
+
 #define GERMAN \
 	"[errors]\n" \
 	"div_zero = Division durch null\n" \
@@ -285,6 +304,39 @@ static void test_hints (void)
 	ml_texts_reload ("en", NULL);
 }
 
+/* A lesson in a file of the lessons folder of the settings folder. */
+static void test_lesson_files (void)
+{
+	uint64_t count;
+	uint64_t at;
+
+	use_test_config ();
+	ml_fs_remove (lit (CONFIG_FILE));
+	ml_fs_remove (lit (OWN_FILE));
+	ml_fs_remove (lit (LATE_FILE));
+	CHECK (ml_fs_make_dirs (lit (CONFIG_DIR "/lessons/en")) == ML_OK);
+	ml_texts_reload ("en", NULL);
+	count = ml_lesson_count ();
+
+	/* two files: the lessons come in the order of the names of the files */
+	CHECK (
+		ml_fs_write_file_atomic (lit (LATE_FILE), lit (LATE_LESSON))
+		== ML_OK
+	);
+	CHECK (ml_fs_write_file_atomic (lit (OWN_FILE), lit (OWN_LESSON)) == ML_OK);
+	CHECK (ml_texts_reload ("en", NULL) == ML_OK);
+	CHECK (ml_lesson_count () == count + 2);
+	at = ml_lesson_find (lit ("mine"));
+	CHECK (at == count);
+	CHECK (is (ml_lesson_at (at).title, "Mine"));
+	CHECK (ml_lesson_find (lit ("zlate")) == count + 1);
+
+	ml_fs_remove (lit (OWN_FILE));
+	ml_fs_remove (lit (LATE_FILE));
+	ml_texts_reload ("en", NULL);
+	CHECK (ml_lesson_count () == count);
+}
+
 /* The lessons of the tutorial are entries of the catalog. */
 static void test_lessons (void)
 {
@@ -365,4 +417,5 @@ void run_texts_tests (void)
 	test_complete ();
 	test_hints ();
 	test_lessons ();
+	test_lesson_files ();
 }

@@ -4,43 +4,43 @@
 
 #include <matlog/core/utf8.h>
 #include <matlog/session/settings.h>
+#include <matlog/texts/texts.h>
 
 #define KEYS_SECTION "keys"
 
 typedef struct ActionInfo
 {
 	const char *name;
-	const char *summary;
 } ActionInfo;
 
 static const ActionInfo actions [ML_ACT_COUNT] = {
-	[ML_ACT_NONE]        = { "none",        "no action" },
-	[ML_ACT_UNDO]        = { "undo",        "undo the last change" },
-	[ML_ACT_REDO]        = { "redo",        "redo what was undone" },
-	[ML_ACT_BLOCK_NEW]   = { "block-new",   "start a block, last domain" },
-	[ML_ACT_BLOCK_PICK]  = { "block-pick",  "start a block, pick the domain" },
-	[ML_ACT_NOTE_TOGGLE] = { "note-toggle", "make the line a note, or back" },
-	[ML_ACT_DOMAIN_NEXT] = { "domain-next", "the next domain of the line" },
-	[ML_ACT_DOMAIN_PREV] = { "domain-prev", "the previous domain of the line" },
-	[ML_ACT_LINES_DOWN]  = { "lines-down",  "move the selected lines down" },
-	[ML_ACT_LINES_UP]    = { "lines-up",    "move the selected lines up" },
-	[ML_ACT_FOLD]        = { "fold",        "fold or unfold the block" },
-	[ML_ACT_BLOCK_NEXT]  = { "block-next",  "go to the next block" },
-	[ML_ACT_BLOCK_PREV]  = { "block-prev",  "go to the previous block" },
-	[ML_ACT_GOTO_FIRST]  = { "goto-first",  "go to the first line" },
-	[ML_ACT_GOTO_LAST]   = { "goto-last",   "go to the last line" },
-	[ML_ACT_SELECT_LINE] = { "select-line", "select the line" },
-	[ML_ACT_SELECT_ALL]  = { "select-all",  "select everything" },
-	[ML_ACT_COPY]        = { "copy",        "copy the selection or the line" },
-	[ML_ACT_CUT]         = { "cut",         "cut the selection or the line" },
-	[ML_ACT_PASTE]       = { "paste",       "paste" },
-	[ML_ACT_COMMAND]     = { "command",     "open the command line" },
-	[ML_ACT_SAVE]        = { "save",        "save the session" },
-	[ML_ACT_QUIT]        = { "quit",        "save and quit" },
-	[ML_ACT_STEPS]       = { "steps",       "show or hide the line's steps" },
-	[ML_ACT_HELP]        = { "help",        "open the help" },
-	[ML_ACT_WATCH]       = { "watch",       "show or hide the watch window" },
-	[ML_ACT_PLOT]        = { "plot",        "show or hide the line's plot" }
+	[ML_ACT_NONE]        = { "none" },
+	[ML_ACT_UNDO]        = { "undo" },
+	[ML_ACT_REDO]        = { "redo" },
+	[ML_ACT_BLOCK_NEW]   = { "block-new" },
+	[ML_ACT_BLOCK_PICK]  = { "block-pick" },
+	[ML_ACT_NOTE_TOGGLE] = { "note-toggle" },
+	[ML_ACT_DOMAIN_NEXT] = { "domain-next" },
+	[ML_ACT_DOMAIN_PREV] = { "domain-prev" },
+	[ML_ACT_LINES_DOWN]  = { "lines-down" },
+	[ML_ACT_LINES_UP]    = { "lines-up" },
+	[ML_ACT_FOLD]        = { "fold" },
+	[ML_ACT_BLOCK_NEXT]  = { "block-next" },
+	[ML_ACT_BLOCK_PREV]  = { "block-prev" },
+	[ML_ACT_GOTO_FIRST]  = { "goto-first" },
+	[ML_ACT_GOTO_LAST]   = { "goto-last" },
+	[ML_ACT_SELECT_LINE] = { "select-line" },
+	[ML_ACT_SELECT_ALL]  = { "select-all" },
+	[ML_ACT_COPY]        = { "copy" },
+	[ML_ACT_CUT]         = { "cut" },
+	[ML_ACT_PASTE]       = { "paste" },
+	[ML_ACT_COMMAND]     = { "command" },
+	[ML_ACT_SAVE]        = { "save" },
+	[ML_ACT_QUIT]        = { "quit" },
+	[ML_ACT_STEPS]       = { "steps" },
+	[ML_ACT_HELP]        = { "help" },
+	[ML_ACT_WATCH]       = { "watch" },
+	[ML_ACT_PLOT]        = { "plot" }
 };
 
 const char *ml_action_name (MlAction a)
@@ -56,7 +56,7 @@ const char *ml_action_summary (MlAction a)
 {
 	return ml_choose (
 		(int32_t)a >= 0 && a < ML_ACT_COUNT,
-		actions [a].summary,
+		ml_text_in ("actions", actions [a].name),
 		""
 	);
 }

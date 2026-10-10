@@ -1,0 +1,46 @@
+# Lesson 2: Math lines
+[lessons]
+math.title = Math lines
+math.stage = 1
+
+math.1.check = action
+math.1.arg = block-new
+math.1.text = Press {ACTION_BLOCK_NEW}. A math line starts, in a block of
+    the domain used last (algebra at first).
+math.1.hint = Hold Ctrl and press Enter. Some terminals send Shift and Enter
+    together for it.
+math.1.answer = <ACTION_BLOCK_NEW>
+
+math.2.check = result
+math.2.param = 1/2
+math.2.text = Type 1/3 + 1/6. The dim text after it is a preview of the
+    result. Press Enter to keep the line.
+math.2.hint = Type the characters 1/3 + 1/6 exactly, then Enter.
+math.2.answer = 1/3 + 1/6<Enter>
+
+math.3.check = result
+math.3.param = 12
+math.3.text = Lines work in order: a name you define is known below it. Type
+    a = 12 and press Enter.
+math.3.hint = Type a = 12 and press Enter.
+math.3.answer = a = 12<Enter>
+
+math.4.check = result
+math.4.param = 5/2
+math.4.text = Use it: type a/8 + 1 and press Enter.
+math.4.hint = a/8 + 1 with a being 12 gives 5/2.
+math.4.answer = a/8 + 1<Enter>
+
+math.5.check = error
+math.5.param = div_zero
+math.5.text = A line that cannot be computed shows a message in red. Type
+    1/0 and press Enter.
+math.5.hint = One divided by zero.
+math.5.answer = 1/0<Enter>
+
+math.6.check = state
+math.6.arg = note
+math.6.text = Enter on an empty line of a block ends the block, and a note
+    starts below it. Press Enter.
+math.6.hint = The line you are on is empty. Press Enter on it.
+math.6.answer = <Enter>

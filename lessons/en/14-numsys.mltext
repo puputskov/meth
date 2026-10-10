@@ -1,0 +1,24 @@
+# Lesson 14: Complex numbers, quaternions, statistics
+[lessons]
+numsys.title = Complex numbers, quaternions, statistics
+numsys.stage = 2
+
+numsys.1.check = result
+numsys.1.param = 5 + 5i
+numsys.1.text = i is the imaginary unit. Multiply (1+2i)*(3-i).
+numsys.1.answer = (1+2i)*(3-i)<Enter>
+
+numsys.2.check = result
+numsys.2.param = 2i
+numsys.2.text = The square root of a negative number is complex: sqrt(-4).
+numsys.2.answer = sqrt(-4)<Enter>
+
+numsys.3.check = result
+numsys.3.param = k
+numsys.3.text = Quaternions use i, j and k: write i*j.
+numsys.3.answer = i*j<Enter>
+
+numsys.4.check = result
+numsys.4.param = 5/2
+numsys.4.text = Statistics: the mean of a list, mean([1,2,3,4]).
+numsys.4.answer = mean([1,2,3,4])<Enter>

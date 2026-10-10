@@ -1,0 +1,14 @@
+# Lesson 13: Units
+[lessons]
+units.title = Units
+units.stage = 2
+
+units.1.check = result
+units.1.param = 5300 m
+units.1.text = Units are part of numbers: write 5 km + 300 m.
+units.1.answer = 5 km + 300 m<Enter>
+
+units.2.check = result
+units.2.param = 1143/1250 m
+units.2.text = to converts: write 3 ft to m.
+units.2.answer = 3 ft to m<Enter>

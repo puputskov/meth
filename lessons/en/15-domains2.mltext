@@ -1,0 +1,16 @@
+# Lesson 15: Boolean algebra and lambda calculus
+[lessons]
+domains2.title = Boolean algebra and lambda calculus
+domains2.stage = 2
+
+domains2.1.check = result
+domains2.1.param = true
+domains2.1.text = Other domains have their own syntax. Switch with
+    {ACTION_COMMAND}, mode boolean, then start a block and write a | ~a.
+domains2.1.answer = <ACTION_COMMAND>mode boolean<Enter><ACTION_BLOCK_NEW>a | ~a<Enter>
+
+domains2.2.check = result
+domains2.2.param = y
+domains2.2.text = The lambda calculus: switch with mode lambda, start a
+    block and write (λx. x) y. The result is the reduced term.
+domains2.2.answer = <ACTION_COMMAND>mode lambda<Enter><ACTION_BLOCK_NEW>(λx. x) y<Enter>

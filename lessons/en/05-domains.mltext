@@ -1,0 +1,43 @@
+# Lesson 5: Domains and commands
+[lessons]
+domains.title = Domains and commands
+domains.stage = 1
+
+domains.1.check = action
+domains.1.arg = domain-next
+domains.1.text = Every math line has a domain: algebra, lambda, pga2, pga3
+    or boolean. The label at the left shows it. {ACTION_DOMAIN_NEXT} goes to
+    the next domain.
+domains.1.hint = Hold Alt and press the right arrow.
+domains.1.answer = <ACTION_DOMAIN_NEXT>
+
+domains.2.check = action
+domains.2.arg = block-pick
+domains.2.text = {ACTION_BLOCK_PICK} chooses the domain of a new block
+    first. Press it.
+domains.2.answer = <ACTION_BLOCK_PICK>
+
+domains.3.check = key
+domains.3.arg = Esc
+domains.3.text = Press Esc to cancel the choice.
+domains.3.answer = <Esc>
+
+domains.4.check = command
+domains.4.param = mode boolean
+domains.4.text = {ACTION_COMMAND} opens the command line. Type mode boolean
+    and press Enter: new blocks are boolean from now on.
+domains.4.hint = {ACTION_COMMAND}, then the words mode boolean, then Enter.
+domains.4.answer = <ACTION_COMMAND>mode boolean<Enter>
+
+domains.5.check = result
+domains.5.param = false
+domains.5.text = Start a block with {ACTION_BLOCK_NEW}, type a & ~a and
+    press Enter. In the boolean domain & is and, ~ is not.
+domains.5.hint = a and not a is never true.
+domains.5.answer = <ACTION_BLOCK_NEW>a & ~a<Enter>
+
+domains.6.check = command
+domains.6.param = mode algebra
+domains.6.text = Back to algebra: {ACTION_COMMAND}, then mode algebra and
+    Enter.
+domains.6.answer = <ACTION_COMMAND>mode algebra<Enter>

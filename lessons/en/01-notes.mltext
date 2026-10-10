@@ -1,0 +1,35 @@
+# The lessons of the tutorial. A lesson is an id with a title and a stage (1: the
+# tool, 2: the syntax); its steps are numbered from 1. A step has `check` (what
+# the editor must show for the step to be done: action, key, notes, result,
+# error, value, domain, state, state_not, command, steps or watch), `arg` for
+# some of the checks (the action, the key, the domain, the state, on or off, a
+# number), `param` and `param2` for the checks that compare text, the `text`
+# the user reads, a `hint` shown after a few keys that did not do it, and the
+# `answer`: the keys of a model answer, a key between < > is pressed. A new
+# lesson is new entries with a new id. The tests play every answer.
+
+# Lesson 1: Writing and notes
+[lessons]
+notes.title = Writing and notes
+notes.stage = 1
+
+notes.1.check = notes
+notes.1.arg = 1
+notes.1.text = Welcome. A new line is a note, free text. Type a sentence and
+    press Enter.
+notes.1.hint = Type some letters, then press the Enter key.
+notes.1.answer = My first note<Enter>
+
+notes.2.check = key
+notes.2.arg = Up
+notes.2.text = Press Up to go back to your note. The cursor moves across
+    lines like in any text editor.
+notes.2.hint = The key with the arrow pointing up.
+notes.2.answer = <Up>
+
+notes.3.check = key
+notes.3.arg = Enter
+notes.3.text = Press End to jump to the end of the line, then Enter: a new
+    line starts below it.
+notes.3.hint = End is next to Home. Then the Enter key.
+notes.3.answer = <End><Enter>

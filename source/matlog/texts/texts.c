@@ -307,33 +307,180 @@ static MlResult add_built_in (void)
 	return r;
 }
 
-/* The file texts/<language>.mltext of the settings folder, read if there. */
-static MlResult add_user (const char *language, uint64_t *bad)
+/* Reads the catalog file, if there is one; a missing file is not an error. */
+static MlResult add_file (MlSlice path, uint64_t *bad)
 {
-	MlStr    path;
 	MlStr    text;
 	MlResult r = ML_OK;
 
-	ml_str_init (&path);
 	ml_str_init (&text);
 
-	if (ml_config_dir (&path) == ML_OK)
+	if (ml_fs_read_file (&text, path) == ML_OK)
 	{
-		r = ml_str_appendf (
-			&path,
-			"/texts/%s.mltext",
-			ml_choose (language != NULL && language [0] != '\0', language, "en")
-		);
+		r = ml_texts_add (ml_str_view (text), bad);
+	}
 
-		/* a missing file is not an error: the English texts are enough */
-		if (r == ML_OK && ml_fs_read_file (&text, ml_str_view (path)) == ML_OK)
+	ml_str_free (&text);
+
+	return r;
+}
+
+ML_VEC_DEFINE (NameVec, MlStr)
+
+/* The names of the lines of text, sorted. */
+static MlResult sorted_names (NameVec *out, MlSlice lines)
+{
+	MlResult r   = ML_OK;
+	uint64_t pos = 0;
+
+	while (pos < lines.len && r == ML_OK)
+	{
+		uint64_t end = pos;
+		MlStr    name;
+
+		while (end < lines.len && lines.data [end] != '\n')
 		{
-			r = ml_texts_add (ml_str_view (text), bad);
+			end++;
+		}
+
+		ml_str_init (&name);
+		r = ml_str_append (&name, ml_slice_sub (lines, pos, end - pos));
+
+		if (r == ML_OK && name.len > 0)
+		{
+			r = NameVec_push (out, name);
+		}
+
+		else
+		{
+			ml_str_free (&name);
+		}
+
+		pos = end + 1;
+	}
+
+	/* insertion sort: a folder has a handful of files */
+	for (uint64_t i = 1; i < out->len; i++)
+	{
+		for (
+			uint64_t k = i;
+			k > 0 && strcmp (
+				ml_str_cstr (out->data [k - 1]),
+				ml_str_cstr (out->data [k])
+			) > 0;
+			k--
+		)
+		{
+			MlStr swap       = out->data [k - 1];
+
+			out->data [k - 1] = out->data [k];
+			out->data [k]     = swap;
 		}
 	}
 
+	return r;
+}
+
+/* Reads the catalog files of a folder, in the order of their names. */
+static MlResult add_folder (MlSlice dir, uint64_t *bad)
+{
+	MlStr    listing;
+	NameVec  names;
+	MlResult r;
+
+	ml_str_init (&listing);
+	NameVec_init (&names);
+	r = ml_fs_list (&listing, dir, ml_slice_cstr (".mltext"));
+
+	if (r == ML_OK)
+	{
+		r = sorted_names (&names, ml_str_view (listing));
+	}
+
+	for (uint64_t i = 0; i < names.len && r == ML_OK; i++)
+	{
+		MlStr path;
+
+		ml_str_init (&path);
+		r = ml_str_appendf (
+			&path,
+			"%.*s/%s",
+			(int32_t)dir.len,
+			dir.data,
+			ml_str_cstr (names.data [i])
+		);
+
+		if (r == ML_OK)
+		{
+			r = add_file (ml_str_view (path), bad);
+		}
+
+		ml_str_free (&path);
+	}
+
+	for (uint64_t i = 0; i < names.len; i++)
+	{
+		ml_str_free (&names.data [i]);
+	}
+
+	NameVec_free (&names);
+	ml_str_free (&listing);
+
+	return r;
+}
+
+/*
+ * The files of the settings folder over the English texts: texts/<language>
+ * .mltext, then the lessons in lessons/<language>/, each file in the order of
+ * its name.
+ */
+static MlResult add_user (const char *language, uint64_t *bad)
+{
+	MlStr       dir;
+	MlStr       path;
+	MlResult    r    = ML_OK;
+	const char *lang = ml_choose (
+		language != NULL && language [0] != '\0',
+		language,
+		"en"
+	);
+
+	ml_str_init (&dir);
+	ml_str_init (&path);
+
+	if (ml_config_dir (&dir) == ML_OK)
+	{
+		r = ml_str_appendf (
+			&path,
+			"%s/texts/%s.mltext",
+			ml_str_cstr (dir),
+			lang
+		);
+
+		if (r == ML_OK)
+		{
+			r = add_file (ml_str_view (path), bad);
+		}
+
+		if (r == ML_OK)
+		{
+			ml_str_clear (&path);
+			r = ml_str_appendf (
+				&path,
+				"%s/lessons/%s",
+				ml_str_cstr (dir),
+				lang
+			);
+		}
+
+		if (r == ML_OK)
+		{
+			r = add_folder (ml_str_view (path), bad);
+		}
+	}
+
+	ml_str_free (&dir);
 	ml_str_free (&path);
-	ml_str_free (&text);
 
 	return r;
 }

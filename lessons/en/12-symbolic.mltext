@@ -1,0 +1,20 @@
+# Lesson 12: Derivatives, integrals, limits
+[lessons]
+symbolic.title = Derivatives, integrals, limits
+symbolic.stage = 2
+
+symbolic.1.check = result
+symbolic.1.param = 3x²
+symbolic.1.text = Names that stand for nothing are symbols inside the
+    symbolic functions. Differentiate x^3 with diff(x^3, x).
+symbolic.1.answer = diff(x^3, x)<Enter>
+
+symbolic.2.check = result
+symbolic.2.param = 9
+symbolic.2.text = Integrate x^2 from 0 to 3: integrate(x^2, x, 0, 3).
+symbolic.2.answer = integrate(x^2, x, 0, 3)<Enter>
+
+symbolic.3.check = result
+symbolic.3.param = 1
+symbolic.3.text = A limit: limit(sin(x)/x, x, 0).
+symbolic.3.answer = limit(sin(x)/x, x, 0)<Enter>

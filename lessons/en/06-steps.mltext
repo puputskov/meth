@@ -1,0 +1,22 @@
+# Lesson 6: Results and steps
+[lessons]
+steps.title = Results and steps
+steps.stage = 1
+
+steps.1.check = result
+steps.1.param = -2
+steps.1.text = Start a block and write det([[1,2],[3,4]]), the determinant
+    of a matrix. Press Enter.
+steps.1.hint = {ACTION_BLOCK_NEW}, then the text, then Enter.
+steps.1.answer = <ACTION_BLOCK_NEW>det([[1,2],[3,4]])<Enter>
+
+steps.2.check = steps
+steps.2.text = Go up to that line and press {ACTION_STEPS}: the steps of the
+    calculation are shown under it.
+steps.2.hint = Press Up once, then {ACTION_STEPS}.
+steps.2.answer = <Up><ACTION_STEPS>
+
+steps.3.check = action
+steps.3.arg = steps
+steps.3.text = {ACTION_STEPS} again hides the steps.
+steps.3.answer = <ACTION_STEPS>
