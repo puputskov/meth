@@ -672,10 +672,57 @@ static void test_texts_check (void)
 	ml_fs_remove (lit (file));
 }
 
+static void test_proof_command (void)
+{
+	const char *file = "matlog_test_proof.tmp";
+	Run         r;
+
+	CHECK (
+		ml_fs_write_file_atomic (
+			lit (file),
+			lit (
+				"theorem t: x + x = 2x\n"
+				"x + x = 2x  by simplify\n"
+				"qed\n"
+			)
+		) == ML_OK
+	);
+	r = run ("proof", file, NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (out_is (&r, "2: valid\n3: proved\n"));
+	run_free (&r);
+
+	CHECK (
+		ml_fs_write_file_atomic (
+			lit (file),
+			lit (
+				"theorem t: x + x = 3x\n"
+				"x + x = 3x  by simplify\n"
+				"qed\n"
+			)
+		) == ML_OK
+	);
+	r = run ("proof", file, NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_ERROR);
+	CHECK (strstr (ml_str_cstr (r.out), "2: not valid: x = 2") != NULL);
+	run_free (&r);
+
+	r = run ("proof", "no_such_file.mlog", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_IO);
+	run_free (&r);
+
+	r = run ("proof", NULL, NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_USAGE);
+	run_free (&r);
+
+	ml_fs_remove (lit (file));
+}
+
 void run_cli_tests (void);
 
 void run_cli_tests (void)
 {
+	test_proof_command ();
 	test_steps_command ();
 	test_eval_text ();
 	test_eval_json ();

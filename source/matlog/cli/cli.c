@@ -12,6 +12,7 @@
 #include <matlog/session/options.h>
 #include <matlog/session/settings.h>
 #include <matlog/session/watch.h>
+#include <matlog/proof/proof.h>
 #include <matlog/texts/texts.h>
 #include <matlog/ui/theme.h>
 
@@ -36,6 +37,7 @@ static const char *const commands [] = {
 	"vars",
 	"schema",
 	"texts",
+	"proof",
 	"commands",
 	"version"
 };
@@ -2094,6 +2096,122 @@ static int32_t cmd_texts (const Options *o, MlStr *out, MlStr *err)
 	return code;
 }
 
+/* The code of the text that names a verdict. */
+static const char *proof_mark_code (MlProofMark m)
+{
+	const char *code = "proof_marks.valid";
+
+	switch (m)
+	{
+		case ML_PROOF_INVALID:
+		{
+			code = "proof_marks.invalid";
+		} break;
+
+		case ML_PROOF_UNCHECKED:
+		{
+			code = "proof_marks.unchecked";
+		} break;
+
+		case ML_PROOF_SORRY:
+		{
+			code = "proof_marks.sorry";
+		} break;
+
+		case ML_PROOF_SYNTAX:
+		{
+			code = "proof_marks.syntax";
+		} break;
+
+		default:
+		{
+			code = "proof_marks.valid";
+		} break;
+	}
+
+	return code;
+}
+
+/* matlog proof FILE: the verdict of the proof checker on every line. */
+static int32_t cmd_proof (const Options *o, MlStr *out, MlStr *err)
+{
+	int32_t       code = ML_EXIT_OK;
+	MlResult      r    = ML_OK;
+	MlStr         text;
+	MlProofReport rep;
+
+	ml_str_init (&text);
+	ml_proof_report_init (&rep);
+
+	if (o->rest.len != 1)
+	{
+		code = usage_error (
+			err,
+			ml_text ("cli_msg.proof_needs_file"),
+			ml_slice ("", 0)
+		);
+	}
+
+	else
+	{
+		r = ml_fs_read_file (&text, o->rest.data [0]);
+
+		if (r != ML_OK)
+		{
+			code = ML_EXIT_IO;
+			file_error (err, "cli_msg.cannot_read_path", o->rest.data [0]);
+		}
+	}
+
+	if (code == ML_EXIT_OK)
+	{
+		r = ml_proof_check (&rep, ml_str_view (text));
+	}
+
+	if (code == ML_EXIT_OK && r == ML_OK)
+	{
+		uint64_t bad = 0;
+
+		for (uint64_t i = 0; i < rep.lines.len && r == ML_OK; i++)
+		{
+			const MlProofLine *l = &rep.lines.data [i];
+
+			if (l->mark != ML_PROOF_NONE)
+			{
+				const char *words = ml_text (proof_mark_code (l->mark));
+
+				r = ml_str_appendf (
+					out,
+					"%llu: %s\n",
+					(unsigned long long)(i + 1),
+					ml_choose (l->note.len > 0, ml_str_cstr (l->note), words)
+				);
+			}
+
+			bad += (
+				   l->mark == ML_PROOF_INVALID
+				|| l->mark == ML_PROOF_SYNTAX
+			);
+		}
+
+		code = ml_choose (
+			bad > 0 || rep.proved < rep.theorems,
+			ML_EXIT_ERROR,
+			ML_EXIT_OK
+		);
+	}
+
+	if (r != ML_OK && code == ML_EXIT_OK)
+	{
+		code = ML_EXIT_IO;
+		err_line (err, "cli_msg.out_of_memory");
+	}
+
+	ml_proof_report_free (&rep);
+	ml_str_free (&text);
+	return code;
+}
+
 static int32_t cmd_examples (const Options *o, MlStr *out, MlStr *err)
 {
 	MlResult r    = ML_OK;
@@ -2297,6 +2415,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "texts"))
 	{
 		code = cmd_texts (&o, out, err);
+	}
+
+	else if (is (cmd, "proof"))
+	{
+		code = cmd_proof (&o, out, err);
 	}
 
 	else if (is (cmd, "commands"))

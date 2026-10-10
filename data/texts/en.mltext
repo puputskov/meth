@@ -238,6 +238,14 @@ ghost = the preview of the result while typing
 # The help of the command line (matlog help, matlog syntax, matlog schema):
 # blocks, the lines as they are.
 [help]
+proof = <<
+matlog proof FILE
+
+Checks the proofs written in FILE (theorem, steps with a reason after `by`,
+qed) and prints a line for every line that has a verdict: its number, then
+valid, not valid (with values that show it), not checked or a syntax error.
+Exit code 1 when a line is not valid or a theorem is not proved.
+>>
 texts = <<
 matlog texts check [FILE]
 
@@ -269,6 +277,7 @@ commands:
   vars FILE[:LINE]  the names defined at a line, with type and value
   schema         the shape of the JSON output
   texts check [FILE]   the gaps and mistakes of a translation
+  proof FILE     check the proofs in a file
   commands       the list of commands (--format json for tools)
   version        the version
 
@@ -440,6 +449,7 @@ examples = worked examples as session files
 vars = the names defined at a line of a file
 schema = shape of the JSON output
 texts = check the texts of a translation
+proof = check the proofs of a file
 commands = list of commands
 version = the version
 
@@ -484,6 +494,7 @@ domain_needs_a_domain_name = --domain needs a domain name
 unknown_option = unknown option
 try_help = try: matlog help
 texts_needs_check = texts needs check [FILE]
+proof_needs_file = proof needs one FILE
 
 # Labels of the screen. {title} is the title of the help page.
 [ui]
@@ -531,6 +542,43 @@ unreachable = {id}: cannot be reached from the index
 example_bad = {id}: {detail}
 example_differs = example `{text}` gives `{got}`, the page says `{want}`
 no_index = there is no page `index`
+
+# The words for the verdict of a proof line (matlog proof).
+[proof_marks]
+valid = valid
+invalid = not valid
+unchecked = not checked
+sorry = sorry
+syntax = syntax error
+
+# The notes of the proof checker (matlog proofs, the proof domain). A line is
+# valid, not valid (a reason), not checked (the engine cannot decide) or has a
+# syntax problem.
+[proof]
+outside = not in a theorem: start with `theorem NAME: LEFT = RIGHT`
+theorem_form = write `theorem NAME: LEFT = RIGHT`
+step_form = a step is an equation `LEFT = RIGHT  by REASON`
+bad_formula = cannot read `{text}` as a formula
+no_previous = there is no step above to continue
+unknown_by = unknown reason `{word}`: use simplify, expand, hypothesis, step N, lemma NAME or sorry
+no_by = not checked: no reason; add `by simplify`, `by expand`, `by hypothesis`, `by step N` or `by lemma NAME`
+too_big = not checked: the formula is too big
+not_equal = not valid: {point}: {left} ≠ {right}
+undecided = not checked: the sides are not the same after {how}
+hyp_missing = not checked: no `given` equation says this
+step_missing = not valid: there is no step {n} above
+step_not_valid = not checked: step {n} is not valid
+step_differs = not checked: step {n} does not say this
+lemma_unknown = not valid: no proved theorem called `{name}` above
+lemma_given = not checked: theorem `{name}` needs hypotheses, which a lemma cannot have yet
+lemma_differs = not checked: theorem `{name}` does not say this
+rule_unsupported = not checked: rules are not available yet
+sorry = sorry: this step is not proved
+qed_errors = not proved: some steps are not valid
+qed_sorry = not proved: the proof uses sorry
+qed_unchecked = not proved: {count} steps are not checked
+qed_goal = not proved: the steps stop at {at}, not at the claim
+qed_ok = proved
 
 # The lessons of the tutorial are in the files lessons/en/*.mltext, one lesson per
 # file, built into the program in the same way and read in the order of their names.

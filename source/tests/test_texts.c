@@ -553,6 +553,7 @@ static const char *const source_folders [] = {
 	"source/app", "source/matlog", "source/matlog/cli", "source/matlog/core",
 	"source/matlog/docs", "source/matlog/export", "source/matlog/logic",
 	"source/matlog/math", "source/matlog/parse", "source/matlog/platform",
+	"source/matlog/proof",
 	"source/matlog/session", "source/matlog/sym", "source/matlog/texts",
 	"source/matlog/tutorial", "source/matlog/ui"
 };
