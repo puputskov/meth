@@ -111,7 +111,7 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
   only); the CLI gets `matlog eval` with image results written to a file. Needs PNG decoding (inflate) and encoding (the export module needs it for
   section 4.11 anyway, so they are shared).
 
-## 8. Fuzzer (4.23, not built)
+## 8. Fuzzer (4.23, first target built: parser and evaluator, see DONE.md)
 
 
 - A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples

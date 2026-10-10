@@ -59,6 +59,7 @@ void run_export_tests (void);
 void run_docs_tests (void);
 void run_words_tests (void);
 void run_pga_tests (void);
+void run_fuzz_tests (void);
 
 typedef struct TestGroup
 {
@@ -114,7 +115,8 @@ static const TestGroup groups [] = {
 	{ .name = "export",    .run = run_export_tests },
 	{ .name = "docs",      .run = run_docs_tests },
 	{ .name = "pga",       .run = run_pga_tests },
-	{ .name = "words",     .run = run_words_tests }
+	{ .name = "words",     .run = run_words_tests },
+	{ .name = "fuzz",      .run = run_fuzz_tests }
 };
 
 /*
