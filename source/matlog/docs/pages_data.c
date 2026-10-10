@@ -1608,8 +1608,9 @@ static const char text_texts [] =
 	" read in\n"
 	"the order of their names, after the built in ones, and a step the prog"
 	"ram does\n"
-	"not understand is left out. `:tutorial` then lists your lesson with th"
-	"e others.\n";
+	"not understand is left out. The tutorial plays your lesson after the l"
+	"essons of\n"
+	"its stage.\n";
 
 static const char text_themes [] =
 	"id: themes\n"

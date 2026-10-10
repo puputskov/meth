@@ -76,4 +76,5 @@ of an action, a key, a domain or a state, `on` or `off`, a number), `param` and
 and `>` is pressed. To add a lesson, put such a file in the folder `lessons/en`
 (or the folder of your language) of the settings folder; the files are read in
 the order of their names, after the built in ones, and a step the program does
-not understand is left out. `:tutorial` then lists your lesson with the others.
+not understand is left out. The tutorial plays your lesson after the lessons of
+its stage.
