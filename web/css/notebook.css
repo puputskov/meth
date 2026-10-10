@@ -1,0 +1,497 @@
+/* The notebook: cells, lines, results. */
+
+#notebook {
+	max-width: 54rem;
+	margin: 0 auto;
+	padding: 1.5rem 1rem 40vh;
+}
+
+/* a gap between cells; the buttons to add a cell show when it is hovered */
+.insert {
+	position: relative;
+	height: 1.25rem;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 0.4rem;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+
+.insert::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	border-top: 1px dashed var(--line-strong);
+}
+
+.insert:hover,
+.insert:focus-within {
+	opacity: 1;
+}
+
+.insert button {
+	position: relative;
+	padding: 0 0.6rem;
+	border: 1px solid var(--line-strong);
+	border-radius: 999px;
+	background: var(--bg);
+	color: var(--dim);
+	font-size: 0.78rem;
+	line-height: 1.3rem;
+}
+
+.insert button:hover {
+	color: var(--accent);
+	border-color: var(--accent);
+}
+
+.insert.last {
+	height: 3rem;
+	opacity: 1;
+}
+
+.insert.last::before {
+	display: none;
+}
+
+.cell {
+	position: relative;
+	border-radius: 8px;
+}
+
+/* the bracket at the left, as in a notebook */
+.cell::before {
+	content: "";
+	position: absolute;
+	left: -0.75rem;
+	top: 0.25rem;
+	bottom: 0.25rem;
+	width: 3px;
+	border-radius: 2px;
+	background: var(--line);
+	transition: background 0.12s;
+}
+
+.cell:focus-within::before {
+	background: var(--accent);
+}
+
+.cell-head {
+	position: absolute;
+	top: 0.2rem;
+	right: 0.4rem;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0 0.15rem;
+	border-radius: 6px;
+	background: var(--panel);
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+
+.cell.text .cell-head {
+	background: var(--bg);
+}
+
+.cell:hover > .cell-head,
+.cell:focus-within > .cell-head {
+	opacity: 1;
+}
+
+.cell-head .spacer {
+	display: none;
+}
+
+.cell-head select,
+.cell-head button {
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--dim);
+	font-size: 0.78rem;
+	padding: 0 0.3rem;
+}
+
+.cell-head select:hover,
+.cell-head button:hover {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.cell-head button.danger:hover {
+	background: var(--error-soft);
+	color: var(--error);
+}
+
+/* code */
+
+.cell.code {
+	background: var(--panel);
+	border: 1px solid var(--line);
+	padding: 0.3rem 0.4rem;
+}
+
+.cell.code:focus-within {
+	border-color: var(--line-strong);
+}
+
+.line {
+	position: relative;
+	padding: 0.1rem 0.35rem 0.1rem 0.35rem;
+	border-radius: 5px;
+}
+
+.input {
+	position: relative;
+	font: 0.98rem/1.6 var(--mono);
+}
+
+.input pre,
+.input textarea {
+	margin: 0;
+	padding: 0.1rem 0.5rem;
+	width: 100%;
+	border: 0;
+	font: inherit;
+	letter-spacing: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	tab-size: 4;
+}
+
+.input pre {
+	position: relative;
+	min-height: 1.6em;
+	color: var(--c-name);
+	pointer-events: none;
+}
+
+.input textarea {
+	position: absolute;
+	inset: 0;
+	height: 100%;
+	resize: none;
+	overflow: hidden;
+	background: transparent;
+	color: transparent;
+	caret-color: var(--fg);
+	outline: none;
+}
+
+.input textarea::selection {
+	background: color-mix(in srgb, var(--accent) 30%, transparent);
+	color: transparent;
+}
+
+.input .err {
+	text-decoration: underline wavy var(--error);
+	text-underline-offset: 3px;
+}
+
+.input .ghost {
+	color: var(--dim);
+	opacity: 0.7;
+}
+
+.c-number { color: var(--c-number); }
+.c-name { color: var(--c-name); }
+.c-function { color: var(--c-function); }
+.c-constant { color: var(--c-constant); }
+.c-unit { color: var(--c-unit); }
+.c-operator { color: var(--c-operator); }
+.c-paren { color: var(--c-paren); }
+.c-keyword { color: var(--c-keyword); font-weight: 600; }
+.c-logic { color: var(--c-logic); }
+.c-binder { color: var(--c-binder); }
+.c-error {
+	color: var(--c-error);
+	text-decoration: underline wavy var(--error);
+	text-underline-offset: 3px;
+}
+
+.line.focus {
+	background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* results */
+
+.out {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.1rem 0.6rem;
+	padding: 0 0.5rem 0.3rem 0.5rem;
+	font: 0.98rem/1.5 var(--mono);
+}
+
+.out:empty {
+	display: none;
+}
+
+.out .eq {
+	color: var(--dim);
+	user-select: none;
+}
+
+.out .val {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.out .kind {
+	margin-left: auto;
+	color: var(--dim);
+	font: 0.72rem var(--sans);
+	letter-spacing: 0.04em;
+	user-select: none;
+}
+
+.out.error {
+	color: var(--error);
+	font-size: 0.9rem;
+}
+
+.out.error::before {
+	content: "!";
+	display: inline-grid;
+	place-items: center;
+	width: 1.1rem;
+	height: 1.1rem;
+	border-radius: 50%;
+	background: var(--error);
+	color: var(--panel);
+	font: 700 0.75rem var(--sans);
+}
+
+.out .proof-ok {
+	color: var(--ok);
+	font-weight: 600;
+}
+
+.out .proof-bad {
+	color: var(--error);
+}
+
+.out .proof-open {
+	color: var(--dim);
+}
+
+pre.block,
+pre.steps {
+	flex-basis: 100%;
+	margin: 0.15rem 0 0.1rem;
+	padding: 0.4rem 0.6rem;
+	overflow-x: auto;
+	border-radius: 6px;
+	background: var(--code-bg);
+	font: inherit;
+	font-size: 0.95rem;
+	line-height: 1.25;
+}
+
+pre.block {
+	display: inline-block;
+	flex-basis: auto;
+	font-weight: 600;
+	background: transparent;
+	padding-left: 0;
+}
+
+pre.steps {
+	color: var(--dim);
+	border-left: 3px solid var(--accent);
+	border-radius: 0 6px 6px 0;
+}
+
+.out button.steps-toggle {
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--dim);
+	font: 0.75rem var(--sans);
+	padding: 0 0.3rem;
+	opacity: 0;
+}
+
+.line:hover .steps-toggle,
+.line.focus .steps-toggle,
+.steps-toggle[aria-expanded="true"] {
+	opacity: 1;
+}
+
+.steps-toggle:hover {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.plot-wrap {
+	flex-basis: 100%;
+}
+
+svg.plot {
+	display: block;
+	width: 100%;
+	max-width: 24rem;
+	height: auto;
+	margin: 0.3rem 0;
+	color: var(--dim);
+}
+
+svg.plot .axis {
+	stroke: currentColor;
+	stroke-width: 1;
+	fill: none;
+}
+
+svg.plot text {
+	fill: currentColor;
+	font: 11px var(--sans);
+}
+
+svg.plot .mark {
+	fill: var(--accent);
+}
+
+svg.plot .path {
+	fill: none;
+	stroke: var(--accent);
+	stroke-width: 1.6;
+}
+
+/* completion */
+
+.completion {
+	position: absolute;
+	z-index: 15;
+	min-width: 9rem;
+	max-width: 22rem;
+	max-height: 14rem;
+	overflow: auto;
+	margin: 0;
+	padding: 0.25rem;
+	list-style: none;
+	background: var(--panel);
+	border: 1px solid var(--line-strong);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+	font: 0.9rem var(--mono);
+}
+
+.completion li {
+	padding: 0.15rem 0.5rem;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.completion li[aria-selected="true"],
+.completion li:hover {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+/* text */
+
+.cell.text {
+	padding: 0 0.4rem;
+}
+
+.cell.text .view {
+	padding: 0.3rem 0.5rem;
+	cursor: text;
+	min-height: 2rem;
+}
+
+.cell.text .view:empty::before {
+	content: "Write a note…";
+	color: var(--dim);
+}
+
+.cell.text textarea {
+	display: none;
+	width: 100%;
+	padding: 0.3rem 0.5rem;
+	border: 0;
+	border-radius: 6px;
+	background: var(--code-bg);
+	color: var(--fg);
+	font: 0.95rem/1.55 var(--mono);
+	resize: none;
+	overflow: hidden;
+	outline: none;
+}
+
+.cell.text.editing .view {
+	display: none;
+}
+
+.cell.text.editing textarea {
+	display: block;
+}
+
+.view h1,
+.view h2,
+.view h3 {
+	margin: 0.4rem 0 0.2rem;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+}
+
+.view h1 { font-size: 1.7rem; }
+.view h2 { font-size: 1.35rem; }
+.view h3 { font-size: 1.1rem; }
+
+.view p {
+	margin: 0.3rem 0;
+}
+
+.view code {
+	padding: 0.05em 0.35em;
+	border-radius: 4px;
+	background: var(--code-bg);
+	font: 0.9em var(--mono);
+}
+
+.view hr {
+	border: 0;
+	border-top: 1px solid var(--line-strong);
+}
+
+.cell.raw {
+	padding: 0 0.4rem;
+	font: 0.9rem var(--mono);
+	color: var(--dim);
+}
+
+.cell.raw div {
+	padding: 0.1rem 0.5rem;
+	white-space: pre-wrap;
+}
+
+.cell.raw .what {
+	font: 0.72rem var(--sans);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+@media (max-width: 640px) {
+	#notebook {
+		padding-left: 1.25rem;
+	}
+
+	.cell::before {
+		left: -0.6rem;
+	}
+
+	.cell-head {
+		opacity: 1;
+	}
+
+	.insert {
+		opacity: 0.6;
+	}
+}

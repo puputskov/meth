@@ -98,6 +98,37 @@ def run_browser(browser, port, page):
     return json.loads(html.unescape(found.group(1)))
 
 
+def check_boot(browser, port):
+    """The notebook page itself (web/index.html) starts and shows its welcome
+    notebook: lines with results, no start-up error. Returns the failures."""
+    failed = 1
+    for _ in range(10):
+        with tempfile.TemporaryDirectory(dir=os.path.join(ROOT, "build")) as profile:
+            done = subprocess.run(
+                [
+                    browser,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--user-data-dir=" + profile,
+                    "--virtual-time-budget=30000",
+                    "--dump-dom",
+                    "http://127.0.0.1:%d/index.html" % port,
+                ],
+                capture_output=True,
+                timeout=120,
+            )
+        dom = done.stdout.decode("utf-8", errors="replace")
+        lines = dom.count('class="line"')
+        if lines:
+            ok = lines >= 8 and "could not start" not in dom and 'class="out error"' not in dom
+            print("notebook page: %d lines shown%s" % (lines, "" if ok else ", FAILED"))
+            failed = 0 if ok else 1
+            break
+    else:
+        print("notebook page: nothing shown")
+    return failed
+
+
 def run_browser_retrying(browser, port, page):
     """The dump can be taken before the module has loaded (the network is
     not part of the browser's virtual time), so an empty page is tried again."""
@@ -139,13 +170,13 @@ def same_result(native, wasm):
     return None
 
 
-def check_api(api):
+def check_api(api, label):
     """The page API (web/js/meth.js) against the module; returns the number
     of checks that failed."""
     failed = [c for c in api if not c["ok"]]
     for c in failed:
-        print("FAIL api: %s %s" % (c["name"], c["detail"]))
-    print("%d api checks, %d failed" % (len(api), len(failed)))
+        print("FAIL %s: %s %s" % (label, c["name"], c["detail"]))
+    print("%d %s checks, %d failed" % (len(api), label, len(failed)))
     return len(failed)
 
 
@@ -196,6 +227,12 @@ def main():
         def log_message(self, *a):
             pass
 
+        def handle(self):
+            try:
+                super().handle()
+            except ConnectionError:
+                pass  # the browser closed a connection it no longer needs
+
     handler = functools.partial(Quiet, directory=WEB)
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -203,6 +240,8 @@ def main():
         port = server.server_address[1]
         wasm = run_browser_retrying(browser, port, "test.html")
         api = run_browser_retrying(browser, port, "apitest.html")
+        ui = run_browser_retrying(browser, port, "uitest.html")
+        boot = check_boot(browser, port)
         groups = None
         if os.path.exists(os.path.join(WEB, "tests.wasm")):
             groups = run_browser_retrying(browser, port, "groups.html")
@@ -229,7 +268,9 @@ def main():
             failed += 1
             print("FAIL %s\n     %s" % (case, why))
     print("%d expressions, %d differ" % (len(cases), failed))
-    failed += check_api(api)
+    failed += check_api(api, "api")
+    failed += check_api(ui, "ui")
+    failed += boot
     failed += check_groups(groups)
     return 1 if failed else 0
 

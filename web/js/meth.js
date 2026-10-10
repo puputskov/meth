@@ -119,7 +119,17 @@ export async function loadModule(url, write) {
 // of memory, 2 an invalid index or name, 5 a file that cannot be read).
 const FAILURES = { 1: "out of memory", 2: "invalid argument", 5: "cannot read" };
 
-export const EDIT = { replace: 0, insert: 1, delete: 2, undo: 3, redo: 4 };
+// type is replace without an undo step of its own (for text that is being
+// typed); checkpoint ends the step, so a burst of typing is undone as one.
+export const EDIT = {
+	replace: 0,
+	insert: 1,
+	delete: 2,
+	undo: 3,
+	redo: 4,
+	type: 5,
+	checkpoint: 6,
+};
 
 export async function loadMeth(url) {
 	const api = await loadModule(url, () => {});

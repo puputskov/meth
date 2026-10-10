@@ -273,11 +273,15 @@ static MlResult apply (
 {
 	MlResult r = ML_OK;
 
-	ml_session_checkpoint (&w->session);
+	if (op != ML_WEB_TYPE)
+	{
+		ml_session_checkpoint (&w->session);
+	}
 
 	switch (op)
 	{
 		case ML_WEB_REPLACE:
+		case ML_WEB_TYPE:
 		{
 			r = ml_session_replace (&w->session, idx, kind, domain, text);
 		} break;
@@ -310,8 +314,9 @@ MlResult ml_web_edit (
 	MlDomainResult d    = ml_domain_from_name (domain);
 	uint64_t       from = idx;
 	uint64_t       n    = w->session.lines.len;
-	int32_t        edit = op == ML_WEB_REPLACE || op == ML_WEB_INSERT;
-	int32_t        line = op == ML_WEB_REPLACE || op == ML_WEB_DELETE;
+	int32_t        typed = op == ML_WEB_REPLACE || op == ML_WEB_TYPE;
+	int32_t        edit = typed || op == ML_WEB_INSERT;
+	int32_t        line = typed || op == ML_WEB_DELETE;
 	int32_t        bad  = (
 		   (edit && k == ML_LINE_NONE)
 		|| (edit && k == ML_LINE_MATH && d.result != ML_OK)
@@ -329,6 +334,12 @@ MlResult ml_web_edit (
 
 		r    = u.result;
 		from = 0;
+	}
+
+	else if (op == ML_WEB_CHECKPOINT)
+	{
+		ml_session_checkpoint (&w->session);
+		from = n;
 	}
 
 	else if (bad)

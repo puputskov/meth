@@ -4,15 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>meth</title>
+<meta name="description" content="A notebook for mathematics: exact arithmetic, algebra, calculus, matrices, logic and proofs.">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/notebook.css">
+<link rel="stylesheet" href="css/help.css">
 </head>
 <body>
-<main>
-	<h1>meth</h1>
-	<input id="in" autofocus autocomplete="off" spellcheck="false"
-		placeholder="1/3 + 1/6" aria-label="Expression" disabled>
-	<ul id="out"></ul>
-</main>
+<header class="bar">
+	<a class="brand" href="./" aria-label="meth">meth</a>
+	<span class="title" id="title">untitled</span>
+	<nav class="tools" aria-label="Notebook">
+		<details class="menu" id="menu-file">
+			<summary>File</summary>
+			<div class="popup">
+				<button data-act="new">New</button>
+				<button data-act="open">Open…</button>
+				<button data-act="save">Save as .meth</button>
+				<hr>
+				<button data-act="export-latex">Export LaTeX</button>
+				<button data-act="export-mathml">Export HTML + MathML</button>
+				<button data-act="export-markdown">Export Markdown</button>
+			</div>
+		</details>
+		<details class="menu" id="menu-insert">
+			<summary>Examples</summary>
+			<div class="popup wide" id="examples-popup"></div>
+		</details>
+		<details class="menu" id="menu-snippets">
+			<summary>Snippets</summary>
+			<div class="popup wide" id="snippets-popup"></div>
+		</details>
+		<button class="tool" data-act="undo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+		<button class="tool" data-act="redo" title="Redo (Ctrl+Y)" aria-label="Redo">↷</button>
+		<button class="tool toggle" data-act="symbols" title="Names without a value stay symbols" aria-pressed="false">symbols</button>
+		<button class="tool" data-act="theme" title="Colour theme" aria-label="Colour theme">◐</button>
+		<button class="tool" data-act="help" title="Help (F1)" aria-label="Help">?</button>
+	</nav>
+</header>
+<main id="notebook" aria-label="Notebook"></main>
+<aside id="help" class="help" aria-label="Help" hidden></aside>
+<input type="file" id="file-input" accept=".meth,text/plain" hidden>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

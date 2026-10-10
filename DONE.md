@@ -1130,5 +1130,24 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   `meth.lessons`, `meth.themes ()`, `meth.themeFrom (text)`; a failure throws an `Error` with `code` (2 is an invalid index or name).
 - Tests: the native group `webapi` (109 checks, also in the module), and `web/apitest.html` / `web/js/apitest.js`, 40 checks of the page API (strings across
   the border, unicode, errors) run by `tools/test_web.py`.
-- Not built: the notebook page; the tutorial on the page (the checks of the lessons are about keys of the editor: the page needs its own kind of check from
-  the results); user themes and settings in the browser storage; `:why` and the plot panel as a drawing (the data is there); `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.
+- **The notebook page (built 2026-10-10):** `web/index.html` with `css/style.css` (colours, the bar, menus), `css/notebook.css`, `css/help.css` and the modules
+  of `js/`: `main.js` (start, menus, file actions, the session kept in `localStorage` as `.meth` text), `notebook.js`, `help.js`, `markdown.js` (the marks of
+  a note, never as HTML), `plot.js` (SVG from the plot data), `theme.js` (auto / light / dark), `meth.js` (the API). Cells are the blocks of the session: a
+  code cell holds the math lines of one domain, a text cell the note lines (shown as Markdown, edited as text), a blank line separates two cells of one
+  kind; the page finds the blocks again after each answer with the library's rule. A code line is a textarea over a highlighted copy of the text
+  (`ml_web_highlight`, the error range underlined) with its result under it: the value (`=` for an exact one), a typeset matrix, the steps on request
+  (`steps` under every result, always shown for a `steps (...)` line), a plot, the message of an error, the verdict of a proof line. Every key press is a
+  `meth.edit (EDIT.type, ...)`, so the results below change as you type; a burst of typing is one undo step (`EDIT.checkpoint` after 0.9 s or on a
+  structural change). Keys: Enter splits the line, Backspace at the start joins it with the line above (or removes an empty first line), Shift+Enter a new
+  cell, Up and Down move between lines, Tab takes the completion (a list under the line from two candidates on, the rest of the first one as grey text
+  after the caret), Ctrl+Z / Ctrl+Y undo and redo (the history of the library), Esc closes the completion, F1 the help, Ctrl+S saves. A cell has the domain
+  menu and `delete` in its corner (shown on hover), and `+ Code` / `+ Text` appear between cells. The bar: File (new, open, save as `.meth`, export latex /
+  mathml / markdown as downloads), Examples and Snippets (menus from the library), undo, redo, symbols, the colour mode and help. The help is a drawer with
+  search, the pages with their links and `see also`, and the examples of a page with a button that puts them in the notebook. The page uses its own colour
+  palette for light and dark (the library's themes are for terminals; `applyColors` in `theme.js` takes one when it is wanted).
+- Tests of the page: `web/uitest.html` / `web/js/uitest.js` drive the notebook as a user does (typing, keys, clicks on the buttons, the completion, steps,
+  plots, a text cell, the help, an empty notebook), 33 checks, and `tools/test_web.py` also loads `index.html` and checks that the welcome notebook is shown.
+- Not built: the tutorial on the page (the checks of the lessons are about keys of the editor: the page needs its own kind of check from
+  the results); user themes and settings in the browser storage; typeset math (MathML) for results and input; moving cells and selecting several lines; the
+  ghost preview of a new line (the results are live, so only the completion text is shown); the page on a real phone (the headless browser has a minimum
+  width); `:why`; `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.

@@ -978,6 +978,15 @@ MlResult ml_doc_page_json (MlStr *out, const MlDocPage *p, int32_t full)
 				ml_json_string (out, ml_str_view (p->blocks.data [i].text)),
 				r
 			);
+			if (r == ML_OK && p->blocks.data [i].kind == ML_DOC_HEADING)
+			{
+				r = ml_str_appendf (
+					out,
+					",\"level\":%d",
+					(int32_t)p->blocks.data [i].level
+				);
+			}
+
 			r = ml_choose (r == ML_OK, json_add (out, "}"), r);
 		}
 

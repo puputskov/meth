@@ -133,6 +133,17 @@ static void test_edit (void)
 	CHECK (ml_web_lines (&w, 0) == ML_OK);
 	CHECK (has (&w, "\"count\":2"));
 
+	/* typing joins the group of the change before it, up to a checkpoint */
+	CHECK (
+		ml_web_load (&w, lit ("m:algebra a = 3\nm:algebra a + 1\n")) == ML_OK
+	);
+	CHECK (edit (&w, ML_WEB_CHECKPOINT, 0, "", "", "") == ML_OK);
+	CHECK (edit (&w, ML_WEB_TYPE, 0, "math", "algebra", "a = 5") == ML_OK);
+	CHECK (edit (&w, ML_WEB_TYPE, 0, "math", "algebra", "a = 50") == ML_OK);
+	CHECK (has (&w, "\"text\":\"51\""));
+	CHECK (edit (&w, ML_WEB_UNDO, 0, "", "", "") == ML_OK);
+	CHECK (has (&w, "\"text\":\"4\""));
+
 	/* a name with no value is an error, or a symbol when asked for */
 	CHECK (ml_web_load (&w, lit ("m:algebra y + y\n")) == ML_OK);
 	CHECK (has (&w, "\"kind\":\"error\""));

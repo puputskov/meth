@@ -72,14 +72,18 @@ typedef enum MlWebEdit
 	ML_WEB_INSERT,      /* a new line before idx (idx == count appends) */
 	ML_WEB_DELETE,      /* the line idx goes; kind, domain, text are unused */
 	ML_WEB_UNDO,        /* take back the last group of changes */
-	ML_WEB_REDO
+	ML_WEB_REDO,
+	ML_WEB_TYPE,        /* REPLACE, in the group of the last change */
+	ML_WEB_CHECKPOINT   /* starts a new group: what follows is undone apart */
 } MlWebEdit;
 
 /*
  * Changes the session, evaluates again from the changed line and answers with
  * the lines from there on (ml_web_lines). kind is "math", "note", "blank" or
  * "include" and domain is the name of a domain (see ml_web_domains), used for
- * math lines. Every call is one step of the undo history.
+ * math lines. Every call is one step of the undo history, except ML_WEB_TYPE
+ * (the text of a line changes while it is typed: all the changes up to the
+ * next checkpoint are one step) and ML_WEB_CHECKPOINT (which changes nothing).
  */
 MlResult ml_web_edit (
 	MlWeb    *w,
