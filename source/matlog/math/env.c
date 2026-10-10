@@ -85,7 +85,8 @@ static MlValue copy_plot (MlArena *arena, MlValue v)
 	return out;
 }
 
-static MlValue copy_value (MlArena *arena, MlValue v)
+/* A copy in the arena of a value that is not a list. */
+static MlValue copy_scalar (MlArena *arena, MlValue v)
 {
 	MlValue out = v;
 
@@ -140,6 +141,46 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 	return out;
 }
 
+/* A list built again in the arena, its items too. */
+static MlValue copy_list (MlArena *arena, MlValue v)
+{
+	MlValue    out   = v;
+	MlListData *data = ML_ARENA_NEW (arena, MlListData);
+	MlValue    *items = ML_ARENA_NEW_ARRAY (
+		arena,
+		MlValue,
+		v.list->count + 1
+	);
+
+	if (data == NULL || items == NULL)
+	{
+		out = ml_value_error (ML_EVAL_NO_MEMORY, 0, 0);
+	}
+
+	else
+	{
+		for (uint64_t i = 0; i < v.list->count; i++)
+		{
+			items [i] = copy_scalar (arena, v.list->items [i]);
+		}
+
+		data->count = v.list->count;
+		data->items = items;
+		out.list    = data;
+	}
+
+	return out;
+}
+
+static MlValue copy_value (MlArena *arena, MlValue v)
+{
+	return ml_choose (
+		v.kind == ML_VALUE_LIST,
+		copy_list (arena, v),
+		copy_scalar (arena, v)
+	);
+}
+
 MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 {
 	MlResult  r = ML_OK;
@@ -158,6 +199,7 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		&& value.kind != ML_VALUE_QUAT
 		&& value.kind != ML_VALUE_PLOT
 		&& value.kind != ML_VALUE_BOOL
+		&& value.kind != ML_VALUE_LIST
 	)
 	{
 		r = ML_ERR_INVALID;

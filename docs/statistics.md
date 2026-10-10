@@ -2,11 +2,11 @@ id: statistics
 title: Statistics
 summary: Means, spread, correlation, line and polynomial fits, distributions.
 keywords: statistics, mean, median, mode, variance, std, standard deviation, quantile, correlation, regression, linfit, polyfit, histogram, binomial, normal, poisson, zscore
-see: functions, matrices, ex-stats-describe-data
+see: functions, matrices, lists, ex-stats-describe-data
 
-Data is a list of numbers, written as a vector `[2, 4, 4, 5]` (a column) or
-a row `[[2, 4, 4, 5]]`, or made by `range(1, 10)`. A list has at most 64
-numbers. The results are exact fractions while the data is exact.
+Data is a vector `[2, 4, 4, 5]` (a column, at most 64 numbers), a row
+`[[2, 4, 4, 5]]`, or a [list](lists) such as `range(1, 1000)`, which can have
+up to 100000 numbers. The results are exact fractions while the data is exact.
 
 # One list
 ```code
@@ -20,7 +20,8 @@ skew kurt                        skewness (approximate), excess kurtosis
 cumsum sort                      running sums, the data in order
 histogram (v, k)                 how many values are in each of k bins
 hist (v, k)                      the same as a plot, see plots
-range (a, b [, step])            a, a + step, ... up to b
+range (a, b [, step])            the list a, a + step, ... up to b
+prod (v)                         the product of the items
 ```
 
 ```example

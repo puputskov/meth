@@ -48,14 +48,54 @@ typedef struct Data
 	uint64_t    n;
 	MlRat      *x;
 	int32_t     column; /* 1: a column vector, 0: a row */
+	int32_t     is_list; /* 1: the data came as a list */
 } Data;
 
 /* The numbers of a vector value, as a list. */
 static Data data_of (MlArena *arena, MlValue v)
 {
-	Data d = { .error = ML_EVAL_NONE, .n = 0, .x = NULL, .column = 1 };
+	Data d =
+	{
+		.error   = ML_EVAL_NONE,
+		.n       = 0,
+		.x       = NULL,
+		.column  = 1,
+		.is_list = 0
+	};
 
-	if (!ml_value_is_matrix (v))
+	if (v.kind == ML_VALUE_LIST)
+	{
+		d.n       = v.list->count;
+		d.is_list = 1;
+		d.x       = ML_ARENA_NEW_ARRAY (
+			arena,
+			MlRat,
+			ml_choose (d.n > 0, d.n, 1)
+		);
+
+		if (d.x == NULL)
+		{
+			d.error = ML_EVAL_NO_MEMORY;
+		}
+
+		for (uint64_t i = 0; i < d.n && d.error == ML_EVAL_NONE; i++)
+		{
+			MlValue item = v.list->items [i];
+
+			d.x [i] = item.exact;
+			d.error = ml_choose (
+				item.kind == ML_VALUE_EXACT,
+				ML_EVAL_NONE,
+				ml_choose (
+					item.kind == ML_VALUE_APPROX,
+					ML_EVAL_NOT_EXACT,
+					ML_EVAL_TYPE
+				)
+			);
+		}
+	}
+
+	else if (!ml_value_is_matrix (v))
 	{
 		d.error = ML_EVAL_TYPE;
 	}
@@ -86,6 +126,29 @@ static Data data_of (MlArena *arena, MlValue v)
 }
 
 /* The list as a vector of the same direction as the data it came from. */
+/* The items as a list of exact numbers. */
+static MlValue list_of_rats (MlArena *arena, const MlRat *x, uint64_t n)
+{
+	MlValue *items = ML_ARENA_NEW_ARRAY (
+		arena,
+		MlValue,
+		ml_choose (n > 0, n, 1)
+	);
+	MlValue r      = error_of (ML_EVAL_NO_MEMORY);
+
+	if (items != NULL)
+	{
+		for (uint64_t i = 0; i < n; i++)
+		{
+			items [i] = ml_value_exact (x [i]);
+		}
+
+		r = ml_value_list (arena, items, n);
+	}
+
+	return r;
+}
+
 static MlValue vector_value (
 	MlArena     *arena,
 	const MlRat *x,
@@ -107,29 +170,66 @@ static MlValue vector_value (
 	return ml_value_matrix (m);
 }
 
-/* A sorted copy of the data. */
+/*
+ * A sorted copy of the data: a merge sort from the bottom, runs of 1, 2, 4 ...
+ * items merged in turn between two buffers, so the time is n log n and
+ * nothing calls itself.
+ */
 static Data sorted_of (MlArena *arena, Data d)
 {
-	Data s = d;
+	Data   s    = d;
+	MlRat *from = NULL;
+	MlRat *to   = NULL;
 
-	s.x = ML_ARENA_NEW_ARRAY (arena, MlRat, ml_choose (d.n > 0, d.n, 1));
+	s.x  = ML_ARENA_NEW_ARRAY (arena, MlRat, ml_choose (d.n > 0, d.n, 1));
+	to   = ML_ARENA_NEW_ARRAY (arena, MlRat, ml_choose (d.n > 0, d.n, 1));
 
-	if (s.x == NULL)
+	if (s.x == NULL || to == NULL)
 	{
 		s.error = ML_EVAL_NO_MEMORY;
 	}
 
 	for (uint64_t i = 0; i < d.n && s.error == ML_EVAL_NONE; i++)
 	{
-		uint64_t k = i;
+		s.x [i] = d.x [i];
+	}
 
-		while (k > 0 && ml_rat_cmp (arena, s.x [k - 1], d.x [i]) > 0)
+	from = s.x;
+
+	for (uint64_t run = 1; run < d.n && s.error == ML_EVAL_NONE; run *= 2)
+	{
+		for (uint64_t lo = 0; lo < d.n; lo += 2 * run)
 		{
-			s.x [k] = s.x [k - 1];
-			k--;
+			uint64_t mid = ml_choose (lo + run < d.n, lo + run, d.n);
+			uint64_t hi  = ml_choose (lo + 2 * run < d.n, lo + 2 * run, d.n);
+			uint64_t a   = lo;
+			uint64_t b   = mid;
+
+			for (uint64_t k = lo; k < hi; k++)
+			{
+				int32_t take_a = b >= hi || (
+					   a < mid
+					&& ml_rat_cmp (arena, from [a], from [b]) <= 0
+				);
+
+				to [k] = ml_choose (take_a, from [a], from [b]);
+				a     += ml_choose (take_a, 1, 0);
+				b     += ml_choose (take_a, 0, 1);
+			}
 		}
 
-		s.x [k] = d.x [i];
+		{
+			MlRat *swap = from;
+
+			from = to;
+			to   = swap;
+		}
+	}
+
+	/* the sorted run may be in the other buffer: copy it back */
+	for (uint64_t i = 0; i < d.n && s.error == ML_EVAL_NONE; i++)
+	{
+		s.x [i] = from [i];
 	}
 
 	return s;
@@ -273,6 +373,18 @@ static MlValue list_function (
 			r = rat_value (count_rat (arena, d.n));
 		}
 
+		else if (which == ML_STAT_PROD)
+		{
+			MlRat product = ml_rat_from_i64 (arena, 1);
+
+			for (uint64_t i = 0; i < d.n; i++)
+			{
+				product = ml_rat_mul (arena, product, d.x [i]);
+			}
+
+			r = rat_value (product);
+		}
+
 		else if (which == ML_STAT_MEAN)
 		{
 			r = rat_value (mean_of (arena, d));
@@ -373,7 +485,11 @@ static MlValue list_function (
 
 		else if (which == ML_STAT_SORT)
 		{
-			r = vector_value (arena, s.x, s.n, d.column);
+			r = ml_choose (
+				d.is_list,
+				list_of_rats (arena, s.x, s.n),
+				vector_value (arena, s.x, s.n, d.column)
+			);
 		}
 
 		else if (which == ML_STAT_CUMSUM)
@@ -389,7 +505,11 @@ static MlValue list_function (
 
 			r = ml_choose (
 				run != NULL,
-				vector_value (arena, run, d.n, d.column),
+				ml_choose (
+					d.is_list,
+					list_of_rats (arena, run, d.n),
+					vector_value (arena, run, d.n, d.column)
+				),
 				error_of (ML_EVAL_NO_MEMORY)
 			);
 		}
@@ -624,8 +744,8 @@ static MlValue range_value (MlArena *arena, const MlValue *args, uint64_t argc)
 		MlRat    at   = args [0].exact;
 		MlRat    stop = args [1].exact;
 		int32_t  up   = ml_rat_sign (step) > 0;
-		MlRat    list [ML_MAT_MAX_DIM];
 		uint64_t n = 0;
+		MlValue  *items = ML_ARENA_NEW_ARRAY (arena, MlValue, ML_LIST_MAX);
 
 		if (ml_rat_is_zero (step))
 		{
@@ -634,12 +754,16 @@ static MlValue range_value (MlArena *arena, const MlValue *args, uint64_t argc)
 
 		else
 		{
-			while (n <= ML_MAT_MAX_DIM && ml_rat_ok (at)
-				   && ml_rat_cmp (arena, at, stop) * ml_choose (up, 1, -1) <= 0)
+			while (
+				   items != NULL
+				&& n <= ML_LIST_MAX
+				&& ml_rat_ok (at)
+				&& ml_rat_cmp (arena, at, stop) * ml_choose (up, 1, -1) <= 0
+			)
 			{
-				if (n < ML_MAT_MAX_DIM)
+				if (n < ML_LIST_MAX)
 				{
-					list [n] = at;
+					items [n] = ml_value_exact (at);
 				}
 
 				n++;
@@ -647,12 +771,16 @@ static MlValue range_value (MlArena *arena, const MlValue *args, uint64_t argc)
 			}
 
 			r = ml_choose (
-				n > ML_MAT_MAX_DIM,
-				error_of (ML_EVAL_SIZE),
+				items == NULL,
+				error_of (ML_EVAL_NO_MEMORY),
 				ml_choose (
-					n == 0,
-					error_of (ML_EVAL_DOMAIN),
-					vector_value (arena, list, n, 1)
+					n > ML_LIST_MAX,
+					error_of (ML_EVAL_TOO_LARGE),
+					ml_choose (
+						n == 0,
+						error_of (ML_EVAL_DOMAIN),
+						ml_value_list (arena, items, n)
+					)
 				)
 			);
 		}

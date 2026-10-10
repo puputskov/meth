@@ -766,7 +766,7 @@ static void test_lists (void)
 	CHECK (fails_with ("1]", ML_PARSE_UNEXPECTED_TOKEN, 1, 1, 0));
 	CHECK (fails_with ("(1]", ML_PARSE_UNEXPECTED_TOKEN, 2, 1, 0));
 	CHECK (fails_with ("[1)", ML_PARSE_UNEXPECTED_TOKEN, 2, 1, 0));
-	CHECK (fails_with ("x[1]", ML_PARSE_UNEXPECTED_TOKEN, 1, 1, 0));
+	CHECK (fails_with ("x [1]", ML_PARSE_UNEXPECTED_TOKEN, 2, 1, 0));
 }
 
 static void test_logic (void)
@@ -831,6 +831,24 @@ static void test_sequences (void)
 	CHECK (dumps_as ("let = 3", "(= let 3)"));
 }
 
+static void test_index (void)
+{
+	CHECK (dumps_as ("xs[2]", "(index xs 2)"));
+	CHECK (dumps_as ("xs[i + 1]", "(index xs (+ i 1))"));
+	CHECK (dumps_as ("xs[1] + xs[2]", "(+ (index xs 1) (index xs 2))"));
+	CHECK (dumps_as ("2 xs[1]", "(* 2 (index xs 1))"));
+	CHECK (dumps_as ("xs[-1]", "(index xs (neg 1))"));
+	CHECK (dumps_as ("xs[ys[1]]", "(index xs (index ys 1))"));
+	CHECK (dumps_as ("f(x) = xs[x]", "(def f (x) (index xs x))"));
+
+	/* the bracket must touch the name */
+	CHECK (fails_with ("xs [1]", ML_PARSE_UNEXPECTED_TOKEN, 3, 1, 0));
+	CHECK (fails_with ("xs[", ML_PARSE_UNEXPECTED_END, 3, 0, 1));
+	CHECK (fails_with ("xs[1", ML_PARSE_UNEXPECTED_END, 4, 0, 1));
+	CHECK (fails_with ("xs[]", ML_PARSE_EXPECTED_EXPR, 3, 1, 0));
+	CHECK (fails_with ("xs[1,2]", ML_PARSE_UNEXPECTED_TOKEN, 4, 1, 0));
+}
+
 void run_parser_tests (void)
 {
 	test_precedence ();
@@ -846,6 +864,7 @@ void run_parser_tests (void)
 	test_lists ();
 	test_logic ();
 	test_sequences ();
+	test_index ();
 	run_on_small_stack (test_limits);
 	test_heights ();
 	test_complete ();

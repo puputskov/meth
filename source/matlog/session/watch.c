@@ -69,6 +69,15 @@ static MlResult type_of (MlStr *out, MlValue v)
 		r = ml_str_append (out, ml_slice_cstr ("bool"));
 	}
 
+	else if (v.kind == ML_VALUE_LIST)
+	{
+		r = ml_str_appendf (
+			out,
+			"list %llu",
+			(unsigned long long)v.list->count
+		);
+	}
+
 	else
 	{
 		r = ml_str_append (out, ml_slice_cstr ("exact"));

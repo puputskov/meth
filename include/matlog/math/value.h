@@ -35,6 +35,7 @@ typedef enum MlValueKind
 	ML_VALUE_QUAT,     /* a + b i + c j + d k, see hyper.h */
 	ML_VALUE_PLOT,     /* a picture to draw, see plotdata.h */
 	ML_VALUE_BOOL,     /* true or false: the result of a comparison */
+	ML_VALUE_LIST,     /* a sequence of values of any length, see below */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -83,6 +84,22 @@ typedef struct MlHyper
 	double  d [4];
 } MlHyper;
 
+/*
+ * A list: any number of values, up to ML_LIST_MAX, in the memory of an arena.
+ * The items are numbers, quantities, booleans, complex numbers, quaternions,
+ * matrices or expressions, never lists or errors, so a list is one level deep
+ * and nothing has to walk into it with a function that calls itself.
+ */
+#define ML_LIST_MAX 100000
+
+struct MlValue;
+
+typedef struct MlListData
+{
+	uint64_t              count;
+	const struct MlValue *items;
+} MlListData;
+
 typedef struct MlValue
 {
 	MlValueKind kind;
@@ -95,6 +112,7 @@ typedef struct MlValue
 	const MlSym *sym;   /* ML_VALUE_EXPR */
 	const MlPlotData *plot; /* ML_VALUE_PLOT */
 	int32_t     flag;   /* ML_VALUE_BOOL: 1 for true */
+	const MlListData *list; /* ML_VALUE_LIST */
 	double      approx; /* ML_VALUE_APPROX */
 	MlErrorKind error;  /* ML_VALUE_ERROR */
 	/* byte range in the source, error_len 0 if unknown */
@@ -141,6 +159,13 @@ MlValue ml_value_plot (const MlPlotData *plot);
 /* true (flag not 0) or false, shown as such. */
 MlValue ml_value_bool (int32_t flag);
 
+/*
+ * A list of the n values (copied). ML_EVAL_TOO_LARGE past ML_LIST_MAX items,
+ * ML_EVAL_TYPE when an item is a list; an item that is an error comes back.
+ */
+MlValue ml_value_list (MlArena *arena, const MlValue *items, uint64_t n);
+int32_t ml_value_is_list (MlValue v);
+
 typedef enum MlCompare
 {
 	ML_COMPARE_LT = 0,
@@ -154,8 +179,9 @@ typedef enum MlCompare
 /*
  * a < b and the others, as a boolean. Numbers (exact and approximate) compare
  * by value, exact ones exactly; quantities compare in SI units and need the
- * same dimension (ML_EVAL_DIMENSION_MISMATCH otherwise). Booleans and matrices
- * (same size, cell by cell) can only be equal or not. Anything else is
+ * same dimension (ML_EVAL_DIMENSION_MISMATCH otherwise). Booleans, matrices
+ * (same size, cell by cell) and lists (same length, item by item) can only be
+ * equal or not. Anything else is
  * ML_EVAL_TYPE; errors given come back.
  */
 MlValue ml_value_compare (MlArena *arena, MlCompare op, MlValue a, MlValue b);

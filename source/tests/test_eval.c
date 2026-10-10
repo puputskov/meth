@@ -70,6 +70,7 @@ static int32_t shows (Session *s, const char *text, const char *expected)
 		|| v.kind == ML_VALUE_COMPLEX
 		|| v.kind == ML_VALUE_QUAT
 		|| v.kind == ML_VALUE_BOOL
+		|| v.kind == ML_VALUE_LIST
 	)
 	{
 		same = (
@@ -1242,6 +1243,99 @@ static void test_locals (void)
 	session_free (&s);
 }
 
+static void test_lists (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* making lists */
+	CHECK (shows (&s, "list(1, 2, 3)", "[1, 2, 3]"));
+	CHECK (shows (&s, "list()", "[]"));
+	CHECK (shows (&s, "list(1/2, 2 > 1)", "[1/2, true]"));
+	CHECK (shows (&s, "range(1, 5)", "[1, 2, 3, 4, 5]"));
+	CHECK (shows (&s, "range(5, 1, -2)", "[5, 3, 1]"));
+	CHECK (shows (&s, "tolist([1, 2, 3])", "[1, 2, 3]"));
+	CHECK (shows (&s, "tolist([[1, 2, 3]])", "[1, 2, 3]"));
+	CHECK (shows (&s, "vec(range(1, 3))", "[[1], [2], [3]]"));
+	CHECK (fails (&s, "list(list(1))", ML_EVAL_TYPE));
+	CHECK (fails (&s, "vec(range(1, 100))", ML_EVAL_SIZE));
+	CHECK (fails (&s, "vec(list(sqrt(2)))", ML_EVAL_NOT_EXACT));
+
+	/* long lists, shown short */
+	CHECK (shows (&s, "len(range(1, 100000))", "100000"));
+	CHECK (fails (&s, "range(1, 100001)", ML_EVAL_TOO_LARGE));
+	CHECK (
+		shows (
+			&s,
+			"range(1, 20)",
+			"[1, 2, 3, 4, 5, 6, 7, 8, ..., 19, 20] (20 items)"
+		)
+	);
+
+	/* reading */
+	run (&s, "xs = range(10, 50, 10)");
+	CHECK (shows (&s, "len(xs)", "5"));
+	CHECK (shows (&s, "item(xs, 1)", "10"));
+	CHECK (shows (&s, "item(xs, -1)", "50"));
+	CHECK (shows (&s, "xs[2] + xs[5]", "70"));
+	CHECK (shows (&s, "xs[1 + 1]", "20"));
+	CHECK (shows (&s, "len([4, 5, 6])", "3"));
+	CHECK (fails (&s, "xs[0]", ML_EVAL_DOMAIN));
+	CHECK (fails (&s, "xs[6]", ML_EVAL_DOMAIN));
+	CHECK (fails (&s, "xs[1/2]", ML_EVAL_NOT_INTEGER));
+	CHECK (fails (&s, "xs[ghost]", ML_EVAL_UNDEFINED_NAME));
+	CHECK (fails (&s, "len(5)", ML_EVAL_TYPE));
+
+	/* changing */
+	CHECK (shows (&s, "append(list(1, 2), 3)", "[1, 2, 3]"));
+	CHECK (shows (&s, "concat(list(1), list(2, 3))", "[1, 2, 3]"));
+	CHECK (shows (&s, "reverse(range(1, 4))", "[4, 3, 2, 1]"));
+	CHECK (shows (&s, "take(range(1, 10), 3)", "[1, 2, 3]"));
+	CHECK (shows (&s, "drop(range(1, 5), 3)", "[4, 5]"));
+	CHECK (shows (&s, "take(range(1, 3), 10)", "[1, 2, 3]"));
+	CHECK (shows (&s, "drop(range(1, 3), 10)", "[]"));
+	CHECK (fails (&s, "take(range(1, 3), 1/2)", ML_EVAL_NOT_INTEGER));
+
+	/* arithmetic goes item by item */
+	CHECK (shows (&s, "range(1, 3) * 2", "[2, 4, 6]"));
+	CHECK (shows (&s, "2 * range(1, 3)", "[2, 4, 6]"));
+	CHECK (shows (&s, "range(1, 3) + range(10, 30, 10)", "[11, 22, 33]"));
+	CHECK (shows (&s, "range(1, 3) ^ 2", "[1, 4, 9]"));
+	CHECK (shows (&s, "range(1, 3) / 2", "[1/2, 1, 3/2]"));
+	CHECK (shows (&s, "-range(1, 3)", "[-1, -2, -3]"));
+	CHECK (fails (&s, "range(1, 3) + range(1, 4)", ML_EVAL_SIZE));
+	CHECK (fails (&s, "range(1, 3) / 0", ML_EVAL_DIV_ZERO));
+
+	/* equality compares item by item */
+	CHECK (shows (&s, "range(1, 3) == list(1, 2, 3)", "true"));
+	CHECK (shows (&s, "range(1, 3) != list(1, 2, 4)", "true"));
+	CHECK (shows (&s, "range(1, 3) == range(1, 4)", "false"));
+	CHECK (fails (&s, "range(1, 3) < range(1, 3)", ML_EVAL_TYPE));
+
+	/* statistics read lists of any length */
+	CHECK (shows (&s, "sum(range(1, 1000))", "500500"));
+	CHECK (shows (&s, "mean(range(1, 1000))", "1001/2"));
+	CHECK (shows (&s, "median(range(1, 1001))", "501"));
+	CHECK (shows (&s, "max(range(1, 500))", "500"));
+	CHECK (shows (&s, "min(range(7, 500))", "7"));
+	CHECK (shows (&s, "prod(range(1, 10))", "3628800"));
+	CHECK (shows (&s, "sort(list(3, 1, 2))", "[1, 2, 3]"));
+	CHECK (shows (&s, "cumsum(range(1, 4))", "[1, 3, 6, 10]"));
+	CHECK (fails (&s, "sum(list(sqrt(2), 2))", ML_EVAL_NOT_EXACT));
+	CHECK (fails (&s, "sum(list(true))", ML_EVAL_TYPE));
+	CHECK (fails (&s, "sqrt(range(1, 3))", ML_EVAL_TYPE));
+
+	/* a list can be named, kept and used inside functions */
+	CHECK (shows (&s, "ys = range(1, 4) * 3", "[3, 6, 9, 12]"));
+	CHECK (shows (&s, "ys[4]", "12"));
+	run (&s, "total(v) = sum(v) + len(v)");
+	CHECK (shows (&s, "total(ys)", "34"));
+	CHECK (shows (&s, "let t = range(1, 3); t[3] * 2", "6"));
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -1266,4 +1360,5 @@ void run_eval_tests (void)
 	test_comparisons ();
 	test_if_and_recursion ();
 	test_locals ();
+	test_lists ();
 }

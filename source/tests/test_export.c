@@ -64,6 +64,8 @@ static void test_latex_math (void)
 	CHECK (latex_is ("2x", "2 x"));
 	CHECK (latex_is ("(a+b)*c", "\\left(a+b\\right) c"));
 
+	CHECK (latex_is ("xs[2] + 1", "\\mathrm{xs}\\left[2\\right]+1"));
+
 	/* statements and local names */
 	CHECK (latex_is ("let a = 2; a + 1", "\\mathrm{let}\\;a=2;\\;a+1"));
 	CHECK (latex_is ("1; 2", "1;\\;2"));

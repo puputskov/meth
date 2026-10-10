@@ -579,9 +579,13 @@ static const char *type_name (MlValueKind kind)
 								kind == ML_VALUE_BOOL,
 								"bool",
 								ml_choose (
-									kind == ML_VALUE_APPROX,
-									"approx",
-									"exact"
+									kind == ML_VALUE_LIST,
+									"list",
+									ml_choose (
+										kind == ML_VALUE_APPROX,
+										"approx",
+										"exact"
+									)
 								)
 							)
 						)

@@ -752,6 +752,26 @@ static MlResult expand (
 		}
 	}
 
+	else if (node.kind == ML_NODE_INDEX)
+	{
+		r = OpVec_push (seq, op_node (a, 0));
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_tok (T_LB));
+		}
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_node (b, 0));
+		}
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_tok (T_RB));
+		}
+	}
+
 	else if (node.kind == ML_NODE_SEQ)
 	{
 		for (

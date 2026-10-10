@@ -68,6 +68,8 @@
  *	< > <= >= == != and or         the same
  *	seq                            the statements of a body, separated by ';'
  *	                               in the text, the value is the last one
+ *	index                          a name, then the position: xs[2]; the
+ *	                               bracket must follow the name directly
  *	let                            a local name (a name leaf) and its value;
  *	                               it is visible in the statements after it
  *	call                           the callee (a name), then the arguments
@@ -109,6 +111,7 @@ typedef enum MlNodeKind
 	ML_NODE_OR,          /* a or b */
 	ML_NODE_SEQ,         /* statement; statement; ... */
 	ML_NODE_LET,         /* let name = expression */
+	ML_NODE_INDEX,       /* name[index] */
 	ML_NODE_KIND_COUNT
 } MlNodeKind;
 

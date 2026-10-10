@@ -104,7 +104,7 @@ static void test_descriptive (void)
 		"median([1, 2, 3])",
 		"mode([3, 1, 2])",
 		"mean([[1, 2, 3, 4]])",
-		"sum(range(1, 100))" /* 24: too long a range */
+		"sum(range(1, 100))" /* 24: lists have no limit of 64 */
 	};
 
 	Run run;
@@ -133,7 +133,7 @@ static void test_descriptive (void)
 	CHECK (gives (&run, 21, "2"));
 	CHECK (gives (&run, 22, "1"));
 	CHECK (gives (&run, 23, "5/2"));
-	CHECK (fails (&run, 24, "size"));
+	CHECK (gives (&run, 24, "5050"));
 	run_end (&run);
 }
 
@@ -215,9 +215,9 @@ static void test_pairs_and_fits (void)
 	CHECK (gives (&run, 10, "-1"));
 	CHECK (gives (&run, 11, "1"));
 	CHECK (gives (&run, 13, "[[7/10], [11/5]]"));
-	CHECK (gives (&run, 14, "[[1], [2], [3], [4], [5]]"));
-	CHECK (gives (&run, 15, "[[0], [1/4], [1/2], [3/4], [1]]"));
-	CHECK (gives (&run, 16, "[[5], [3], [1]]"));
+	CHECK (gives (&run, 14, "[1, 2, 3, 4, 5]"));
+	CHECK (gives (&run, 15, "[0, 1/4, 1/2, 3/4, 1]"));
+	CHECK (gives (&run, 16, "[5, 3, 1]"));
 	CHECK (gives (&run, 17, "[[2], [2], [2]]"));
 	CHECK (gives (&run, 18, "[[3], [0]]"));
 	run_end (&run);

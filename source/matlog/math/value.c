@@ -222,6 +222,62 @@ MlValue ml_value_plot (const MlPlotData *plot)
 	return v;
 }
 
+int32_t ml_value_is_list (MlValue v)
+{
+	return v.kind == ML_VALUE_LIST;
+}
+
+MlValue ml_value_list (MlArena *arena, const MlValue *items, uint64_t n)
+{
+	MlValue     r    = ml_value_none ();
+	MlListData *data = NULL;
+	MlValue     *own = NULL;
+
+	for (uint64_t i = 0; i < n && r.kind == ML_VALUE_NONE; i++)
+	{
+		if (items [i].kind == ML_VALUE_ERROR)
+		{
+			r = items [i];
+		}
+
+		else if (items [i].kind == ML_VALUE_LIST)
+		{
+			r = ml_value_error (ML_EVAL_TYPE, 0, 0);
+		}
+	}
+
+	if (r.kind == ML_VALUE_NONE && n > ML_LIST_MAX)
+	{
+		r = ml_value_error (ML_EVAL_TOO_LARGE, 0, 0);
+	}
+
+	if (r.kind == ML_VALUE_NONE)
+	{
+		data = ML_ARENA_NEW (arena, MlListData);
+		own  = ML_ARENA_NEW_ARRAY (arena, MlValue, ml_choose (n > 0, n, 1));
+
+		if (data == NULL || own == NULL)
+		{
+			r = ml_value_error (ML_EVAL_NO_MEMORY, 0, 0);
+		}
+	}
+
+	if (r.kind == ML_VALUE_NONE)
+	{
+		for (uint64_t i = 0; i < n; i++)
+		{
+			own [i] = items [i];
+		}
+
+		data->count = n;
+		data->items = own;
+		r.kind      = ML_VALUE_LIST;
+		r.list      = data;
+	}
+
+	return r;
+}
+
 MlValue ml_value_bool (int32_t flag)
 {
 	MlValue v = ml_value_none ();
@@ -283,7 +339,13 @@ static MlValue compare_order (MlCompare op, int32_t order)
 	return ml_value_bool (holds);
 }
 
-MlValue ml_value_compare (MlArena *arena, MlCompare op, MlValue a, MlValue b)
+/* The comparison of two values that are not lists. */
+static MlValue compare_scalar (
+	MlArena   *arena,
+	MlCompare op,
+	MlValue   a,
+	MlValue   b
+)
 {
 	MlValue r;
 	int32_t equality = op == ML_COMPARE_EQ || op == ML_COMPARE_NE;
@@ -337,6 +399,54 @@ MlValue ml_value_compare (MlArena *arena, MlCompare op, MlValue a, MlValue b)
 	else
 	{
 		r = ml_value_error (ML_EVAL_TYPE, 0, 0);
+	}
+
+	return r;
+}
+
+/* 1 when the lists have the same length and equal items. */
+static int32_t lists_equal (
+	MlArena          *arena,
+	const MlListData *a,
+	const MlListData *b
+)
+{
+	int32_t same = a->count == b->count;
+
+	for (uint64_t i = 0; i < a->count && same; i++)
+	{
+		MlValue eq = compare_scalar (
+			arena,
+			ML_COMPARE_EQ,
+			a->items [i],
+			b->items [i]
+		);
+
+		same = eq.kind == ML_VALUE_BOOL && eq.flag;
+	}
+
+	return same;
+}
+
+MlValue ml_value_compare (MlArena *arena, MlCompare op, MlValue a, MlValue b)
+{
+	MlValue r;
+
+	if (
+		   (op == ML_COMPARE_EQ || op == ML_COMPARE_NE)
+		&& a.kind == ML_VALUE_LIST
+		&& b.kind == ML_VALUE_LIST
+	)
+	{
+		r = compare_order (
+			op,
+			ml_choose (lists_equal (arena, a.list, b.list), 0, 1)
+		);
+	}
+
+	else
+	{
+		r = compare_scalar (arena, op, a, b);
 	}
 
 	return r;
@@ -1141,7 +1251,8 @@ MlValue ml_value_pow (MlArena *arena, MlValue a, MlValue b)
 	return result;
 }
 
-MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
+/* The text of a value that is not a list. */
+static MlResult format_scalar (MlStr *out, MlArena *arena, MlValue v)
 {
 	MlResult r = ML_ERR_INVALID;
 
@@ -1227,6 +1338,61 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 	}
 
 	return r;
+}
+
+/* How many items of a list are written out before and after the dots. */
+#define LIST_HEAD 8
+#define LIST_TAIL 2
+
+/*
+ * [1, 2, 3]; a long list shows its first eight and its last two items, then
+ * the count: [1, 2, 3, 4, 5, 6, 7, 8, ..., 99, 100] (100 items).
+ */
+static MlResult format_list (MlStr *out, MlArena *arena, const MlListData *l)
+{
+	MlResult r     = ml_str_append (out, ml_slice_cstr ("["));
+	int32_t  split = l->count > LIST_HEAD + LIST_TAIL + 1;
+
+	for (uint64_t i = 0; i < l->count && r == ML_OK; i++)
+	{
+		int32_t hidden = split && i >= LIST_HEAD && i < l->count - LIST_TAIL;
+
+		if (hidden && i == LIST_HEAD)
+		{
+			r = ml_str_append (out, ml_slice_cstr ("..., "));
+		}
+
+		else if (!hidden)
+		{
+			r = format_scalar (out, arena, l->items [i]);
+
+			if (r == ML_OK && i + 1 < l->count)
+			{
+				r = ml_str_append (out, ml_slice_cstr (", "));
+			}
+		}
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_str_append (out, ml_slice_cstr ("]"));
+	}
+
+	if (r == ML_OK && split)
+	{
+		r = ml_str_appendf (out, " (%llu items)", (unsigned long long)l->count);
+	}
+
+	return r;
+}
+
+MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
+{
+	return ml_choose (
+		v.kind == ML_VALUE_LIST,
+		format_list (out, arena, v.list),
+		format_scalar (out, arena, v)
+	);
 }
 
 /*

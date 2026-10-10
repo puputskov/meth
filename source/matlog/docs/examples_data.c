@@ -2,6 +2,23 @@
 
 #include <matlog/docs/examples.h>
 
+static const char text_algebra_lists [] =
+	"# Lists\n"
+	"# range makes a list of any length; arithmetic goes item by item.\n"
+	"m:algebra xs = range(1, 10)\n"
+	"m:algebra xs * xs\n"
+	"# Indexing counts from 1, and a negative position counts from the end:\n"
+	"m:algebra xs[3] + xs[-1]\n"
+	"# The statistics functions read lists, also long ones:\n"
+	"m:algebra mean(range(1, 1000))\n"
+	"m:algebra len(range(1, 1000))\n"
+	"# Add and cut items:\n"
+	"m:algebra take(reverse(append(xs, 11)), 3)\n"
+	"# The sum of the squares of the first hundred numbers, and the same by"
+	" a formula:\n"
+	"m:algebra sum(range(1, 100) * range(1, 100))\n"
+	"m:algebra 100 * 101 * 201 / 6\n";
+
 static const char text_algebra_quadratic [] =
 	"# A quadratic equation\n"
 	"# Solve x^2 - 5x + 6 = 0 and check the answer, then look at one with n"
@@ -453,6 +470,7 @@ static const char text_units_kinetic_energy [] =
 
 const MlDocSource ml_example_sources [] =
 {
+	{ .name = "algebra-lists", .text = text_algebra_lists },
 	{ .name = "algebra-quadratic", .text = text_algebra_quadratic },
 	{
 		.name = "algebra-recursion-and-conditions",

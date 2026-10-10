@@ -87,6 +87,7 @@ static MlGhost ghost_algebra (
 			|| v.kind == ML_VALUE_COMPLEX
 			|| v.kind == ML_VALUE_QUAT
 			|| v.kind == ML_VALUE_BOOL
+			|| v.kind == ML_VALUE_LIST
 		)
 		{
 			g.result = ml_value_format (out, &arena, v);

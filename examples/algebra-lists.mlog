@@ -1,0 +1,14 @@
+# Lists
+# range makes a list of any length; arithmetic goes item by item.
+m:algebra xs = range(1, 10)
+m:algebra xs * xs
+# Indexing counts from 1, and a negative position counts from the end:
+m:algebra xs[3] + xs[-1]
+# The statistics functions read lists, also long ones:
+m:algebra mean(range(1, 1000))
+m:algebra len(range(1, 1000))
+# Add and cut items:
+m:algebra take(reverse(append(xs, 11)), 3)
+# The sum of the squares of the first hundred numbers, and the same by a formula:
+m:algebra sum(range(1, 100) * range(1, 100))
+m:algebra 100 * 101 * 201 / 6

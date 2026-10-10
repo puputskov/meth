@@ -5,9 +5,10 @@
 
 /*
  * The statistics functions of the algebra domain (plan section 4.22). Data is
- * a vector: [1, 2, 3] or a row [[1, 2, 3]], or range (1, 3); a matrix has at
- * most ML_MAT_MAX_DIM rows or columns, so a list has at most that many
- * numbers. Everything is exact while the data is exact:
+ * a vector: [1, 2, 3] or a row [[1, 2, 3]] (a matrix has at most ML_MAT_MAX_DIM
+ * rows or columns), or a list: range (1, 3), list (1, 2, 3), up to
+ * ML_LIST_MAX numbers. The items of a list must be exact. Everything is exact
+ * while the data is exact:
  *
  *	sum mean median mode        the usual; mode is the smallest of the most
  *	                            frequent values
@@ -21,7 +22,8 @@
  *	skew  kurt                  skewness (approximate) and excess kurtosis
  *	count cumsum sort           the length, running sums, the data in order
  *	histogram (v, k)            how many values are in each of k equal bins
- *	range (a, b [, step])       a, a + step, ... up to b
+ *	range (a, b [, step])       the list a, a + step, ... up to b
+ *	prod (v)                    the product of the items
  *	linfit (x, y)               [a, b] so that y is about a + b x
  *	rsq (x, y)                  the coefficient of determination
  *	polyfit (x, y, n)           the coefficients c0 ... cn of the degree n
@@ -77,7 +79,8 @@
 	X (ZSCORE,       "zscore",       3, 3) \
 	X (HIST,         "hist",         2, 2) \
 	X (SCATTER,      "scatter",      2, 2) \
-	X (PLOT,         "plot",         2, 2)
+	X (PLOT,         "plot",         2, 2) \
+	X (PROD,         "prod",         1, 1)
 
 typedef enum MlStat
 {

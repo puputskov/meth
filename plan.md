@@ -22,7 +22,7 @@ Each domain is a mode (see section 3).
 | Lambda calculus | parsing, reduction, step by step beta reduction |
 | Projective geometric algebra (PGA) | multivectors, geometric products, motors; both 2D `R(2,0,1)` and 3D `R(3,0,1)` |
 | Boolean algebra | expressions, truth tables, simplification |
-| Units | SI units and conversions, dimensional analysis (cross-cutting, usable in any mode) |
+| Physics | the algebra domain with SI units and conversions, dimensional analysis (decision of 2026-10-10, not built yet: see 2.1) |
 | Complex numbers and quaternions | arithmetic, polar form, rotations (section 4.17) |
 | Statistics | descriptive statistics, regression, distributions (section 4.22) |
 | Images | load, convolution kernels, pointwise maps (section 4.20) |
@@ -30,6 +30,17 @@ Each domain is a mode (see section 3).
 ### 2.1 Domain details
 - Integration scope, in order: polynomials and the table integrals (powers, `exp`, `ln`, trig), linearity and constant factors,
   then substitution and integration by parts, then rational functions (partial fractions). A general Risch-style algorithm is out of scope.
+- **Physics domain** (decided 2026-10-10, not built yet). Units are not part of ordinary algebra: there a name like `h`, `m`, `s`, `g`, `bar` or
+  `min` is a variable and `3 m` is a product, as everyone expects, and the unit names cannot hide a user's name (the examples and the tests of
+  this project found it three times in one day: `h`, `bars`, `dens` were read as hour, bar and the product d e n s). The `physics` domain is the
+  algebra domain with the unit names, `to`, quantities and dimension checks switched on, the same operators, variables, functions, lists and
+  matrices, and the variables and functions flow between the two domains as they do between lines of one domain. In the algebra domain a unit name
+  is just a name, and `to` is not an operator. Consequences to do together: the domain name `physics` in the `.mlog` file (`m:physics`); files
+  that have units in `m:algebra` lines are read as before, a line that fails to evaluate in algebra because of a unit name is shown with the hint
+  "units belong to the physics domain" and `:fix units` (or the load of an old file, once, with a message) rewrites the block as physics; the
+  completion, highlighting, ghost mode, steps, export, docs page `units` and the tutorial lessons name the domain; the examples and tests with
+  units move to the physics domain (`units-kinetic-energy`, the quantity tests of `test_eval.c`, the unit parts of `syntax` and `functions`).
+  Comparisons and lists work on quantities in physics only. The domain switch keys and `:mode physics` need no new concept.
 - PGA is implemented generically over a signature `(p, q, r)` (basis blades as bitmasks, metric from the signature).
   `R(2,0,1)` and `R(3,0,1)` are presets, selectable in PGA mode (e.g. `:pga 2` / `:pga 3`). Same code serves both.
 
@@ -530,7 +541,7 @@ mode stays safe. Built in this order, each step with tests, docs and an example 
    names are visible in the statements after it and in nothing else, they do not change the environment, and the value of the body is its last
    expression. The parser makes a `seq` node with one child per statement; the evaluator pushes them as frames like any other children, with the
    `let` frames adding to the scope of the running function.
-3. **Lists.** A value kind `list` of any length (heap, owned by the arena like matrices) whose items are values: exact and approximate numbers,
+3. **Lists** (part A built 2026-10-10: the value kind, `range` as a list up to 100000 items, `list tolist vec len item append concat reverse take drop prod`, `xs[i]` with negative positions, item by item arithmetic, equality, the statistics functions on lists with a merge sort, the page `lists` and the example `algebra-lists`; part B, `map`, `filter`, `fold` and `x -> expr`, is step 4): A value kind `list` of any length (heap, owned by the arena like matrices) whose items are values: exact and approximate numbers,
    quantities, booleans, and lists. `[1, 2, 3]` stays a column vector when every item is an exact number and the context is a matrix operation; the
    list value is made by `range (a, b)`, `list (...)`, `map`, `filter`, `sort`, and a list converts to a vector on demand (`vec (xs)`), so the 64 item
    limit goes with the matrix limit only when a matrix is wanted. `xs [i]` indexes from 1, `len (xs)`, `xs + ys` and `xs * 2` work item by item.
@@ -615,6 +626,29 @@ given with units.
   recurses, so the C stack must not depend on the input), and every allocation failure path is tried by an allocator that fails on the n-th call.
 - Built with the compilers' sanitizers (address, undefined behaviour) where the platform has them; libFuzzer or AFL entry points are a thin wrapper over
   the same target functions, but the program needs no library: the built in driver is enough.
+
+### 4.24 Texts in files: messages, hints, tutorial, localization
+
+Decided 2026-10-10 (a request, not built yet). Every text a user reads is data in a file, so a typo, a new hint, a new lesson or a translation needs
+no recompile, and the code only holds the stable code name of a text.
+- **One catalog format** (`.mltext`, plain UTF-8, line based like the settings file): `[section]` headings and `code = text` entries, `#` comments, a
+  continuation line starts with whitespace, `{name}` placeholders for values (`{ACTION_UNDO}` as in section 4.15, `{name}` for the offending name in an
+  error). The code asks for `text ("parse_unexpected_end")` and gets the text of the active language, or the English one when the entry is missing,
+  or the code name itself when both are, so a missing text is visible and never a crash.
+- **What moves out of the C files:** the error texts and the code names of the parser, the evaluator (`error_texts` and `error_codes` in `math/value.c`),
+  the boolean and lambda engines, the CLI and the editor messages (`set_message`); the hints (`ui/hint.c`); the tutorial lessons (`tutorial/lessons.c`:
+  text, hint and answer per step stay together as one lesson file each); the command and action summaries (`ui/keymap.c`, `ui/complete.c`); the
+  option summaries (`session/options.c`). The machine readable codes (`div_zero`, `parse_too_deep` ...) stay in C: they are part of the CLI contract and
+  the key of the catalog; only the human text moves.
+- **Where the files live:** the English catalog is compiled into the program as the default, as the documentation pages are today, so the tool works
+  with nothing next to it; the same files are read from a `texts` folder in the settings folder (or `MATLOG_TEXTS`) when it exists, and an entry there
+  replaces the built in one. `:set language de` (setting `language`) picks `texts/de.mltext` over the English one, entry by entry. The documentation
+  pages, the examples and the lessons follow the same rule (a `de` folder next to `docs/`), so a translation is a folder of files.
+- **Checks:** a test finds every code of the C tables without a text in the English catalog and every catalog entry no code uses; another finds a
+  placeholder without a value; `matlog texts check [FILE]` does both for a translation and reports what is missing, so a translator sees the gaps.
+  The width of a text is not assumed: panels and the status line already cut and pad by columns.
+- **Order of work:** the catalog reader and `text (code)` with the built in English file first, then the error texts (smallest, most visible), the
+  hints, the command summaries, the lessons, last the settings file entry `language` and `matlog texts`.
 
 ## 5. Architecture (proposal)
 

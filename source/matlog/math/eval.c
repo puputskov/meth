@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include <matlog/math/hyper.h>
+#include <matlog/math/listfn.h>
 #include <matlog/math/stats.h>
 #include <matlog/math/vector.h>
 #include <matlog/sym/expr.h>
@@ -136,6 +137,10 @@ typedef enum MlBuiltin
 #define BUILTIN_STAT_ENUM(id, name, lo, hi) BUILTIN_STAT_##id,
 	ML_STAT_LIST (BUILTIN_STAT_ENUM)
 #undef BUILTIN_STAT_ENUM
+	/* lists (math/listfn.h) from here on */
+#define BUILTIN_LISTFN_ENUM(id, name, lo, hi) BUILTIN_LISTFN_##id,
+	ML_LISTFN_LIST (BUILTIN_LISTFN_ENUM)
+#undef BUILTIN_LISTFN_ENUM
 	BUILTIN_COUNT
 } MlBuiltin;
 
@@ -203,6 +208,10 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_STAT_##id] = { .name = nm, .min = lo, .max = hi },
 	ML_STAT_LIST (BUILTIN_STAT_INFO)
 #undef BUILTIN_STAT_INFO
+#define BUILTIN_LISTFN_INFO(id, nm, lo, hi) \
+	[BUILTIN_LISTFN_##id] = { .name = nm, .min = lo, .max = hi },
+	ML_LISTFN_LIST (BUILTIN_LISTFN_INFO)
+#undef BUILTIN_LISTFN_INFO
 };
 
 static MlBuiltin builtin_find (MlSlice name)
@@ -1057,9 +1066,11 @@ static MlValue builtin_apply (
 	int32_t has_expr   = 0;
 	int32_t has_qty    = 0;
 	int32_t has_hyper  = 0;
+	int32_t has_list   = 0;
 
 	for (uint64_t i = 0; i < argc; i++)
 	{
+		has_list   = has_list || ml_value_is_list (args [i]);
 		has_matrix = has_matrix || ml_value_is_matrix (args [i]);
 		has_expr   = has_expr || ml_value_is_expr (args [i]);
 		has_qty    = has_qty || ml_value_is_quantity (args [i]);
@@ -1076,6 +1087,16 @@ static MlValue builtin_apply (
 			args [0].kind == ML_VALUE_BOOL,
 			ml_value_bool (!args [0].flag),
 			error_at (ML_EVAL_TYPE)
+		);
+	}
+
+	else if (id >= BUILTIN_LISTFN_LIST)
+	{
+		r = ml_listfn_apply (
+			arena,
+			(MlListFn)(id - BUILTIN_LISTFN_LIST),
+			args,
+			argc
 		);
 	}
 
@@ -1099,6 +1120,11 @@ static MlValue builtin_apply (
 		r = quantity_function (arena, id, args, argc);
 	}
 
+	else if (has_list && (id == BUILTIN_MIN || id == BUILTIN_MAX) && argc == 1)
+	{
+		r = ml_stats_extreme (arena, args [0], id == BUILTIN_MAX);
+	}
+
 	else if (id >= BUILTIN_STAT_SUM)
 	{
 		r = ml_stats_apply (
@@ -1107,6 +1133,12 @@ static MlValue builtin_apply (
 			args,
 			argc
 		);
+	}
+
+	else if (has_list)
+	{
+		/* the number functions do not take lists */
+		r = error_at (ML_EVAL_TYPE);
 	}
 
 	else if (id >= BUILTIN_DET)
@@ -1172,7 +1204,8 @@ static MlValue builtin_apply (
 	return r;
 }
 
-static MlValue binary_apply (
+/* The operator for two values that are not lists. */
+static MlValue binary_scalar (
 	MlArena    *arena,
 	MlNodeKind kind,
 	MlValue    a,
@@ -1220,6 +1253,96 @@ static MlValue binary_apply (
 	else
 	{
 		r = ml_value_pow (arena, a, b);
+	}
+
+	return r;
+}
+
+/*
+ * Arithmetic on lists goes item by item: two lists of one length, or a list
+ * and a single value, which is used for every item. The items are never
+ * lists, so the item operator is the one of single values.
+ */
+static MlValue binary_list (
+	MlArena    *arena,
+	MlNodeKind kind,
+	MlValue    a,
+	MlValue    b
+)
+{
+	uint64_t n    = ml_choose (
+		a.kind == ML_VALUE_LIST,
+		a.list->count,
+		b.list->count
+	);
+	MlValue  r    = ml_value_none ();
+	MlValue  *out = NULL;
+
+	if (
+		   a.kind == ML_VALUE_LIST
+		&& b.kind == ML_VALUE_LIST
+		&& a.list->count != b.list->count
+	)
+	{
+		r = error_at (ML_EVAL_SIZE);
+	}
+
+	else
+	{
+		out = ML_ARENA_NEW_ARRAY (arena, MlValue, n + 1);
+		r   = ml_choose (out == NULL, error_at (ML_EVAL_NO_MEMORY), r);
+	}
+
+	for (uint64_t i = 0; i < n && r.kind == ML_VALUE_NONE; i++)
+	{
+		MlValue x = ml_choose (a.kind == ML_VALUE_LIST, a.list->items [i], a);
+		MlValue y = ml_choose (b.kind == ML_VALUE_LIST, b.list->items [i], b);
+
+		out [i] = binary_scalar (arena, kind, x, y);
+		r       = ml_choose (
+			out [i].kind == ML_VALUE_ERROR,
+			out [i],
+			r
+		);
+	}
+
+	return ml_choose (
+		r.kind == ML_VALUE_NONE,
+		ml_value_list (arena, out, n),
+		r
+	);
+}
+
+static MlValue binary_apply (
+	MlArena    *arena,
+	MlNodeKind kind,
+	MlValue    a,
+	MlValue    b
+)
+{
+	return ml_choose (
+		(a.kind == ML_VALUE_LIST || b.kind == ML_VALUE_LIST)
+			&& kind >= ML_NODE_ADD
+			&& kind <= ML_NODE_POW,
+		binary_list (arena, kind, a, b),
+		binary_scalar (arena, kind, a, b)
+	);
+}
+
+/* The negative of every item of a list. */
+static MlValue neg_list (MlArena *arena, MlValue a)
+{
+	MlValue *out = ML_ARENA_NEW_ARRAY (arena, MlValue, a.list->count + 1);
+	MlValue r    = error_at (ML_EVAL_NO_MEMORY);
+
+	if (out != NULL)
+	{
+		for (uint64_t i = 0; i < a.list->count; i++)
+		{
+			out [i] = ml_value_neg (arena, a.list->items [i]);
+		}
+
+		r = ml_value_list (arena, out, a.list->count);
 	}
 
 	return r;
@@ -2006,6 +2129,7 @@ static int32_t is_operator (MlNodeKind kind)
 		|| kind == ML_NODE_TO
 		|| (kind >= ML_NODE_ADD && kind <= ML_NODE_POW)
 		|| (kind >= ML_NODE_LT && kind <= ML_NODE_OR)
+		|| kind == ML_NODE_INDEX
 	);
 }
 
@@ -2079,6 +2203,16 @@ static MlValue operator_apply (MlEvalCtx *cx, MlNodeKind kind, uint64_t n)
 	if (kind == ML_NODE_LIST)
 	{
 		r = list_value (cx->arena, &cx->vals.data [cx->vals.len - n], n);
+	}
+
+	else if (kind == ML_NODE_NEG && a.kind == ML_VALUE_LIST)
+	{
+		r = neg_list (cx->arena, a);
+	}
+
+	else if (kind == ML_NODE_INDEX)
+	{
+		r = ml_list_item (cx->arena, a, top_value (cx));
 	}
 
 	else if (kind == ML_NODE_NEG)
@@ -2323,7 +2457,8 @@ static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 		ml_choose (
 			   node.kind == ML_NODE_TO
 			|| (node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW)
-			|| (node.kind >= ML_NODE_LT && node.kind <= ML_NODE_OR),
+			|| (node.kind >= ML_NODE_LT && node.kind <= ML_NODE_OR)
+			|| node.kind == ML_NODE_INDEX,
 			2,
 			1
 		)
@@ -2880,6 +3015,7 @@ MlResult ml_eval_commit (
 			|| ml_value_is_hyper (value)
 			|| value.kind == ML_VALUE_PLOT
 			|| value.kind == ML_VALUE_BOOL
+			|| value.kind == ML_VALUE_LIST
 		)
 	)
 	{

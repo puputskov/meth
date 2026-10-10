@@ -31,7 +31,8 @@ typedef enum FrameKind
 	FRAME_SQRT_ATOM,      /* waiting for the atom of a '√' operand */
 	FRAME_PAREN,          /* waiting for the expression inside '(' ')' */
 	FRAME_CALL_ARG,       /* waiting for an argument of a call */
-	FRAME_LIST_ELEM       /* waiting for an element of a list */
+	FRAME_LIST_ELEM,      /* waiting for an element of a list */
+	FRAME_INDEX           /* waiting for the position inside name[ ] */
 } FrameKind;
 
 typedef struct ParseFrame
@@ -834,6 +835,46 @@ static void start_list (Parser *p)
 	}
 }
 
+/* name '[' with the name read and the cursor on the bracket. */
+static void start_index (Parser *p, uint64_t name)
+{
+	advance (p);
+
+	if (!p->failed && enter (p))
+	{
+		push (p, FRAME_INDEX, name, 0, ML_TOK_END, 0);
+		call_expr (p);
+	}
+
+	else
+	{
+		give (p, NIL);
+	}
+}
+
+/* The position inside name[ ] is known: the bracket, then the node. */
+static void index_continue (Parser *p, uint64_t name, uint64_t position)
+{
+	MlToken  close = peek (p);
+	uint64_t node  = NIL;
+
+	if (!p->failed && close.kind == ML_TOK_RBRACKET)
+	{
+		advance (p);
+		node = binary (p, ML_NODE_INDEX, name, position);
+		p->ast.nodes.data [node].len = close.start + close.len
+			- node_at (p, node).start;
+	}
+
+	else if (!p->failed)
+	{
+		fail_unexpected (p, close);
+	}
+
+	leave (p);
+	give (p, node);
+}
+
 static void mode_atom (Parser *p)
 {
 	MlToken t = peek (p);
@@ -854,6 +895,15 @@ static void mode_atom (Parser *p)
 		if (!p->failed && peek (p).kind == ML_TOK_LPAREN)
 		{
 			start_call (p, name);
+		}
+
+		else if (
+			   !p->failed
+			&& peek (p).kind == ML_TOK_LBRACKET
+			&& peek (p).start == t.start + t.len
+		)
+		{
+			start_index (p, name);
 		}
 
 		else
@@ -1087,6 +1137,11 @@ static void mode_return (Parser *p)
 	else if (f.kind == FRAME_LIST_ELEM)
 	{
 		list_elem_continue (p, f.node, val);
+	}
+
+	else if (f.kind == FRAME_INDEX)
+	{
+		index_continue (p, f.node, val);
 	}
 
 	else
@@ -1480,7 +1535,8 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_AND]      = "and",
 	[ML_NODE_OR]       = "or",
 	[ML_NODE_SEQ]      = "seq",
-	[ML_NODE_LET]      = "let"
+	[ML_NODE_LET]      = "let",
+	[ML_NODE_INDEX]    = "index"
 };
 
 static const char *node_label (MlNodeKind kind)
