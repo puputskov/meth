@@ -301,7 +301,6 @@ static const MlSym *call_value (
 		   ML_WORD_IS (name, DIFF)
 		&& argc == 2
 		&& fn.kind == ML_BIND_NONE
-		&& !b->ctx->raw
 		&& kid (sc, sc->cur, 2)->kind == ML_SYM_VAR
 	)
 	{

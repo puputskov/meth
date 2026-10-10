@@ -212,6 +212,103 @@ static void test_calculus (void)
 	);
 }
 
+static void test_rules (void)
+{
+	/* a step that is the rule, at the one place where the sides differ */
+	CHECK (
+		mark_of (
+			"theorem t: x * (y + z) = x * y + x * z\n"
+			"x * (y + z) = x * y + x * z  by rule distribute\n",
+			1,
+			NULL
+		) == ML_PROOF_VALID
+	);
+	CHECK (
+		mark_of (
+			"theorem t: 2 + x * (y + z) = 2 + x * y + x * z\n"
+			"2 + x * (y + z) = 2 + x * y + x * z  by rule distribute\n",
+			1,
+			NULL
+		) == ML_PROOF_VALID
+	);
+
+	/* read the other way, and with bigger formulas in place of the letters */
+	CHECK (
+		mark_of (
+			"theorem t: (x + y)^2 = x^2 + 2 * x * y + y^2\n"
+			"x^2 + 2 * x * y + y^2 = (x + y)^2  by rule square_of_sum\n",
+			1,
+			NULL
+		) == ML_PROOF_VALID
+	);
+	CHECK (
+		mark_of (
+			"theorem t: sin (3x)^2 + cos (3x)^2 = 1\n"
+			"sin (3x)^2 + cos (3x)^2 = 1  by rule pythagoras\n",
+			1,
+			NULL
+		) == ML_PROOF_VALID
+	);
+
+	/* the rule is not the step: not checked, or refuted when it is false */
+	CHECK (
+		mark_of (
+			"theorem t: x * (y + z) = x * y + x * z\n"
+			"x * (y + z) = x * y + x * z  by rule difference_of_squares\n",
+			1,
+			NULL
+		) == ML_PROOF_UNCHECKED
+	);
+	CHECK (
+		mark_of (
+			"theorem t: x * (y + z) = x * y + z\n"
+			"x * (y + z) = x * y + z  by rule distribute\n",
+			1,
+			NULL
+		) == ML_PROOF_INVALID
+	);
+
+	/* a rule that does not exist, and no name at all */
+	CHECK (
+		mark_of ("theorem t: x = x\nx = x  by rule magic\n", 1, NULL)
+		== ML_PROOF_SYNTAX
+	);
+	CHECK (
+		mark_of ("theorem t: x = x\nx = x  by rule\n", 1, NULL)
+		== ML_PROOF_SYNTAX
+	);
+}
+
+/* Every rule of the table is an identity: no sample point refutes it. */
+static void test_rule_table (void)
+{
+	uint64_t count = ml_text_count ("rules");
+
+	CHECK (count >= 10);
+
+	for (uint64_t i = 0; i < count; i++)
+	{
+		const char *name = ml_text_nth_name ("rules", i);
+		const char *text = ml_text_nth ("rules", i);
+		MlStr       src;
+
+		ml_str_init (&src);
+		CHECK (
+			ml_str_appendf (
+				&src,
+				"theorem t: %s\n%s  by expand\n%s  by rule %s\nqed\n",
+				text,
+				text,
+				text,
+				name
+			) == ML_OK
+		);
+		CHECK (mark_of (ml_str_cstr (src), 1, NULL) != ML_PROOF_INVALID);
+		CHECK (mark_of (ml_str_cstr (src), 2, NULL) == ML_PROOF_VALID);
+		ml_str_free (&src);
+	}
+}
+
 static void test_broken (void)
 {
 	uint64_t proved = 9;
@@ -476,6 +573,8 @@ void run_proof_tests (void)
 	test_valid ();
 	test_reasons ();
 	test_calculus ();
+	test_rules ();
+	test_rule_table ();
 	test_broken ();
 	test_syntax ();
 	test_wrong_step_everywhere ();

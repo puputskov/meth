@@ -572,13 +572,37 @@ step_differs = not checked: step {n} does not say this
 lemma_unknown = not valid: no proved theorem called `{name}` above
 lemma_given = not checked: theorem `{name}` needs hypotheses, which a lemma cannot have yet
 lemma_differs = not checked: theorem `{name}` does not say this
-rule_unsupported = not checked: rules are not available yet
+rule_name = write the name of a rule: `by rule distributive`
+rule_unknown = there is no rule called `{name}` (see the section [rules] of the texts)
+rule_no_fit = not checked: the step is not an instance of the rule `{name}`
 sorry = sorry: this step is not proved
 qed_errors = not proved: some steps are not valid
 qed_sorry = not proved: the proof uses sorry
 qed_unchecked = not proved: {count} steps are not checked
 qed_goal = not proved: the steps stop at {at}, not at the claim
 qed_ok = proved
+
+# The rules of a proof (by rule NAME): identities that hold for any formulas in
+# place of the letters. The step must be this identity, read either way, at the
+# one place where its two sides differ. Add your own: a letter stands for any
+# formula, the name is what you write after `by rule`.
+[rules]
+commute_add = a + b = b + a
+commute_mul = a * b = b * a
+distribute = a * (b + c) = a * b + a * c
+distribute_right = (a + b) * c = a * c + b * c
+difference_of_squares = a^2 - b^2 = (a + b) * (a - b)
+square_of_sum = (a + b)^2 = a^2 + 2 * a * b + b^2
+square_of_difference = (a - b)^2 = a^2 - 2 * a * b + b^2
+power_of_product = (a * b)^c = a^c * b^c
+power_of_power = (a^b)^c = a^(b * c)
+power_sum = a^(b + c) = a^b * a^c
+exp_sum = exp (a + b) = exp (a) * exp (b)
+pythagoras = sin (a)^2 + cos (a)^2 = 1
+sin_double = sin (2 * a) = 2 * sin (a) * cos (a)
+cos_double = cos (2 * a) = cos (a)^2 - sin (a)^2
+sin_sum = sin (a + b) = sin (a) * cos (b) + cos (a) * sin (b)
+cos_sum = cos (a + b) = cos (a) * cos (b) - sin (a) * sin (b)
 
 # The lessons of the tutorial are in the files lessons/en/*.mltext, one lesson per
 # file, built into the program in the same way and read in the order of their names.

@@ -4,6 +4,7 @@
 #include <matlog/math/env.h>
 #include <matlog/parse/parser.h>
 #include <matlog/parse/words.h>
+#include <matlog/proof/rule.h>
 #include <matlog/sym/expr.h>
 #include <matlog/texts/texts.h>
 
@@ -34,8 +35,10 @@ void ml_proof_report_free (MlProofReport *rep)
 
 typedef struct Eq
 {
-	const MlSym *l;
+	const MlSym *l;  /* the sides in canonical form */
 	const MlSym *r;
+	const MlSym *rl; /* the same as written, for the rules */
+	const MlSym *rr;
 } Eq;
 
 typedef struct Step
@@ -70,6 +73,7 @@ typedef struct Checker
 	Eq           goal;
 	int32_t      has_last; /* the step above gave a right hand side */
 	const MlSym *last_r;
+	const MlSym *last_rr;
 	uint64_t     errors; /* steps that are invalid or unreadable */
 	uint64_t     sorries;
 	uint64_t     unchecked;
@@ -239,8 +243,11 @@ static void ctx_reset (Checker *c)
 	c->ctx.budget = ML_SYM_BUDGET;
 }
 
-/* The formula of the text, NULL when it cannot be read. */
-static const MlSym *read_side (Checker *c, MlSlice text)
+/*
+ * The formula of the text, NULL when it cannot be read; raw 1 keeps the tree
+ * as it was written.
+ */
+static const MlSym *read_side (Checker *c, MlSlice text, int32_t raw)
 {
 	MlParseResult p = ml_parse (text);
 	const MlSym  *s = NULL;
@@ -248,6 +255,7 @@ static const MlSym *read_side (Checker *c, MlSlice text)
 	if (p.error.code == ML_PARSE_OK)
 	{
 		ctx_reset (c);
+		c->ctx.raw = raw;
 		s = ml_sym_from_ast (
 			&c->ctx,
 			&c->env,
@@ -257,6 +265,7 @@ static const MlSym *read_side (Checker *c, MlSlice text)
 			p.ast.root,
 			ml_slice ("", 0)
 		);
+		c->ctx.raw = 0;
 		s = ml_choose (ml_symctx_ok (&c->ctx), s, NULL);
 		ml_ast_free (&p.ast);
 	}
@@ -300,16 +309,18 @@ static EqRead read_eq (Checker *c, MlSlice text)
 	else
 	{
 		rt     = trim (ml_slice_sub (text, at + 1, text.len - at - 1));
-		e.eq.l = read_side (c, lt);
-		e.eq.r = read_side (c, rt);
+		e.eq.l  = read_side (c, lt, 0);
+		e.eq.r  = read_side (c, rt, 0);
+		e.eq.rl = read_side (c, lt, 1);
+		e.eq.rr = read_side (c, rt, 1);
 
-		if (e.eq.l == NULL)
+		if (e.eq.l == NULL || e.eq.rl == NULL)
 		{
 			e.code = EQ_BAD_SIDE;
 			e.bad  = lt;
 		}
 
-		else if (e.eq.r == NULL)
+		else if (e.eq.r == NULL || e.eq.rr == NULL)
 		{
 			e.code = EQ_BAD_SIDE;
 			e.bad  = rt;
@@ -673,6 +684,66 @@ static void justify_lemma (Checker *c, MlProofLine *out, Eq eq, MlSlice name)
 	}
 }
 
+/* "rule NAME": the step is an instance of a rule of the table. */
+static void justify_rule (Checker *c, MlProofLine *out, Eq eq, MlSlice name)
+{
+	MlProofRuleResult fit = ML_PROOF_RULE_UNKNOWN;
+	MlTextArg         args [1] = {
+		{ .name = "name", .value = name }
+	};
+
+	if (name.len == 0)
+	{
+		mark_plain (c, out, ML_PROOF_SYNTAX, "proof.rule_name");
+	}
+
+	else
+	{
+		fit = ml_proof_rule_check (&c->ctx, name, eq.rl, eq.rr);
+	}
+
+	if (name.len > 0 && fit == ML_PROOF_RULE_UNKNOWN)
+	{
+		mark (c, out, ML_PROOF_SYNTAX, "proof.rule_unknown", args, 1);
+	}
+
+	else if (fit == ML_PROOF_RULE_FITS)
+	{
+		mark_plain (c, out, ML_PROOF_VALID, NULL);
+	}
+
+	else if (fit == ML_PROOF_RULE_NO_FIT)
+	{
+		MlStr point;
+		MlStr left;
+		MlStr right;
+
+		ml_str_init (&point);
+		ml_str_init (&left);
+		ml_str_init (&right);
+
+		if (refute (c, eq, &point, &left, &right))
+		{
+			MlTextArg shown [3] = {
+				{ .name = "point", .value = ml_str_view (point) },
+				{ .name = "left",  .value = ml_str_view (left) },
+				{ .name = "right", .value = ml_str_view (right) }
+			};
+
+			mark (c, out, ML_PROOF_INVALID, "proof.not_equal", shown, 3);
+		}
+
+		else
+		{
+			mark (c, out, ML_PROOF_UNCHECKED, "proof.rule_no_fit", args, 1);
+		}
+
+		ml_str_free (&point);
+		ml_str_free (&left);
+		ml_str_free (&right);
+	}
+}
+
 /* ---- the lines --------------------------------------------------------- */
 
 typedef enum LineKind
@@ -867,9 +938,15 @@ static void check_step (Checker *c, MlProofLine *out, MlSlice line)
 
 	else if (cont)
 	{
-		e.eq.l = c->last_r;
-		e.eq.r = read_side (c, claim);
-		e.code = ml_choose (e.eq.r != NULL, EQ_OK, EQ_BAD_SIDE);
+		e.eq.l  = c->last_r;
+		e.eq.rl = c->last_rr;
+		e.eq.r  = read_side (c, claim, 0);
+		e.eq.rr = read_side (c, claim, 1);
+		e.code  = ml_choose (
+			e.eq.r != NULL && e.eq.rr != NULL,
+			EQ_OK,
+			EQ_BAD_SIDE
+		);
 		e.bad  = claim;
 	}
 
@@ -899,6 +976,7 @@ static void check_step (Checker *c, MlProofLine *out, MlSlice line)
 		Step    st   = { .eq = e.eq, .valid = 0 };
 
 		c->last_r   = e.eq.r;
+		c->last_rr  = e.eq.rr;
 		c->has_last = 1;
 		c->status   = ml_choose (
 			c->status == ML_OK,
@@ -943,7 +1021,7 @@ static void check_step (Checker *c, MlProofLine *out, MlSlice line)
 
 		else if (ml_slice_equal (word, ml_slice_cstr ("rule")))
 		{
-			mark_plain (c, out, ML_PROOF_UNCHECKED, "proof.rule_unsupported");
+			justify_rule (c, out, e.eq, arg);
 		}
 
 		else
@@ -1132,6 +1210,7 @@ MlResult ml_proof_check (MlProofReport *rep, MlSlice source)
 	c.open      = 0;
 	c.has_last  = 0;
 	c.last_r    = NULL;
+	c.last_rr   = NULL;
 	c.errors    = 0;
 	c.sorries   = 0;
 	c.unchecked = 0;

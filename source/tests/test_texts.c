@@ -727,6 +727,7 @@ static void test_every_entry_is_used (void)
 		if (
 			   strcmp (ml_str_cstr (name), "hints") != 0
 			&& strcmp (ml_str_cstr (name), "lessons") != 0
+			&& strcmp (ml_str_cstr (name), "rules") != 0
 		)
 		{
 			unused += unused_in (&all, ml_str_cstr (name));
