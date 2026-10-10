@@ -156,10 +156,9 @@ can try meth without building it. It runs the real library, `meth_lib` built to 
   lazily) and `decommit` does nothing, with the reservation sizes of the arenas smaller on that target (a constant per target in `core/mem.h`, for
   example 256 MB for the application arena instead of 16 GB; the total stays under the 4 GB of wasm32). The heap (`core/heap.c`) uses the same memory.
   A computation that needs more than that fails with the normal "too large" error, as on any machine that runs out of memory.
-- Next: the C API beyond `meth_eval` (a session handle, results per line, ghost, steps, completion, highlight classes, typeset math, plots, export),
-  the notebook page, the test run of the groups against the module, and `ml_vm_decommit`.
-- A small C API for the page (a handle, `eval line`, results, steps, ghost, completion, highlight classes, typeset math, plot data, export, the texts
-  catalog) that returns text or JSON in a buffer of the module, so the page never reads structures of the library.
+- Built: the C API of the page (`meth/web/web.h`, `web/js/meth.js`), the tests of it and of 26 C test groups inside the module, see DONE.md.
+  Next: the notebook page itself, the tutorial on the page (its checks are about editor keys), user themes and settings in the browser storage, and
+  `ml_vm_decommit`. The typeset math of one cell is `meth.exportAs ("mathml", "body 3-5")` (the line range of `:export`).
 - Typeset math: the page draws the math itself from the typeset output of the export module (MathML is built in browsers, or the box layout drawn in
   SVG/canvas), and the plots as SVG from the plot data. Themes come from `data/config` (the same `.theme` files, as CSS variables), light and dark.
 - The look is a design task of its own: the notebook column, cells with the input in a monospace font and the result typeset under it, the domain of

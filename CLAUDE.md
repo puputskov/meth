@@ -26,8 +26,8 @@ All of them build the same three programs (`meth`, `tests`, `keydemo`) from the 
 (`-DML_SANITIZE=ON` for the sanitizers), `bazel build //:meth` / `bazel test //:tests`, and the scripts that call the compiler directly,
 `./build.sh [meth|tests|keydemo|all] [debug|release] [run]` and `build.bat` (same arguments, finds Visual Studio with vswhere) into `build/direct/`.
 `build_web.bat` builds the WebAssembly module of the web editor (`web/meth.wasm`) with clang and `wasm-ld`; see `TODO.md` section 9.
-`python tools/test_web.py` runs `web/tests/cases.txt` in the module (headless Edge or Chrome) and natively and compares the results, then runs the C test groups
-that need no files inside the module (`web/tests.wasm`).
+`python tools/test_web.py` runs `web/tests/cases.txt` in the module (headless Edge or Chrome) and natively and compares the results, then the checks of the
+page API (`web/js/meth.js`) and the C test groups that need no files inside the module (`web/tests.wasm`).
 A new source file is found by all of them without a change (they glob the folders); a new OS specific folder needs a change in each.
 
 ## Warnings
