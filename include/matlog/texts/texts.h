@@ -86,6 +86,20 @@ MlResult ml_text_fill (
 	uint64_t        count
 );
 
+/* A number as text in buf (at least ML_TEXT_NUMBER bytes). */
+#define ML_TEXT_NUMBER 24
+MlSlice ml_text_number (char *buf, uint64_t n);
+
+/* Appends the text of a code with up to two places filled in. */
+MlResult ml_text_fill2 (
+	MlStr      *out,
+	const char *code,
+	const char *name1,
+	MlSlice    value1,
+	const char *name2,
+	MlSlice    value2
+);
+
 /*
  * Starts again with the built in English texts, then the file
  * texts/<language>.mltext of the settings folder (when there is one; a

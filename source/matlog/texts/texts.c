@@ -320,6 +320,44 @@ MlResult ml_texts_add (MlSlice text, uint64_t *bad)
 	return r;
 }
 
+MlSlice ml_text_number (char *buf, uint64_t n)
+{
+	char     digits [ML_TEXT_NUMBER];
+	uint64_t len = 0;
+	uint64_t at  = 0;
+
+	do
+	{
+		digits [len++] = (char)('0' + n % 10);
+		n             /= 10;
+	} while (n > 0);
+
+	for (uint64_t i = len; i > 0; i--)
+	{
+		buf [at++] = digits [i - 1];
+	}
+
+	buf [at] = '\0';
+	return ml_slice (buf, at);
+}
+
+MlResult ml_text_fill2 (
+	MlStr      *out,
+	const char *code,
+	const char *name1,
+	MlSlice    value1,
+	const char *name2,
+	MlSlice    value2
+)
+{
+	MlTextArg a [2] = {
+		{ .name = name1, .value = value1 },
+		{ .name = name2, .value = value2 }
+	};
+
+	return ml_text_fill (out, ml_text (code), a, 2);
+}
+
 /* The built in catalogs (the English texts). */
 static MlResult add_built_in (void)
 {

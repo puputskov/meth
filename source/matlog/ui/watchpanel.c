@@ -2,6 +2,7 @@
 
 #include <matlog/core/utf8.h>
 #include <matlog/session/watch.h>
+#include <matlog/texts/texts.h>
 
 #define STYLE_RESET "\x1b[0m"
 
@@ -138,12 +139,22 @@ static MlResult header_row (
 
 	ml_str_init (&text);
 	style.bold = 1;
-	r = ml_str_appendf (
-		&text,
-		" watch  line %u  (%u)",
-		(uint32_t)(line + 1),
-		(uint32_t)count
-	);
+	r = ml_str_append (&text, ml_slice_cstr (" "));
+
+	if (r == ML_OK)
+	{
+		char a [ML_TEXT_NUMBER];
+		char b [ML_TEXT_NUMBER];
+
+		r = ml_text_fill2 (
+			&text,
+			"ui.watch_title",
+			"line",
+			ml_text_number (a, line + 1),
+			"count",
+			ml_text_number (b, count)
+		);
+	}
 
 	if (r == ML_OK)
 	{
@@ -254,11 +265,17 @@ MlResult ml_watch_panel (
 		{
 			MlStr more;
 
+			char n [ML_TEXT_NUMBER];
+
 			ml_str_init (&more);
-			r = ml_str_appendf (
+			ml_str_append (&more, ml_slice_cstr (" "));
+			r = ml_text_fill2 (
 				&more,
-				" \xE2\x80\xA6 +%u more",
-				(uint32_t)(list.len - (room - 1))
+				"ui.more",
+				"count",
+				ml_text_number (n, list.len - (room - 1)),
+				"",
+				ml_slice ("", 0)
 			);
 			r = ml_choose (
 				r == ML_OK,

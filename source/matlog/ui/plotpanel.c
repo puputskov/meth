@@ -1,5 +1,6 @@
 #include <matlog/ui/plotpanel.h>
 
+#include <matlog/texts/texts.h>
 #include <matlog/ui/plot.h>
 
 uint64_t ml_plot_panel_count (const MlEditor *ed)
@@ -101,14 +102,24 @@ static MlResult plot_block (
 	ml_str_init (&picture);
 	head.bold = 1;
 
-	r = ml_str_appendf (
+	r = ml_str_append (
 		&title,
-		"%splot  line %u  %.*s",
-		ml_choose (idx == cursor, "*", " "),
-		(uint32_t)(idx + 1),
-		(int32_t)v.text.len,
-		v.text.data
+		ml_slice_cstr (ml_choose (idx == cursor, "*", " "))
 	);
+
+	if (r == ML_OK)
+	{
+		char n [ML_TEXT_NUMBER];
+
+		r = ml_text_fill2 (
+			&title,
+			"ui.plot_title",
+			"line",
+			ml_text_number (n, idx + 1),
+			"text",
+			v.text
+		);
+	}
 
 	if (r == ML_OK && rows > 0)
 	{
@@ -177,11 +188,17 @@ MlResult ml_plot_panel (
 	{
 		MlStr more;
 
+		char n [ML_TEXT_NUMBER];
+
 		ml_str_init (&more);
-		r = ml_str_appendf (
+		ml_str_append (&more, ml_slice_cstr (" "));
+		r = ml_text_fill2 (
 			&more,
-			" \xE2\x80\xA6 +%u more",
-			(uint32_t)hidden
+			"ui.more",
+			"count",
+			ml_text_number (n, hidden),
+			"",
+			ml_slice ("", 0)
 		);
 
 		if (r == ML_OK)

@@ -426,6 +426,13 @@ try_help = try: matlog help
 
 # Labels of the screen. {title} is the title of the help page.
 [ui]
+no_name = [no name]
+search = Search: {query}
+hidden_line = +{count} line
+hidden_lines = +{count} lines
+more = … +{count} more
+watch_title = watch  line {line}  ({count})
+plot_title = plot  line {line}  {text}
 help_bar = -- HELP -- {title}  (Tab links, Enter follow, Backspace back, / search, q close)
 
 # Pages made while the program runs. {table} is the table of keys.

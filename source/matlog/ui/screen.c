@@ -1,6 +1,7 @@
 #include <matlog/ui/screen.h>
 
 #include <matlog/core/utf8.h>
+#include <matlog/texts/texts.h>
 #include <matlog/ui/brackets.h>
 #include <matlog/ui/ghost.h>
 #include <matlog/ui/highlight.h>
@@ -664,12 +665,17 @@ static MlResult append_line_row (
 		{
 			MlStr more;
 
+			char n [ML_TEXT_NUMBER];
+
 			ml_str_init (&more);
-			r = ml_str_appendf (
+			ml_str_append (&more, ml_slice_cstr ("  "));
+			r = ml_text_fill2 (
 				&more,
-				"  +%u line%s",
-				(uint32_t)hidden,
-				ml_choose (hidden == 1, "", "s")
+				ml_choose (hidden == 1, "ui.hidden_line", "ui.hidden_lines"),
+				"count",
+				ml_text_number (n, hidden),
+				"",
+				ml_slice ("", 0)
 			);
 
 			if (r == ML_OK)
@@ -1300,7 +1306,7 @@ static MlResult append_status_row (
 			ml_choose (
 				ed->session.path.len > 0,
 				ml_str_view (ed->session.path),
-				ml_slice_cstr ("[no name]")
+				ml_slice_cstr (ml_text ("ui.no_name"))
 			)
 		);
 	}
@@ -2356,7 +2362,14 @@ static MlResult append_hit_row (
 
 	if (idx == 0)
 	{
-		r = ml_str_appendf (&plain, "Search: %s", ml_str_cstr (h->query));
+		r = ml_text_fill2 (
+			&plain,
+			"ui.search",
+			"query",
+			ml_str_view (h->query),
+			"",
+			ml_slice ("", 0)
+		);
 	}
 
 	else if (idx >= 2 && idx - 2 < h->hits.len)
