@@ -1,5 +1,5 @@
-#ifndef METH_SESSION_MLOG_H
-#define METH_SESSION_MLOG_H
+#ifndef METH_SESSION_FILE_H
+#define METH_SESSION_FILE_H
 
 #include <meth/session/session.h>
 
@@ -20,22 +20,22 @@
  */
 
 /* Appends the lines found in text to s. */
-MlResult ml_mlog_parse (MlSession *s, MlSlice text);
+MlResult ml_file_parse (MlSession *s, MlSlice text);
 
 /* Appends the file form of the session to out. */
-MlResult ml_mlog_format (MlStr *out, const MlSession *s);
+MlResult ml_file_format (MlStr *out, const MlSession *s);
 
 /*
  * Replaces the content of s with the file at path and remembers the path.
  * The cursor goes to the first line and the domain to that of the last math
  * line. s is left untouched when loading fails (ML_ERR_IO for a missing file).
  */
-MlResult ml_mlog_load (MlSession *s, MlSlice path);
+MlResult ml_file_load (MlSession *s, MlSlice path);
 
 /*
  * Writes the session to its path (atomically) and clears the dirty flag.
  * ML_ERR_INVALID without a path.
  */
-MlResult ml_mlog_save (MlSession *s);
+MlResult ml_file_save (MlSession *s);
 
-#endif /* METH_SESSION_MLOG_H */
+#endif /* METH_SESSION_FILE_H */

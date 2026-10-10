@@ -15,7 +15,7 @@ int32_t g_test_checks;
 void run_core_tests (void);
 void run_platform_tests (void);
 void run_session_tests (void);
-void run_mlog_tests (void);
+void run_file_tests (void);
 void run_lineedit_tests (void);
 void run_rewrite_tests (void);
 void run_editor_tests (void);
@@ -73,7 +73,7 @@ static const TestGroup groups [] = {
 	{ .name = "core",      .run = run_core_tests },
 	{ .name = "platform",  .run = run_platform_tests },
 	{ .name = "session",   .run = run_session_tests },
-	{ .name = "mlog",      .run = run_mlog_tests },
+	{ .name = "file",      .run = run_file_tests },
 	{ .name = "lineedit",  .run = run_lineedit_tests },
 	{ .name = "rewrite",   .run = run_rewrite_tests },
 	{ .name = "editor",    .run = run_editor_tests },

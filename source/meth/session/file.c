@@ -1,4 +1,4 @@
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 
 #include <meth/core/utf8.h>
 #include <meth/platform/fs.h>
@@ -102,7 +102,7 @@ static MlLineView classify (MlSlice line)
 	return view;
 }
 
-MlResult ml_mlog_parse (MlSession *s, MlSlice text)
+MlResult ml_file_parse (MlSession *s, MlSlice text)
 {
 	MlResult r   = ML_OK;
 	uint64_t pos = 0;
@@ -214,7 +214,7 @@ static MlResult format_line (MlStr *out, MlLineView v)
 	return r;
 }
 
-MlResult ml_mlog_format (MlStr *out, const MlSession *s)
+MlResult ml_file_format (MlStr *out, const MlSession *s)
 {
 	MlResult r = ML_OK;
 
@@ -226,7 +226,7 @@ MlResult ml_mlog_format (MlStr *out, const MlSession *s)
 	return r;
 }
 
-MlResult ml_mlog_load (MlSession *s, MlSlice path)
+MlResult ml_file_load (MlSession *s, MlSlice path)
 {
 	MlResult  r = ML_OK;
 	MlStr     file;
@@ -239,7 +239,7 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 
 	if (r == ML_OK)
 	{
-		r = ml_mlog_parse (&loaded, ml_str_view (file));
+		r = ml_file_parse (&loaded, ml_str_view (file));
 	}
 
 	if (r == ML_OK)
@@ -275,7 +275,7 @@ MlResult ml_mlog_load (MlSession *s, MlSlice path)
 	return r;
 }
 
-MlResult ml_mlog_save (MlSession *s)
+MlResult ml_file_save (MlSession *s)
 {
 	MlResult r = ml_choose (
 		s->path.len > 0,
@@ -288,7 +288,7 @@ MlResult ml_mlog_save (MlSession *s)
 
 	if (r == ML_OK)
 	{
-		r = ml_mlog_format (&out, s);
+		r = ml_file_format (&out, s);
 	}
 
 	if (r == ML_OK)

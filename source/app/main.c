@@ -4,7 +4,7 @@
 #include <meth/platform/fs.h>
 #include <meth/platform/path.h>
 #include <meth/session/folds.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/session/settings.h>
 #include <meth/ui/editor.h>
 #include <meth/ui/hint.h>
@@ -27,7 +27,7 @@
 /* Opens the session file, or starts a new session that will be saved there. */
 static MlResult open_session (MlEditor *ed, MlSlice path)
 {
-	MlResult r = ml_mlog_load (&ed->session, path);
+	MlResult r = ml_file_load (&ed->session, path);
 
 	if (r == ML_ERR_IO)
 	{
@@ -384,7 +384,7 @@ static MlResult run (
 		/* every committed change is written to the file right away */
 		if (r == ML_OK && ed->session.dirty && ed->session.path.len > 0)
 		{
-			r = ml_mlog_save (&ed->session);
+			r = ml_file_save (&ed->session);
 		}
 	}
 

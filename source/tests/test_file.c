@@ -1,7 +1,7 @@
 #include "test.h"
 
 #include <meth/platform/fs.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 
 #include <string.h>
 
@@ -17,11 +17,11 @@ static MlResult round_trip (MlStr *out, MlSlice text)
 	MlResult  r;
 
 	ml_session_init (&s);
-	r = ml_mlog_parse (&s, text);
+	r = ml_file_parse (&s, text);
 
 	if (r == ML_OK)
 	{
-		r = ml_mlog_format (out, &s);
+		r = ml_file_format (out, &s);
 	}
 
 	ml_session_free (&s);
@@ -35,7 +35,7 @@ static void test_parse (void)
 
 	ml_session_init (&s);
 
-	CHECK (ml_mlog_parse (
+	CHECK (ml_file_parse (
 		&s,
 		lit (
 			"# a note\n"
@@ -74,7 +74,7 @@ static void test_line_endings (void)
 
 	/* CRLF, a missing final newline and empty input */
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse (&s, lit ("# one\r\n# two\r\nm:algebra x")) == ML_OK);
+	CHECK (ml_file_parse (&s, lit ("# one\r\n# two\r\nm:algebra x")) == ML_OK);
 	CHECK (s.lines.len == 3);
 	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("one")));
 	CHECK (ml_slice_equal (ml_session_get (&s, 2).text, lit ("x")));
@@ -82,36 +82,36 @@ static void test_line_endings (void)
 
 	/* byte order marks are dropped, however many */
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse (&s, lit ("\xEF\xBB\xBF\xEF\xBB\xBF# a")) == ML_OK);
+	CHECK (ml_file_parse (&s, lit ("\xEF\xBB\xBF\xEF\xBB\xBF# a")) == ML_OK);
 	CHECK (s.lines.len == 1);
 	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("a")));
 	ml_session_free (&s);
 
 	/* a carriage return left over before the CRLF is dropped too */
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse (&s, lit ("# a\r\r\n# b\r")) == ML_OK);
+	CHECK (ml_file_parse (&s, lit ("# a\r\r\n# b\r")) == ML_OK);
 	CHECK (s.lines.len == 2);
 	CHECK (ml_slice_equal (ml_session_get (&s, 0).text, lit ("a")));
 	CHECK (ml_slice_equal (ml_session_get (&s, 1).text, lit ("b")));
 	ml_session_free (&s);
 
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse (&s, lit ("")) == ML_OK);
+	CHECK (ml_file_parse (&s, lit ("")) == ML_OK);
 	CHECK (s.lines.len == 0);
 	ml_session_free (&s);
 
 	/* a trailing newline does not add a blank line, a second one does */
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse (&s, lit ("# a\n")) == ML_OK && s.lines.len == 1);
+	CHECK (ml_file_parse (&s, lit ("# a\n")) == ML_OK && s.lines.len == 1);
 	ml_session_free (&s);
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse  (&s, lit ("# a\n\n")) == ML_OK && s.lines.len == 2);
+	CHECK (ml_file_parse  (&s, lit ("# a\n\n")) == ML_OK && s.lines.len == 2);
 	CHECK (ml_session_get (&s, 1).kind == ML_LINE_BLANK);
 	ml_session_free (&s);
 
 	/* byte order mark is skipped */
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse (&s, lit ("\xEF\xBB\xBF# bom\n")) == ML_OK);
+	CHECK (ml_file_parse (&s, lit ("\xEF\xBB\xBF# bom\n")) == ML_OK);
 	CHECK (
 		s.lines.len == 1 && ml_slice_equal (
 			ml_session_get (&s, 0).text,
@@ -128,7 +128,7 @@ static void test_unknown (void)
 
 	ml_session_init (&s);
 
-	CHECK (ml_mlog_parse (
+	CHECK (ml_file_parse (
 		&s,
 		lit (
 			"hello world\n"
@@ -165,7 +165,7 @@ static void test_unknown (void)
 
 	/* invalid UTF-8 is kept as raw text */
 	ml_session_init (&s);
-	CHECK (ml_mlog_parse (&s, ml_slice ("# bad \xFF\xFE\n", 9)) == ML_OK);
+	CHECK (ml_file_parse (&s, ml_slice ("# bad \xFF\xFE\n", 9)) == ML_OK);
 	v = ml_session_get (&s, 0);
 	CHECK (v.kind == ML_LINE_UNKNOWN && v.text.len == 8);
 	ml_session_free (&s);
@@ -178,7 +178,7 @@ static void test_note_and_math_edges (void)
 
 	ml_session_init (&s);
 	CHECK (
-		ml_mlog_parse (
+		ml_file_parse (
 			&s,
 			lit ("#\n#x\n#  indented\nm:pga2\nm:pga3  two spaces\n")
 		) == ML_OK
@@ -276,7 +276,7 @@ static void test_format (void)
 		) == ML_OK
 	);
 
-	CHECK (ml_mlog_format (&out, &s) == ML_OK);
+	CHECK (ml_file_format (&out, &s) == ML_OK);
 	CHECK (strcmp (
 		ml_str_cstr (out),
 		"# note\n"
@@ -344,7 +344,7 @@ static void test_files (void)
 	ml_fs_remove (path);
 
 	/* saving needs a path */
-	CHECK (ml_mlog_save (&s) == ML_ERR_INVALID);
+	CHECK (ml_file_save (&s) == ML_ERR_INVALID);
 
 	/* a missing file leaves the session as it is */
 	CHECK (
@@ -355,7 +355,7 @@ static void test_files (void)
 			lit ("keep me")
 		) == ML_OK
 	);
-	CHECK (ml_mlog_load (&s, path) == ML_ERR_IO);
+	CHECK (ml_file_load (&s, path) == ML_ERR_IO);
 	CHECK (
 		s.lines.len == 1 && ml_slice_equal (
 			ml_session_get (&s, 0).text,
@@ -387,7 +387,7 @@ static void test_files (void)
 		ml_session_append (&s, ML_LINE_MATH, ML_DOMAIN_PGA3, lit ("x")) == ML_OK
 	);
 	CHECK (s.dirty);
-	CHECK (ml_mlog_save (&s) == ML_OK);
+	CHECK (ml_file_save (&s) == ML_OK);
 	CHECK (!s.dirty);
 
 	ml_session_init (&other);
@@ -400,7 +400,7 @@ static void test_files (void)
 		) == ML_OK
 	);
 	other.cursor = 0;
-	CHECK (ml_mlog_load (&other, path) == ML_OK);
+	CHECK (ml_file_load (&other, path) == ML_OK);
 	CHECK (other.lines.len == 3 && !other.dirty && other.cursor == 0);
 	CHECK (other.domain == ML_DOMAIN_PGA3);
 	CHECK (ml_slice_equal (ml_str_view (other.path), path));
@@ -421,9 +421,9 @@ static void test_files (void)
 	);
 	ml_session_free (&s);
 	ml_session_init (&s);
-	CHECK (ml_mlog_load (&s, path) == ML_OK);
+	CHECK (ml_file_load (&s, path) == ML_OK);
 	CHECK (s.lines.len == 4);
-	CHECK (ml_mlog_save    (&s) == ML_OK);
+	CHECK (ml_file_save    (&s) == ML_OK);
 	CHECK (ml_fs_read_file (&file, path) == ML_OK);
 	CHECK (
 		ml_slice_equal (
@@ -446,7 +446,7 @@ static void test_old_domain_names (void)
 	ml_session_init (&s);
 	ml_str_init (&out);
 	CHECK (
-		ml_mlog_parse (
+		ml_file_parse (
 			&s,
 			lit ("m:matrix A = [[1,2],[3,4]]\nm:vector v = [1, 2]\n"
 				"m:equations x + 1\nm:lambda x\n")
@@ -460,7 +460,7 @@ static void test_old_domain_names (void)
 	CHECK (ml_session_get (&s, 0).kind == ML_LINE_MATH);
 
 	/* and are written back as algebra */
-	CHECK (ml_mlog_format (&out, &s) == ML_OK);
+	CHECK (ml_file_format (&out, &s) == ML_OK);
 	CHECK (
 		ml_slice_equal (
 			ml_str_view (out),
@@ -473,9 +473,9 @@ static void test_old_domain_names (void)
 	ml_session_free (&s);
 }
 
-void run_mlog_tests (void);
+void run_file_tests (void);
 
-void run_mlog_tests (void)
+void run_file_tests (void)
 {
 	test_parse ();
 	test_line_endings ();

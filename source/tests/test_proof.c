@@ -1,7 +1,7 @@
 #include "test.h"
 
 #include <meth/proof/proof.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/session/results.h>
 #include <meth/texts/texts.h>
 #include <meth/ui/ghost.h>
@@ -494,7 +494,7 @@ static void test_domain (void)
 	ml_session_init (&s);
 	ml_results_init (&res);
 	CHECK (
-		ml_mlog_parse (
+		ml_file_parse (
 			&s,
 			lit (
 				"m:proof theorem t: x + x = 3x\n"
@@ -541,7 +541,7 @@ static void test_ghost (void)
 	ml_session_init (&s);
 	ml_str_init (&out);
 	CHECK (
-		ml_mlog_parse (&s, lit ("m:proof theorem t: x + x = 2x\n"))
+		ml_file_parse (&s, lit ("m:proof theorem t: x + x = 2x\n"))
 		== ML_OK
 	);
 

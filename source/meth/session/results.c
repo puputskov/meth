@@ -10,7 +10,7 @@
 #include <meth/platform/fs.h>
 #include <meth/platform/path.h>
 #include <meth/proof/proof.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 
 /* A file being run: the session itself, or a file it includes. */
 typedef struct Frame
@@ -466,7 +466,7 @@ static MlResult include_enter (
 
 	if (r == ML_OK && *err == ML_EVAL_NONE)
 	{
-		r = ml_mlog_parse (&f.own, ml_str_view (text));
+		r = ml_file_parse (&f.own, ml_str_view (text));
 	}
 
 	if (r == ML_OK && *err == ML_EVAL_NONE)

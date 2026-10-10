@@ -4,7 +4,7 @@
 #include <meth/platform/config.h>
 #include <meth/platform/fs.h>
 #include <meth/platform/path.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 
 #define SNIPPET_SUFFIX ".meth"
 
@@ -155,7 +155,7 @@ MlResult ml_snippet_summary (MlStr *out, MlSlice text)
 	MlResult  r;
 
 	ml_session_init (&s);
-	r = ml_mlog_parse (&s, text);
+	r = ml_file_parse (&s, text);
 
 	for (uint64_t i = 0; i < s.lines.len && r == ML_OK && out->len == 0; i++)
 	{
@@ -178,7 +178,7 @@ MlResult ml_snippet_lines (MlSession *out, MlSlice text)
 	int32_t   skipped = 0;
 
 	ml_session_init (&s);
-	r = ml_mlog_parse (&s, text);
+	r = ml_file_parse (&s, text);
 
 	for (uint64_t i = 0; i < s.lines.len && r == ML_OK; i++)
 	{

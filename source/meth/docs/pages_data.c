@@ -488,7 +488,7 @@ static const char text_fileformat [] =
 	"id: fileformat\n"
 	"title: The session file\n"
 	"summary: The .meth format.\n"
-	"keywords: mlog, file, format, session, include, note, domain\n"
+	"keywords: meth, file, format, session, include, note, domain\n"
 	"see: editor, cli\n"
 	"\n"
 	"A session is a UTF-8 text file with one entry per line:\n"

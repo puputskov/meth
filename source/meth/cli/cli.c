@@ -5,7 +5,7 @@
 #include <meth/platform/fs.h>
 
 #include <meth/parse/parser.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/session/results.h>
 #include <meth/session/steps.h>
 #include <meth/docs/examples.h>
@@ -754,7 +754,7 @@ static int32_t cmd_eval (
 
 	else if (o->session.len > 0)
 	{
-		r = ml_mlog_load (&s, o->session);
+		r = ml_file_load (&s, o->session);
 
 		if (r == ML_ERR_IO && o->write)
 		{
@@ -807,7 +807,7 @@ static int32_t cmd_eval (
 
 	if (r == ML_OK && code != ML_EXIT_IO && o->write && o->session.len > 0)
 	{
-		r = ml_mlog_save (&s);
+		r = ml_file_save (&s);
 
 		if (r != ML_OK)
 		{
@@ -847,7 +847,7 @@ static int32_t cmd_run (const Options *o, MlStr *out, MlStr *err)
 		);
 	}
 
-	else if (ml_mlog_load (&s, o->rest.data [0]) != ML_OK)
+	else if (ml_file_load (&s, o->rest.data [0]) != ML_OK)
 	{
 		code = ML_EXIT_IO;
 		file_error (err, "cli_msg.cannot_read_path", o->rest.data [0]);
@@ -1121,7 +1121,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 	else if (num > 0)
 	{
 		/* FILE:LINE */
-		r = ml_mlog_load (&s, ml_slice_sub (o->rest.data [0], 0, colon));
+		r = ml_file_load (&s, ml_slice_sub (o->rest.data [0], 0, colon));
 
 		if (r != ML_OK)
 		{
@@ -1136,7 +1136,7 @@ static int32_t cmd_steps (const Options *o, MlStr *out, MlStr *err)
 	{
 		if (o->session.len > 0)
 		{
-			r = ml_mlog_load (&s, o->session);
+			r = ml_file_load (&s, o->session);
 		}
 
 		if (r != ML_OK)
@@ -1601,7 +1601,7 @@ static int32_t cmd_export (const Options *o, MlStr *out, MlStr *err)
 		);
 	}
 
-	else if (ml_mlog_load (&s, o->rest.data [0]) != ML_OK)
+	else if (ml_file_load (&s, o->rest.data [0]) != ML_OK)
 	{
 		code = ML_EXIT_IO;
 		file_error (err, "cli_msg.cannot_read_path", o->rest.data [0]);
@@ -1939,7 +1939,7 @@ static int32_t cmd_vars (const Options *o, MlStr *out, MlStr *err)
 	}
 
 	else if (
-		ml_mlog_load (&s, ml_slice_sub (o->rest.data [0], 0, colon)) != ML_OK
+		ml_file_load (&s, ml_slice_sub (o->rest.data [0], 0, colon)) != ML_OK
 	)
 	{
 		code = ML_EXIT_IO;

@@ -4,7 +4,7 @@
 
 #include <meth/cli/cli.h>
 #include <meth/docs/examples.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/session/results.h>
 
 #include <string.h>
@@ -45,7 +45,7 @@ static void test_files (void)
 		}
 
 		/* every math line works: an example shows how, not what fails */
-		CHECK (ml_mlog_parse (&s, ml_example_text (i)) == ML_OK);
+		CHECK (ml_file_parse (&s, ml_example_text (i)) == ML_OK);
 		CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 
 		for (uint64_t k = 0; k < s.lines.len; k++)
@@ -205,7 +205,7 @@ static void test_editor (void)
 
 		ml_session_init (&ex);
 		CHECK (
-			ml_mlog_parse (
+			ml_file_parse (
 				&ex,
 				ml_example_text (
 					ml_example_find (lit ("logic-minimise-circuit"))

@@ -4,7 +4,7 @@
 #include <meth/export/math.h>
 #include <meth/cli/cli.h>
 #include <meth/platform/fs.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/ui/editor.h>
 
 #include <string.h>
@@ -255,7 +255,7 @@ static int32_t export_is (
 	ml_str_init (&out);
 
 	if (
-		   ml_mlog_parse (&s, lit (session)) == ML_OK
+		   ml_file_parse (&s, lit (session)) == ML_OK
 		&& ml_results_update (&res, &s, 0) == ML_OK
 		&& ml_export_read_words (&o, lit (words), &path) == ML_OK
 		&& ml_export (&out, &s, &res, o) == ML_OK
@@ -351,7 +351,7 @@ static void test_latex (void)
 		ml_session_init (&s);
 		ml_results_init (&res);
 		ml_str_init (&out);
-		ml_mlog_parse (&s, lit ("# hello\n"));
+		ml_file_parse (&s, lit ("# hello\n"));
 		ml_results_update (&res, &s, 0);
 		CHECK (
 			ml_export (&out, &s, &res, ml_export_options (ML_EXPORT_LATEX))
@@ -405,7 +405,7 @@ static void test_html (void)
 		ml_session_init (&s);
 		ml_results_init (&res);
 		ml_str_init (&out);
-		ml_mlog_parse (&s, lit ("# hi\n"));
+		ml_file_parse (&s, lit ("# hi\n"));
 		ml_results_update (&res, &s, 0);
 		CHECK (ml_export (&out, &s, &res, o) == ML_OK);
 		CHECK (strncmp (ml_str_cstr (out), "<!DOCTYPE html>\n", 16) == 0);
@@ -506,7 +506,7 @@ static void test_editor_command (void)
 	ml_fs_remove (file);
 	ml_str_init (&text);
 	ml_editor_init (&ed);
-	ml_mlog_parse (&ed.session, lit ("# # Hi\nm:algebra 1/2\n"));
+	ml_file_parse (&ed.session, lit ("# # Hi\nm:algebra 1/2\n"));
 	ml_editor_refresh (&ed);
 	ml_editor_begin_note (&ed);
 
@@ -743,7 +743,7 @@ static void test_logic_export (void)
 	ml_results_init (&r);
 	ml_str_init (&out);
 	CHECK (
-		ml_mlog_parse (
+		ml_file_parse (
 			&s,
 			lit ("m:boolean table a & b\nm:lambda succ 1\nm:boolean a &\n")
 		) == ML_OK

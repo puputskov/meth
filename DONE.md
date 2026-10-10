@@ -772,7 +772,7 @@ Each task lists its files (headers in `include/meth/`, sources in `source/meth/`
    Done when: a demo prints each key event decoded as a key code plus modifiers, and Esc is told apart from arrow-key sequences.
 3. **Session model** (`session/session.h`): `Line {kind, domain, text}`, `Session {path, lines[], cursor}`, insert/delete/replace line, domain enum (`algebra`, `lambda`, `pga2`, `pga3`, `boolean`).
    Done when: unit-style test builds a session in memory and edits it.
-4. **`.meth` reader/writer** (`session/mlog.h`): parse and write the format from section 4.7 (note `# `, math `m:<domain> `, `include "x"`, blank), CRLF and LF both accepted, unknown tag becomes an error line, atomic save.
+4. **`.meth` reader/writer** (`session/file.h`): parse and write the format from section 4.7 (note `# `, math `m:<domain> `, `include "x"`, blank), CRLF and LF both accepted, unknown tag becomes an error line, atomic save.
    Done when: round trip (read, write, read) of a sample file gives identical lines, and a corrupt file never loses data.
 5. **Line editor** (`ui/lineedit.h`): single-line UTF-8 buffer with cursor, insert, backspace, delete, left/right/home/end, word jump, by code point, redraw with correct column width.
    Done when: edits work with `π`, `√x`, and wide text without cursor drift.

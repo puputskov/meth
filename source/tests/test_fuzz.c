@@ -2,7 +2,7 @@
 
 #include <meth/core/utf8.h>
 #include <meth/math/eval.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/session/settings.h>
 #include <meth/ui/editor.h>
 #include <meth/ui/theme.h>
@@ -274,7 +274,7 @@ static void show_input (const char *what, MlSlice text)
 
 /* ---- the file readers ---- */
 
-static const char *mlog_corpus [] = {
+static const char *file_corpus [] = {
 	"# a note\nm:algebra 1 + 2\nm:algebra f(x) = x^2\n\n"
 	"include \"lib.meth\"\nm:lambda (x. x) y\nm:boolean a and b\n",
 	"\xEF\xBB\xBF# bom\r\nm:physics 5 m / 2 s\r\nm:pga2 e1 + e2\r\n",
@@ -291,7 +291,7 @@ static const char *settings_corpus [] = {
  * Parses a text as a session file and formats it; the format is a fixed point,
  * and valid text stays valid (a line that is not UTF-8 is kept as it is).
  */
-static int32_t mlog_round_trip (MlSlice text)
+static int32_t file_round_trip (MlSlice text)
 {
 	MlSession a;
 	MlSession b;
@@ -306,11 +306,11 @@ static int32_t mlog_round_trip (MlSlice text)
 
 	ok = (
 		   ok
-		&& ml_mlog_parse (&a, text) == ML_OK
-		&& ml_mlog_format (&first, &a) == ML_OK
+		&& ml_file_parse (&a, text) == ML_OK
+		&& ml_file_format (&first, &a) == ML_OK
 		&& (!ml_utf8_valid (text) || ml_utf8_valid (ml_str_view (first)))
-		&& ml_mlog_parse (&b, ml_str_view (first)) == ML_OK
-		&& ml_mlog_format (&second, &b) == ML_OK
+		&& ml_file_parse (&b, ml_str_view (first)) == ML_OK
+		&& ml_file_format (&second, &b) == ML_OK
 		&& ml_slice_equal (ml_str_view (first), ml_str_view (second))
 	);
 
@@ -476,7 +476,7 @@ static int32_t editor_run (Rng *r, uint64_t keys)
 
 	ok = (
 		   ok
-		&& ml_mlog_format (&text, &ed.session) == ML_OK
+		&& ml_file_format (&text, &ed.session) == ML_OK
 		&& ml_utf8_valid (ml_str_view (text))
 	);
 
@@ -552,7 +552,7 @@ void run_fuzz_tests (void)
 		char     file [512];
 		MlStr    theme_text;
 		MlTheme  base;
-		uint64_t bad_mlog     = 0;
+		uint64_t bad_file     = 0;
 		uint64_t bad_theme    = 0;
 		uint64_t bad_settings = 0;
 		uint64_t bad_editor   = 0;
@@ -565,17 +565,17 @@ void run_fuzz_tests (void)
 		{
 			uint64_t len = mutate (
 				&rng,
-				mlog_corpus,
-				ml_count (mlog_corpus),
+				file_corpus,
+				ml_count (file_corpus),
 				file,
 				sizeof file - 1
 			);
 
 			file [len] = 0;
-			if (!mlog_round_trip (ml_slice (file, len)))
+			if (!file_round_trip (ml_slice (file, len)))
 			{
-				bad_mlog++;
-				show_input ("mlog", ml_slice (file, len));
+				bad_file++;
+				show_input ("file", ml_slice (file, len));
 			}
 
 			len = mutate_text (
@@ -610,7 +610,7 @@ void run_fuzz_tests (void)
 			}
 		}
 
-		CHECK (bad_mlog == 0);
+		CHECK (bad_file == 0);
 		CHECK (bad_theme == 0);
 		CHECK (bad_settings == 0);
 		CHECK (bad_editor == 0);

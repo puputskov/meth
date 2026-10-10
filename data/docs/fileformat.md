@@ -1,7 +1,7 @@
 id: fileformat
 title: The session file
 summary: The .meth format.
-keywords: mlog, file, format, session, include, note, domain
+keywords: meth, file, format, session, include, note, domain
 see: editor, cli
 
 A session is a UTF-8 text file with one entry per line:

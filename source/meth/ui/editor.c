@@ -1523,7 +1523,7 @@ static MlResult save (MlEditor *ed, MlSlice path)
 
 	if (r == ML_OK)
 	{
-		r = ml_mlog_save (&ed->session);
+		r = ml_file_save (&ed->session);
 	}
 
 	if (r == ML_OK)
@@ -1568,7 +1568,7 @@ static MlResult open_session (MlEditor *ed, MlSlice path, int32_t force)
 
 	else
 	{
-		MlResult loaded = ml_mlog_load (&ed->session, path);
+		MlResult loaded = ml_file_load (&ed->session, path);
 
 		if (loaded == ML_ERR_IO)
 		{
@@ -2581,7 +2581,7 @@ static MlResult insert_example (MlEditor *ed, MlSlice name)
 		MlSession ex;
 
 		ml_session_init (&ex);
-		r = ml_mlog_parse (&ex, ml_example_text (idx));
+		r = ml_file_parse (&ex, ml_example_text (idx));
 
 		if (r == ML_OK)
 		{

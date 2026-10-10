@@ -1,6 +1,6 @@
 #include <meth/docs/examples.h>
 
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/session/results.h>
 
 /* The groups of the table of contents, in the order they are shown. */
@@ -157,7 +157,7 @@ static MlResult note_of (MlStr *out, uint64_t i, uint64_t n)
 	MlResult  r;
 
 	ml_session_init (&s);
-	r = ml_mlog_parse (&s, ml_example_text (i));
+	r = ml_file_parse (&s, ml_example_text (i));
 
 	if (r == ML_OK)
 	{
@@ -299,7 +299,7 @@ MlResult ml_example_page (MlStr *out, uint64_t i)
 	ml_str_init (&summary);
 	ml_str_init (&code);
 	ml_str_init (&words);
-	r = ml_mlog_parse (&s, ml_example_text (i));
+	r = ml_file_parse (&s, ml_example_text (i));
 
 	if (r == ML_OK)
 	{

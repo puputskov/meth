@@ -2,7 +2,7 @@
 #define METH_UI_EDITOR_H
 
 #include <meth/platform/key.h>
-#include <meth/session/mlog.h>
+#include <meth/session/file.h>
 #include <meth/session/results.h>
 #include <meth/session/steps.h>
 #include <meth/tutorial/tutorial.h>
