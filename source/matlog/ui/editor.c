@@ -2630,7 +2630,11 @@ static MlResult tutorial_command (MlEditor *ed, MlSlice arg, int32_t force)
 
 	else if (ml_slice_equal (arg, ml_slice_cstr ("show")))
 	{
-		r = ml_tutorial_answer (&ed->pending, ml_tutorial_step (&ed->tutorial));
+		r = ml_tutorial_answer (
+			&ed->pending,
+			&ed->keymap,
+			ml_tutorial_step (&ed->tutorial)
+		);
 	}
 
 	else if (ml_slice_equal (arg, ml_slice_cstr ("reset")))

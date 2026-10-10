@@ -127,10 +127,26 @@ MlResult ml_tutorial_panel (
 	MlStyle  text  = ml_panel_style (ed, ML_CLASS_TEXT, 0);
 	MlStyle  quiet = ml_panel_style (ed, ML_CLASS_GUTTER, 1);
 	MlStr    title;
+	MlStr    body;
 
 	ml_str_init (&title);
+	ml_str_init (&body);
 	bold.bold = 1;
-	r         = ml_tutorial_title (&title, &ed->tutorial);
+
+	/* the keys in the text are the ones of the user's key table */
+	r         = ml_keymap_expand (
+		&body,
+		&ed->keymap,
+		ml_slice_cstr (step.text),
+		'{',
+		'}',
+		0
+	);
+	r         = ml_choose (
+		r == ML_OK,
+		ml_tutorial_title (&title, &ed->tutorial),
+		r
+	);
 	r         = ml_choose (
 		r == ML_OK,
 		push_row (out, ed, bold, ml_str_view (title), cols),
@@ -138,7 +154,7 @@ MlResult ml_tutorial_panel (
 	);
 	r         = ml_choose (
 		r == ML_OK,
-		push_wrapped (out, ed, text, ml_slice_cstr (step.text), cols, 3),
+		push_wrapped (out, ed, text, ml_str_view (body), cols, 3),
 		r
 	);
 
@@ -162,7 +178,14 @@ MlResult ml_tutorial_panel (
 
 		if (r == ML_OK && ml_tutorial_hint_due (&ed->tutorial))
 		{
-			r = ml_str_append (&line, ml_slice_cstr (step.hint));
+			r = ml_keymap_expand (
+				&line,
+				&ed->keymap,
+				ml_slice_cstr (step.hint),
+				'{',
+				'}',
+				0
+			);
 		}
 
 		r = ml_choose (
@@ -208,5 +231,6 @@ MlResult ml_tutorial_panel (
 	}
 
 	ml_str_free (&title);
+	ml_str_free (&body);
 	return r;
 }

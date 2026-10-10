@@ -1,5 +1,7 @@
 #include <matlog/ui/keymap.h>
 
+#include <string.h>
+
 #include <matlog/core/utf8.h>
 #include <matlog/session/settings.h>
 
@@ -315,8 +317,8 @@ typedef struct Default
 static const Default defaults [] =
 {
 	{ .key = "Ctrl+Z",       .action = ML_ACT_UNDO },
-	{ .key = "Ctrl+Shift+Z", .action = ML_ACT_REDO },
 	{ .key = "Ctrl+Y",       .action = ML_ACT_REDO },
+	{ .key = "Ctrl+Shift+Z", .action = ML_ACT_REDO },
 	{ .key = "Ctrl+R",       .action = ML_ACT_REDO },
 	{ .key = "Ctrl+Enter",   .action = ML_ACT_BLOCK_NEW },
 	{ .key = "Shift+Enter",  .action = ML_ACT_BLOCK_NEW },
@@ -538,6 +540,145 @@ MlResult ml_keymap_keys_of (MlStr *out, const MlKeymap *km, MlAction action)
 			{
 				r = ml_key_spec (out, k);
 			}
+		}
+	}
+
+	return r;
+}
+
+/* 1 when name is ACTION_ and the action name in capitals, - as _. */
+static int32_t placeholder_is (MlSlice name, const char *action)
+{
+	uint64_t prefix = 7;
+	uint64_t n      = strlen (action);
+	int32_t  same   = name.len == prefix + n
+		&& memcmp (name.data, "ACTION_", prefix) == 0;
+
+	for (uint64_t i = 0; i < n && same; i++)
+	{
+		char c = action [i];
+
+		if (c == '-')
+		{
+			c = '_';
+		}
+
+		else if (c >= 'a' && c <= 'z')
+		{
+			c = (char)(c - 32);
+		}
+
+		same = name.data [prefix + i] == c;
+	}
+
+	return same;
+}
+
+MlAction ml_action_from_placeholder (MlSlice name)
+{
+	MlAction found = ML_ACT_COUNT;
+
+	for (
+		uint32_t i = ML_ACT_UNDO;
+		i < ML_ACT_COUNT && found == ML_ACT_COUNT;
+		i++
+	)
+	{
+		if (placeholder_is (name, actions [i].name))
+		{
+			found = (MlAction)i;
+		}
+	}
+
+	return found;
+}
+
+/* The first key of the action, or its name when it has none. */
+static MlResult first_key (MlStr *out, const MlKeymap *km, MlAction action)
+{
+	MlResult r = ML_OK;
+	MlStr    keys;
+	uint64_t end = 0;
+
+	ml_str_init (&keys);
+	r = ml_keymap_keys_of (&keys, km, action);
+
+	while (end < keys.len && keys.data [end] != ',')
+	{
+		end++;
+	}
+
+	if (r == ML_OK && end > 0)
+	{
+		r = ml_str_append (out, ml_slice_sub (ml_str_view (keys), 0, end));
+	}
+
+	else if (r == ML_OK)
+	{
+		r = ml_str_append (out, ml_slice_cstr (ml_action_name (action)));
+	}
+
+	ml_str_free (&keys);
+	return r;
+}
+
+MlResult ml_keymap_expand (
+	MlStr          *out,
+	const MlKeymap *km,
+	MlSlice        text,
+	char           open,
+	char           close,
+	int32_t        keep
+)
+{
+	MlResult r   = ML_OK;
+	uint64_t pos = 0;
+
+	while (pos < text.len && r == ML_OK)
+	{
+		MlAction act = ML_ACT_COUNT;
+		uint64_t end = pos + 1;
+
+		if (text.data [pos] == open)
+		{
+			while (end < text.len && text.data [end] != close)
+			{
+				end++;
+			}
+
+			if (end < text.len)
+			{
+				act = ml_action_from_placeholder (
+					ml_slice_sub (text, pos + 1, end - pos - 1)
+				);
+			}
+		}
+
+		if (act != ML_ACT_COUNT)
+		{
+			r = ml_choose (
+				keep,
+				ml_str_append_cp (out, (uint32_t)open),
+				ML_OK
+			);
+
+			if (r == ML_OK)
+			{
+				r = first_key (out, km, act);
+			}
+
+			if (r == ML_OK && keep)
+			{
+				r = ml_str_append_cp (out, (uint32_t)close);
+			}
+
+			pos = end + 1;
+		}
+
+		else
+		{
+			r = ml_str_append (out, ml_slice_sub (text, pos, 1));
+			pos++;
 		}
 	}
 

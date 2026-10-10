@@ -1681,9 +1681,23 @@ static MlResult layout_hint (
 	MlResult r   = ML_OK;
 	uint64_t mid = (s->rows - 1) / 2;
 	MlStr    row;
+	MlStr    hint;
 
 	ml_str_init (&row);
-	r = append_hint (&row, ed, ml_hint_at (s->hint_tick), s->cols);
+	ml_str_init (&hint);
+	r = ml_keymap_expand (
+		&hint,
+		&ed->keymap,
+		ml_hint_at (s->hint_tick),
+		'{',
+		'}',
+		1
+	);
+
+	if (r == ML_OK)
+	{
+		r = append_hint (&row, ed, ml_str_view (hint), s->cols);
+	}
 
 	if (r == ML_OK)
 	{
@@ -1696,6 +1710,7 @@ static MlResult layout_hint (
 		ml_str_free (&row);
 	}
 
+	ml_str_free (&hint);
 	return r;
 }
 

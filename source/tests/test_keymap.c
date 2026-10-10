@@ -246,7 +246,7 @@ static void test_format (void)
 	CHECK (
 		ml_slice_equal (
 			ml_str_view (keys),
-			lit ("Ctrl+Shift+Z, Ctrl+Y, Ctrl+R")
+			lit ("Ctrl+Y, Ctrl+Shift+Z, Ctrl+R")
 		)
 	);
 
@@ -344,6 +344,111 @@ static void test_editor (void)
 	ml_fs_remove (lit (CONFIG_FILE));
 }
 
+/* 1 when the text expands to the expected text. */
+static int32_t expands_to (
+	const MlKeymap *km,
+	const char     *text,
+	char           open,
+	char           close,
+	int32_t        keep,
+	const char     *want
+)
+{
+	MlStr   out;
+	int32_t ok;
+
+	ml_str_init (&out);
+	ok = (
+		   ml_keymap_expand (&out, km, lit (text), open, close, keep)
+		== ML_OK
+		&& ml_slice_equal (ml_str_view (out), lit (want))
+	);
+
+	if (!ok)
+	{
+		printf ("  \"%s\" gives \"%s\"\n", text, ml_str_cstr (out));
+	}
+
+	ml_str_free (&out);
+	return ok;
+}
+
+static void test_expand (void)
+{
+	MlKeymap km;
+
+	CHECK (ml_keymap_init (&km) == ML_OK);
+
+	/* the placeholder names the action, the key comes from the table */
+	CHECK (ml_action_from_placeholder (lit ("ACTION_UNDO")) == ML_ACT_UNDO);
+	CHECK (
+		ml_action_from_placeholder (lit ("ACTION_BLOCK_NEW"))
+		== ML_ACT_BLOCK_NEW
+	);
+	CHECK (ml_action_from_placeholder (lit ("ACTION_NOPE")) == ML_ACT_COUNT);
+	CHECK (ml_action_from_placeholder (lit ("UNDO")) == ML_ACT_COUNT);
+	CHECK (ml_action_from_placeholder (lit ("ACTION_NONE")) == ML_ACT_COUNT);
+
+	CHECK (
+		expands_to (
+			&km,
+			"{ACTION_UNDO} undoes",
+			'{',
+			'}',
+			1,
+			"{Ctrl+Z} undoes"
+		)
+	);
+	CHECK (
+		expands_to (
+			&km,
+			"{ACTION_UNDO} undoes",
+			'{',
+			'}',
+			0,
+			"Ctrl+Z undoes"
+		)
+	);
+	CHECK (
+		expands_to (
+			&km,
+			"<ACTION_SAVE><Enter>",
+			'<',
+			'>',
+			1,
+			"<Ctrl+S><Enter>"
+		)
+	);
+
+	/* what is not a placeholder stays, an unknown action too */
+	CHECK (
+		expands_to (
+			&km,
+			"{Tab} and {ACTION_NOPE}",
+			'{',
+			'}',
+			1,
+			"{Tab} and {ACTION_NOPE}"
+		)
+	);
+	CHECK (expands_to (&km, "{unclosed", '{', '}', 1, "{unclosed"));
+
+	/* another binding shows; with none the action is named */
+	CHECK (ml_keymap_unbind (&km, ml_key_parse (lit ("Ctrl+S")).key));
+	CHECK (expands_to (&km, "{ACTION_SAVE}", '{', '}', 0, "save"));
+	CHECK (
+		ml_keymap_bind (
+			&km,
+			ml_key_parse (lit ("Alt+W")).key,
+			ML_ACT_SAVE
+		)
+		== ML_OK
+	);
+	CHECK (expands_to (&km, "{ACTION_SAVE}", '{', '}', 0, "Alt+W"));
+
+	ml_keymap_free (&km);
+}
+
 void run_keymap_tests (void);
 
 void run_keymap_tests (void)
@@ -353,5 +458,6 @@ void run_keymap_tests (void)
 	test_table ();
 	test_apply ();
 	test_format ();
+	test_expand ();
 	test_editor ();
 }

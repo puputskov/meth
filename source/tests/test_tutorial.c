@@ -45,6 +45,9 @@ static void press_all (MlEditor *ed, const MlKeyVec *keys)
 
 static void test_lessons_are_data (void)
 {
+	MlKeymap km;
+
+	CHECK (ml_keymap_init (&km) == ML_OK);
 	CHECK (ml_lesson_count () >= 10);
 	CHECK (ml_lesson_first (1) == 0);
 	CHECK (ml_lesson_first (2) > 0 && ml_lesson_first (2) < ml_lesson_count ());
@@ -66,22 +69,26 @@ static void test_lessons_are_data (void)
 			MlKeyVec_init (&keys);
 			CHECK (strlen (lesson.steps [s].text) > 10);
 			CHECK (strlen (lesson.steps [s].text) < 220);
-			CHECK (ml_tutorial_answer (&keys, lesson.steps [s]) == ML_OK);
+			CHECK (ml_tutorial_answer (&keys, &km, lesson.steps [s]) == ML_OK);
 			CHECK (keys.len > 0);
 			MlKeyVec_free (&keys);
 		}
 	}
+
+	ml_keymap_free (&km);
 }
 
 static void test_answer_script (void)
 {
 	MlKeyVec keys;
 	MlStep   step;
+	MlKeymap km;
 
+	CHECK (ml_keymap_init (&km) == ML_OK);
 	MlKeyVec_init (&keys);
 	memset (&step, 0, sizeof step);
 	step.answer = "a<<b<Ctrl+Enter><Up>\xCE\xBB";
-	CHECK (ml_tutorial_answer (&keys, step) == ML_OK);
+	CHECK (ml_tutorial_answer (&keys, &km, step) == ML_OK);
 	CHECK (keys.len == 6);
 	CHECK (keys.data [0].code == ML_KEY_CHAR && keys.data [0].cp == 'a');
 	CHECK (keys.data [1].code == ML_KEY_CHAR && keys.data [1].cp == '<');
@@ -95,10 +102,19 @@ static void test_answer_script (void)
 	MlKeyVec_free (&keys);
 	MlKeyVec_init (&keys);
 	step.answer = "<Nonsense>";
-	CHECK (ml_tutorial_answer (&keys, step) == ML_ERR_PARSE);
+	CHECK (ml_tutorial_answer (&keys, &km, step) == ML_ERR_PARSE);
 	step.answer = "<Enter";
-	CHECK (ml_tutorial_answer (&keys, step) == ML_ERR_PARSE);
+	CHECK (ml_tutorial_answer (&keys, &km, step) == ML_ERR_PARSE);
 	MlKeyVec_free (&keys);
+
+	/* a key that stands for an action is the key bound to it now */
+	MlKeyVec_init (&keys);
+	step.answer = "<ACTION_UNDO>";
+	CHECK (ml_tutorial_answer (&keys, &km, step) == ML_OK);
+	CHECK (keys.len == 1 && keys.data [0].cp == 'z');
+	CHECK (keys.data [0].mods == ML_MOD_CTRL);
+	MlKeyVec_free (&keys);
+	ml_keymap_free (&km);
 }
 
 /* Every step of every lesson can be finished with its model answer. */
@@ -124,7 +140,10 @@ static void test_every_lesson (void)
 			MlKeyVec_init (&keys);
 			CHECK (ed.tutorial.active);
 			CHECK (ed.tutorial.lesson == l && ed.tutorial.step == s);
-			CHECK (ml_tutorial_answer (&keys, lesson.steps [s]) == ML_OK);
+			CHECK (
+				ml_tutorial_answer (&keys, &ed.keymap, lesson.steps [s])
+				== ML_OK
+			);
 
 			/* the step is not done before its last key */
 			for (i = 0; i + 1 < keys.len && ed.tutorial.active; i++)
@@ -258,7 +277,10 @@ static void test_progress (void)
 			MlKeyVec keys;
 
 			MlKeyVec_init (&keys);
-			CHECK (ml_tutorial_answer (&keys, lesson.steps [s]) == ML_OK);
+			CHECK (
+				ml_tutorial_answer (&keys, &ed.keymap, lesson.steps [s])
+				== ML_OK
+			);
 			press_all (&ed, &keys);
 			MlKeyVec_free (&keys);
 		}

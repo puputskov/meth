@@ -125,6 +125,28 @@ MlResult ml_keymap_apply_text (
 /* The keys of an action, `Ctrl+Z, Ctrl+Shift+Z`; "" when it has none. */
 MlResult ml_keymap_keys_of (MlStr *out, const MlKeymap *km, MlAction action);
 
+/*
+ * Texts that name a key do not contain the key but the action, written
+ * {ACTION_UNDO}: ACTION_ and the name of the action in capitals with _ for -
+ * (ACTION_BLOCK_NEW). The expansion gives the first key bound to the action
+ * (`Ctrl+Z`), or the name of the action (`undo`) when it has none, so a text
+ * is right for every key table and a changed default key needs no change of
+ * the texts. open and close are the delimiters ({ } in texts, < > in the
+ * key scripts of the tutorial); keep says if they stay around the key. Text
+ * that is not a placeholder, an unknown action included, is copied as it is.
+ */
+MlResult ml_keymap_expand (
+	MlStr           *out,
+	const MlKeymap  *km,
+	MlSlice         text,
+	char            open,
+	char            close,
+	int32_t         keep
+);
+
+/* The action a placeholder name such as ACTION_UNDO stands for, or COUNT. */
+MlAction ml_action_from_placeholder (MlSlice name);
+
 /* One line per action: the action, its keys and what it does. */
 MlResult ml_keymap_format (MlStr *out, const MlKeymap *km);
 

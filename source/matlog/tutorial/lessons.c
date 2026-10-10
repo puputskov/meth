@@ -36,13 +36,13 @@ static const MlStep notes_steps [] =
 static const MlStep math_steps [] =
 {
 	{
-		.text   = "Press Ctrl+Enter. A math line starts, in a block of the "
-		          "domain used last (algebra at first).",
+		.text   = "Press {ACTION_BLOCK_NEW}. A math line starts, in a block "
+		          "of the domain used last (algebra at first).",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_BLOCK_NEW,
-		.hint   = "Hold Ctrl and press Enter. Some terminals send Shift+Enter "
-		          "for it.",
-		.answer = "<Ctrl+Enter>"
+		.hint   = "Hold Ctrl and press Enter. Some terminals send Shift and "
+		          "Enter together for it.",
+		.answer = "<ACTION_BLOCK_NEW>"
 	},
 	{
 		.text   = "Type 1/3 + 1/6. The dim text after it is a preview of the "
@@ -88,65 +88,67 @@ static const MlStep math_steps [] =
 static const MlStep moving_steps [] =
 {
 	{
-		.text   = "Ctrl+Home goes to the first line of the session.",
+		.text   = "{ACTION_GOTO_FIRST} goes to the first line of the session.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_GOTO_FIRST,
-		.answer = "<Ctrl+Home>"
+		.answer = "<ACTION_GOTO_FIRST>"
 	},
 	{
-		.text   = "Ctrl+End goes to the last line.",
+		.text   = "{ACTION_GOTO_LAST} goes to the last line.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_GOTO_LAST,
-		.answer = "<Ctrl+End>"
+		.answer = "<ACTION_GOTO_LAST>"
 	},
 	{
-		.text   = "Ctrl+Up jumps to the block before, Ctrl+Down to the next "
-		          "one. Press Ctrl+Up.",
+		.text   = "{ACTION_BLOCK_PREV} jumps to the block before, "
+		          "{ACTION_BLOCK_NEXT} to the next one. Press "
+		          "{ACTION_BLOCK_PREV}.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_BLOCK_PREV,
-		.answer = "<Ctrl+Up>"
+		.answer = "<ACTION_BLOCK_PREV>"
 	},
 	{
-		.text   = "Ctrl+Down jumps to the next block.",
+		.text   = "{ACTION_BLOCK_NEXT} jumps to the next block.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_BLOCK_NEXT,
-		.answer = "<Ctrl+Down>"
+		.answer = "<ACTION_BLOCK_NEXT>"
 	}
 };
 
 static const MlStep editing_steps [] =
 {
 	{
-		.text   = "Go up one line and press Ctrl+L to select the whole line.",
+		.text   = "Go up one line and press {ACTION_SELECT_LINE} to select "
+		          "the whole line.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_SELECT_LINE,
 		.hint   = "Press Up, then hold Ctrl and press L.",
-		.answer = "<Up><Ctrl+L>"
+		.answer = "<Up><ACTION_SELECT_LINE>"
 	},
 	{
-		.text   = "Ctrl+C copies the selected lines.",
+		.text   = "{ACTION_COPY} copies the selected lines.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_COPY,
-		.answer = "<Ctrl+C>"
+		.answer = "<ACTION_COPY>"
 	},
 	{
-		.text   = "Press Down to leave the selection, then Ctrl+V to paste "
-		          "the copy below.",
+		.text   = "Press Down to leave the selection, then {ACTION_PASTE} to "
+		          "paste the copy below.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_PASTE,
-		.answer = "<Down><Ctrl+V>"
+		.answer = "<Down><ACTION_PASTE>"
 	},
 	{
-		.text   = "Ctrl+Z undoes the last change. Try it.",
+		.text   = "{ACTION_UNDO} undoes the last change. Try it.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_UNDO,
-		.answer = "<Ctrl+Z>"
+		.answer = "<ACTION_UNDO>"
 	},
 	{
-		.text   = "Ctrl+Y redoes what was undone.",
+		.text   = "{ACTION_REDO} redoes what was undone.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_REDO,
-		.answer = "<Ctrl+Y>"
+		.answer = "<ACTION_REDO>"
 	}
 };
 
@@ -154,18 +156,19 @@ static const MlStep domains_steps [] =
 {
 	{
 		.text   = "Every math line has a domain: algebra, lambda, pga2, pga3 "
-		          "or boolean. The label at the left shows it. Alt+Right goes "
-		          "to the next domain.",
+		          "or boolean. The label at the left shows it. "
+		          "{ACTION_DOMAIN_NEXT} goes to the next domain.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_DOMAIN_NEXT,
 		.hint   = "Hold Alt and press the right arrow.",
-		.answer = "<Alt+Right>"
+		.answer = "<ACTION_DOMAIN_NEXT>"
 	},
 	{
-		.text   = "Ctrl+B chooses the domain of a new block first. Press it.",
+		.text   = "{ACTION_BLOCK_PICK} chooses the domain of a new block "
+		          "first. Press it.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_BLOCK_PICK,
-		.answer = "<Ctrl+B>"
+		.answer = "<ACTION_BLOCK_PICK>"
 	},
 	{
 		.text   = "Press Esc to cancel the choice.",
@@ -174,62 +177,63 @@ static const MlStep domains_steps [] =
 		.answer = "<Esc>"
 	},
 	{
-		.text   = "Ctrl+P opens the command line. Type mode boolean and press "
-		          "Enter: new blocks are boolean from now on.",
+		.text   = "{ACTION_COMMAND} opens the command line. Type mode boolean "
+		          "and press Enter: new blocks are boolean from now on.",
 		.check  = ML_CHECK_COMMAND,
 		.param  = "mode boolean",
-		.hint   = "Ctrl+P, then the words mode boolean, then Enter.",
-		.answer = "<Ctrl+P>mode boolean<Enter>"
+		.hint   = "{ACTION_COMMAND}, then the words mode boolean, then Enter.",
+		.answer = "<ACTION_COMMAND>mode boolean<Enter>"
 	},
 	{
-		.text   = "Start a block with Ctrl+Enter, type a & ~a and press "
-		          "Enter. In the boolean domain & is and, ~ is not.",
+		.text   = "Start a block with {ACTION_BLOCK_NEW}, type a & ~a and "
+		          "press Enter. In the boolean domain & is and, ~ is not.",
 		.check  = ML_CHECK_RESULT,
 		.param  = "false",
 		.hint   = "a and not a is never true.",
-		.answer = "<Ctrl+Enter>a & ~a<Enter>"
+		.answer = "<ACTION_BLOCK_NEW>a & ~a<Enter>"
 	},
 	{
-		.text   = "Back to algebra: Ctrl+P, then mode algebra and Enter.",
+		.text   = "Back to algebra: {ACTION_COMMAND}, then mode algebra and "
+		          "Enter.",
 		.check  = ML_CHECK_COMMAND,
 		.param  = "mode algebra",
-		.answer = "<Ctrl+P>mode algebra<Enter>"
+		.answer = "<ACTION_COMMAND>mode algebra<Enter>"
 	}
 };
 
 static const MlStep steps_steps [] =
 {
 	{
-		.text   = "Start a block and write det([[1,2],[3,4]]), the determinant "
-		          "of a matrix. Press Enter.",
+		.text   = "Start a block and write det([[1,2],[3,4]]), the "
+		          "determinant of a matrix. Press Enter.",
 		.check  = ML_CHECK_RESULT,
 		.param  = "-2",
-		.hint   = "Ctrl+Enter, then the text, then Enter.",
-		.answer = "<Ctrl+Enter>det([[1,2],[3,4]])<Enter>"
+		.hint   = "{ACTION_BLOCK_NEW}, then the text, then Enter.",
+		.answer = "<ACTION_BLOCK_NEW>det([[1,2],[3,4]])<Enter>"
 	},
 	{
-		.text   = "Go up to that line and press F3: the steps of the "
-		          "calculation are shown under it.",
+		.text   = "Go up to that line and press {ACTION_STEPS}: the steps of "
+		          "the calculation are shown under it.",
 		.check  = ML_CHECK_STEPS,
-		.hint   = "Press Up once, then F3.",
-		.answer = "<Up><F3>"
+		.hint   = "Press Up once, then {ACTION_STEPS}.",
+		.answer = "<Up><ACTION_STEPS>"
 	},
 	{
-		.text   = "F3 again hides the steps.",
+		.text   = "{ACTION_STEPS} again hides the steps.",
 		.check  = ML_CHECK_ACTION,
 		.arg    = ML_ACT_STEPS,
-		.answer = "<F3>"
+		.answer = "<ACTION_STEPS>"
 	}
 };
 
 static const MlStep help_steps [] =
 {
 	{
-		.text   = "F1 opens the help. Every page of the documentation is "
-		          "there, and it can be searched.",
+		.text   = "{ACTION_HELP} opens the help. Every page of the "
+		          "documentation is there, and it can be searched.",
 		.check  = ML_CHECK_STATE,
 		.arg    = ML_TUT_HELP,
-		.answer = "<F1>"
+		.answer = "<ACTION_HELP>"
 	},
 	{
 		.text   = "Press q to close the help.",
@@ -238,17 +242,17 @@ static const MlStep help_steps [] =
 		.answer = "q"
 	},
 	{
-		.text   = "F4 shows the watch window: every name defined at the line "
-		          "of the cursor, with its type and value.",
+		.text   = "{ACTION_WATCH} shows the watch window: every name defined "
+		          "at the line of the cursor, with its type and value.",
 		.check  = ML_CHECK_WATCH,
 		.arg    = 1,
-		.answer = "<F4>"
+		.answer = "<ACTION_WATCH>"
 	},
 	{
-		.text   = "F4 hides it again.",
+		.text   = "{ACTION_WATCH} hides it again.",
 		.check  = ML_CHECK_WATCH,
 		.arg    = 0,
-		.answer = "<F4>"
+		.answer = "<ACTION_WATCH>"
 	}
 };
 
@@ -257,12 +261,12 @@ static const MlStep help_steps [] =
 static const MlStep numbers_steps [] =
 {
 	{
-		.text   = "Start a block (Ctrl+Enter) and write a line whose result is "
-		          "1/2. Any way will do, 2/4 or 1/3 + 1/6.",
+		.text   = "Start a block ({ACTION_BLOCK_NEW}) and write a line whose "
+		          "result is 1/2. Any way will do, 2/4 or 1/3 + 1/6.",
 		.check  = ML_CHECK_RESULT,
 		.param  = "1/2",
 		.hint   = "Fractions are exact: 2/4 is 1/2.",
-		.answer = "<Ctrl+Enter>2/4<Enter>"
+		.answer = "<ACTION_BLOCK_NEW>2/4<Enter>"
 	},
 	{
 		.text   = "^ is the power and -2^2 is -4, not 4. Write a line whose "
@@ -396,8 +400,7 @@ static const MlStep numbersystems_steps [] =
 		.answer = "(1+2i)*(3-i)<Enter>"
 	},
 	{
-		.text   = "The square root of a negative number is complex: "
-		          "sqrt(-4).",
+		.text   = "The square root of a negative number is complex: sqrt(-4).",
 		.check  = ML_CHECK_RESULT,
 		.param  = "2i",
 		.answer = "sqrt(-4)<Enter>"
@@ -419,11 +422,13 @@ static const MlStep numbersystems_steps [] =
 static const MlStep otherdomains_steps [] =
 {
 	{
-		.text   = "Other domains have their own syntax. Switch with Ctrl+P, "
-		          "mode boolean, then start a block and write a | ~a.",
+		.text   = "Other domains have their own syntax. Switch with "
+		          "{ACTION_COMMAND}, mode boolean, then start a block and "
+		          "write a | ~a.",
 		.check  = ML_CHECK_RESULT,
 		.param  = "true",
-		.answer = "<Ctrl+P>mode boolean<Enter><Ctrl+Enter>a | ~a<Enter>"
+		.answer = "<ACTION_COMMAND>mode boolean<Enter><ACTION_BLOCK_NEW>a | "
+		          "~a<Enter>"
 	},
 	{
 		.text   = "The lambda calculus: switch with mode lambda, start a "
@@ -431,8 +436,8 @@ static const MlStep otherdomains_steps [] =
 		          "reduced term.",
 		.check  = ML_CHECK_RESULT,
 		.param  = "y",
-		.answer = "<Ctrl+P>mode lambda<Enter><Ctrl+Enter>"
-		          "(\xCE\xBBx. x) y<Enter>"
+		.answer = "<ACTION_COMMAND>mode "
+		          "lambda<Enter><ACTION_BLOCK_NEW>(\xCE\xBBx. x) y<Enter>"
 	}
 };
 

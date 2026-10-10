@@ -10,7 +10,7 @@ lists the actions with the keys they have when nothing is changed;
 
 ```keys
 undo         Ctrl+Z                         undo the last change
-redo         Ctrl+Shift+Z, Ctrl+Y, Ctrl+R   redo what was undone
+redo         Ctrl+Y, Ctrl+Shift+Z, Ctrl+R   redo what was undone
 block-new    Ctrl+Enter, Shift+Enter        start a block, last domain
 block-pick   Ctrl+B                         start a block, pick the domain
 note-toggle  Ctrl+N                         make the line a note, or back

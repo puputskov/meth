@@ -1131,16 +1131,35 @@ static int32_t row_contains (
 	return found;
 }
 
+/* The columns hint n takes with the keys of the editor in place. */
+static uint64_t shown_hint_width (const MlEditor *ed, uint64_t n)
+{
+	MlStr    text;
+	uint64_t width;
+
+	ml_str_init (&text);
+	CHECK (
+		ml_keymap_expand (&text, &ed->keymap, ml_hint_at (n), '{', '}', 1)
+		== ML_OK
+	);
+	width = ml_hint_width (ml_str_view (text));
+	ml_str_free (&text);
+
+	return width;
+}
+
 static void test_hint (void)
 {
 	MlEditor ed;
 	MlScreen s;
 	MlStr    p;
 	MlLayout layout;
-	uint64_t width = ml_hint_width (ml_hint_at (0));
-	uint64_t pad   = (100 - width) / 2;
+	uint64_t width;
+	uint64_t pad;
 
 	ml_editor_init (&ed);
+	width = shown_hint_width (&ed, 0);
+	pad   = (100 - width) / 2;
 	ml_editor_begin_note (&ed);
 	ml_screen_init (&s, 100, 10);
 	ml_str_init (&p);
@@ -1161,7 +1180,7 @@ static void test_hint (void)
 	s.hint_tick = 1;
 	layout = ml_screen_layout (&s, &ed);
 	plain (&p, ml_str_view (layout.rows.data [4]));
-	CHECK (p.data [(100 - ml_hint_width (ml_hint_at (1))) / 2] == 'T');
+	CHECK (p.data [(100 - shown_hint_width (&ed, 1)) / 2] == 'T');
 	ml_layout_free (&layout);
 
 	/* with a theme the keys have their own colour */

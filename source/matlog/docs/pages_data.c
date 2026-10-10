@@ -613,7 +613,7 @@ static const char text_keys [] =
 	"\n"
 	"```keys\n"
 	"undo         Ctrl+Z                         undo the last change\n"
-	"redo         Ctrl+Shift+Z, Ctrl+Y, Ctrl+R   redo what was undone\n"
+	"redo         Ctrl+Y, Ctrl+Shift+Z, Ctrl+R   redo what was undone\n"
 	"block-new    Ctrl+Enter, Shift+Enter        start a block, last domain\n"
 	"block-pick   Ctrl+B                         start a block, pick the do"
 	"main\n"

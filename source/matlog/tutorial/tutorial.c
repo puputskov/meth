@@ -326,12 +326,10 @@ MlResult ml_tutorial_title (MlStr *out, const MlTutorial *t)
 
 /* ---- the model answer -------------------------------------------------- */
 
-MlResult ml_tutorial_answer (MlKeyVec *out, MlStep step)
+/* The keys of a script whose placeholders are already expanded. */
+static MlResult script_keys (MlKeyVec *out, MlSlice s)
 {
 	MlResult r   = ML_OK;
-	MlSlice  s   = ml_slice_cstr (
-		ml_choose (step.answer != NULL, step.answer, "")
-	);
 	uint64_t pos = 0;
 
 	while (pos < s.len && r == ML_OK)
@@ -390,5 +388,29 @@ MlResult ml_tutorial_answer (MlKeyVec *out, MlStep step)
 		}
 	}
 
+	return r;
+}
+
+MlResult ml_tutorial_answer (MlKeyVec *out, const MlKeymap *km, MlStep step)
+{
+	MlStr    script;
+	MlResult r;
+
+	ml_str_init (&script);
+	r = ml_keymap_expand (
+		&script,
+		km,
+		ml_slice_cstr (ml_choose (step.answer != NULL, step.answer, "")),
+		'<',
+		'>',
+		1
+	);
+
+	if (r == ML_OK)
+	{
+		r = script_keys (out, ml_str_view (script));
+	}
+
+	ml_str_free (&script);
 	return r;
 }

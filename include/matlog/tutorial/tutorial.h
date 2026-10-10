@@ -78,10 +78,11 @@ int32_t ml_tutorial_hint_due (const MlTutorial *t);
 MlResult ml_tutorial_title (MlStr *out, const MlTutorial *t);
 
 /*
- * The keys of the model answer of the step, appended to out in order.
- * ML_ERR_PARSE for a script that has a key that is not one.
+ * The keys of the model answer of the step, appended to out in order. A key
+ * that stands for an action, <ACTION_UNDO>, is the first key of the action in
+ * the key table km. ML_ERR_PARSE for a script that has a key that is not one.
  */
 ML_VEC_DEFINE (MlKeyVec, MlKey)
-MlResult ml_tutorial_answer (MlKeyVec *out, MlStep step);
+MlResult ml_tutorial_answer (MlKeyVec *out, const MlKeymap *km, MlStep step);
 
 #endif /* MATLOG_TUTORIAL_TUTORIAL_H */

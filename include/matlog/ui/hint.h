@@ -11,7 +11,9 @@
  *
  *	"{Ctrl+P} opens the command line"
  *
- * The braces are not drawn. Hints are plain ASCII.
+ * The braces are not drawn. Hints are plain ASCII. A key is never written in
+ * a hint but as the action it stands for, {ACTION_UNDO}, which the screen
+ * expands with the key table of the user (ml_keymap_expand in keymap.h).
  */
 
 /* Seconds a hint stays before the next one. */
