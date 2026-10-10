@@ -9,7 +9,7 @@
 
 CC     ?= gcc
 CFLAGS ?= -O1 -g
-CFLAGS += -std=gnu11 -Wall -Wextra -Wno-comment -Iinclude -MMD -MP
+CFLAGS += -std=gnu11 -Wall -Wextra -Wno-comment -Werror -Iinclude -MMD -MP
 OUT    := build/make
 LIB    := $(shell find source/matlog -name "*.c" | sort)
 LIB    := $(filter-out source/matlog/platform/win32/%,$(LIB))

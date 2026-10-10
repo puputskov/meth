@@ -3,6 +3,7 @@
 #include <matlog/core/utf8.h>
 #include <matlog/texts/texts.h>
 #include <matlog/ui/brackets.h>
+#include <matlog/ui/complete.h>
 #include <matlog/ui/ghost.h>
 #include <matlog/ui/highlight.h>
 #include <matlog/ui/hint.h>
@@ -1495,6 +1496,34 @@ static MlResult append_suggestions (
 	return r;
 }
 
+/* The row above the command line that says what the typed command does. */
+static MlResult append_summary (MlStr *out, MlSlice summary, uint32_t cols)
+{
+	MlResult r = append_cstr (out, STYLE_DIM);
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, "  ");
+	}
+
+	if (r == ML_OK)
+	{
+		r = ml_text_window (
+			out,
+			summary,
+			0,
+			ml_choose (cols > 2, cols - 2, 0)
+		).result;
+	}
+
+	if (r == ML_OK)
+	{
+		r = append_cstr (out, STYLE_RESET);
+	}
+
+	return r;
+}
+
 /* A row of the typeset result of a matrix, under the text of its line. */
 static MlResult append_block_row (
 	MlStr      *out,
@@ -2021,6 +2050,19 @@ static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 		else if (r + 2 == s->rows && comp.count >= 2)
 		{
 			layout.result = append_suggestions (&row, &comp, s->cols);
+		}
+
+		else if (
+			   r + 2 == s->rows
+			&& ed->state == ML_STATE_COMMAND
+			&& ml_command_summary (ml_str_view (ed->edit.text)).len > 0
+		)
+		{
+			layout.result = append_summary (
+				&row,
+				ml_command_summary (ml_str_view (ed->edit.text)),
+				s->cols
+			);
 		}
 
 		else if (line < total && l.typing)

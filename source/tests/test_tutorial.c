@@ -301,7 +301,6 @@ static void test_progress (void)
 	/* reset forgets */
 	test_normal (&ed, ":tutorial reset");
 	test_key (&ed, ML_KEY_ENTER, 0, 0);
-	uint64_t shown = ed.tutorial.step;
 	CHECK (ml_editor_start_tutorial (&ed, lit ("")) == ML_OK);
 	CHECK (ed.tutorial.lesson == 0);
 

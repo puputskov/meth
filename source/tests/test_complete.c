@@ -318,16 +318,16 @@ static void test_screen (void)
 	CHECK (plain_row_is (&l, 4, ":mode pga2"));
 	ml_layout_free (&l);
 
-	/* one candidate left: no list any more */
+	/* one candidate left: no list any more, the row says what :mode does */
 	type (&ed, "ga3");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (plain_row_is (&l, 3, ""));
+	CHECK (strstr (ml_str_cstr (l.rows.data [3]), "the domain of new blocks"));
 	ml_layout_free (&l);
 
 	/* none left */
 	type (&ed, "x");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (plain_row_is (&l, 3, ""));
+	CHECK (strstr (ml_str_cstr (l.rows.data [3]), "the domain of new blocks"));
 	CHECK (plain_row_is (&l, 4, ":mode pga3x"));
 	ml_layout_free (&l);
 
@@ -466,8 +466,48 @@ static void test_theme_args (void)
 	CHECK (!has_item (&c, "solar"));
 }
 
+static void test_summaries (void)
+{
+	MlEditor  ed;
+	MlScreen  s;
+	MlLayout  l;
+
+	/* every command of the table has a line that says what it does */
+	for (uint64_t i = 0; i < ml_command_count (); i++)
+	{
+		MlSlice name = ml_command_name (i);
+
+		CHECK (name.len > 0);
+		CHECK (ml_command_summary (name).len > 0);
+		CHECK (!ml_slice_equal (ml_command_summary (name), name));
+	}
+
+	/* the word at the start of the line counts, not the arguments */
+	CHECK (
+		ml_slice_equal (
+			ml_command_summary (lit ("q")),
+			ml_command_summary (lit ("q"))
+		)
+	);
+	CHECK (ml_command_summary (lit ("mode pga2")).len > 0);
+	CHECK (ml_command_summary (lit ("")).len == 0);
+	CHECK (ml_command_summary (lit ("nosuchcommand")).len == 0);
+	CHECK (ml_command_summary (lit ("mod")).len == 0);
+
+	/* the row above the command line shows it once a command name is typed */
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 60, 5);
+	test_normal (&ed, ":q");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (strstr (ml_str_cstr (l.rows.data [3]), "quit") != NULL);
+	ml_layout_free (&l);
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_complete_tests (void)
 {
+	test_summaries ();
 	test_theme_args ();
 	test_commands ();
 	test_arguments ();

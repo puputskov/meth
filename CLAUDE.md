@@ -19,6 +19,11 @@ whole, find the section with `grep -n '^### ' DONE.md` and read only that one. `
 `make test` builds with gcc into `build/make/` and runs the tests, `make test T=eval` only the group `eval` (`make groups` lists them). Every group
 prints its name and its check count, so the last name on the screen is the group that hangs.
 
+## Warnings
+
+Warnings are errors: `warnings "Extra"` with `FatalWarnings` in `premake5.lua` (`/WX`) and `-Wall -Wextra -Werror` in the `Makefile`. Fix the cause of a warning,
+never silence it, and check `make` output for warnings before a commit.
+
 ## Memory
 
 No `malloc`, `realloc`, `calloc` or `free` outside `core/heap.c`. Scratch work uses a mark of `ml_arena_app ()` and rewinds it; things that grow use the

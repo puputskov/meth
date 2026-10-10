@@ -180,6 +180,52 @@ watch = show or hide the watch window
 plot = show or hide the line's plot
 
 
+# What each command of the command line does (shown when its name is typed).
+[commands]
+q = quit, asking first when there are unsaved changes
+quit = quit, asking first when there are unsaved changes
+q! = quit and throw away the unsaved changes
+w = save the session, to a file when one is given
+write = save the session, to a file when one is given
+wq = save and quit
+x = save and quit
+open = open a session file
+open! = open a session file and throw away the unsaved changes
+e = open a session file
+e! = open a session file and throw away the unsaved changes
+mode = the domain of new blocks: algebra, lambda, boolean, physics ...
+pga = the dimension of the pga domains: 2 or 3
+steps = show or hide the steps of the line
+fold = fold the block of the line
+unfold = open the folded block of the line
+foldall = fold every block
+unfoldall = open every block
+symbols = on: a name with no value is a symbol; off: it is an error
+fix = fix units: algebra lines that use units become physics lines
+help = open the documentation, at a page when one is given
+export = write the session as latex, mathml or markdown
+export! = the same, replacing a file that is there
+theme = the colour theme: a built in one or a name.theme file
+colors = how many colours the terminal shows
+example = put a worked example into the session
+examples = list the worked examples
+snippet = put a snippet into the session
+snippets = list the snippets
+watch = show or hide the watch window
+plot = show or hide the plot of the line
+tutorial = start the tutorial, or leave it
+set = show a setting, or change it
+config = the settings file: its path, or read it again
+keys = list the key bindings
+map = bind a key to an action
+unmap = remove the binding of a key
+undo = take back the last change
+redo = do again what was taken back
+delete = delete the lines of a range
+yank = copy the lines of a range
+move = move the lines of a range to after a line
+copy = copy the lines of a range to after a line
+
 # What each setting does (:set, matlog config).
 [options]
 theme = the colour theme (a built in one or a name.theme file)

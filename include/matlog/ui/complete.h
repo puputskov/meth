@@ -35,6 +35,16 @@ typedef struct MlCompletion
 /* No candidates at all. */
 MlCompletion ml_completion_none (void);
 
+/* The commands of the editor, in the order they are offered. */
+uint64_t ml_command_count (void);
+MlSlice  ml_command_name (uint64_t index);
+
+/*
+ * The one line that says what a command does (the section [commands] of the
+ * texts), for the word at the start of line; empty when it is not a command.
+ */
+MlSlice ml_command_summary (MlSlice line);
+
 /* line is the text after ':' up to the cursor. */
 MlCompletion ml_complete_command (MlSlice line);
 

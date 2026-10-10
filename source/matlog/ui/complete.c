@@ -6,6 +6,7 @@
 #include <matlog/math/unit.h>
 #include <matlog/parse/words.h>
 #include <matlog/session/session.h>
+#include <matlog/texts/texts.h>
 #include <matlog/ui/theme.h>
 
 typedef enum ArgKind
@@ -212,6 +213,54 @@ static void add_theme_files (MlCompletion *c, MlSlice typed, MlSlice files)
 MlCompletion ml_complete_command (MlSlice line)
 {
 	return ml_complete_command_with (line, ml_slice ("", 0));
+}
+
+uint64_t ml_command_count (void)
+{
+	return ml_count (commands);
+}
+
+MlSlice ml_command_name (uint64_t index)
+{
+	return ml_choose (
+		index < ml_count (commands),
+		ml_slice_cstr (commands [index].name),
+		ml_slice ("", 0)
+	);
+}
+
+MlSlice ml_command_summary (MlSlice line)
+{
+	uint64_t cut   = 0;
+	MlSlice  found = ml_slice ("", 0);
+
+	while (cut < line.len && line.data [cut] != ' ')
+	{
+		cut++;
+	}
+
+	for (uint64_t i = 0; i < ml_count (commands) && found.len == 0; i++)
+	{
+		if (ml_slice_equal (ml_slice_sub (line, 0, cut), ml_command_name (i)))
+		{
+			MlStr key;
+
+			ml_str_init (&key);
+
+			if (
+				ml_str_appendf (&key, "commands.%s", commands [i].name) == ML_OK
+			)
+			{
+				const char *t = ml_text_find (ml_str_cstr (key));
+
+				found = ml_slice_cstr (t);
+			}
+
+			ml_str_free (&key);
+		}
+	}
+
+	return found;
 }
 
 MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files)
