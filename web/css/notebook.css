@@ -133,7 +133,123 @@
 .cell.code {
 	background: var(--panel);
 	border: 1px solid var(--line);
-	padding: 0.3rem 0.4rem;
+	padding: 0 0.4rem 0.3rem;
+}
+
+.cell.code > .cell-head {
+	position: static;
+	height: 1.7rem;
+	margin: 0 0 0 1.4rem;
+	padding: 0;
+	background: transparent;
+	opacity: 0.6;
+}
+
+.cell.code:hover > .cell-head,
+.cell.code:focus-within > .cell-head {
+	opacity: 1;
+}
+
+.cell.code > .cell-head .spacer {
+	display: block;
+	flex: 1;
+}
+
+.cell-head button[aria-pressed="true"] {
+	color: var(--accent);
+}
+
+/* the chevron that folds a cell */
+.cell.code > .fold {
+	position: absolute;
+	left: 0.35rem;
+	top: 0.25rem;
+	z-index: 2;
+	width: 1.2rem;
+	height: 1.2rem;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--dim);
+	font-size: 0.8rem;
+	line-height: 1;
+}
+
+.cell.code > .fold:hover {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+/* a folded cell: the first line and how many there are */
+.cell.folded > .cell-head {
+	height: 1.7rem;
+}
+
+.cell.code .summary {
+	display: flex;
+	align-items: baseline;
+	gap: 0.75rem;
+	padding: 0 0.5rem 0.4rem 1.85rem;
+	margin-top: -0.35rem;
+	font: 0.95rem/1.5 var(--mono);
+	cursor: pointer;
+}
+
+.summary .preview {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--c-name);
+}
+
+.summary .more {
+	flex: none;
+	padding: 0 0.5rem;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font: 0.72rem var(--sans);
+}
+
+/* the buttons at the right of a line */
+.line-tools {
+	position: absolute;
+	top: 0.2rem;
+	right: 0.3rem;
+	z-index: 3;
+	display: flex;
+	gap: 0.15rem;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+
+.line:hover > .line-tools,
+.line.focus > .line-tools,
+.line-tools:focus-within {
+	opacity: 1;
+}
+
+.tool-btn {
+	padding: 0 0.45rem;
+	border: 0;
+	border-radius: 4px;
+	background: var(--panel);
+	color: var(--dim);
+	font: 0.75rem/1.4rem var(--sans);
+}
+
+.tool-btn:hover,
+.tool-btn[aria-expanded="true"] {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+@media (hover: none) {
+	.line-tools {
+		opacity: 0.7;
+	}
 }
 
 .cell.code:focus-within {
@@ -142,7 +258,7 @@
 
 .line {
 	position: relative;
-	padding: 0.1rem 0.35rem 0.1rem 0.35rem;
+	padding: 0.1rem 0.35rem 0.1rem 1.35rem;
 	border-radius: 5px;
 }
 
@@ -318,27 +434,6 @@ pre.steps {
 	color: var(--dim);
 	border-left: 3px solid var(--accent);
 	border-radius: 0 6px 6px 0;
-}
-
-.out button.steps-toggle {
-	border: 0;
-	border-radius: 4px;
-	background: transparent;
-	color: var(--dim);
-	font: 0.75rem var(--sans);
-	padding: 0 0.3rem;
-	opacity: 0;
-}
-
-.line:hover .steps-toggle,
-.line.focus .steps-toggle,
-.steps-toggle[aria-expanded="true"] {
-	opacity: 1;
-}
-
-.steps-toggle:hover {
-	background: var(--accent-soft);
-	color: var(--accent);
 }
 
 .plot-wrap {

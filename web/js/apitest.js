@@ -124,6 +124,48 @@ try {
 	const custom = meth.themeFrom("number = #ff0000 bold\nnonsense\n");
 	check("theme text", custom.classes.number.fg === "#ff0000" && custom.classes.number.bold && custom.bad === 1, JSON.stringify(custom.classes.number));
 
+	// independent sessions
+	const second = meth.create();
+	const third = meth.create();
+
+	meth.load("m:algebra a = 1" + String.fromCharCode(10) + "m:algebra a + 1" + String.fromCharCode(10));
+	second.load("m:algebra a = 100" + String.fromCharCode(10) + "m:algebra a + 1" + String.fromCharCode(10));
+	third.load("# just a note" + String.fromCharCode(10));
+	check("sessions: apart", meth.lines(1).lines[0].result.text === "2" && second.lines(1).lines[0].result.text === "101", [meth.lines(1).lines[0].result.text, second.lines(1).lines[0].result.text]);
+	check("sessions: own lines", third.lines().count === 1 && second.lines().count === 2);
+	second.edit(EDIT.type, 0, "math", "algebra", "a = 7");
+	check("sessions: edit stays", meth.lines(1).lines[0].result.text === "2" && second.lines(1).lines[0].result.text === "8");
+	second.destroy();
+	let gone = null;
+
+	try {
+		second.lines();
+	} catch (error) {
+		gone = error;
+	}
+
+	check("sessions: destroyed", gone && gone.code === 2);
+	const again = meth.create();
+
+	check("sessions: handle reused", again.handle === second.handle, [again.handle, second.handle]);
+	again.destroy();
+	third.destroy();
+
+	const many = [];
+
+	try {
+		for (let i = 0; i < 30; i++) {
+			many.push(meth.create());
+			many[i].load("m:algebra 2^" + i);
+		}
+	} catch (error) {
+		many.push(error);
+	}
+
+	check("sessions: thirty at once", many.length === 30 && many.every((m) => !(m instanceof Error)), many.length);
+	check("sessions: each works", many[29].lines().lines[0].result.text === "536870912", many[29].lines().lines[0].result.text);
+	many.forEach((m) => m.destroy && m.destroy());
+
 	check("evaluate still works", meth.evaluate("1/3 + 1/6").code === 0);
 } catch (error) {
 	check("api test ran", false, error.stack ?? error);

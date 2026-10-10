@@ -113,10 +113,12 @@ export async function loadModule(url, write) {
 	return instance.exports;
 }
 
-// The library as the page uses it: one session, and the services of the editor
-// (see include/meth/web/web.h for what each answer holds). Every method that
-// can fail throws an Error with the number of the failure in `code` (1 is out
-// of memory, 2 an invalid index or name, 5 a file that cannot be read).
+// The library as the page uses it: sessions, and the services of the editor
+// (see include/meth/web/web.h for what each answer holds). `loadMeth` gives the
+// first session with `create ()` for more (one for each open file); every
+// method that can fail throws an Error with the number of the failure in
+// `code` (1 is out of memory, 2 an invalid index or name, 5 a file that cannot
+// be read, 6 a text that is not a formula).
 const FAILURES = {
 	1: "out of memory",
 	2: "invalid argument",
@@ -140,89 +142,121 @@ export async function loadMeth(url) {
 	const api = await loadModule(url, () => {});
 	const bytes = () => new Uint8Array(api.memory.buffer);
 
-	// Puts the texts in the memory of the module, calls `name` with them
-	// (each text is a pointer and a length) and the numbers around them, and
-	// reads the answer. `args` holds numbers and strings in call order.
-	function call(name, args, parse) {
-		const allocated = [];
-		const values = [];
+	// The methods of the session with this handle.
+	function sessionOf(handle) {
+		// Puts the texts in the memory of the module, calls `name` with them
+		// (each text is a pointer and a length) and the numbers around them,
+		// and reads the answer. `args` holds numbers and strings in call order.
+		function call(name, args, parse) {
+			const allocated = [];
+			const values = [handle];
 
-		for (const arg of args) {
-			if (typeof arg === "string") {
-				const data = encoder.encode(arg);
-				const at = api.meth_alloc(data.length);
+			for (const arg of args) {
+				if (typeof arg === "string") {
+					const data = encoder.encode(arg);
+					const at = api.meth_alloc(data.length);
 
-				bytes().set(data, at);
-				allocated.push(at);
-				values.push(at, data.length);
-			} else {
-				values.push(arg);
+					bytes().set(data, at);
+					allocated.push(at);
+					values.push(at, data.length);
+				} else {
+					values.push(arg);
+				}
 			}
+
+			const code = api[name](...values);
+
+			for (const at of allocated) {
+				api.meth_free(at);
+			}
+
+			if (code !== 0 && !name.endsWith("eval")) {
+				const error = new Error(FAILURES[code] ?? `failure ${code}`);
+
+				error.code = code;
+				throw error;
+			}
+
+			const start = api.meth_result_ptr(handle);
+			const text = decoder.decode(
+				bytes().subarray(start, start + api.meth_result_len(handle)),
+			);
+
+			return parse ? JSON.parse(text) : { code, text };
 		}
 
-		const code = api[name](...values);
+		const json = (name, ...args) => call(name, args, true);
+		const text = (name, ...args) => call(name, args, false).text;
 
-		for (const at of allocated) {
-			api.meth_free(at);
-		}
+		return {
+			handle,
 
-		if (code !== 0 && !name.endsWith("eval")) {
-			const error = new Error(FAILURES[code] ?? `failure ${code}`);
+			// Ends the session; its methods must not be used afterwards.
+			destroy: () => api.meth_destroy(handle),
 
-			error.code = code;
-			throw error;
-		}
+			// `meth eval --format json EXPR` (a session of its own): the exit
+			// code and the output text.
+			evaluate: (expression) => call("meth_eval", [expression], false),
 
-		const start = api.meth_result_ptr();
-		const text = decoder.decode(
-			bytes().subarray(start, start + api.meth_result_len()),
-		);
+			// Replaces the session by a .meth file; every method that changes
+			// the session answers { from, count, lines } like lines().
+			load: (file) => json("meth_load", file),
+			save: () => text("meth_save"),
+			lines: (from = 0) => json("meth_lines", from),
+			edit: (op, index, kind = "", domain = "", line = "") =>
+				json("meth_edit", op, index, kind, domain, line),
+			setSymbols: (on) => json("meth_set_symbols", on ? 1 : 0),
 
-		return parse ? JSON.parse(text) : { code, text };
+			// The services of the editor.
+			highlight: (domain, index, line, errStart = 0, errLength = 0) =>
+				json("meth_highlight", domain, index, line, errStart, errLength),
+			ghost: (domain, index, line) => json("meth_ghost", domain, index, line),
+			complete: (domain, index, line) =>
+				json("meth_complete", domain, index, line),
+			steps: (index) => json("meth_steps", index),
+
+			// The text of a formula (or of a value) as MathML: a <math>
+			// element as text. Throws (code 6) when the text is not a formula.
+			typeset: (domain, formula) => text("meth_typeset", domain, formula),
+			hint: (index) => json("meth_hint", index),
+			exportAs: (format, words = "") => text("meth_export", format, words),
+			domains: () => json("meth_domains"),
+
+			// Help, examples, snippets, the tutorial and the themes.
+			docs: () => json("meth_docs"),
+			doc: (id) => json("meth_doc", id),
+			searchDocs: (query) => json("meth_docs_search", query),
+			examples: () => json("meth_examples"),
+			example: (name) => text("meth_example", name),
+			snippets: () => json("meth_snippets"),
+			snippet: (name) => text("meth_snippet", name),
+			lessons: () => json("meth_lessons"),
+			themes: () => json("meth_themes"),
+			themeFrom: (file) => json("meth_theme_text", file),
+		};
 	}
 
-	const json = (name, ...args) => call(name, args, true);
-	const text = (name, ...args) => call(name, args, false).text;
+	const first = api.meth_create();
+
+	if (first === 0) {
+		throw new Error("out of memory");
+	}
 
 	return {
-		// `meth eval --format json EXPR` (a session of its own): the exit code
-		// and the output text.
-		evaluate: (expression) => call("meth_eval", [expression], false),
+		...sessionOf(first),
 
-		// Replaces the session by a .meth file; every method that changes
-		// the session answers { from, count, lines } like lines().
-		load: (file) => json("meth_load", file),
-		save: () => text("meth_save"),
-		lines: (from = 0) => json("meth_lines", from),
-		edit: (op, index, kind = "", domain = "", line = "") =>
-			json("meth_edit", op, index, kind, domain, line),
-		setSymbols: (on) => json("meth_set_symbols", on ? 1 : 0),
+		// Another session, for another file. Throws when there is no room.
+		create() {
+			const handle = api.meth_create();
 
-		// The services of the editor.
-		highlight: (domain, index, line, errStart = 0, errLength = 0) =>
-			json("meth_highlight", domain, index, line, errStart, errLength),
-		ghost: (domain, index, line) => json("meth_ghost", domain, index, line),
-		complete: (domain, index, line) =>
-			json("meth_complete", domain, index, line),
-		steps: (index) => json("meth_steps", index),
+			if (handle === 0) {
+				const error = new Error("too many open sessions");
 
-		// The text of a formula (or of a value) as MathML: a <math> element as
-		// text. Throws (code 6) when the text is not a formula.
-		typeset: (domain, formula) => text("meth_typeset", domain, formula),
-		hint: (index) => json("meth_hint", index),
-		exportAs: (format, words = "") => text("meth_export", format, words),
-		domains: () => json("meth_domains"),
+				error.code = 1;
+				throw error;
+			}
 
-		// Help, examples, snippets, the tutorial and the themes.
-		docs: () => json("meth_docs"),
-		doc: (id) => json("meth_doc", id),
-		searchDocs: (query) => json("meth_docs_search", query),
-		examples: () => json("meth_examples"),
-		example: (name) => text("meth_example", name),
-		snippets: () => json("meth_snippets"),
-		snippet: (name) => text("meth_snippet", name),
-		lessons: () => json("meth_lessons"),
-		themes: () => json("meth_themes"),
-		themeFrom: (file) => json("meth_theme_text", file),
+			return sessionOf(handle);
+		},
 	};
 }

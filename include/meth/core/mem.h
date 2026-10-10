@@ -53,6 +53,13 @@ typedef struct MlArenaMark
 #define ML_ARENA_COMMIT_CHUNK    (1ULL << 20)  /* pages are committed by 1 MB */
 
 /*
+ * Changes the address space an arena reserves when it is made with 0 (the
+ * environment of a session, say). For a program that keeps many of them in one
+ * small address space, like several sessions in a WebAssembly module.
+ */
+void ml_arena_set_default_reserve (uint64_t bytes);
+
+/*
  * reserve is the address space to reserve (0 selects the default); if that
  * much is not available a smaller range is taken. No memory is touched yet.
  */

@@ -11,11 +11,18 @@ static uint64_t round_up (uint64_t n, uint64_t unit)
 	return (n + unit - 1) / unit * unit;
 }
 
+static uint64_t default_reserve = ML_ARENA_DEFAULT_RESERVE;
+
+void ml_arena_set_default_reserve (uint64_t bytes)
+{
+	default_reserve = ml_choose (bytes > 0, bytes, ML_ARENA_DEFAULT_RESERVE);
+}
+
 /* Reserves the address space on first use, a smaller range if it must. */
 static void reserve_space (MlArena *a)
 {
 	uint64_t size = round_up (
-		ml_choose (a->want > 0, a->want, ML_ARENA_DEFAULT_RESERVE),
+		ml_choose (a->want > 0, a->want, default_reserve),
 		ML_VM_GRANULE
 	);
 

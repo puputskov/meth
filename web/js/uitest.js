@@ -46,7 +46,37 @@ try {
 	notebook.load("m:algebra a = 3\nm:algebra a * 2\nm:algebra det ([[1, 2], [3, 4]])\n");
 
 	check("load: three lines", root.querySelectorAll(".line").length === 3);
-	check("load: result", out(1).textContent.includes("6"), out(1).textContent);
+
+	// by default only the last expression of a cell shows its result
+	check("results: definition hidden", out(0).textContent === "", out(0).textContent);
+	check("results: not the last hidden", out(1).textContent === "", out(1).textContent);
+	check("results: last shown", out(2).textContent.includes("2"), out(2).textContent);
+
+	// the button of one line
+	const showResult = (i) => [...root.querySelectorAll(`.line[data-i="${i}"] .line-tools .tool-btn`)].find((b) => /result/.test(b.textContent));
+
+	showResult(1).click();
+	check("results: show one line", out(1).textContent.includes("6"), out(1).textContent);
+	check("results: button says hide", /hide/.test(showResult(1).textContent));
+	showResult(1).click();
+	check("results: hide it again", out(1).textContent === "");
+
+	// the button of the cell: every result
+	const allButton = () => [...root.querySelectorAll("section.cell.code > .cell-head button")].find((b) => /results?$/.test(b.textContent));
+
+	check("results: cell button", allButton() !== null && /last result/.test(allButton().textContent));
+	allButton().click();
+	check("results: all shown", out(0).textContent.includes("3") && out(1).textContent.includes("6") && out(2).textContent.includes("2"), [0, 1, 2].map((i) => out(i).textContent));
+	check("results: pressed", allButton().getAttribute("aria-pressed") === "true");
+
+	// folding a cell
+	const fold = () => root.querySelector("section.cell.code > .fold");
+
+	fold().click();
+	check("fold: summary", root.querySelector("section.cell.code.folded .summary .more")?.textContent === "3 lines" && root.querySelectorAll(".line").length === 0, root.querySelectorAll(".line").length);
+	fold().click();
+	check("fold: open again", root.querySelectorAll(".line").length === 3 && out(0).textContent.includes("3"));
+	check("fold: state kept", notebook.viewState().allResults.length === 1 && notebook.viewState().collapsed.length === 0);
 	check("load: highlight", root.querySelectorAll(".line .input pre span").length > 3);
 
 	type(0, "a = 10");
@@ -109,7 +139,7 @@ try {
 	type(2, "det ([[1, 2], [3, 4]])");
 
 	// steps on request
-	const toggle = out(2).querySelector(".steps-toggle");
+	const toggle = [...root.querySelectorAll('.line[data-i="2"] .line-tools .tool-btn')].find((b) => b.textContent === "steps");
 
 	check("steps: button", toggle !== null);
 	toggle.click();
@@ -117,11 +147,13 @@ try {
 
 	// plots
 	notebook.load("m:algebra hist ([1, 2, 2, 3, 3, 3], 3)\nm:algebra plot (x^2, 0, 3)\n");
+	notebook.toggleAllResults(0);
 	check("plot: svg", out(0).querySelector("svg.plot") !== null);
 
 	// results typeset as MathML
 	document.activeElement.blur();
 	notebook.load("m:algebra 1/3 + 1/6" + String.fromCharCode(10) + "m:algebra sqrt (2) * 3" + String.fromCharCode(10) + "m:algebra [[1, 2], [3, 4]]^-1" + String.fromCharCode(10) + "m:algebra foo (1)" + String.fromCharCode(10) + "m:algebra a = 3");
+	notebook.toggleAllResults(0);
 	check("mathml: fraction", out(0).querySelector("math mfrac") !== null, out(0).innerHTML);
 	check("mathml: approx mark", out(1).querySelector(".eq")?.textContent === "≈" && out(1).querySelector("math") !== null);
 	check("mathml: matrix", out(2).querySelector("math mtable") !== null);

@@ -50,6 +50,15 @@ function ml_domain(line, fallback) {
 	return line.kind === "math" ? line.domain : fallback;
 }
 
+// A line that gives a name a value (a = 3, f(x) = x^2): what it says is in the
+// line, so its result is not shown unless it is asked for.
+function isDefinition(line) {
+	return (
+		line.domain !== "proof" &&
+		/^\s*[\p{L}_][\p{L}\p{N}_']*\s*(\([^)]*\))?\s*=(?!=)/u.test(line.text)
+	);
+}
+
 export class Notebook {
 	constructor(meth, root, { domains, onChange, say }) {
 		this.meth = meth;
@@ -61,6 +70,9 @@ export class Notebook {
 		this.domain = "algebra"; // for new cells
 		this.signature = "";
 		this.stepsOpen = new Set();
+		this.forced = new Set(); // lines whose result is shown against the rule
+		this.allResults = new Set(); // first lines of the cells that show every result
+		this.collapsed = new Set(); // the first lines of the cells that are folded
 		this.burst = false; // typing since the last checkpoint
 		this.timer = 0;
 		this.completion = null; // { index, items, selected, ghost, start }
@@ -70,9 +82,15 @@ export class Notebook {
 
 	// ---- the session ---------------------------------------------------
 
-	load(text) {
+	load(text, view = {}) {
 		this.applyAnswer(this.meth.load(text));
 		this.stepsOpen.clear();
+
+		const within = (list) => new Set((list ?? []).filter((i) => i < this.count));
+
+		this.forced = within(view.forced);
+		this.allResults = within(view.allResults);
+		this.collapsed = within(view.collapsed);
 		this.render();
 		this.onChange();
 	}
@@ -144,7 +162,132 @@ export class Notebook {
 			this.checkpoint();
 		}
 
-		return this.applyAnswer(this.meth.edit(op, index, kind, domain, text));
+		const from = this.applyAnswer(this.meth.edit(op, index, kind, domain, text));
+
+		if (op === EDIT.insert || op === EDIT.delete) {
+			this.shiftView(op === EDIT.insert ? 1 : -1, index);
+		}
+
+		return from;
+	}
+
+	// The lines that were at or after `index` have moved by `by` (a deleted
+	// line is gone).
+	shiftView(by, index) {
+		const move = (set) =>
+			new Set(
+				[...set]
+					.filter((i) => !(by < 0 && i === index))
+					.map((i) => (i >= index ? i + by : i)),
+			);
+
+		this.forced = move(this.forced);
+		this.allResults = move(this.allResults);
+		this.collapsed = move(this.collapsed);
+		this.stepsOpen = move(this.stepsOpen);
+	}
+
+	// What the page keeps with the text of a file: the results shown against
+	// the rule, the cells that show every result and the cells that are
+	// folded (line numbers).
+	viewState() {
+		return {
+			forced: [...this.forced],
+			allResults: [...this.allResults],
+			collapsed: [...this.collapsed],
+		};
+	}
+
+	// ---- what is shown ---------------------------------------------------
+
+	// The line of the cell that has the result shown by default: the last one
+	// that is an expression (not a definition) and has a value.
+	lastExpression(line) {
+		let found = -1;
+
+		for (let j = line.last; j >= line.first && found < 0; j--) {
+			const l = this.lines[j];
+
+			if (l.result.kind === "value" && !isDefinition(l)) {
+				found = j;
+			}
+		}
+
+		return found;
+	}
+
+	// Whether the value of a result is shown. Errors and the verdicts of a
+	// proof always are. Of the others: the last expression of the cell, or
+	// every line when the cell is set to show all; and the user can turn any
+	// line the other way round (forced).
+	visible(i) {
+		const line = this.lines[i];
+		const result = line.result;
+		let shown = false;
+
+		if (result.kind === "error" || line.domain === "proof") {
+			shown = result.kind !== "none";
+		} else if (result.kind === "value") {
+			const byRule = this.allResults.has(line.first) || i === this.lastExpression(line);
+
+			shown = byRule !== this.forced.has(i);
+		}
+
+		return shown;
+	}
+
+	toggleResult(i) {
+		if (this.forced.has(i)) {
+			this.forced.delete(i);
+		} else {
+			this.forced.add(i);
+		}
+
+		this.repaintBlock(i);
+		this.onChange();
+	}
+
+	// The button of the cell: every result of the cell, or the last one.
+	toggleAllResults(first) {
+		const line = this.lines[first];
+
+		if (this.allResults.has(first)) {
+			this.allResults.delete(first);
+		} else {
+			this.allResults.add(first);
+		}
+
+		// a choice made for the whole cell replaces the ones made for lines
+		for (let k = line.first; k <= line.last; k++) {
+			this.forced.delete(k);
+		}
+
+		this.repaintBlock(first);
+		this.onChange();
+		this.render();
+	}
+
+	toggleFold(first) {
+		if (this.collapsed.has(first)) {
+			this.collapsed.delete(first);
+		} else {
+			this.collapsed.add(first);
+		}
+
+		this.render(null);
+		this.onChange();
+	}
+
+	// Paints again every line of the cell of line i (what is the last
+	// expression of a cell can change with any of its lines).
+	repaintBlock(i) {
+		const line = this.lines[i];
+
+		for (let k = line.first; k <= line.last; k++) {
+			if (this.lines[k].kind === "math") {
+				this.paintLine(k);
+			}
+		}
 	}
 
 	// ---- drawing -------------------------------------------------------
@@ -241,6 +384,19 @@ export class Notebook {
 			head.append(select);
 		}
 
+		if (domainSelect) {
+			const all = this.allResults.has(first);
+			const results = button(
+				all ? "all results" : "last result",
+				() => this.toggleAllResults(first),
+				"",
+				"Show the result of every line of the cell, or of the last one only",
+			);
+
+			results.setAttribute("aria-pressed", String(all));
+			head.append(results);
+		}
+
 		head.append(
 			el("span", "spacer"),
 			button("delete", () => this.deleteCell(first, last), "danger", "Delete the cell"),
@@ -250,11 +406,39 @@ export class Notebook {
 
 	codeCell(first, last) {
 		const cell = el("section", "cell code", { "data-first": first });
+		const folded = this.collapsed.has(first);
+		const fold = button(
+			folded ? "▸" : "▾",
+			() => this.toggleFold(first),
+			"fold",
+			folded ? "Unfold the cell" : "Fold the cell",
+		);
 
-		cell.append(this.head(first, last, true));
+		fold.setAttribute("aria-expanded", String(!folded));
+		cell.classList.toggle("folded", folded);
+		cell.append(fold, this.head(first, last, true));
 
-		for (let i = first; i <= last; i++) {
-			cell.append(this.codeLine(i));
+		if (folded) {
+			const summary = el("div", "summary");
+			const count = last - first + 1;
+			const preview = el("span", "preview");
+
+			preview.textContent = this.lines[first].text;
+			summary.append(preview);
+
+			if (count > 1) {
+				const more = el("span", "more");
+
+				more.textContent = `${count} lines`;
+				summary.append(more);
+			}
+
+			summary.addEventListener("click", () => this.toggleFold(first));
+			cell.append(summary);
+		} else {
+			for (let i = first; i <= last; i++) {
+				cell.append(this.codeLine(i));
+			}
 		}
 
 		return cell;
@@ -426,9 +610,12 @@ export class Notebook {
 			out.classList.add("error");
 			out.append(result.text);
 		} else if (result.kind === "value") {
-			const math = this.resultMath(line, result);
+			const shown = this.visible(i);
+			const math = shown ? this.resultMath(line, result) : null;
 
-			if (line.domain === "proof") {
+			if (!shown) {
+				// the value is not shown: only the steps, when they are open
+			} else if (line.domain === "proof") {
 				out.append(this.proofMark(result.text));
 			} else if (math) {
 				const eq = el("span", "eq");
@@ -476,7 +663,49 @@ export class Notebook {
 				out.append(steps);
 			}
 
-			this.stepsButton(out, i);
+			this.stepsRows(out, i);
+		}
+
+		this.paintTools(out.parentElement, i);
+	}
+
+	// The small buttons at the right of a line: show or hide its result, and
+	// its steps.
+	paintTools(row, i) {
+		const line = this.lines[i];
+
+		if (!row) {
+			return;
+		}
+
+		let tools = row.querySelector(".line-tools");
+
+		if (!tools) {
+			tools = el("div", "line-tools");
+			row.append(tools);
+		}
+
+		tools.replaceChildren();
+
+		if (line.result.kind === "value" && line.domain !== "proof") {
+			const shown = this.visible(i);
+
+			tools.append(
+				button(
+					shown ? "hide result" : "show result",
+					() => this.toggleResult(i),
+					"tool-btn",
+					"Show or hide the result of this line",
+				),
+			);
+
+			if (!line.wants_steps) {
+				const open = this.stepsOpen.has(i);
+				const steps = button("steps", () => this.toggleSteps(i), "tool-btn", "Show the steps");
+
+				steps.setAttribute("aria-expanded", String(open));
+				tools.append(steps);
+			}
 		}
 	}
 
@@ -536,20 +765,10 @@ export class Notebook {
 	}
 
 	// The steps of a line on request (the lines that ask for them show them).
-	stepsButton(out, i) {
+	stepsRows(out, i) {
 		const line = this.lines[i];
 
-		if (line.wants_steps || line.domain === "proof") {
-			return;
-		}
-
-		const open = this.stepsOpen.has(i);
-		const toggle = button("steps", () => this.toggleSteps(i), "steps-toggle", "Show the steps");
-
-		toggle.setAttribute("aria-expanded", String(open));
-		out.append(toggle);
-
-		if (open) {
+		if (!line.wants_steps && line.domain !== "proof" && this.stepsOpen.has(i)) {
 			const answer = this.meth.steps(i);
 
 			if (answer.found) {
@@ -557,8 +776,6 @@ export class Notebook {
 
 				steps.textContent = answer.rows.join("\n");
 				out.append(steps);
-			} else {
-				toggle.textContent = "no steps";
 			}
 		}
 	}
@@ -585,8 +802,10 @@ export class Notebook {
 		if (this.structure() !== this.signature) {
 			this.render();
 		} else {
+			const start = this.lines[Math.min(from, this.count - 1)]?.first ?? 0;
+
 			for (let i = 0; i < this.count; i++) {
-				if (this.lines[i].kind === "math" && (i >= from || i === this.typedLine)) {
+				if (this.lines[i].kind === "math" && (i >= start || i === this.typedLine)) {
 					this.paintLine(i);
 				}
 			}
@@ -613,6 +832,12 @@ export class Notebook {
 	focusLine(i, start = "end", end = start) {
 		const index = Math.min(Math.max(i, 0), this.count - 1);
 		const line = this.lines[index];
+
+		if (line && this.collapsed.has(line.first)) {
+			this.collapsed.delete(line.first);
+			this.render(null);
+		}
+
 		let area = null;
 
 		if (line && line.kind === "math") {

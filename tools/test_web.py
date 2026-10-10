@@ -205,6 +205,7 @@ def check_groups(groups):
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--build", action="store_true", help="run build_web.bat first")
     parser.add_argument("--meth", help="the native meth program")
