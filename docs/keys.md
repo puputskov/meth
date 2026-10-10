@@ -33,6 +33,7 @@ save         Ctrl+S                         save the session
 quit         Ctrl+Q                         save and quit
 steps        F3                             show or hide the line's steps
 help         F1                             open the help
+watch        F4                             show or hide the watch window
 ```
 
 # Changing a key

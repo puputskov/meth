@@ -114,6 +114,7 @@ typedef struct MlEditor
 	 */
 	int32_t      highlight;
 	int32_t      ghost; /* 1 shows the preview of the result while typing */
+	int32_t      watch; /* 1 shows the watch window, see watchpanel.h */
 	MlTheme      theme;
 	MlColorLevel colors;
 	/* the theme files of the user, name.theme per line, read by Ctrl+P */

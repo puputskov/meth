@@ -10,6 +10,7 @@
 #include <matlog/docs/examples.h>
 #include <matlog/session/options.h>
 #include <matlog/session/settings.h>
+#include <matlog/session/watch.h>
 #include <matlog/ui/theme.h>
 
 #define VERSION "matlog 0.3.0"
@@ -36,6 +37,7 @@ static const char *const help_overview =
 	"  theme [NAME]   the built in themes, or one as a theme file\n"
 	"  config list|get|set|path   the settings\n"
 	"  examples [NAME]   the worked examples, or one as a .mlog file\n"
+	"  vars FILE[:LINE]  the names defined at a line, with type and value\n"
 	"  schema         the shape of the JSON output\n"
 	"  commands       the list of commands (--format json for tools)\n"
 	"  version        the version\n"
@@ -99,6 +101,21 @@ static const char *const help_examples =
 	"\n"
 	"  matlog examples calculus-newton-sqrt2 > newton.mlog\n"
 	"  matlog run newton.mlog\n";
+
+static const char *const help_vars =
+	"matlog vars FILE[:LINE] [--format text|json]\n"
+	"\n"
+	"Prints the names that are defined after line LINE of a session file (1 "
+	"based;\n"
+	"the end of the file without it): variables, functions and the "
+	"definitions of the\n"
+	"boolean and lambda domains, each with its type and value. A name that was "
+	"defined\n"
+	"again has one row, its newest value. The JSON form is one object per "
+	"name:\n"
+	"{\"name\":\"a\",\"type\":\"exact\",\"value\":\"3\",\"fresh\":true}, "
+	"fresh for a name that\n"
+	"the line itself defined or changed.\n";
 
 static const char *const help_run =
 	"matlog run FILE [--format text|json]\n"
@@ -237,6 +254,7 @@ static const CommandInfo commands [] =
 	{ .name = "theme", .summary = "the built in themes as theme files" },
 	{ .name = "config", .summary = "read and change the settings" },
 	{ .name = "examples", .summary = "worked examples as session files" },
+	{ .name = "vars", .summary = "the names defined at a line of a file" },
 	{ .name = "schema", .summary = "shape of the JSON output" },
 	{ .name = "commands", .summary = "list of commands" },
 	{ .name = "version", .summary = "the version" }
@@ -1359,7 +1377,11 @@ static int32_t cmd_help (const Options *o, MlStr *out, MlStr *err)
 									ml_choose (
 										is (name, "examples"),
 										help_examples,
-										NULL
+										ml_choose (
+											is (name, "vars"),
+											help_vars,
+											NULL
+										)
 									)
 								)
 							)
@@ -1985,6 +2007,108 @@ static int32_t cmd_config (const Options *o, MlStr *out, MlStr *err)
 	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
 }
 
+/* ---- vars ---- */
+
+/* One name of the watch as a JSON object. */
+static MlResult vars_json (MlStr *out, MlWatchRow w)
+{
+	MlResult r = add (out, "{\"name\":");
+
+	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (w.name)), r);
+	r = ml_choose (r == ML_OK, add (out, ",\"type\":"), r);
+	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (w.type)), r);
+	r = ml_choose (r == ML_OK, add (out, ",\"value\":"), r);
+	r = ml_choose (r == ML_OK, json_string (out, ml_str_view (w.value)), r);
+	r = ml_choose (
+		r == ML_OK,
+		add (out, ml_choose (w.fresh, ",\"fresh\":true", ",\"fresh\":false")),
+		r
+	);
+	r = ml_choose (r == ML_OK, add (out, "}\n"), r);
+	return r;
+}
+
+static int32_t cmd_vars (const Options *o, MlStr *out, MlStr *err)
+{
+	int32_t   code  = ML_EXIT_OK;
+	MlSession s;
+	MlResults res;
+	MlResult  r     = ML_OK;
+	uint64_t  colon = 0;
+	uint64_t  num   = ml_choose (
+		o->rest.len == 1,
+		line_after_colon (o->rest.data [0], &colon),
+		0
+	);
+
+	ml_session_init (&s);
+	ml_results_init (&res);
+	res.free_symbols     = o->symbols;
+	res.env.free_symbols = o->symbols;
+
+	if (o->rest.len != 1)
+	{
+		code = usage_error (
+			err,
+			"vars needs FILE or FILE:LINE",
+			ml_slice ("", 0)
+		);
+	}
+
+	else if (
+		ml_mlog_load (&s, ml_slice_sub (o->rest.data [0], 0, colon)) != ML_OK
+	)
+	{
+		code = ML_EXIT_IO;
+		add (err, "matlog: cannot read the file\n");
+	}
+
+	else
+	{
+		MlWatchRowVec rows;
+
+		MlWatchRowVec_init (&rows);
+		r = ml_results_update (&res, &s, 0);
+
+		if (r == ML_OK)
+		{
+			r = ml_watch_rows (
+				&rows,
+				&res,
+				ml_choose (num > 0, num - 1, s.lines.len)
+			);
+		}
+
+		for (uint64_t i = 0; i < rows.len && r == ML_OK; i++)
+		{
+			MlWatchRow w = rows.data [i];
+
+			if (o->json)
+			{
+				r = vars_json (out, w);
+			}
+
+			else
+			{
+				r = ml_str_appendf (
+					out,
+					"%s%-8s %-12s %s\n",
+					ml_choose (w.fresh, "*", " "),
+					ml_str_cstr (w.name),
+					ml_str_cstr (w.type),
+					ml_str_cstr (w.value)
+				);
+			}
+		}
+
+		ml_watch_rows_free (&rows);
+	}
+
+	ml_results_free (&res);
+	ml_session_free (&s);
+	return ml_choose (r == ML_OK, code, ML_EXIT_IO);
+}
+
 /* ---- examples ---- */
 
 /* One example of the list as a JSON object. */
@@ -2188,6 +2312,11 @@ int32_t ml_cli_run (
 	else if (is (cmd, "examples"))
 	{
 		code = cmd_examples (&o, out, err);
+	}
+
+	else if (is (cmd, "vars"))
+	{
+		code = cmd_vars (&o, out, err);
 	}
 
 	else if (is (cmd, "schema"))

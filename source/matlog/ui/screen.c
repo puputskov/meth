@@ -6,6 +6,7 @@
 #include <matlog/ui/highlight.h>
 #include <matlog/ui/hint.h>
 #include <matlog/ui/markup.h>
+#include <matlog/ui/watchpanel.h>
 
 #define STYLE_REVERSE "\x1b[7m"
 #define STYLE_DIM     "\x1b[2m"
@@ -2513,13 +2514,92 @@ static MlLayout help_layout (const MlScreen *s, const MlEditor *ed)
 	return layout;
 }
 
+/*
+ * The editor with the watch window at its right: the editor is laid out in
+ * the columns that are left, each row is padded to them and followed by a
+ * rule and a row of the panel. The last row, the status line, stays alone.
+ */
+static MlLayout watch_layout (MlScreen *s, const MlEditor *ed, uint32_t panel)
+{
+	MlLayout layout;
+	MlRowVec rows;
+	uint32_t cols = s->cols;
+	uint32_t left = cols - panel - 1;
+
+	MlRowVec_init (&rows);
+	s->cols = left;
+	layout  = editor_layout (s, ed);
+	s->cols = cols;
+
+	if (layout.result == ML_OK)
+	{
+		layout.result = ml_watch_panel (
+			&rows,
+			ed,
+			panel,
+			ml_choose (s->rows > 1, s->rows - 1, 0)
+		);
+	}
+
+	for (uint64_t r = 0; r < rows.len && layout.result == ML_OK; r++)
+	{
+		MlStr *row = &layout.rows.data [r];
+
+		for (
+			uint64_t used = ml_row_width (ml_str_view (*row));
+			used < left && layout.result == ML_OK;
+			used++
+		)
+		{
+			layout.result = append_cstr (row, " ");
+		}
+
+		if (layout.result == ML_OK)
+		{
+			layout.result = append_cstr (
+				row,
+				STYLE_DIM "\xE2\x94\x82" STYLE_RESET
+			);
+		}
+
+		if (layout.result == ML_OK)
+		{
+			layout.result = ml_str_append (row, ml_str_view (rows.data [r]));
+		}
+	}
+
+	for (uint64_t r = 0; r < rows.len; r++)
+	{
+		ml_str_free (&rows.data [r]);
+	}
+
+	MlRowVec_free (&rows);
+	return layout;
+}
+
+/* The columns the panel takes now, 0 when the watch window is not shown. */
+static uint32_t watch_columns (const MlScreen *s, const MlEditor *ed)
+{
+	return ml_choose (
+		ed->watch && ed->state != ML_STATE_HELP,
+		ml_watch_width (s->cols),
+		0
+	);
+}
+
 MlLayout ml_screen_layout (MlScreen *s, const MlEditor *ed)
 {
 	MlLayout layout;
+	uint32_t panel = watch_columns (s, ed);
 
 	if (ed->state == ML_STATE_HELP)
 	{
 		layout = help_layout (s, ed);
+	}
+
+	else if (panel > 0)
+	{
+		layout = watch_layout (s, ed, panel);
 	}
 
 	else
@@ -2551,6 +2631,11 @@ MlHit ml_screen_hit (
 		   layout.result == ML_OK
 		&& row >= 1
 		&& col >= 1
+		&& col <= s->cols - ml_choose (
+			watch_columns (s, ed) > 0,
+			watch_columns (s, ed) + 1,
+			0
+		)
 		&& row <= layout.info.len
 		&& layout.info.data [row - 1].kind != 0
 	)

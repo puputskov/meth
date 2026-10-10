@@ -528,6 +528,11 @@ examples that need later features (statistics, images, PGA motors, the full inve
   or name, and a filter by typing. The panel is drawn in the screen module with theme classes of its own (`watch-name`, `watch-type`, `watch-value`).
 - The same data is available from the CLI: `matlog vars FILE[:LINE]` prints the table (`--format json` for tools).
 
+**Built so far (2026-10-10):** the panel at the right (`ui/watchpanel.h`, F4 or `:watch [on|off]`, the setting `watch`), the rows from the results'
+snapshots (`session/watch.h`: variables, functions, boolean and lambda definitions, type, value, a star for what the line changed), `matlog vars
+FILE[:LINE]` with JSON. Not built: moving into the panel, expanding a long value (Enter), `d` to jump to the definition, sorting and filtering, the
+theme classes `watch-name`, `watch-type`, `watch-value` (the panel uses name, function, gutter and result), a panel under the editor for narrow terminals.
+
 ### 4.22 Statistics
 
 - Functions over lists/vectors (data can be written `[1, 2, 3]`, loaded from a CSV file with `load_csv ("data.csv")`, or generated with `range`):

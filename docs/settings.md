@@ -29,6 +29,7 @@ theme      the colour theme: dark, light, contrast, mono or a name.theme file
 colors     24bit, 256, 16 or off; the default follows the terminal
 highlight  on or off: the syntax colours
 ghost      on or off: the dim preview of the result while you type
+watch      on or off: the watch window with the names and their values
 ```
 
 # Changing them

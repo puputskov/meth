@@ -535,6 +535,35 @@ static void test_domains (void)
 	run_free (&r);
 }
 
+static void test_vars (void)
+{
+	const char *arm   = "examples/robotics-two-link-arm.mlog";
+	const char *line9 = "examples/robotics-two-link-arm.mlog:9";
+	Run        r    = run ("vars", arm, NULL, NULL, NULL, NULL, "");
+
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (
+		strstr (ml_str_cstr (r.out), " c2       exact        3/5\n") != NULL
+	);
+	CHECK (strstr (ml_str_cstr (r.out), "p        vector 2") != NULL);
+	run_free (&r);
+
+	/* a line number: what is defined after it, and what that line defined */
+	r = run ("vars", "--format=json", line9, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_OK);
+	CHECK (strstr (ml_str_cstr (r.out), "{\"name\":\"R2\"") != NULL);
+	CHECK (strstr (ml_str_cstr (r.out), "\"fresh\":true}") != NULL);
+	CHECK (strstr (ml_str_cstr (r.out), "\"name\":\"p\"") == NULL);
+	run_free (&r);
+
+	r = run ("vars", "no-such-file.mlog", NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_IO);
+	run_free (&r);
+	r = run ("vars", NULL, NULL, NULL, NULL, NULL, "");
+	CHECK (r.code == ML_EXIT_USAGE);
+	run_free (&r);
+}
+
 void run_cli_tests (void);
 
 void run_cli_tests (void)
@@ -543,6 +572,7 @@ void run_cli_tests (void)
 	test_eval_text ();
 	test_eval_json ();
 	test_domains ();
+	test_vars ();
 	test_session_files ();
 	test_lex_parse ();
 	test_usage ();

@@ -37,7 +37,8 @@ static const ActionInfo actions [ML_ACT_COUNT] =
 	[ML_ACT_SAVE]        = { "save",        "save the session" },
 	[ML_ACT_QUIT]        = { "quit",        "save and quit" },
 	[ML_ACT_STEPS]       = { "steps",       "show or hide the line's steps" },
-	[ML_ACT_HELP]        = { "help",        "open the help" }
+	[ML_ACT_HELP]        = { "help",        "open the help" },
+	[ML_ACT_WATCH]       = { "watch",       "show or hide the watch window" }
 };
 
 const char *ml_action_name (MlAction a)
@@ -325,7 +326,8 @@ static const Default defaults [] =
 	{ .key = "Ctrl+S",       .action = ML_ACT_SAVE },
 	{ .key = "Ctrl+Q",       .action = ML_ACT_QUIT },
 	{ .key = "F3",           .action = ML_ACT_STEPS },
-	{ .key = "F1",           .action = ML_ACT_HELP }
+	{ .key = "F1",           .action = ML_ACT_HELP },
+	{ .key = "F4",           .action = ML_ACT_WATCH }
 };
 
 MlResult ml_keymap_init (MlKeymap *km)

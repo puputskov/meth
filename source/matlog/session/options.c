@@ -29,6 +29,14 @@ static const MlOption options [] =
 		.summary = "syntax colours in the editor"
 	},
 	{
+		.name    = "watch",
+		.section = "display",
+		.kind    = ML_OPTION_BOOL,
+		.values  = "",
+		.initial = "off",
+		.summary = "the watch window with the names and their values"
+	},
+	{
 		.name    = "ghost",
 		.section = "display",
 		.kind    = ML_OPTION_BOOL,

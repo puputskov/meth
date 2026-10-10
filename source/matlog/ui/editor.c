@@ -78,6 +78,7 @@ void ml_editor_init (MlEditor *ed)
 	ed->mouse_byte    = 0;
 	ed->highlight     = 0;
 	ed->ghost         = 1;
+	ed->watch         = 0;
 	ed->theme         = ml_theme_default ();
 	ed->colors        = ML_COLORS_24BIT;
 	ml_keymap_init (&ed->keymap);
@@ -1974,7 +1975,11 @@ static MlResult option_value (const MlEditor *ed, uint64_t index, MlStr *out)
 		int32_t on = ml_choose (
 			ml_slice_equal (name, ml_slice_cstr ("ghost")),
 			ed->ghost,
-			ed->highlight
+			ml_choose (
+				ml_slice_equal (name, ml_slice_cstr ("watch")),
+				ed->watch,
+				ed->highlight
+			)
 		);
 
 		r = ml_str_append (out, ml_slice_cstr (ml_choose (on, "on", "off")));
@@ -2004,12 +2009,37 @@ static MlResult apply_option (MlEditor *ed, uint64_t index, MlSlice value)
 		ed->ghost = ml_option_bool (value) > 0;
 	}
 
+	else if (ml_slice_equal (name, ml_slice_cstr ("watch")))
+	{
+		ed->watch = ml_option_bool (value) > 0;
+	}
+
 	else
 	{
 		ed->highlight = ml_option_bool (value) > 0;
 	}
 
 	return r;
+}
+
+static MlResult set_option (MlEditor *ed, MlSlice arg);
+
+/*
+ * F4 and :watch show or hide the watch window; :watch on and :watch off say
+ * which. The choice is kept in the settings like any other (watch).
+ */
+static MlResult toggle_watch (MlEditor *ed, MlSlice arg)
+{
+	int32_t on = ml_choose (
+		ml_option_bool (arg) >= 0,
+		ml_option_bool (arg),
+		!ed->watch
+	);
+
+	return set_option (
+		ed,
+		ml_choose (on, ml_slice_cstr ("watch on"), ml_slice_cstr ("watch off"))
+	);
 }
 
 /*
@@ -3120,6 +3150,11 @@ static MlResult run_command (MlEditor *ed)
 		r = insert_snippet (ed, arg);
 	}
 
+	else if (is_cmd (cmd, "watch"))
+	{
+		r = toggle_watch (ed, arg);
+	}
+
 	else if (is_cmd (cmd, "set"))
 	{
 		r = set_option (ed, arg);
@@ -4183,6 +4218,11 @@ static MlEditResult row_key (MlEditor *ed, MlKey key)
 	else if (act == ML_ACT_STEPS)
 	{
 		res.result = row_steps (ed);
+	}
+
+	else if (act == ML_ACT_WATCH)
+	{
+		res.result = toggle_watch (ed, ml_slice ("", 0));
 	}
 
 	else

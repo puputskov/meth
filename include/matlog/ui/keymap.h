@@ -48,6 +48,7 @@ typedef enum MlAction
 	ML_ACT_QUIT,
 	ML_ACT_STEPS,
 	ML_ACT_HELP,
+	ML_ACT_WATCH,
 	ML_ACT_COUNT
 } MlAction;
 

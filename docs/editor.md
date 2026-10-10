@@ -26,6 +26,14 @@ Alt+Left/Right the previous or next domain of the line
 Esc            write the line into the session
 ```
 
+# The watch window
+`F4` (or `:watch`) shows a panel at the right of the editor with every name
+that is defined at the line of the cursor: variables, functions and the
+definitions of the boolean and lambda domains, each with its type and its
+value. Move the cursor up and the panel shows the names as that line left
+them; a star marks what the line itself defined or changed. A terminal under
+70 columns has no room for it. `matlog vars FILE:LINE` prints the same.
+
 # Moving and selecting
 ```keys
 Left Right Up Down Home End   move the cursor, across lines too

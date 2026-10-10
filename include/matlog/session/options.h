@@ -16,6 +16,7 @@
  *	                      terminal
  *	highlight  [display]  on or off: syntax colours
  *	ghost      [display]  on or off: the preview of the result while typing
+ *	watch      [display]  on or off: the watch window
  *
  * Bool settings are written on or off in the file and also read as true,
  * false, yes, no, 1 and 0.

@@ -4,6 +4,7 @@
 #include <matlog/ui/hint.h>
 #include <matlog/ui/screen.h>
 
+#include <stdlib.h>
 #include <string.h>
 
 static MlSlice lit (const char *s)
@@ -89,6 +90,35 @@ static int32_t row_is (
 			(uint32_t)idx,
 			ml_str_cstr (p),
 			expected
+		);
+	}
+
+	ml_str_free (&p);
+	return same;
+}
+
+/* 1 when the plain text of the row has the text somewhere in it. */
+static int32_t row_in (
+	const MlLayout *layout,
+	uint64_t       idx,
+	const char     *needle
+)
+{
+	MlStr   p;
+	int32_t same;
+
+	ml_str_init (&p);
+	same = idx < layout->rows.len
+		&& plain (&p, ml_str_view (layout->rows.data [idx])) == ML_OK
+		&& strstr (ml_str_cstr (p), needle) != NULL;
+
+	if (!same)
+	{
+		printf (
+			"  row %u is \"%s\", expected \"%s\" in it\n",
+			(uint32_t)idx,
+			ml_str_cstr (p),
+			needle
 		);
 	}
 
@@ -1450,9 +1480,84 @@ static void test_themed_rows (void)
 	ml_editor_free (&ed);
 }
 
+static void test_watch_panel (void)
+{
+	MlEditor ed;
+	MlScreen s;
+	MlLayout l;
+
+#ifdef _WIN32
+	_putenv_s ("MATLOG_CONFIG", "matlog_test_config/screen");
+#else
+	setenv ("MATLOG_CONFIG", "matlog_test_config/screen", 1);
+#endif
+	ml_editor_init (&ed);
+	ml_screen_init (&s, 80, 8);
+	CHECK (ml_editor_begin (&ed) == ML_OK);
+	type (&ed, "a = 3");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "f(x) = x^2");
+	press (&ed, ML_KEY_ENTER);
+	type (&ed, "A = [[1,2],[3,4]]");
+	press (&ed, ML_KEY_ENTER);
+
+	/* nothing at first; F4 shows the panel at the right of the editor */
+	l = ml_screen_layout (&s, &ed);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "watch") == NULL);
+	ml_layout_free (&l);
+	press (&ed, ML_KEY_F4);
+	CHECK (ed.watch);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (l.result == ML_OK && l.rows.len == 8);
+	CHECK (row_in (&l, 0, "\xE2\x94\x82 watch  line 4  (3)"));
+	CHECK (row_in (&l, 1, "\xE2\x94\x82 a       exact"));
+	CHECK (row_in (&l, 2, "\xE2\x94\x82 f       f (x)"));
+	CHECK (row_in (&l, 2, "f(x) = x\xC2\xB2"));
+	CHECK (row_in (&l, 3, "\xE2\x94\x82 A       matrix 2x2"));
+
+	/* the editor keeps its own columns: the status line is whole */
+	CHECK (row_in (&l, 7, "-- MATH -- algebra>"));
+	CHECK (l.cursor.col < 50);
+	ml_layout_free (&l);
+
+	/* the panel follows the cursor line: after line 1 only a is there */
+	press (&ed, ML_KEY_ESCAPE);
+	test_normal (&ed, "gg");
+	l = ml_screen_layout (&s, &ed);
+	CHECK (row_in (&l, 0, "watch  line 1  (1)"));
+	CHECK (row_in (&l, 1, "*a       exact"));
+	ml_layout_free (&l);
+
+	/* a click on the panel is no click on the text */
+	CHECK (ml_screen_hit (&s, &ed, 10, 1).valid);
+	CHECK (!ml_screen_hit (&s, &ed, 60, 1).valid);
+
+	/* too narrow a terminal has no room for it */
+	ml_screen_resize (&s, 60, 8);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "watch") == NULL);
+	ml_layout_free (&l);
+
+	/* :watch off and on, kept in the settings like the other settings */
+	ml_screen_resize (&s, 80, 8);
+	test_normal (&ed, ":watch off");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (!ed.watch);
+	l = ml_screen_layout (&s, &ed);
+	CHECK (strstr (ml_str_cstr (l.rows.data [0]), "watch") == NULL);
+	ml_layout_free (&l);
+	test_normal (&ed, ":watch");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ed.watch);
+
+	ml_screen_free (&s);
+	ml_editor_free (&ed);
+}
+
 void run_screen_tests (void)
 {
 	test_hint ();
+	test_watch_panel ();
 	test_empty_gutter ();
 	test_block_start_gutter ();
 	test_themed_rows ();

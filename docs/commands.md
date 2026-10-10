@@ -37,6 +37,12 @@ current line and `$` for the last (1 based).
 :3,5copy 10    copy them after line 10 (:t)
 ```
 
+# The watch window
+```command
+:watch [on|off]    show or hide the names with their types and values
+```
+See [the editor](editor).
+
 # Examples and snippets
 ```command
 :examples          the table of contents of the examples
