@@ -64,6 +64,25 @@ static void test_latex_math (void)
 	CHECK (latex_is ("2x", "2 x"));
 	CHECK (latex_is ("(a+b)*c", "\\left(a+b\\right) c"));
 
+	/* comparisons and the words and, or */
+	CHECK (latex_is ("a < b", "a<b"));
+	CHECK (latex_is ("a <= b", "a\\le b"));
+	CHECK (latex_is ("a != b", "a\\ne b"));
+	CHECK (latex_is ("a + 1 >= 2b", "a+1\\ge 2 b"));
+	CHECK (latex_is ("a < b and b < c", "a<b\\;\\mathrm{and}\\;b<c"));
+	CHECK (
+		latex_is (
+			"a < b or b < c and c < d",
+			"a<b\\;\\mathrm{or}\\;b<c\\;\\mathrm{and}\\;c<d"
+		)
+	);
+	CHECK (
+		latex_is (
+			"(a < b or b < c) and c < d",
+			"\\left(a<b\\;\\mathrm{or}\\;b<c\\right)\\;\\mathrm{and}\\;c<d"
+		)
+	);
+
 	/* fractions, powers, roots, factorials */
 	CHECK (latex_is ("1/2", "\\frac{1}{2}"));
 	CHECK (latex_is ("(a+1)/(b-1)", "\\frac{a+1}{b-1}"));

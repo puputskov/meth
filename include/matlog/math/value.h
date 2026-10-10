@@ -34,6 +34,7 @@ typedef enum MlValueKind
 	ML_VALUE_COMPLEX,  /* a + b i, see hyper.h */
 	ML_VALUE_QUAT,     /* a + b i + c j + d k, see hyper.h */
 	ML_VALUE_PLOT,     /* a picture to draw, see plotdata.h */
+	ML_VALUE_BOOL,     /* true or false: the result of a comparison */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -66,6 +67,7 @@ typedef enum MlErrorKind
 	ML_EVAL_NO_LIMIT,       /* no limit found, or the two sides differ */
 	ML_EVAL_CANNOT_SOLVE,   /* the equation cannot be solved in closed form */
 	ML_EVAL_NO_MEMORY,
+	ML_EVAL_TOO_LONG,       /* the computation took more steps than allowed */
 	ML_EVAL_KIND_COUNT
 } MlErrorKind;
 
@@ -92,6 +94,7 @@ typedef struct MlValue
 	MlHyper     hyper;  /* ML_VALUE_COMPLEX, ML_VALUE_QUAT */
 	const MlSym *sym;   /* ML_VALUE_EXPR */
 	const MlPlotData *plot; /* ML_VALUE_PLOT */
+	int32_t     flag;   /* ML_VALUE_BOOL: 1 for true */
 	double      approx; /* ML_VALUE_APPROX */
 	MlErrorKind error;  /* ML_VALUE_ERROR */
 	/* byte range in the source, error_len 0 if unknown */
@@ -134,6 +137,28 @@ MlValue ml_value_from_i64 (MlArena *arena, int64_t n);
 
 /* A plot as a value; it is shown as a one line summary and drawn apart. */
 MlValue ml_value_plot (const MlPlotData *plot);
+
+/* true (flag not 0) or false, shown as such. */
+MlValue ml_value_bool (int32_t flag);
+
+typedef enum MlCompare
+{
+	ML_COMPARE_LT = 0,
+	ML_COMPARE_GT,
+	ML_COMPARE_LE,
+	ML_COMPARE_GE,
+	ML_COMPARE_EQ,
+	ML_COMPARE_NE
+} MlCompare;
+
+/*
+ * a < b and the others, as a boolean. Numbers (exact and approximate) compare
+ * by value, exact ones exactly; quantities compare in SI units and need the
+ * same dimension (ML_EVAL_DIMENSION_MISMATCH otherwise). Booleans and matrices
+ * (same size, cell by cell) can only be equal or not. Anything else is
+ * ML_EVAL_TYPE; errors given come back.
+ */
+MlValue ml_value_compare (MlArena *arena, MlCompare op, MlValue a, MlValue b);
 MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len);
 
 /* Gives an error that has no position yet the range [start, start + len). */

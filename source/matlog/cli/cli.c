@@ -226,7 +226,7 @@ static const char *const schema_text =
 	"  undefined_name not_function not_value arity too_large depth no_file\n"
 	"  include_loop size type not_exact cannot_integrate not_symbolic\n"
 	"  singular dimension_mismatch unknown_unit no_limit cannot_solve\n"
-	"  no_memory, and for "
+	"  no_memory too_long, and for "
 	"text that does\n"
 	"  not parse parse_unexpected_end parse_unexpected_token "
 	"parse_expected_expr\n"
@@ -576,9 +576,13 @@ static const char *type_name (MlValueKind kind)
 							kind == ML_VALUE_PLOT,
 							"plot",
 							ml_choose (
-								kind == ML_VALUE_APPROX,
-								"approx",
-								"exact"
+								kind == ML_VALUE_BOOL,
+								"bool",
+								ml_choose (
+									kind == ML_VALUE_APPROX,
+									"approx",
+									"exact"
+								)
 							)
 						)
 					)

@@ -228,7 +228,7 @@ static void test_errors (void)
 	CHECK (kinds_are ("a $ b", "name error name end"));
 	CHECK (token_is  ("a $ b", 1, 2, 1));
 	CHECK (kinds_are ("{1}", "error number error end"));
-	CHECK (kinds_are ("1 < 2", "number error number end"));
+	CHECK (kinds_are ("1 ~ 2", "number error number end"));
 	CHECK (kinds_are ("1 % 2", "number error number end"));
 
 	/* one error token per bad character, lexing goes on */
@@ -236,8 +236,8 @@ static void test_errors (void)
 	CHECK (kinds_are ("1 # 2 @ 3", "number error number error number end"));
 
 	/* a unicode character outside the syntax covers its whole encoding */
-	CHECK (kinds_are ("a \xE2\x89\xA4 b", "name error name end"));
-	CHECK (token_is  ("a \xE2\x89\xA4 b", 1, 2, 3));
+	CHECK (kinds_are ("a \xE2\x89\x88 b", "name error name end"));
+	CHECK (token_is  ("a \xE2\x89\x88 b", 1, 2, 3));
 	CHECK (kinds_are ("\xE2\x88\x9E", "error end"));
 
 	/* invalid UTF-8 is one error token per byte */
@@ -299,6 +299,27 @@ static void test_brackets (void)
 	CHECK (kinds_are ("A^T", "name ^ name end"));
 }
 
+static void test_comparisons (void)
+{
+	CHECK (kinds_are ("a < b", "name < name end"));
+	CHECK (kinds_are ("a > b", "name > name end"));
+	CHECK (kinds_are ("a <= b", "name <= name end"));
+	CHECK (kinds_are ("a >= b", "name >= name end"));
+	CHECK (kinds_are ("a == b", "name == name end"));
+	CHECK (kinds_are ("a != b", "name != name end"));
+
+	/* the signs are the same tokens, and = stays an assignment */
+	CHECK (kinds_are ("a \xE2\x89\xA4 b", "name <= name end"));
+	CHECK (kinds_are ("a \xE2\x89\xA5 b", "name >= name end"));
+	CHECK (kinds_are ("a \xE2\x89\xA0 b", "name != name end"));
+	CHECK (kinds_are ("a = b", "name = name end"));
+	CHECK (token_is ("a <= b", 1, 2, 2));
+
+	/* a factorial followed by = is the same two characters as != */
+	CHECK (kinds_are ("3!=3", "number != number end"));
+	CHECK (kinds_are ("3! == 3", "number ! == number end"));
+}
+
 void run_lexer_tests (void)
 {
 	test_basic ();
@@ -309,4 +330,5 @@ void run_lexer_tests (void)
 	test_errors ();
 	test_token_text ();
 	test_brackets ();
+	test_comparisons ();
 }

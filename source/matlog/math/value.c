@@ -34,7 +34,8 @@ static const char *const error_texts [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_UNKNOWN_UNIT]   = "unknown unit",
 	[ML_EVAL_NO_LIMIT]       = "no limit found, or the two sides differ",
 	[ML_EVAL_CANNOT_SOLVE]   = "the equation cannot be solved in closed form",
-	[ML_EVAL_NO_MEMORY]      = "out of memory"
+	[ML_EVAL_NO_MEMORY]      = "out of memory",
+	[ML_EVAL_TOO_LONG]       = "the computation took too many steps"
 };
 
 const char *ml_error_text (MlErrorKind kind)
@@ -73,7 +74,8 @@ static const char *const error_codes [ML_EVAL_KIND_COUNT] =
 	[ML_EVAL_UNKNOWN_UNIT]          = "unknown_unit",
 	[ML_EVAL_NO_LIMIT]              = "no_limit",
 	[ML_EVAL_CANNOT_SOLVE]          = "cannot_solve",
-	[ML_EVAL_NO_MEMORY]             = "no_memory"
+	[ML_EVAL_NO_MEMORY]             = "no_memory",
+	[ML_EVAL_TOO_LONG]              = "too_long"
 };
 
 const char *ml_error_code (MlErrorKind kind)
@@ -218,6 +220,126 @@ MlValue ml_value_plot (const MlPlotData *plot)
 	v.plot = plot;
 
 	return v;
+}
+
+MlValue ml_value_bool (int32_t flag)
+{
+	MlValue v = ml_value_none ();
+
+	v.kind = ML_VALUE_BOOL;
+	v.flag = flag != 0;
+
+	return v;
+}
+
+/* 1 when the matrices have the same size and cells. */
+static int32_t matrices_equal (MlArena *arena, MlMat a, MlMat b)
+{
+	int32_t same = a.rows == b.rows && a.cols == b.cols;
+
+	for (uint64_t i = 0; i < a.rows * a.cols && same; i++)
+	{
+		same = ml_rat_cmp (arena, a.cells [i], b.cells [i]) == 0;
+	}
+
+	return same;
+}
+
+/* The result of a comparison, given the order -1, 0 or 1 of the operands. */
+static MlValue compare_order (MlCompare op, int32_t order)
+{
+	int32_t holds;
+
+	if (op == ML_COMPARE_LT)
+	{
+		holds = order < 0;
+	}
+
+	else if (op == ML_COMPARE_GT)
+	{
+		holds = order > 0;
+	}
+
+	else if (op == ML_COMPARE_LE)
+	{
+		holds = order <= 0;
+	}
+
+	else if (op == ML_COMPARE_GE)
+	{
+		holds = order >= 0;
+	}
+
+	else if (op == ML_COMPARE_EQ)
+	{
+		holds = order == 0;
+	}
+
+	else
+	{
+		holds = order != 0;
+	}
+
+	return ml_value_bool (holds);
+}
+
+MlValue ml_value_compare (MlArena *arena, MlCompare op, MlValue a, MlValue b)
+{
+	MlValue r;
+	int32_t equality = op == ML_COMPARE_EQ || op == ML_COMPARE_NE;
+
+	if (a.kind == ML_VALUE_ERROR)
+	{
+		r = a;
+	}
+
+	else if (b.kind == ML_VALUE_ERROR)
+	{
+		r = b;
+	}
+
+	else if (ml_value_is_number (a) && ml_value_is_number (b))
+	{
+		r = compare_order (op, ml_value_cmp (arena, a, b));
+	}
+
+	else if (a.kind == ML_VALUE_QUANTITY && b.kind == ML_VALUE_QUANTITY)
+	{
+		r = ml_choose (
+			ml_dim_equal (a.dim, b.dim),
+			compare_order (op, ml_value_cmp (arena, a, b)),
+			ml_value_error (ML_EVAL_DIMENSION_MISMATCH, 0, 0)
+		);
+	}
+
+	else if (a.kind == ML_VALUE_QUANTITY || b.kind == ML_VALUE_QUANTITY)
+	{
+		r = ml_choose (
+			ml_value_is_number (a) || ml_value_is_number (b),
+			ml_value_error (ML_EVAL_DIMENSION_MISMATCH, 0, 0),
+			ml_value_error (ML_EVAL_TYPE, 0, 0)
+		);
+	}
+
+	else if (equality && a.kind == ML_VALUE_BOOL && b.kind == ML_VALUE_BOOL)
+	{
+		r = compare_order (op, ml_choose (a.flag == b.flag, 0, 1));
+	}
+
+	else if (equality && a.kind == ML_VALUE_MATRIX && b.kind == ML_VALUE_MATRIX)
+	{
+		r = compare_order (
+			op,
+			ml_choose (matrices_equal (arena, a.matrix, b.matrix), 0, 1)
+		);
+	}
+
+	else
+	{
+		r = ml_value_error (ML_EVAL_TYPE, 0, 0);
+	}
+
+	return r;
 }
 
 MlValue ml_value_expr (const MlSym *sym, MlResult status)
@@ -1094,6 +1216,14 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 	else if (v.kind == ML_VALUE_PLOT)
 	{
 		r = ml_plot_summary (out, v.plot);
+	}
+
+	else if (v.kind == ML_VALUE_BOOL)
+	{
+		r = ml_str_append (
+			out,
+			ml_slice_cstr (ml_choose (v.flag, "true", "false"))
+		);
 	}
 
 	return r;

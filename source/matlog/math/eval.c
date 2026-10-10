@@ -31,6 +31,7 @@ typedef enum MlCallKind
 	CALL_PRODUCT, /* a(2) with a a number: a times 2 */
 	CALL_USER,
 	CALL_BUILTIN,
+	CALL_IF,      /* if (c, a, b): only the branch that is taken runs */
 	/* simplify expand subs diff integrate: the arguments are formulas */
 	CALL_SYMBOLIC
 } MlCallKind;
@@ -65,6 +66,7 @@ typedef struct MlEvalCtx
 	MlValueVec  vals;
 	MlScopeVec  scopes;
 	int32_t     failed; /* a stack could not grow: out of memory */
+	uint64_t    steps;  /* nodes evaluated so far, see ML_EVAL_MAX_STEPS */
 	MlStepLog   *log;    /* steps of symbolic calls, NULL: none wanted */
 } MlEvalCtx;
 
@@ -97,6 +99,8 @@ typedef enum MlBuiltin
 	BUILTIN_GCD,
 	BUILTIN_LCM,
 	BUILTIN_DIM,
+	BUILTIN_IF,
+	BUILTIN_NOT,
 	/* complex numbers and quaternions (math/hyper.h) */
 	BUILTIN_RE,
 	BUILTIN_IM,
@@ -164,6 +168,8 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_GCD]   = { .name = "gcd",   .min = 2, .max = 2 },
 	[BUILTIN_LCM]   = { .name = "lcm",   .min = 2, .max = 2 },
 	[BUILTIN_DIM]   = { .name = "dim",   .min = 1, .max = 1 },
+	[BUILTIN_IF]    = { .name = "if",    .min = 3, .max = 3 },
+	[BUILTIN_NOT]   = { .name = "not",   .min = 1, .max = 1 },
 	[BUILTIN_RE]     = { .name = "re",     .min = 1, .max = 1 },
 	[BUILTIN_IM]     = { .name = "im",     .min = 1, .max = 1 },
 	[BUILTIN_CONJ]   = { .name = "conj",   .min = 1, .max = 1 },
@@ -235,7 +241,17 @@ static MlValue constant_find (MlSlice name)
 {
 	MlValue v = ml_value_none ();
 
-	if (
+	if (ml_slice_equal (name, ml_slice_cstr ("true")))
+	{
+		v = ml_value_bool (1);
+	}
+
+	else if (ml_slice_equal (name, ml_slice_cstr ("false")))
+	{
+		v = ml_value_bool (0);
+	}
+
+	else if (
 		   ml_slice_equal (name, ml_slice_cstr ("pi"))
 		|| ml_slice_equal (name, ml_slice_cstr ("\xCF\x80"))
 	)
@@ -1043,7 +1059,16 @@ static MlValue builtin_apply (
 		has_hyper = has_hyper || ml_value_is_hyper (args [i]);
 	}
 
-	if (id == BUILTIN_DIM)
+	if (id == BUILTIN_NOT)
+	{
+		r = ml_choose (
+			args [0].kind == ML_VALUE_BOOL,
+			ml_value_bool (!args [0].flag),
+			error_at (ML_EVAL_TYPE)
+		);
+	}
+
+	else if (id == BUILTIN_DIM)
 	{
 		r = dim_value (arena, args [0]);
 	}
@@ -1168,6 +1193,17 @@ static MlValue binary_apply (
 	else if (kind == ML_NODE_TO)
 	{
 		r = convert_value (a, b);
+	}
+
+	else if (kind >= ML_NODE_LT && kind <= ML_NODE_NE)
+	{
+		/* the nodes < > <= >= == != in the order of MlCompare */
+		r = ml_value_compare (
+			arena,
+			(MlCompare)(kind - ML_NODE_LT),
+			a,
+			b
+		);
 	}
 
 	else
@@ -1912,6 +1948,7 @@ static int32_t is_operator (MlNodeKind kind)
 		|| kind == ML_NODE_SQRT
 		|| kind == ML_NODE_TO
 		|| (kind >= ML_NODE_ADD && kind <= ML_NODE_POW)
+		|| (kind >= ML_NODE_LT && kind <= ML_NODE_OR)
 	);
 }
 
@@ -2187,6 +2224,39 @@ static MlValue show_unit (MlEvalCtx *cx, MlFrame f, MlValue r)
 	return r;
 }
 
+/*
+ * and, or: the left operand is on vals (step 1), or both (step 2). A left
+ * operand that decides the result (false and ..., true or ...) ends it
+ * without looking at the right one; otherwise the result is the right one.
+ */
+static void step_logic (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc    = &cx->scopes.data [f.scope];
+	MlValue       top   = top_value (cx);
+	int32_t       is_or = node.kind == ML_NODE_OR;
+
+	if (top.kind != ML_VALUE_BOOL)
+	{
+		finish (cx, f.step, error_at (ML_EVAL_TYPE), node);
+	}
+
+	else if (f.step == 1 && top.flag == is_or)
+	{
+		finish (cx, 1, top, node);
+	}
+
+	else if (f.step == 1)
+	{
+		set_step (cx, 2);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, 1), f.scope);
+	}
+
+	else
+	{
+		finish (cx, 2, top, node);
+	}
+}
+
 static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
 	const MlScope *sc   = &cx->scopes.data [f.scope];
@@ -2195,7 +2265,8 @@ static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 		ml_ast_child_count (&sc->ast, f.node),
 		ml_choose (
 			   node.kind == ML_NODE_TO
-			|| (node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW),
+			|| (node.kind >= ML_NODE_ADD && node.kind <= ML_NODE_POW)
+			|| (node.kind >= ML_NODE_LT && node.kind <= ML_NODE_OR),
 			2,
 			1
 		)
@@ -2204,6 +2275,14 @@ static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 	if (f.step > 0 && top_is_error (cx))
 	{
 		finish (cx, f.step, top_value (cx), node);
+	}
+
+	else if (
+		   (node.kind == ML_NODE_AND || node.kind == ML_NODE_OR)
+		&& f.step > 0
+	)
+	{
+		step_logic (cx, f, node);
 	}
 
 	else if (is_transpose (cx, f, node))
@@ -2264,6 +2343,11 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 		kind = CALL_SYMBOLIC;
 	}
 
+	if (kind == CALL_BUILTIN && builtin_find (name) == BUILTIN_IF)
+	{
+		kind = CALL_IF;
+	}
+
 	if (kind == CALL_SYMBOLIC)
 	{
 		r = symbolic_call (cx, sc, f.node, name, argc);
@@ -2292,7 +2376,7 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 		}
 	}
 
-	else if (kind == CALL_BUILTIN)
+	else if (kind == CALL_BUILTIN || kind == CALL_IF)
 	{
 		MlBuiltin id = builtin_find (name);
 
@@ -2400,6 +2484,44 @@ static void call_return (MlEvalCtx *cx, MlNode node)
 	finish (cx, 0, r, node);
 }
 
+/*
+ * if (c, a, b): the condition first (step 0), then only the branch it picks
+ * (step 1 to 2), so what the other branch would do never happens.
+ */
+static void step_if (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc = &cx->scopes.data [f.scope];
+
+	if (f.step == 0)
+	{
+		set_step (cx, 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, 1), f.scope);
+	}
+
+	else if (f.step == 1 && top_value (cx).kind == ML_VALUE_BOOL)
+	{
+		uint64_t branch = ml_choose (top_value (cx).flag, 2, 3);
+
+		set_step (cx, 2);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, branch), f.scope);
+	}
+
+	else if (f.step == 1 && top_is_error (cx))
+	{
+		finish (cx, 1, top_value (cx), node);
+	}
+
+	else if (f.step == 1)
+	{
+		finish (cx, 1, error_at (ML_EVAL_TYPE), node);
+	}
+
+	else
+	{
+		finish (cx, 2, top_value (cx), node);
+	}
+}
+
 static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
 	const MlScope *sc   = &cx->scopes.data [f.scope];
@@ -2408,6 +2530,11 @@ static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
 	if (f.kind == CALL_NEW)
 	{
 		call_begin (cx, f, node);
+	}
+
+	else if (f.kind == CALL_IF)
+	{
+		step_if (cx, f, node);
 	}
 
 	else if (f.kind == CALL_USER && f.step == argc + 1)
@@ -2513,6 +2640,7 @@ static MlValue eval_with (
 		.env      = env,
 		.snapshot = snapshot,
 		.failed   = 0,
+		.steps    = 0,
 		.log      = log
 	};
 
@@ -2544,15 +2672,24 @@ static MlValue eval_with (
 			);
 		}
 
-		while (cx.frames.len > 0 && !cx.failed)
+		while (
+			   cx.frames.len > 0
+			&& !cx.failed
+			&& cx.steps < ML_EVAL_MAX_STEPS
+		)
 		{
+			cx.steps++;
 			eval_step (&cx);
 		}
 
 		r = ml_choose (
 			cx.failed,
 			error_at (ML_EVAL_NO_MEMORY),
-			MlValueVec_get (&cx.vals, 0)
+			ml_choose (
+				cx.frames.len > 0,
+				error_at (ML_EVAL_TOO_LONG),
+				MlValueVec_get (&cx.vals, 0)
+			)
 		);
 	}
 
@@ -2604,6 +2741,7 @@ MlResult ml_eval_commit (
 			|| ml_value_is_quantity (value)
 			|| ml_value_is_hyper (value)
 			|| value.kind == ML_VALUE_PLOT
+			|| value.kind == ML_VALUE_BOOL
 		)
 	)
 	{

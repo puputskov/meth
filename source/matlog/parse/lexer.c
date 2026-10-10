@@ -23,6 +23,15 @@ static const char *const kind_names [ML_TOK_COUNT] =
 	[ML_TOK_EQUALS]      = "=",
 	[ML_TOK_SQRT]        = "sqrt",
 	[ML_TOK_SUPERSCRIPT] = "superscript",
+	[ML_TOK_LT]          = "<",
+	[ML_TOK_GT]          = ">",
+	[ML_TOK_LE]          = "<=",
+	[ML_TOK_GE]          = ">=",
+	[ML_TOK_EQEQ]        = "==",
+	[ML_TOK_NE]          = "!=",
+	[ML_TOK_AND]         = "and",
+	[ML_TOK_OR]          = "or",
+	[ML_TOK_TO]          = "to",
 	[ML_TOK_ERROR]       = "error"
 };
 
@@ -69,6 +78,11 @@ static const Symbol symbols [] =
 	{ .cp = ']',    .kind = ML_TOK_RBRACKET },
 	{ .cp = ',',    .kind = ML_TOK_COMMA },
 	{ .cp = '=',    .kind = ML_TOK_EQUALS },
+	{ .cp = '<',    .kind = ML_TOK_LT },
+	{ .cp = '>',    .kind = ML_TOK_GT },
+	{ .cp = 0x2264, .kind = ML_TOK_LE },    /* less than or equal to */
+	{ .cp = 0x2265, .kind = ML_TOK_GE },    /* greater than or equal to */
+	{ .cp = 0x2260, .kind = ML_TOK_NE },    /* not equal to */
 	{ .cp = 0x221A, .kind = ML_TOK_SQRT }   /* square root */
 };
 
@@ -233,6 +247,25 @@ static MlToken next_token (MlSlice source, uint64_t pos)
 	else
 	{
 		token.kind = symbol_kind (d.cp);
+
+		/* <= >= == != are two characters */
+		if (
+			   pos + 1 < source.len
+			&& source.data [pos + 1] == '='
+			&& (d.cp == '<' || d.cp == '>' || d.cp == '=' || d.cp == '!')
+		)
+		{
+			token.kind = ml_choose (
+				d.cp == '<',
+				ML_TOK_LE,
+				ml_choose (
+					d.cp == '>',
+					ML_TOK_GE,
+					ml_choose (d.cp == '=', ML_TOK_EQEQ, ML_TOK_NE)
+				)
+			);
+			token.len  = 2;
+		}
 	}
 
 	return token;

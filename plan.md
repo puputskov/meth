@@ -522,7 +522,7 @@ the quaternion unit instead of an undefined name; a variable or a parameter of t
 the tree with explicit heap stacks and lets a function call itself (late binding), so the language grows by expressions, not by statements and loops.
 Nothing in it can run without end: the depth limit (`ML_EVAL_MAX_DEPTH`) and a step budget per line end every computation with an error, so ghost
 mode stays safe. Built in this order, each step with tests, docs and an example before the next:
-1. **Comparisons, booleans and `if`.** The operators `< > <= >= == !=` (`==` compares, `=` still assigns), the words `and`, `or`, `not`, and the
+1. **Comparisons, booleans and `if`** (built 2026-10-10: the lexer, parser levels or < and < comparisons < to < + -, `bool` values, `ml_value_compare`, lazy `and`/`or`/`if`, `not (c)`, `true`/`false`, the step limit `ML_EVAL_MAX_STEPS` with the error `too_long`, typesetting in the export, the page `syntax`, the example `algebra-recursion-and-conditions`). The operators `< > <= >= == !=` (`==` compares, `=` still assigns), the words `and`, `or`, `not`, and the
    conditional `if (cond, a, b)`, which evaluates only the branch it takes (so a recursive definition ends). A new value kind `bool` (`true`,
    `false`) shown as such; numbers are not booleans, so `if (1, ...)` is a type error. Exact numbers compare exactly, an approximation with an
    exact number as approximate; quantities compare when the dimensions agree.

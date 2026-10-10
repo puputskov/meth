@@ -42,6 +42,16 @@ typedef enum MlTokenKind
 	ML_TOK_EQUALS,
 	ML_TOK_SQRT,
 	ML_TOK_SUPERSCRIPT,
+	ML_TOK_LT,    /* < */
+	ML_TOK_GT,    /* > */
+	ML_TOK_LE,    /* <= or the sign */
+	ML_TOK_GE,    /* >= or the sign */
+	ML_TOK_EQEQ,  /* == */
+	ML_TOK_NE,    /* != or the sign */
+	/* the words and, or and to are names; the parser gives them these kinds */
+	ML_TOK_AND,
+	ML_TOK_OR,
+	ML_TOK_TO,    /* the word to */
 	ML_TOK_ERROR, /* a character that is not part of the syntax */
 	ML_TOK_COUNT
 } MlTokenKind;

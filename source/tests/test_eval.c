@@ -69,6 +69,7 @@ static int32_t shows (Session *s, const char *text, const char *expected)
 		|| ml_value_is_quantity (v)
 		|| v.kind == ML_VALUE_COMPLEX
 		|| v.kind == ML_VALUE_QUAT
+		|| v.kind == ML_VALUE_BOOL
 	)
 	{
 		same = (
@@ -1092,6 +1093,104 @@ static void test_free_symbols (void)
 	session_free (&s);
 }
 
+static void test_comparisons (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* numbers compare by value, exact ones exactly */
+	CHECK (shows (&s, "1 < 2", "true"));
+	CHECK (shows (&s, "2 < 1", "false"));
+	CHECK (shows (&s, "2 <= 2", "true"));
+	CHECK (shows (&s, "3 > 2", "true"));
+	CHECK (shows (&s, "2 >= 3", "false"));
+	CHECK (shows (&s, "1/3 + 1/6 == 1/2", "true"));
+	CHECK (shows (&s, "0.1 + 0.2 == 0.3", "true"));
+	CHECK (shows (&s, "1 != 2", "true"));
+	CHECK (shows (&s, "sqrt(2) > 1", "true"));
+	CHECK (shows (&s, "sqrt(2)^2 > 1.9", "true"));
+	CHECK (shows (&s, "2 \xE2\x89\xA4 2", "true"));
+	CHECK (shows (&s, "2 \xE2\x89\xA0 2", "false"));
+
+	/* arithmetic binds tighter than a comparison, and the comparison
+	   tighter than and, which binds tighter than or */
+	CHECK (shows (&s, "1 + 1 == 2", "true"));
+	CHECK (shows (&s, "1 < 2 and 2 < 3", "true"));
+	CHECK (shows (&s, "1 > 2 or 2 < 3 and 3 < 2", "false"));
+	CHECK (shows (&s, "1 > 2 or 2 < 3", "true"));
+	CHECK (shows (&s, "not (1 < 2)", "false"));
+	CHECK (shows (&s, "true and false", "false"));
+	CHECK (shows (&s, "true == true", "true"));
+	CHECK (shows (&s, "true != false", "true"));
+
+	/* quantities compare in SI units and need the same dimension */
+	CHECK (shows (&s, "1 km > 999 m", "true"));
+	CHECK (shows (&s, "1 km == 1000 m", "true"));
+	CHECK (fails (&s, "1 km < 2 s", ML_EVAL_DIMENSION_MISMATCH));
+	CHECK (fails (&s, "1 km < 2", ML_EVAL_DIMENSION_MISMATCH));
+
+	/* matrices and booleans can only be equal */
+	CHECK (shows (&s, "[[1, 2], [3, 4]] == [[1, 2], [3, 4]]", "true"));
+	CHECK (shows (&s, "[1, 2] != [1, 3]", "true"));
+	CHECK (shows (&s, "[1, 2] == [1, 2, 3]", "false"));
+	CHECK (fails (&s, "[1, 2] < [1, 3]", ML_EVAL_TYPE));
+	CHECK (fails (&s, "true < false", ML_EVAL_TYPE));
+
+	/* a chain compares a boolean with a number */
+	CHECK (fails (&s, "1 < 2 < 3", ML_EVAL_TYPE));
+	CHECK (fails (&s, "1 and 2", ML_EVAL_TYPE));
+	CHECK (fails (&s, "not 1", ML_EVAL_SYNTAX));
+	CHECK (fails (&s, "not (1)", ML_EVAL_TYPE));
+
+	/* an error in an operand comes out */
+	CHECK (fails (&s, "1/0 < 2", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "ghost < 2", ML_EVAL_UNDEFINED_NAME));
+
+	/* and and or stop at the left operand when it decides */
+	CHECK (shows (&s, "false and 1/0 > 1", "false"));
+	CHECK (shows (&s, "true or 1/0 > 1", "true"));
+	CHECK (fails (&s, "true and 1/0 > 1", ML_EVAL_DIV_ZERO));
+
+	/* a boolean can be named */
+	CHECK (shows (&s, "ok = 3 > 2", "true"));
+	CHECK (shows (&s, "ok and ok", "true"));
+	CHECK (shows (&s, "ok", "true"));
+
+	session_free (&s);
+}
+
+static void test_if_and_recursion (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* only the branch that is taken runs */
+	CHECK (shows (&s, "if (1 < 2, 10, 20)", "10"));
+	CHECK (shows (&s, "if (1 > 2, 10, 20)", "20"));
+	CHECK (shows (&s, "if (true, 1, 1/0)", "1"));
+	CHECK (shows (&s, "if (false, 1/0, 2)", "2"));
+	CHECK (fails (&s, "if (false, 1, 1/0)", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "if (1, 2, 3)", ML_EVAL_TYPE));
+	CHECK (fails (&s, "if (1/0 > 0, 2, 3)", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "if (true, 2)", ML_EVAL_ARITY));
+
+	/* a recursive definition ends where its condition says */
+	run (&s, "fact(n) = if (n <= 1, 1, n * fact(n - 1))");
+	CHECK (shows (&s, "fact(5)", "120"));
+	CHECK (shows (&s, "fact(20)", "2432902008176640000"));
+	run (&s, "fib(n) = if (n < 2, n, fib(n - 1) + fib(n - 2))");
+	CHECK (shows (&s, "fib(15)", "610"));
+	run (&s, "gcd2(a, b) = if (b == 0, a, gcd2(b, a - b * floor(a / b)))");
+	CHECK (shows (&s, "gcd2(48, 18)", "6"));
+
+	/* a computation that takes too many steps ends with an error */
+	CHECK (fails (&s, "fib(32)", ML_EVAL_TOO_LONG));
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -1113,4 +1212,6 @@ void run_eval_tests (void)
 	test_units ();
 	test_limits ();
 	test_free_symbols ();
+	test_comparisons ();
+	test_if_and_recursion ();
 }

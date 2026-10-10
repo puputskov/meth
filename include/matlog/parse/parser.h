@@ -12,6 +12,10 @@
  *
  * Precedence, from loose to tight:
  *
+ *	or                            the words, left associative; and binds
+ *	and                           tighter than or
+ *	< > <= >= == !=               comparisons (also the signs ≤ ≥ ≠); a chain
+ *	                              a < b < c is (a < b) < c, a type error
  *	to                            the conversion: 3 ft to m, 5 N*m to J; it
  *	                              is the word "to", so "to" is not a name
  *	                              after an operand; left associative
@@ -55,6 +59,7 @@
  *	number, name, superscript      leaves (the text is the node's range)
  *	neg, !, sqrt                   one child
  *	+ - * / ^ to                   two children, left then right
+ *	< > <= >= == != and or         the same
  *	call                           the callee (a name), then the arguments
  *	=                              the target (a name), then the expression
  *	def                            the name, a params node holding the
@@ -84,6 +89,14 @@ typedef enum MlNodeKind
 	ML_NODE_PARAMS,      /* the parameter names of a definition */
 	ML_NODE_LIST,        /* [a, b, c] */
 	ML_NODE_TO,          /* a to b: a converted to the unit expression b */
+	ML_NODE_LT,          /* a < b */
+	ML_NODE_GT,          /* a > b */
+	ML_NODE_LE,          /* a <= b */
+	ML_NODE_GE,          /* a >= b */
+	ML_NODE_EQ,          /* a == b */
+	ML_NODE_NE,          /* a != b */
+	ML_NODE_AND,         /* a and b */
+	ML_NODE_OR,          /* a or b */
 	ML_NODE_KIND_COUNT
 } MlNodeKind;
 

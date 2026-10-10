@@ -21,6 +21,26 @@ static const char text_algebra_quadratic [] =
 	"et.\n"
 	"m:algebra solve(x^2 + x + 1, x)\n";
 
+static const char text_algebra_recursion_and_conditions [] =
+	"# Conditions and recursion\n"
+	"# A comparison gives true or false, and if (c, a, b) picks one of two "
+	"values.\n"
+	"m:algebra 3 > 2 and 1/3 + 1/6 == 1/2\n"
+	"# Only the branch that is taken runs, so a function can call itself an"
+	"d stop:\n"
+	"m:algebra fact(n) = if (n <= 1, 1, n * fact(n - 1))\n"
+	"m:algebra fact(10)\n"
+	"# The Fibonacci numbers by the definition, one call for each of the tw"
+	"o before:\n"
+	"m:algebra fib(n) = if (n < 2, n, fib(n - 1) + fib(n - 2))\n"
+	"m:algebra fib(20)\n"
+	"# Euclid's algorithm for the greatest common divisor, with the remaind"
+	"er from floor:\n"
+	"m:algebra g(a, b) = if (b == 0, a, g(b, a - b * floor(a / b)))\n"
+	"m:algebra g(1071, 462)\n"
+	"# The same answer from the built in function:\n"
+	"m:algebra gcd(1071, 462)\n";
+
 static const char text_basics_exact_numbers [] =
 	"# Exact numbers\n"
 	"# Fractions stay fractions; only a root or a trig function makes an ap"
@@ -427,6 +447,10 @@ static const char text_units_kinetic_energy [] =
 const MlDocSource ml_example_sources [] =
 {
 	{ .name = "algebra-quadratic", .text = text_algebra_quadratic },
+	{
+		.name = "algebra-recursion-and-conditions",
+		.text = text_algebra_recursion_and_conditions
+	},
 	{ .name = "basics-exact-numbers", .text = text_basics_exact_numbers },
 	{ .name = "calculus-newton-sqrt2", .text = text_calculus_newton_sqrt2 },
 	{ .name = "calculus-tangent-line", .text = text_calculus_tangent_line },

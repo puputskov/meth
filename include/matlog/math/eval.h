@@ -32,8 +32,17 @@
  *
  * Built in functions: sqrt abs sin cos tan asin acos atan ln log (base 10) exp
  * floor ceil round (halves away from zero) min max (two or more arguments)
- * gcd lcm (two integers). Results are exact where they can be (sqrt (4), abs,
- * floor, gcd, sin (0), ln (1)...) and approximate otherwise.
+ * gcd lcm (two integers).
+ *
+ * Comparisons and conditions: a < b, a > b, a <= b, a >= b, a == b, a != b
+ * (also the signs ≤ ≥ ≠) give true or false; and, or and not (c) combine
+ * them, and and or stop at the left operand when it decides. if (c, a, b) is
+ * a if c is true, else b, and evaluates only the branch it takes, so a
+ * recursive function can end: f(n) = if (n <= 1, 1, n * f(n - 1)). true and
+ * false are constants.
+ *
+ * Results are exact where they can be (sqrt (4), abs, floor, gcd, sin (0),
+ * ln (1)...) and approximate otherwise.
  *
  * An error value carries the byte range of the text in the line. An error that
  * happens inside the body of a user function is reported at the call, since
@@ -48,6 +57,14 @@
  */
 
 #define ML_EVAL_MAX_DEPTH 20000
+
+/*
+ * The most nodes one statement may evaluate, counting every running function.
+ * A computation that would take longer (a recursion that branches, fib (40))
+ * ends with ML_EVAL_TOO_LONG instead of keeping the editor busy, which also
+ * keeps the preview of the result while typing safe.
+ */
+#define ML_EVAL_MAX_STEPS 2000000
 
 MlValue ml_eval (
 	MlArena     *arena,

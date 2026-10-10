@@ -42,6 +42,14 @@ typedef enum Tok
 	T_APPROX,
 	T_ABS_OPEN,
 	T_ABS_CLOSE,
+	T_LT,         /* the comparisons and the words and, or */
+	T_GT,
+	T_LE,
+	T_GE,
+	T_EQEQ,
+	T_NE,
+	T_AND,
+	T_OR,
 	T_COUNT
 } Tok;
 
@@ -78,7 +86,15 @@ static const char *const latex_tok [T_COUNT] =
 	[T_CELL_SEP]   = " & ",
 	[T_APPROX]     = "\\approx ",
 	[T_ABS_OPEN]   = "\\left|",
-	[T_ABS_CLOSE]  = "\\right|"
+	[T_ABS_CLOSE]  = "\\right|",
+	[T_LT]         = "<",
+	[T_GT]         = ">",
+	[T_LE]         = "\\le ",
+	[T_GE]         = "\\ge ",
+	[T_EQEQ]       = "=",
+	[T_NE]         = "\\ne ",
+	[T_AND]        = "\\;\\mathrm{and}\\;",
+	[T_OR]         = "\\;\\mathrm{or}\\;"
 };
 
 static const char *const mathml_tok [T_COUNT] =
@@ -115,7 +131,17 @@ static const char *const mathml_tok [T_COUNT] =
 	[T_CELL_SEP]   = "",
 	[T_APPROX]     = "<mo>\xE2\x89\x88</mo>",
 	[T_ABS_OPEN]   = "<mo>|</mo>",
-	[T_ABS_CLOSE]  = "<mo>|</mo>"
+	[T_ABS_CLOSE]  = "<mo>|</mo>",
+	[T_LT]         = "<mo>&lt;</mo>",
+	[T_GT]         = "<mo>&gt;</mo>",
+	[T_LE]         = "<mo>\xE2\x89\xA4</mo>",
+	[T_GE]         = "<mo>\xE2\x89\xA5</mo>",
+	[T_EQEQ]       = "<mo>=</mo>",
+	[T_NE]         = "<mo>\xE2\x89\xA0</mo>",
+	[T_AND]        = "<mspace width=\"0.5em\"/><mi>and</mi>"
+	                 "<mspace width=\"0.5em\"/>",
+	[T_OR]         = "<mspace width=\"0.5em\"/><mi>or</mi>"
+	                 "<mspace width=\"0.5em\"/>"
 };
 
 static MlResult put_tok (MlStr *out, MlMathNotation n, Tok t)
@@ -529,12 +555,36 @@ static int32_t is_sum (MlNodeKind k)
 	return k == ML_NODE_ADD || k == ML_NODE_SUB;
 }
 
+static int32_t is_comparison (MlNodeKind k)
+{
+	return k >= ML_NODE_LT && k <= ML_NODE_NE;
+}
+
+static int32_t is_logic (MlNodeKind k)
+{
+	return k == ML_NODE_AND || k == ML_NODE_OR;
+}
+
 /* Does the child c of a node p need brackets (right: it is the second one)? */
 static int32_t wants_parens (MlNodeKind p, MlNodeKind c, int32_t right)
 {
 	int32_t wrap = 0;
 
-	if (p == ML_NODE_SUB)
+	if (is_comparison (p) || is_logic (p))
+	{
+		/* a comparison inside a comparison, or an or inside an and */
+		wrap = (
+			   (is_comparison (p) && (is_comparison (c) || is_logic (c)))
+			|| (p == ML_NODE_AND && c == ML_NODE_OR)
+		);
+	}
+
+	else if (is_comparison (c) || is_logic (c))
+	{
+		wrap = 1;
+	}
+
+	else if (p == ML_NODE_SUB)
 	{
 		wrap = right && is_sum (c);
 	}
@@ -684,6 +734,24 @@ static MlResult expand (
 		);
 
 		r = OpVec_push (seq, op_node (a, 0));
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_tok (t));
+		}
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_node (b, wants_parens (node.kind, bk, 1)));
+		}
+	}
+
+	else if (is_comparison (node.kind) || is_logic (node.kind))
+	{
+		/* the tokens T_LT ... T_OR in the order of the nodes */
+		Tok t = (Tok)(T_LT + (node.kind - ML_NODE_LT));
+
+		r = OpVec_push (seq, op_node (a, wants_parens (node.kind, ak, 0)));
 
 		if (r == ML_OK)
 		{

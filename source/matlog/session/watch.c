@@ -64,6 +64,11 @@ static MlResult type_of (MlStr *out, MlValue v)
 		r = ml_str_append (out, ml_slice_cstr ("plot"));
 	}
 
+	else if (v.kind == ML_VALUE_BOOL)
+	{
+		r = ml_str_append (out, ml_slice_cstr ("bool"));
+	}
+
 	else
 	{
 		r = ml_str_append (out, ml_slice_cstr ("exact"));

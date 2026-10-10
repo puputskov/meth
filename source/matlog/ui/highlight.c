@@ -59,7 +59,12 @@ static MlClass name_class (
 		c = ML_CLASS_FUNCTION;
 	}
 
-	else if (is_word (name, "include") || is_word (name, "lambda"))
+	else if (
+		   is_word (name, "include")
+		|| is_word (name, "lambda")
+		|| is_word (name, "and")
+		|| is_word (name, "or")
+	)
 	{
 		c = ML_CLASS_KEYWORD;
 	}
@@ -67,6 +72,8 @@ static MlClass name_class (
 	else if (
 		   is_word (name, "pi")
 		|| is_word (name, "e")
+		|| is_word (name, "true")
+		|| is_word (name, "false")
 		|| is_word (name, "\xCF\x80")
 	)
 	{
@@ -97,6 +104,12 @@ static const MlClass token_classes [ML_TOK_COUNT] =
 	[ML_TOK_CARET]       = ML_CLASS_OPERATOR,
 	[ML_TOK_BANG]        = ML_CLASS_OPERATOR,
 	[ML_TOK_EQUALS]      = ML_CLASS_OPERATOR,
+	[ML_TOK_LT]          = ML_CLASS_OPERATOR,
+	[ML_TOK_GT]          = ML_CLASS_OPERATOR,
+	[ML_TOK_LE]          = ML_CLASS_OPERATOR,
+	[ML_TOK_GE]          = ML_CLASS_OPERATOR,
+	[ML_TOK_EQEQ]        = ML_CLASS_OPERATOR,
+	[ML_TOK_NE]          = ML_CLASS_OPERATOR,
 	[ML_TOK_SQRT]        = ML_CLASS_OPERATOR,
 	[ML_TOK_SUPERSCRIPT] = ML_CLASS_OPERATOR,
 	[ML_TOK_LPAREN]      = ML_CLASS_PAREN,

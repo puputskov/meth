@@ -486,7 +486,7 @@ static void test_errors (void)
 	CHECK (fails_with ("1 $ 2", ML_PARSE_BAD_CHARACTER, 2, 1, 0));
 	CHECK (fails_with ("$", ML_PARSE_BAD_CHARACTER, 0, 1, 0));
 	CHECK (fails_with ("1 + $", ML_PARSE_BAD_CHARACTER, 4, 1, 0));
-	CHECK (fails_with ("a \xE2\x89\xA4 b", ML_PARSE_BAD_CHARACTER, 2, 3, 0));
+	CHECK (fails_with ("a \xE2\x89\x88 b", ML_PARSE_BAD_CHARACTER, 2, 3, 0));
 	CHECK (fails_with ("5.", ML_PARSE_BAD_CHARACTER, 1, 1, 0));
 
 	/* calls */
@@ -769,6 +769,33 @@ static void test_lists (void)
 	CHECK (fails_with ("x[1]", ML_PARSE_UNEXPECTED_TOKEN, 1, 1, 0));
 }
 
+static void test_logic (void)
+{
+	CHECK (dumps_as ("a < b", "(< a b)"));
+	CHECK (dumps_as ("a <= b", "(<= a b)"));
+	CHECK (dumps_as ("a == b", "(== a b)"));
+	CHECK (dumps_as ("a != b", "(!= a b)"));
+
+	/* arithmetic binds tighter, to is between the two */
+	CHECK (dumps_as ("a + 1 > b * 2", "(> (+ a 1) (* b 2))"));
+	CHECK (dumps_as ("3 m to cm < 5", "(< (to (* 3 m) cm) 5)"));
+
+	/* and binds tighter than or, comparisons tighter than both */
+	CHECK (dumps_as ("a < b and c < d", "(and (< a b) (< c d))"));
+	CHECK (dumps_as ("a or b and c", "(or a (and b c))"));
+	CHECK (dumps_as ("a and b or c", "(or (and a b) c)"));
+	CHECK (dumps_as ("a or b or c", "(or (or a b) c)"));
+	CHECK (dumps_as ("(a or b) and c", "(and (or a b) c)"));
+	CHECK (dumps_as ("a < b < c", "(< (< a b) c)"));
+
+	/* the words are names where no operator can follow */
+	CHECK (dumps_as ("and + or", "(+ and or)"));
+	CHECK (dumps_as ("f(a, b) = a and b", "(def f (a b) (and a b))"));
+	CHECK (dumps_as ("ok = a > b", "(= ok (> a b))"));
+	CHECK (fails_with ("a <", ML_PARSE_UNEXPECTED_END, 3, 0, 1));
+	CHECK (fails_with ("a and", ML_PARSE_UNEXPECTED_END, 5, 0, 1));
+}
+
 void run_parser_tests (void)
 {
 	test_precedence ();
@@ -782,6 +809,7 @@ void run_parser_tests (void)
 	test_nil_node ();
 	test_errors ();
 	test_lists ();
+	test_logic ();
 	run_on_small_stack (test_limits);
 	test_heights ();
 	test_complete ();

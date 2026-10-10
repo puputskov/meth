@@ -157,6 +157,7 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		&& value.kind != ML_VALUE_COMPLEX
 		&& value.kind != ML_VALUE_QUAT
 		&& value.kind != ML_VALUE_PLOT
+		&& value.kind != ML_VALUE_BOOL
 	)
 	{
 		r = ML_ERR_INVALID;

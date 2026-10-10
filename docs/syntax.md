@@ -33,6 +33,32 @@ name, an opening parenthesis or a root is a product: `2x`, `2(x+1)`,
 The unicode spellings are the same as the ASCII ones: `x²` for `x^2`,
 `√` for `sqrt`, `π` for `pi`, `×` and `·` for `*`, `÷` for `/`, `−` for `-`.
 
+# Comparisons and conditions
+`<  >  <=  >=  ==  !=` (also `≤ ≥ ≠`) compare two values and give `true` or
+`false`. Numbers compare by value, exact ones exactly; quantities compare in
+SI units and need the same dimension; matrices and booleans can only be equal
+or not. `and`, `or` and `not (c)` combine them: arithmetic binds tighter than
+a comparison, a comparison tighter than `and`, and `and` tighter than `or`.
+`and` and `or` stop at the left operand when it decides.
+
+`if (c, a, b)` is `a` when `c` is true, else `b`, and only the branch it takes
+is evaluated, so a function can call itself and end:
+
+```example
+1/3 + 1/6 == 1/2
+=> true
+1 km > 999 m and not (2 > 3)
+=> true
+fact(n) = if (n <= 1, 1, n * fact(n - 1))
+fact(10)
+=> 3628800
+```
+
+A computation that takes more than two million steps ends with the error
+`too_long` (try `fib(32)` with the usual double recursion), so a typing
+mistake never keeps the editor busy. `3!=3` is "3 is not equal to 3": write
+`3! == 6` for the factorial.
+
 # Names and statements
 Names are letters, digits and `_`, not starting with a digit. A name
 that is assigned keeps its value in the lines below.

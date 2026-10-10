@@ -1,0 +1,14 @@
+# Conditions and recursion
+# A comparison gives true or false, and if (c, a, b) picks one of two values.
+m:algebra 3 > 2 and 1/3 + 1/6 == 1/2
+# Only the branch that is taken runs, so a function can call itself and stop:
+m:algebra fact(n) = if (n <= 1, 1, n * fact(n - 1))
+m:algebra fact(10)
+# The Fibonacci numbers by the definition, one call for each of the two before:
+m:algebra fib(n) = if (n < 2, n, fib(n - 1) + fib(n - 2))
+m:algebra fib(20)
+# Euclid's algorithm for the greatest common divisor, with the remainder from floor:
+m:algebra g(a, b) = if (b == 0, a, g(b, a - b * floor(a / b)))
+m:algebra g(1071, 462)
+# The same answer from the built in function:
+m:algebra gcd(1071, 462)

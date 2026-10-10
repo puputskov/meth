@@ -436,19 +436,35 @@ static int32_t implicit_product (MlTokenKind before, MlTokenKind next)
 /* The node kind of a binary operator token (a product for anything else). */
 static MlNodeKind binary_kind (MlTokenKind kind)
 {
-	return ml_choose (
-		kind == ML_TOK_PLUS,
-		ML_NODE_ADD,
-		ml_choose (
-			kind == ML_TOK_MINUS,
-			ML_NODE_SUB,
-			ml_choose (
-				kind == ML_TOK_SLASH,
-				ML_NODE_DIV,
-				ml_choose (kind == ML_TOK_END, ML_NODE_TO, ML_NODE_MUL)
-			)
-		)
-	);
+	MlNodeKind node = ML_NODE_MUL;
+
+	if (kind == ML_TOK_PLUS)
+	{
+		node = ML_NODE_ADD;
+	}
+
+	else if (kind == ML_TOK_MINUS)
+	{
+		node = ML_NODE_SUB;
+	}
+
+	else if (kind == ML_TOK_SLASH)
+	{
+		node = ML_NODE_DIV;
+	}
+
+	else if (kind == ML_TOK_TO)
+	{
+		node = ML_NODE_TO;
+	}
+
+	else if (kind >= ML_TOK_LT && kind <= ML_TOK_OR)
+	{
+		/* the tokens < > <= >= == != and or in the order of the nodes */
+		node = (MlNodeKind)(ML_NODE_LT + (kind - ML_TOK_LT));
+	}
+
+	return node;
 }
 
 /*
@@ -605,42 +621,79 @@ static void call_expr (Parser *p)
 	p->level = 1;
 }
 
-/*
- * 1 when the cursor is on the word "to" where an operator can follow. It is
- * the conversion operator there (3 ft to m), never a factor of an implicit
- * product, so a number directly followed by a name "to" is a conversion too.
- */
-static int32_t at_to (const Parser *p)
+/* 1 when the cursor is on the name word. */
+static int32_t at_word (const Parser *p, const char *word)
 {
 	MlToken t = peek (p);
 
 	return (
 		   t.kind == ML_TOK_NAME
-		&& ml_slice_equal (ml_token_text (p->source, t), ml_slice_cstr ("to"))
+		&& ml_slice_equal (ml_token_text (p->source, t), ml_slice_cstr (word))
 	);
 }
 
 /*
- * The level of the binary operator at the cursor: 1 for the conversion "to",
- * 2 for + -, 3 for * / and an implicit product, 0 when the next token is no
- * operator.
+ * 1 when the cursor is on the word "to" where an operator can follow. It is
+ * the conversion operator there (3 ft to m), never a factor of an implicit
+ * product, so a number directly followed by a name "to" is a conversion too.
+ * The words and and or are operators in the same way.
+ */
+static int32_t at_to (const Parser *p)
+{
+	return at_word (p, "to");
+}
+
+/*
+ * The token kind of the operator at the cursor as the parser keeps it: the
+ * token itself, or ML_TOK_TO, ML_TOK_AND and ML_TOK_OR for the words.
+ */
+static MlTokenKind operator_kind (const Parser *p)
+{
+	return ml_choose (
+		at_to (p),
+		ML_TOK_TO,
+		ml_choose (
+			at_word (p, "and"),
+			ML_TOK_AND,
+			ml_choose (at_word (p, "or"), ML_TOK_OR, peek (p).kind)
+		)
+	);
+}
+
+/*
+ * The level of the binary operator at the cursor: 1 for or, 2 for and, 3
+ * for the comparisons, 4 for the conversion "to", 5 for + -, 6 for * / and
+ * an implicit product, 0 when the next token is no operator.
  */
 static uint64_t operator_level (const Parser *p)
 {
-	MlTokenKind next = peek (p).kind;
+	MlTokenKind next  = peek (p).kind;
+	MlTokenKind ahead = operator_kind (p);
 
 	return ml_choose (
-		at_to (p),
+		ahead == ML_TOK_OR,
 		1,
 		ml_choose (
-			next == ML_TOK_PLUS || next == ML_TOK_MINUS,
+			ahead == ML_TOK_AND,
 			2,
 			ml_choose (
-				   next == ML_TOK_STAR
-				|| next == ML_TOK_SLASH
-				|| implicit_product (previous_kind (p), next),
+				next >= ML_TOK_LT && next <= ML_TOK_NE,
 				3,
-				0
+				ml_choose (
+					ahead == ML_TOK_TO,
+					4,
+					ml_choose (
+						next == ML_TOK_PLUS || next == ML_TOK_MINUS,
+						5,
+						ml_choose (
+							   next == ML_TOK_STAR
+							|| next == ML_TOK_SLASH
+							|| implicit_product (previous_kind (p), next),
+							6,
+							0
+						)
+					)
+				)
 			)
 		)
 	);
@@ -846,20 +899,16 @@ static void binary_continue (Parser *p, uint64_t min_level, uint64_t node)
 
 	if (!p->failed && level >= min_level && level > 0)
 	{
-		/* ML_TOK_END stands for "to", which is a name token */
-		MlTokenKind kind = ml_choose (
-			at_to (p),
-			ML_TOK_END,
-			peek (p).kind
-		);
+		MlTokenKind kind = operator_kind (p);
 
 		/* an implicit product has no token of its own */
 		if (
-			   kind == ML_TOK_END
+			   kind == ML_TOK_TO
 			|| kind == ML_TOK_PLUS
 			|| kind == ML_TOK_MINUS
 			|| kind == ML_TOK_STAR
 			|| kind == ML_TOK_SLASH
+			|| (kind >= ML_TOK_LT && kind <= ML_TOK_OR)
 		)
 		{
 			advance (p);
@@ -1338,7 +1387,15 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_FUNC_DEF] = "def",
 	[ML_NODE_PARAMS]   = "",
 	[ML_NODE_LIST]     = "list",
-	[ML_NODE_TO]       = "to"
+	[ML_NODE_TO]       = "to",
+	[ML_NODE_LT]       = "<",
+	[ML_NODE_GT]       = ">",
+	[ML_NODE_LE]       = "<=",
+	[ML_NODE_GE]       = ">=",
+	[ML_NODE_EQ]       = "==",
+	[ML_NODE_NE]       = "!=",
+	[ML_NODE_AND]      = "and",
+	[ML_NODE_OR]       = "or"
 };
 
 static const char *node_label (MlNodeKind kind)
