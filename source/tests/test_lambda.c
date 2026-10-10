@@ -124,7 +124,7 @@ static void test_terms (void)
 	CHECK (gives (&d, LAM "y. y z", LAM "y. y z"));
 	CHECK (gives (&d, "(" LAM "x. " LAM "y. x y) y", LAM "y'. y y'"));
 
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 static void test_defs (void)
@@ -182,7 +182,7 @@ static void test_defs (void)
 		ml_logic_out_free (&o);
 	}
 
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 static void test_trace (void)
@@ -216,7 +216,7 @@ static void test_trace (void)
 
 	/* trace is a name when no term follows */
 	CHECK (gives (&d, "trace", "trace"));
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 static void test_errors (void)
@@ -237,7 +237,7 @@ static void test_errors (void)
 		fails (&d, "(" LAM "x. x x) (" LAM "x. x x)", "lambda_no_normal_form")
 	);
 	CHECK (fails (&d, "(" LAM "x. x x x) (" LAM "x. x x x)", "lambda_too_big"));
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 void run_lambda_tests (void);

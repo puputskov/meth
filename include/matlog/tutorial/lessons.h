@@ -66,6 +66,13 @@ typedef struct MlLesson
 	const MlStep *steps;
 } MlLesson;
 
+/*
+ * Frees the lessons that are built from the texts and kept for the life of the
+ * program; they are built again when asked for. Meant for the end of a test
+ * run, so that the memory still in use is the memory that leaks.
+ */
+void ml_lessons_release (void);
+
 uint64_t ml_lesson_count (void);
 MlLesson ml_lesson_at (uint64_t index);
 

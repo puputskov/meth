@@ -1,6 +1,8 @@
 #include "test.h"
 
 #include <matlog/core/heap.h>
+#include <matlog/texts/texts.h>
+#include <matlog/tutorial/lessons.h>
 
 #include <string.h>
 
@@ -157,7 +159,17 @@ int main (int argc, char **argv)
 		}
 	}
 
+	/* these are kept for the life of the program */
+	ml_lessons_release ();
+	ml_texts_clear ();
 	printf ("heap: %d blocks live\n", (int32_t)ml_heap_live_blocks ());
+
+	/* a block still live now was never freed; the tests of the heap itself
+	   free a block twice on purpose, two times */
+	g_test_checks++;
+	g_test_failures += (ml_heap_live_blocks () != 0);
+	g_test_checks++;
+	g_test_failures += (ml_heap_bad_frees () > 2);
 	printf ("%d checks, %d failed\n", g_test_checks, g_test_failures);
 	return ml_choose (
 		g_test_failures || unknown,

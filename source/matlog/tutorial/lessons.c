@@ -371,6 +371,12 @@ static void ensure_built (void)
 	}
 }
 
+void ml_lessons_release (void)
+{
+	free_all ();
+	built = UINT64_MAX;
+}
+
 uint64_t ml_lesson_count (void)
 {
 	ensure_built ();

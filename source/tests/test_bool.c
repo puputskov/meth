@@ -113,7 +113,7 @@ static void test_values (void)
 		ml_logic_out_free (&o);
 	}
 
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 static void test_simplify (void)
@@ -152,7 +152,7 @@ static void test_simplify (void)
 		)
 	);
 
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 static void test_defs (void)
@@ -190,7 +190,7 @@ static void test_defs (void)
 		ml_logic_out_free (&v);
 	}
 
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 static void test_table (void)
@@ -218,7 +218,7 @@ static void test_table (void)
 
 	/* table is a name when an operator follows */
 	CHECK (gives (&d, "table & true", "table"));
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 static void test_errors (void)
@@ -247,7 +247,7 @@ static void test_errors (void)
 			"bool_table_too_big"
 		)
 	);
-	MlLogicDefVec_free (&d);
+	ml_logic_defs_free (&d);
 }
 
 void run_bool_tests (void);
