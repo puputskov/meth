@@ -1,5 +1,6 @@
 #include <matlog/parse/parser.h>
 
+#include <matlog/parse/words.h>
 #include <matlog/texts/texts.h>
 
 #define NIL ML_NODE_NIL_INDEX
@@ -618,14 +619,14 @@ static void call_expr (Parser *p)
 	p->level = 1;
 }
 
-/* 1 when the cursor is on the name word. */
-static int32_t at_word (const Parser *p, const char *word)
+/* 1 when the cursor is on the name that is a spelling of the word id. */
+static int32_t at_word (const Parser *p, MlWordId id)
 {
 	MlToken t = peek (p);
 
 	return (
 		   t.kind == ML_TOK_NAME
-		&& ml_slice_equal (ml_token_text (p->source, t), ml_slice_cstr (word))
+		&& ml_word_is (ml_token_text (p->source, t), id)
 	);
 }
 
@@ -637,7 +638,7 @@ static int32_t at_word (const Parser *p, const char *word)
  */
 static int32_t at_to (const Parser *p)
 {
-	return at_word (p, "to");
+	return at_word (p, ML_WORD_ID_TO);
 }
 
 /*
@@ -650,9 +651,9 @@ static MlTokenKind operator_kind (const Parser *p)
 		at_to (p),
 		ML_TOK_TO,
 		ml_choose (
-			at_word (p, "and"),
+			at_word (p, ML_WORD_ID_AND),
 			ML_TOK_AND,
-			ml_choose (at_word (p, "or"), ML_TOK_OR, peek (p).kind)
+			ml_choose (at_word (p, ML_WORD_ID_OR), ML_TOK_OR, peek (p).kind)
 		)
 	);
 }
@@ -1326,7 +1327,7 @@ static uint64_t parse_expr (Parser *p)
 static int32_t at_let (const Parser *p)
 {
 	return (
-		   at_word (p, "let")
+		   at_word (p, ML_WORD_ID_LET)
 		&& peek_at (p, 1).kind == ML_TOK_NAME
 		&& peek_at (p, 2).kind == ML_TOK_EQUALS
 	);

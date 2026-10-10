@@ -115,7 +115,7 @@ static const MlSym *name_value (
 			b->ctx,
 			ml_choose (
 				is_name (name, "\xCF\x80"),
-				ml_slice_cstr ("pi"),
+				ml_word_name (ML_WORD_ID_PI),
 				name
 			)
 		);

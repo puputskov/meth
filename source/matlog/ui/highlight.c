@@ -4,9 +4,11 @@
 #include <matlog/math/eval.h>
 #include <matlog/math/unit.h>
 #include <matlog/parse/lexer.h>
+#include <matlog/parse/words.h>
 
 #include <string.h>
 
+/* For the commands of one domain (table, trace), no words of the syntax. */
 static int32_t is_word (MlSlice text, const char *word)
 {
 	return ml_slice_equal (text, ml_slice_cstr (word));
@@ -60,23 +62,14 @@ static MlClass name_class (
 	}
 
 	else if (
-		   is_word (name, "include")
-		|| is_word (name, "lambda")
-		|| is_word (name, "and")
-		|| is_word (name, "let")
-		|| is_word (name, "or")
+		   ml_word_find (name).kind == ML_WORD_KEYWORD
+		|| ml_word_find (name).kind == ML_WORD_OPERATOR
 	)
 	{
 		c = ML_CLASS_KEYWORD;
 	}
 
-	else if (
-		   is_word (name, "pi")
-		|| is_word (name, "e")
-		|| is_word (name, "true")
-		|| is_word (name, "false")
-		|| is_word (name, "\xCF\x80")
-	)
+	else if (ml_word_find (name).kind == ML_WORD_CONSTANT)
 	{
 		c = ML_CLASS_CONSTANT;
 	}

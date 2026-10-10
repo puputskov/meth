@@ -1,6 +1,7 @@
 #ifndef MATLOG_SYM_INTERNAL_H
 #define MATLOG_SYM_INTERNAL_H
 
+#include <matlog/parse/words.h>
 #include <matlog/sym/expr.h>
 
 /* Shared by the files of the symbolic module. */

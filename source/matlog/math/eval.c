@@ -6,6 +6,7 @@
 #include <matlog/math/listfn.h>
 #include <matlog/math/stats.h>
 #include <matlog/math/vector.h>
+#include <matlog/parse/words.h>
 #include <matlog/sym/expr.h>
 
 /* ---- context ------------------------------------------------------------ */
@@ -271,27 +272,31 @@ static MlValue constant_find (MlSlice name)
 {
 	MlValue v = ml_value_none ();
 
-	if (ml_slice_equal (name, ml_slice_cstr ("true")))
+	switch (ml_word_find (name).id)
 	{
-		v = ml_value_bool (1);
-	}
+		case ML_WORD_ID_TRUE:
+		{
+			v = ml_value_bool (1);
+		} break;
 
-	else if (ml_slice_equal (name, ml_slice_cstr ("false")))
-	{
-		v = ml_value_bool (0);
-	}
+		case ML_WORD_ID_FALSE:
+		{
+			v = ml_value_bool (0);
+		} break;
 
-	else if (
-		   ml_slice_equal (name, ml_slice_cstr ("pi"))
-		|| ml_slice_equal (name, ml_slice_cstr ("\xCF\x80"))
-	)
-	{
-		v = ml_value_approx (3.14159265358979323846);
-	}
+		case ML_WORD_ID_PI:
+		{
+			v = ml_value_approx (3.14159265358979323846);
+		} break;
 
-	else if (ml_slice_equal (name, ml_slice_cstr ("e")))
-	{
-		v = ml_value_approx (2.71828182845904523536);
+		case ML_WORD_ID_E:
+		{
+			v = ml_value_approx (2.71828182845904523536);
+		} break;
+
+		default:
+		{
+		} break;
 	}
 
 	return v;
@@ -1601,11 +1606,11 @@ static const MlSym *bound_value (
 	int32_t     *ok
 )
 {
-	int32_t     plus  = ml_sym_is_var (bound, ml_slice_cstr ("inf"));
+	int32_t     plus  = ml_sym_is_var (bound, ml_word_name (ML_WORD_ID_INF));
 	int32_t     minus = (
 		   bound->kind == ML_SYM_MUL
 		&& bound->count == 2
-		&& ml_sym_is_var (bound->kids [1], ml_slice_cstr ("inf"))
+		&& ml_sym_is_var (bound->kids [1], ml_word_name (ML_WORD_ID_INF))
 	);
 	const MlSym *out  = NULL;
 
@@ -1864,14 +1869,14 @@ static MlValue symbolic_call (
 
 				else if (lim.kind == ML_LIMIT_PINF)
 				{
-					result = ml_sym_var (&c.ctx, ml_slice_cstr ("inf"));
+					result = ml_sym_var (&c.ctx, ml_word_name (ML_WORD_ID_INF));
 				}
 
 				else if (lim.kind == ML_LIMIT_NINF)
 				{
 					result = ml_sym_neg (
 						&c.ctx,
-						ml_sym_var (&c.ctx, ml_slice_cstr ("inf"))
+						ml_sym_var (&c.ctx, ml_word_name (ML_WORD_ID_INF))
 					);
 				}
 

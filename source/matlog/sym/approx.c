@@ -84,12 +84,12 @@ static double leaf_value (MlArena *arena, const MlSym *s, int32_t *ok)
 		v = ml_rat_to_double (arena, s->num);
 	}
 
-	else if (ml_slice_equal (s->name, ml_slice_cstr ("pi")))
+	else if (ml_word_is (s->name, ML_WORD_ID_PI))
 	{
 		v = 3.14159265358979323846;
 	}
 
-	else if (ml_slice_equal (s->name, ml_slice_cstr ("e")))
+	else if (ml_word_is (s->name, ML_WORD_ID_E))
 	{
 		v = 2.71828182845904523536;
 	}

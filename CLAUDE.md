@@ -11,6 +11,11 @@ Interactive math shell written in C. See `plan.md` for the design.
   OS specific files go in a per-OS subfolder, e.g. `source/matlog/platform/win32/key.c` and `include/matlog/platform/win32/key.h`
   (a Linux port would add `platform/linux/`), never as `key_win32.c`. Portable platform code stays directly in `platform/`.
 
+## Build and test on Linux
+
+`make test` builds with gcc into `build/make/` and runs the tests, `make test T=eval` only the group `eval` (`make groups` lists them). Every group
+prints its name and its check count, so the last name on the screen is the group that hangs. The `stdlib` group is known to fail, see `KNOWN_ISSUES.md`.
+
 ## Git
 
 - Always commit directly to `master`. Never create or use other branches, and never open pull requests.

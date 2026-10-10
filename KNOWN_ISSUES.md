@@ -21,3 +21,19 @@
   example through a pseudo console), and whether the label row is drawn
   while the cursor is on it.
 - **Code:** `ml_screen_render` and `paint_row` in `source/matlog/ui/screen.c`.
+
+## `primes(n)` is very slow and runs out of memory (Linux, gcc)
+
+- **Seen:** `matlog eval "len(primes(50))"` takes about 7 seconds, `primes(200)`
+  runs out of memory; the `stdlib` test group fails on its line
+  `len(primes(1000))` ("out of memory") and uses gigabytes before it does.
+  `isprime(97)` alone takes 30 ms and `len(range(2,50))` 29 ms, most of it
+  system time (pages touched), so the start of an evaluation looks costly too.
+- **Suspected:** `filter(isprime, range(2, n))`, a user function passed by name
+  as a value and called through the parameter, allocates in the evaluation
+  arena for every call and never gives it back, or the arena block grows by
+  a large factor on every call.
+- **Not tried:** the same line on Windows, a build with `-O2`, counting the
+  arena bytes per call of `isprime`.
+- **Code:** the function values of `source/matlog/math/eval.c`,
+  `stdlib/numbers.mlog` (`primes`, `isprime`).

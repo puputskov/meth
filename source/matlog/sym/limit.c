@@ -394,7 +394,7 @@ static Ev ev_func (Lim *L, MlSlice name, Ev a)
 
 	else if (is_name (name, "atan") && is_inf (a))
 	{
-		const MlSym *pi = ml_sym_var (L->ctx, ml_slice_cstr ("pi"));
+		const MlSym *pi = ml_sym_var (L->ctx, ml_word_name (ML_WORD_ID_PI));
 
 		r = ev_fin (
 			ml_sym_mul (
@@ -522,7 +522,7 @@ static Ev ev_node (Lim *L, const MlSym *s, const Ev *kids)
 			r = ev_pow_num (L, kids [0], s->kids [1]);
 		}
 
-		else if (ml_sym_is_var (s->kids [0], ml_slice_cstr ("e")))
+		else if (ml_sym_is_var (s->kids [0], ml_word_name (ML_WORD_ID_E)))
 		{
 			r = ev_func (L, ml_slice_cstr ("exp"), kids [1]);
 		}
@@ -889,12 +889,12 @@ MlSymLimit ml_sym_limit (
 		.value = NULL
 	};
 
-	int32_t    plus  = ml_sym_is_var (at, ml_slice_cstr ("inf"));
+	int32_t    plus  = ml_sym_is_var (at, ml_word_name (ML_WORD_ID_INF));
 	int32_t    minus = (
 		   at->kind == ML_SYM_MUL
 		&& at->count == 2
 		&& ml_sym_is_one (ml_sym_neg (ctx, at->kids [0]))
-		&& ml_sym_is_var (at->kids [1], ml_slice_cstr ("inf"))
+		&& ml_sym_is_var (at->kids [1], ml_word_name (ML_WORD_ID_INF))
 	);
 
 	L.ctx = ctx;

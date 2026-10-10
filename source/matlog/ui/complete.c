@@ -4,6 +4,7 @@
 #include <matlog/docs/snippets.h>
 #include <matlog/math/eval.h>
 #include <matlog/math/unit.h>
+#include <matlog/parse/words.h>
 #include <matlog/session/session.h>
 #include <matlog/ui/theme.h>
 
@@ -463,8 +464,13 @@ MlCompletion ml_complete_math (
 			add_item (&c, typed, ml_function_name_at (i));
 		}
 
-		add_item (&c, typed, ml_slice_cstr ("pi"));
-		add_item (&c, typed, ml_slice_cstr ("e"));
+		for (uint64_t i = 0; i < ml_word_count (); i++)
+		{
+			if (ml_word_listed (i))
+			{
+				add_item (&c, typed, ml_word_spelling (i));
+			}
+		}
 
 		for (uint64_t i = 0; i < ml_unit_name_count (); i++)
 		{

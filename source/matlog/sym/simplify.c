@@ -43,8 +43,8 @@ static MlRat symbol_degree (MlSymCtx *ctx, const MlSym *s)
 	if (s->kind == ML_SYM_VAR)
 	{
 		d = ml_choose (
-			   ml_slice_equal (s->name, ml_slice_cstr ("pi"))
-			|| ml_slice_equal (s->name, ml_slice_cstr ("e")),
+			   ml_word_is (s->name, ML_WORD_ID_PI)
+			|| ml_word_is (s->name, ML_WORD_ID_E),
 			d,
 			one_rat (ctx)
 		);

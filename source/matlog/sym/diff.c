@@ -223,7 +223,7 @@ static const MlSym *rule (
 			*name = ML_RULE_DIFF_EXPONENTIAL;
 			factors [0] = n;
 			factors [1] = ml_choose (
-				ml_sym_is_var (b, ml_slice_cstr ("e")),
+				ml_sym_is_var (b, ml_word_name (ML_WORD_ID_E)),
 				int_node (ctx, 1),
 				ml_sym_call (ctx, ml_slice_cstr ("ln"), b)
 			);

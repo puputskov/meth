@@ -211,7 +211,7 @@ static const MlSym *table (
 	)
 	{
 		/* b^u / (a ln b), and e^u / a */
-		int32_t is_e = ml_sym_is_var (g->kids [0], ml_slice_cstr ("e"));
+		int32_t is_e = ml_sym_is_var (g->kids [0], ml_word_name (ML_WORD_ID_E));
 
 		*rule = ML_RULE_INT_EXPONENTIAL;
 		out   = ml_sym_div (
