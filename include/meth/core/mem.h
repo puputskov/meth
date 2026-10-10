@@ -35,8 +35,19 @@ typedef struct MlArenaMark
 	uint64_t used;
 } MlArenaMark;
 
+/*
+ * The address space an arena reserves. In a 32 bit WebAssembly module all of
+ * it comes out of one linear memory of less than 4 GB, so the sizes are small.
+ */
+#ifdef ML_WASM32
+#define ML_ARENA_DEFAULT_RESERVE (1ULL << 24)  /* 16 MB of address space */
+#define ML_ARENA_APP_RESERVE     (1ULL << 28)  /* 256 MB for the app arena */
+#define ML_HEAP_RESERVE          (1ULL << 29)  /* 512 MB for the heap */
+#else
 #define ML_ARENA_DEFAULT_RESERVE (1ULL << 30)  /* 1 GB of address space */
 #define ML_ARENA_APP_RESERVE     (1ULL << 34)  /* 16 GB for the app arena */
+#define ML_HEAP_RESERVE          (1ULL << 38)  /* 256 GB for the heap */
+#endif
 #define ML_ARENA_COMMIT_CHUNK    (1ULL << 20)  /* pages are committed by 1 MB */
 #define ML_ARENA_TRIM_SLACK      (1ULL << 26)  /* decommit above 64 MB slack */
 

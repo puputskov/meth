@@ -42,6 +42,7 @@ cc_library(
         exclude = [
             "source/meth/platform/posix/**",
             "source/meth/platform/win32/**",
+            "source/meth/platform/wasm/**",
         ],
     ) + select({
         "@platforms//os:windows": glob(["source/meth/platform/win32/**/*.c"]),

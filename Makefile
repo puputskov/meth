@@ -12,7 +12,7 @@ CFLAGS ?= -O1 -g
 CFLAGS += -std=gnu11 -Wall -Wextra -Wno-comment -Werror -Iinclude -MMD -MP
 OUT    := build/make
 LIB    := $(shell find source/meth -name "*.c" | sort)
-LIB    := $(filter-out source/meth/platform/win32/%,$(LIB))
+LIB    := $(filter-out source/meth/platform/win32/% source/meth/platform/wasm/%,$(LIB))
 LIBOBJ := $(patsubst source/%.c,$(OUT)/%.o,$(LIB))
 TESTS  := $(wildcard source/tests/*.c)
 TSTOBJ := $(patsubst source/%.c,$(OUT)/%.o,$(TESTS))

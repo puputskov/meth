@@ -21,3 +21,6 @@ meth_test_config/
 # Bazel
 bazel-*
 MODULE.bazel.lock
+
+# The WebAssembly module (build_web.bat)
+web/meth.wasm

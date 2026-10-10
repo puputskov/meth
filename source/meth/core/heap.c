@@ -70,7 +70,7 @@ static void heap_start (void)
 {
 	if (!heap_ready)
 	{
-		ml_arena_init (&heap, HEAP_RESERVE);
+		ml_arena_init (&heap, ML_HEAP_RESERVE);
 		heap_ready = 1;
 	}
 }

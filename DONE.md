@@ -1075,3 +1075,25 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
 - A stdlib file holds `m:<domain> <math>` lines (definitions, any domain, e.g. `m:physics`) and `a:<domain> <math>` lines (asserts). An assert must give
   `true` or the text after ` => `. `ml_stdlib_check` evaluates them in a session with the library; the `stdlib` test group fails on a wrong one.
   Files: algebra helpers, numbers, and new `physics.meth` (kinetic, momentum, weight, speed).
+
+### Web editor, the wasm module (first step built 2026-10-10)
+
+- `build_web.bat` (clang with the wasm32 target and `wasm-ld` from the LLVM release, found on the path or in `W:\Program Files\LLVM`) builds the whole library
+  plus `source/web/api.c` into `build/web/meth.wasm`, copied to `web/meth.wasm`. It is freestanding (`-ffreestanding -fno-builtin -DML_WASM32`), warnings
+  as errors, and the other build systems skip `platform/wasm/`.
+- `platform/wasm/`: `vm.c` (a reservation is a `memory.grow` of the linear memory; released ranges are kept for a reservation of the same size),
+  `fs.c`, `console.c` and `config.c` (stubs: a page has no files or terminal), `libc.c` (the C library functions the code uses: `mem*`, `str*`, `atoi`,
+  `getenv`, `snprintf` / `vsnprintf` with `%d %i %u %x %X %c %s %g`, flags `-` and `0`, width and precision also as `*`, `round`, `hypot`, `ldexp`, `lgamma`,
+  `erfc`) and the headers in `include/meth/platform/wasm/libc/` (`-isystem` for this build only). `sin`, `cos`, `exp`, `log`, `pow` and the other
+  transcendental functions are imports from the page (`env`), which has them in `Math`; `%g` of a double is the import `format_g`.
+- The 64 bit rule: `meth/core/types.h` accepts a 32 bit `size_t` when `ML_WASM32` is defined (sizes stay `uint64_t`); `core/mem.h` has smaller reservations for
+  that target (16 MB default, 256 MB app arena, 512 MB heap, `ML_HEAP_RESERVE` is new and the heap uses it).
+- Found by clang on the way: `ML_VEC_FN` in `core/vec.h` marks the generated vector functions unused (clang warns about the ones a file does not call), and
+  `local_find (...) == 0` replaces `!local_find (...) != 0` in `math/eval.c`.
+- `source/web/api.c`: `meth_alloc`, `meth_free`, `meth_eval` (runs `meth eval --format json EXPR` through `ml_cli_run`), `meth_result_ptr` and
+  `meth_result_len`. `web/js/meth.js` loads the module (the imports, `formatG`) and wraps them; `web/index.html` (with `web/css/style.css` and `web/js/main.js`) is a bare input with a list of results.
+  Checked in headless Edge against `meth eval`: exact and approximate numbers, big integers, matrices, `diff`, `integrate` and `primes` give the same
+  text as the native program (`python -m http.server` in `web/`, then `msedge --headless --dump-dom http://127.0.0.1:PORT/index.html#EXPR` and read
+  `data-result` of the body).
+- Not built: the notebook page, a session / results API (ghost, steps, completion, highlighting, typeset math, plots, export, help), tests in the test
+  groups, `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.

@@ -44,6 +44,9 @@ project "meth_lib"
 		removefiles { "source/meth/platform/win32/**", "include/meth/platform/win32/**" }
 	filter {}
 
+	-- platform/wasm/ is for the WebAssembly build (build_web.bat) only.
+	removefiles { "source/meth/platform/wasm/**", "include/meth/platform/wasm/**" }
+
 -- The interactive shell
 project "meth"
 	kind "ConsoleApp"

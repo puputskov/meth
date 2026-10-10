@@ -32,6 +32,16 @@
  * The container itself is always passed by pointer, since it is mutated.
  */
 
+/*
+ * The functions are static inline in whatever file defines the vector, and a
+ * file rarely uses all of them; clang warns about the unused ones.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define ML_VEC_FN static inline __attribute__ ((unused))
+#else
+#define ML_VEC_FN static inline
+#endif
+
 #define ML_VEC_DEFINE(Name, T) \
 typedef struct Name \
 { \
@@ -40,25 +50,25 @@ typedef struct Name \
 	uint64_t cap; \
 } Name; \
 \
-static inline void Name##_init (Name *v) \
+ML_VEC_FN void Name##_init (Name *v) \
 { \
 	v->data = NULL; \
 	v->len  = 0; \
 	v->cap  = 0; \
 } \
 \
-static inline void Name##_free (Name *v) \
+ML_VEC_FN void Name##_free (Name *v) \
 { \
 	ml_heap_free (v->data); \
 	Name##_init (v); \
 } \
 \
-static inline void Name##_clear (Name *v) \
+ML_VEC_FN void Name##_clear (Name *v) \
 { \
 	v->len = 0; \
 } \
 \
-static inline MlResult Name##_reserve (Name *v, uint64_t cap) \
+ML_VEC_FN MlResult Name##_reserve (Name *v, uint64_t cap) \
 { \
 	MlResult r = ML_OK; \
 \
@@ -90,7 +100,7 @@ static inline MlResult Name##_reserve (Name *v, uint64_t cap) \
 	return r; \
 } \
 \
-static inline MlResult Name##_insert (Name *v, uint64_t idx, T value) \
+ML_VEC_FN MlResult Name##_insert (Name *v, uint64_t idx, T value) \
 { \
 	MlResult r = ml_choose ( \
 		idx <= v->len, \
@@ -124,7 +134,7 @@ static inline MlResult Name##_insert (Name *v, uint64_t idx, T value) \
 	return r; \
 } \
 \
-static inline MlResult Name##_push (Name *v, T value) \
+ML_VEC_FN MlResult Name##_push (Name *v, T value) \
 { \
 	MlResult r = ML_OK; \
 \
@@ -149,7 +159,7 @@ static inline MlResult Name##_push (Name *v, T value) \
 	return r; \
 } \
 \
-static inline MlResult Name##_set (Name *v, uint64_t idx, T value) \
+ML_VEC_FN MlResult Name##_set (Name *v, uint64_t idx, T value) \
 { \
 	MlResult r = ml_choose ( \
 		idx < v->len, \
@@ -165,7 +175,7 @@ static inline MlResult Name##_set (Name *v, uint64_t idx, T value) \
 	return r; \
 } \
 \
-static inline MlResult Name##_remove (Name *v, uint64_t idx) \
+ML_VEC_FN MlResult Name##_remove (Name *v, uint64_t idx) \
 { \
 	MlResult r = ml_choose ( \
 		idx < v->len, \
@@ -186,7 +196,7 @@ static inline MlResult Name##_remove (Name *v, uint64_t idx) \
 	return r; \
 } \
 \
-static inline MlResult Name##_pop (Name *v) \
+ML_VEC_FN MlResult Name##_pop (Name *v) \
 { \
 	return ml_choose ( \
 		v->len > 0, \
@@ -195,7 +205,7 @@ static inline MlResult Name##_pop (Name *v) \
 	); \
 } \
 \
-static inline T Name##_get (const Name *v, uint64_t idx) \
+ML_VEC_FN T Name##_get (const Name *v, uint64_t idx) \
 { \
 	T zero; \
 \

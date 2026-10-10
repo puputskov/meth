@@ -2272,7 +2272,7 @@ static int32_t is_unbound_symbol (
 	return (
 		   ml_ast_node (&sc->ast, node).kind == ML_NODE_NAME
 		&& !param_find (sc, name.id).found
-		&& !local_find (cx, sc, name.id) != 0
+		&& local_find (cx, sc, name.id) == 0
 		&& ml_env_kind (
 			cx->env,
 			ml_env_find (cx->env, name.id, cx->snapshot)

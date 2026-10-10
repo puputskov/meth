@@ -24,6 +24,9 @@ option(ML_SANITIZE "Build with address and undefined behaviour sanitizers" OFF)
 # platform/<os>/; Linux and macOS share platform/posix/.
 file(GLOB_RECURSE ML_LIB_SOURCES CONFIGURE_DEPENDS source/meth/*.c)
 
+# platform/wasm/ is for the WebAssembly build (build_web.bat) only.
+list(FILTER ML_LIB_SOURCES EXCLUDE REGEX "/platform/wasm/")
+
 if(WIN32)
 	list(FILTER ML_LIB_SOURCES EXCLUDE REGEX "/platform/posix/")
 else()

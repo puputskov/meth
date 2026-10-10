@@ -39,7 +39,7 @@ else
 fi
 
 # The platform layer: Linux and macOS use platform/posix, not platform/win32.
-lib=$(find source/meth -name '*.c' ! -path '*/platform/win32/*' | sort)
+lib=$(find source/meth -name '*.c' ! -path '*/platform/win32/*' ! -path '*/platform/wasm/*' | sort)
 
 # A warning is an error, as in the Makefile and premake5.lua.
 flags="-std=gnu11 -Wall -Wextra -Wno-comment -Werror -Iinclude $opt"

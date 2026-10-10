@@ -25,6 +25,7 @@ All of them build the same three programs (`meth`, `tests`, `keydemo`) from the 
 `premake5 vs2022` (the Visual Studio solution), `make test` (gcc or clang), `cmake -S . -B build/cmake && cmake --build build/cmake && ctest --test-dir build/cmake`
 (`-DML_SANITIZE=ON` for the sanitizers), `bazel build //:meth` / `bazel test //:tests`, and the scripts that call the compiler directly,
 `./build.sh [meth|tests|keydemo|all] [debug|release] [run]` and `build.bat` (same arguments, finds Visual Studio with vswhere) into `build/direct/`.
+`build_web.bat` builds the WebAssembly module of the web editor (`web/meth.wasm`) with clang and `wasm-ld`; see `TODO.md` section 9.
 A new source file is found by all of them without a change (they glob the folders); a new OS specific folder needs a change in each.
 
 ## Warnings

@@ -63,6 +63,7 @@ set N=0
 for /r "source\meth" /d %%d in (*) do (
 	set "SKIP="
 	echo %%d | findstr /i /c:"\platform\posix" >nul && set SKIP=1
+	echo %%d | findstr /i /c:"\platform\wasm" >nul && set SKIP=1
 	if not defined SKIP if exist "%%d\*.c" (
 		set /a N+=1
 		if not exist "%OBJ%\!N!" mkdir "%OBJ%\!N!"

@@ -137,7 +137,7 @@ statement lines, so it lives in the same `.meth` file as the calculations, with 
 - Doc pages that reference an example from `data/examples` (` ```example @name `) instead of inlining it.
 
 
-## 9. Web editor (not built)
+## 9. Web editor (first step built, see DONE.md)
 
 A notebook in the browser with the features of the TUI (the same domains, results, steps, ghost preview, proofs, plots, help and tutorial, export,
 files), laid out the traditional way: cells with a rendered result under each line, something between a Jupyter notebook and Mathematica. More people
@@ -156,6 +156,8 @@ can try meth without building it. It runs the real library, `meth_lib` built to 
   lazily) and `decommit` does nothing, with the reservation sizes of the arenas smaller on that target (a constant per target in `core/mem.h`, for
   example 256 MB for the application arena instead of 16 GB; the total stays under the 4 GB of wasm32). The heap (`core/heap.c`) uses the same memory.
   A computation that needs more than that fails with the normal "too large" error, as on any machine that runs out of memory.
+- Next: the C API beyond `meth_eval` (a session handle, results per line, ghost, steps, completion, highlight classes, typeset math, plots, export),
+  the notebook page, the test run of the groups against the module, and `ml_vm_decommit`.
 - A small C API for the page (a handle, `eval line`, results, steps, ghost, completion, highlight classes, typeset math, plot data, export, the texts
   catalog) that returns text or JSON in a buffer of the module, so the page never reads structures of the library.
 - Typeset math: the page draws the math itself from the typeset output of the export module (MathML is built in browsers, or the box layout drawn in

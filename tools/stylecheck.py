@@ -170,7 +170,9 @@ def check_file(path, rel, rep, only):
         if want('subscript-space') and re.search(r'[\w\)\]]\[', cl):
             rep.add('subscript-space', rel, no, 'no space before [')
 
-        if want('types'):
+        # libc.c and libc/ of the WebAssembly build are the C library, so the
+        # signatures have the types the standard gives them
+        if want('types') and 'wasm/libc' not in rel.replace('\\', '/'):
             # printf needs (int) for %.*s and (long long) for %llu, static
             # asserts talk about size_t, and main's loop runs over argc
             test = re.sub(r'\((int|long long|unsigned long long)\)', '', cl)
