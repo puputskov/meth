@@ -743,7 +743,7 @@ const MlSym *ml_sym_product (
 			f->kids [0],
 			f
 		);
-		int64_t     n     = 1;
+		int64_t     power = 1;
 		int32_t     whole = (
 			   sum->kind == ML_SYM_ADD
 			&& !(work.len == 1 && f->kind == ML_SYM_ADD)
@@ -751,7 +751,7 @@ const MlSym *ml_sym_product (
 				   f->kind == ML_SYM_ADD
 				|| (
 					   f->kids [1]->kind == ML_SYM_NUM
-					&& small_int (f->kids [1], &n)
+					&& small_int (f->kids [1], &power)
 				)
 			)
 		);
@@ -776,7 +776,7 @@ const MlSym *ml_sym_product (
 				coeff = ml_rat_mul (
 					ctx->arena,
 					coeff,
-					ml_rat_pow (ctx->arena, content, n)
+					ml_rat_pow (ctx->arena, content, power)
 				);
 			}
 		}
