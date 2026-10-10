@@ -6,21 +6,28 @@
 <title>meth</title>
 <meta name="description" content="A notebook for mathematics: exact arithmetic, algebra, calculus, matrices, logic and proofs.">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/workspace.css">
 <link rel="stylesheet" href="css/notebook.css">
 <link rel="stylesheet" href="css/help.css">
 </head>
-<body>
+<body class="app">
 <header class="bar">
+	<button class="tool toggle" data-act="sidebar" title="Files (Ctrl+B)" aria-label="Show or hide the files" aria-pressed="true">☰</button>
 	<a class="brand" href="./" aria-label="meth">meth</a>
-	<span class="title" id="title">untitled</span>
+	<span class="title" id="title" title="Double click to rename"></span>
 	<nav class="tools" aria-label="Notebook">
 		<details class="menu" id="menu-file">
 			<summary>File</summary>
 			<div class="popup">
-				<button data-act="new">New</button>
-				<button data-act="open">Open…</button>
-				<button data-act="save">Save as .meth</button>
+				<button data-act="new-file">New file</button>
+				<button data-act="new-folder">New folder</button>
+				<button data-act="open">Open files…</button>
 				<hr>
+				<button data-act="rename">Rename</button>
+				<button data-act="close">Close tab</button>
+				<button data-act="delete">Delete file</button>
+				<hr>
+				<button data-act="save">Download as .meth</button>
 				<button data-act="export-latex">Export LaTeX</button>
 				<button data-act="export-mathml">Export HTML + MathML</button>
 				<button data-act="export-markdown">Export Markdown</button>
@@ -41,9 +48,16 @@
 		<button class="tool" data-act="help" title="Help (F1)" aria-label="Help">?</button>
 	</nav>
 </header>
-<main id="notebook" aria-label="Notebook"></main>
+<div id="shell" class="shell">
+	<aside id="explorer" class="explorer" aria-label="Files"></aside>
+	<div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-label="Resize the files"></div>
+	<section class="workarea">
+		<div id="tabs" class="tabs"></div>
+		<div id="panes" class="panes"></div>
+	</section>
+</div>
 <aside id="help" class="help" aria-label="Help" hidden></aside>
-<input type="file" id="file-input" accept=".meth,text/plain" hidden>
+<input type="file" id="file-input" accept=".meth,text/plain" multiple hidden>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script type="module" src="js/main.js"></script>
 </body>

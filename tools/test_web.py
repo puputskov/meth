@@ -118,7 +118,7 @@ def check_boot(browser, port):
                 timeout=120,
             )
         dom = done.stdout.decode("utf-8", errors="replace")
-        lines = dom.count('class="line"')
+        lines = len(re.findall(r'class="line[ "]', dom))
         if lines:
             ok = lines >= 8 and "could not start" not in dom and 'class="out error"' not in dom
             print("notebook page: %d lines shown%s" % (lines, "" if ok else ", FAILED"))
@@ -242,6 +242,8 @@ def main():
         wasm = run_browser_retrying(browser, port, "test.html")
         api = run_browser_retrying(browser, port, "apitest.html")
         ui = run_browser_retrying(browser, port, "uitest.html")
+        model = run_browser_retrying(browser, port, "modeltest.html")
+        appui = run_browser_retrying(browser, port, "apptest.html")
         boot = check_boot(browser, port)
         groups = None
         if os.path.exists(os.path.join(WEB, "tests.wasm")):
@@ -271,6 +273,8 @@ def main():
     print("%d expressions, %d differ" % (len(cases), failed))
     failed += check_api(api, "api")
     failed += check_api(ui, "ui")
+    failed += check_api(model, "workspace")
+    failed += check_api(appui, "app")
     failed += boot
     failed += check_groups(groups)
     return 1 if failed else 0

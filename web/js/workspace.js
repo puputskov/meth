@@ -46,6 +46,26 @@ export const titleOf = (path) => {
 	return isFilePath(name) ? name.slice(0, -EXTENSION.length) : name;
 };
 
+// A storage that keeps its values in memory only, with the interface of
+// localStorage: for when the browser's storage is blocked, and for tests.
+export class MemoryStorage {
+	constructor() {
+		this.map = new Map();
+	}
+
+	getItem(key) {
+		return this.map.get(key) ?? null;
+	}
+
+	setItem(key, value) {
+		this.map.set(key, String(value));
+	}
+
+	removeItem(key) {
+		this.map.delete(key);
+	}
+}
+
 function compare(a, b) {
 	return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
@@ -59,6 +79,7 @@ export class Workspace {
 		this.active = null; // the path of the tab in front
 		this.expanded = new Set(); // folders shown open in the tree
 		this.sidebar = { open: true, width: 260 };
+		this.meta = new Map(); // path -> what the page remembers of a file
 		this.persistent = true; // false when the storage refused a write
 		this.listeners = [];
 	}
@@ -113,6 +134,9 @@ export class Workspace {
 			ws.active = ws.files.has(index.active) ? index.active : (ws.tabs[0] ?? null);
 			(index.expanded ?? []).forEach((f) => ws.expanded.add(f));
 			ws.sidebar = { ...ws.sidebar, ...(index.sidebar ?? {}) };
+			Object.entries(index.meta ?? {})
+				.filter(([path]) => ws.files.has(path))
+				.forEach(([path, view]) => ws.meta.set(path, view));
 		} else {
 			const old = ws.read("meth.session");
 
@@ -144,6 +168,7 @@ export class Workspace {
 				active: this.active,
 				expanded: [...this.expanded],
 				sidebar: this.sidebar,
+				meta: Object.fromEntries(this.meta),
 			}),
 		);
 	}
@@ -264,6 +289,19 @@ export class Workspace {
 		}
 	}
 
+	// What the page remembers of a file besides its text (the cells that are
+	// folded, the results that are shown): kept in the index.
+	view(path) {
+		return this.meta.get(path) ?? {};
+	}
+
+	setView(path, view) {
+		if (this.files.has(path) && JSON.stringify(this.view(path)) !== JSON.stringify(view)) {
+			this.meta.set(path, view);
+			this.saveIndex();
+		}
+	}
+
 	// Gives a file or a folder (with all it holds) another name in its folder;
 	// returns the new path. The name of a file may leave out the extension.
 	rename(path, name) {
@@ -331,6 +369,7 @@ export class Workspace {
 			}
 		}
 
+		this.meta = new Map([...this.meta].map(([path, view]) => [swap(path), view]));
 		this.folders = new Set([...this.folders].map(swap));
 		this.expanded = new Set([...this.expanded].map(swap));
 		this.tabs = this.tabs.map(swap);
@@ -343,6 +382,7 @@ export class Workspace {
 		for (const file of [...this.files.keys()]) {
 			if (file === path || file.startsWith(`${path}/`)) {
 				this.files.delete(file);
+				this.meta.delete(file);
 				this.write(FILE + file, null);
 				this.closeTab(file, false);
 			}

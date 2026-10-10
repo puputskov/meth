@@ -22,6 +22,10 @@ try {
 		domains: meth.domains(),
 		say: (message) => messages.push(message),
 		onChange: () => {},
+		enableSymbols: () => {
+			notebook.applyAnswer(meth.setSymbols(true));
+			notebook.render();
+		},
 	});
 
 	const area = (i) => root.querySelector(`textarea[data-i="${i}"]`);
@@ -41,6 +45,7 @@ try {
 		area(i).dispatchEvent(event);
 		return event;
 	};
+	const NL_ = String.fromCharCode(10);
 	const cells = () => root.querySelectorAll("section.cell").length;
 
 	notebook.load("m:algebra a = 3\nm:algebra a * 2\nm:algebra det ([[1, 2], [3, 4]])\n");
@@ -160,6 +165,31 @@ try {
 	check("mathml: error stays text", out(3).querySelector("math") === null && out(3).classList.contains("error"));
 	check("mathml: plain value", out(4).querySelector("math mn") !== null);
 	check("mathml: no ascii art block", out(2).querySelector("pre.block") === null);
+
+	// a name without a value: the error offers symbols
+	notebook.load("m:algebra x + x" + NL_);
+	check("symbols: undefined name offers them", out(0).classList.contains("error") && out(0).querySelector(".symbol-hint") !== null, out(0).textContent);
+	out(0).querySelector(".symbol-hint").click();
+	check("symbols: then it is a value", out(0).classList.contains("error") === false && out(0).textContent.includes("2"), out(0).textContent);
+	meth.setSymbols(false);
+	notebook.load("m:algebra 1 + 1" + NL_);
+
+	// the input of a line is typeset while it is not being edited
+	notebook.load("m:algebra x = 1/2 + sqrt (3)" + NL_ + "m:algebra foo (" + NL_ + "m:algebra a && b");
+	document.activeElement.blur();
+	const lineRow = (i) => root.querySelector(`.line[data-i="${i}"]`);
+	const shownBox = (e) => getComputedStyle(e).display !== "none";
+
+	notebook.render(null);
+	check("input: typeset", lineRow(0).classList.contains("typeset") && lineRow(0).querySelector(".tview math mfrac") !== null && lineRow(0).querySelector(".tview math msqrt") !== null);
+	check("input: typeset shown, source hidden", shownBox(lineRow(0).querySelector(".tview")) && !shownBox(lineRow(0).querySelector("textarea")) && !shownBox(lineRow(0).querySelector(".input > pre")));
+	check("input: not a formula keeps its source", !lineRow(1).classList.contains("typeset") && shownBox(lineRow(1).querySelector("textarea")) && !shownBox(lineRow(1).querySelector(".tview")));
+	check("input: other domains are typeset too", notebook.lines[2].domain === "algebra" || lineRow(2).classList.contains("typeset"));
+	lineRow(0).querySelector(".tview").click();
+	check("input: click edits the source", lineRow(0).classList.contains("editing") && shownBox(lineRow(0).querySelector("textarea")) && !shownBox(lineRow(0).querySelector(".tview")));
+	check("input: the source is the text", lineRow(0).querySelector("textarea").value === "x = 1/2 + sqrt (3)");
+	lineRow(0).querySelector("textarea").dispatchEvent(new Event("blur"));
+	check("input: leaving shows it typeset again", lineRow(0).classList.contains("typeset") && shownBox(lineRow(0).querySelector(".tview")) && !lineRow(0).classList.contains("editing"));
 
 	// a text cell: lines shown rendered, the line being edited shows its source
 	document.activeElement.blur();

@@ -1,9 +1,9 @@
 /* The notebook: cells, lines, results. */
 
-#notebook {
+.notebook {
 	max-width: 54rem;
 	margin: 0 auto;
-	padding: 1.5rem 1rem 40vh;
+	padding: 1.5rem 1rem 40vh 1.6rem;
 }
 
 /* a gap between cells; the buttons to add a cell show when it is hovered */
@@ -66,7 +66,7 @@
 .cell::before {
 	content: "";
 	position: absolute;
-	left: -0.75rem;
+	left: -1rem;
 	top: 0.25rem;
 	bottom: 0.25rem;
 	width: 3px;
@@ -139,7 +139,7 @@
 .cell.code > .cell-head {
 	position: static;
 	height: 1.7rem;
-	margin: 0 0 0 1.4rem;
+	margin: 0;
 	padding: 0;
 	background: transparent;
 	opacity: 0.6;
@@ -159,24 +159,35 @@
 	color: var(--accent);
 }
 
-/* the chevron that folds a cell */
+/* the handle that folds a cell: it sits on the left border of the card */
 .cell.code > .fold {
 	position: absolute;
-	left: 0.35rem;
-	top: 0.25rem;
-	z-index: 2;
+	left: -0.6rem;
+	top: 0.3rem;
+	z-index: 3;
+	display: grid;
+	place-items: center;
 	width: 1.2rem;
 	height: 1.2rem;
 	padding: 0;
-	border: 0;
-	border-radius: 4px;
-	background: transparent;
+	border: 1px solid var(--line-strong);
+	border-radius: 50%;
+	background: var(--panel);
 	color: var(--dim);
-	font-size: 0.8rem;
+	font-size: 0.7rem;
 	line-height: 1;
+	opacity: 0.7;
+	transition: opacity 0.12s, background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.cell.code:hover > .fold,
+.cell.code:focus-within > .fold,
+.cell.code.folded > .fold {
+	opacity: 1;
 }
 
 .cell.code > .fold:hover {
+	border-color: var(--accent);
 	background: var(--accent-soft);
 	color: var(--accent);
 }
@@ -190,7 +201,7 @@
 	display: flex;
 	align-items: baseline;
 	gap: 0.75rem;
-	padding: 0 0.5rem 0.4rem 1.85rem;
+	padding: 0 0.5rem 0.4rem 0.5rem;
 	margin-top: -0.35rem;
 	font: 0.95rem/1.5 var(--mono);
 	cursor: pointer;
@@ -231,6 +242,14 @@
 	opacity: 1;
 }
 
+.tool-btn.symbol-hint {
+	opacity: 1;
+	margin-left: 0.5rem;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-family: var(--sans);
+}
+
 .tool-btn {
 	padding: 0 0.45rem;
 	border: 0;
@@ -258,7 +277,7 @@
 
 .line {
 	position: relative;
-	padding: 0.1rem 0.35rem 0.1rem 1.35rem;
+	padding: 0.1rem 0.35rem;
 	border-radius: 5px;
 }
 
@@ -302,6 +321,37 @@
 .input textarea::selection {
 	background: color-mix(in srgb, var(--accent) 30%, transparent);
 	color: transparent;
+}
+
+/* a line that is not being edited shows its formula typeset */
+.tview {
+	display: none;
+	padding: 0.15rem 0.5rem;
+	font-size: 1.2em;
+	line-height: 1.5;
+	cursor: text;
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.tview math {
+	font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", math, serif;
+}
+
+/* full size fractions and matrices (display style) without the centring
+   of a block formula: they stand at the left like the source they replace */
+.tview math,
+.out math {
+	math-style: normal;
+}
+
+.line.typeset:not(.editing) .tview {
+	display: block;
+}
+
+.line.typeset:not(.editing) .input > pre,
+.line.typeset:not(.editing) .input > textarea {
+	display: none;
 }
 
 .input .err {
@@ -413,13 +463,18 @@ pre.block,
 pre.steps {
 	flex-basis: 100%;
 	margin: 0.15rem 0 0.1rem;
-	padding: 0.4rem 0.6rem;
+	padding: 0.5rem 0.7rem;
 	overflow-x: auto;
 	border-radius: 6px;
 	background: var(--code-bg);
 	font: inherit;
-	font-size: 0.95rem;
-	line-height: 1.25;
+	font-family: var(--mono), "Cambria Math", "DejaVu Sans Mono", "Segoe UI Symbol", monospace;
+	font-size: 0.93rem;
+	/* the bracket pieces of a matrix come from another font, taller than the
+	   text: the rows need room, or they run into each other */
+	line-height: 1.7;
+	font-variant-ligatures: none;
+	white-space: pre;
 }
 
 pre.block {
@@ -599,7 +654,7 @@ svg.plot .path {
 }
 
 @media (max-width: 640px) {
-	#notebook {
+	.notebook {
 		padding-left: 1.25rem;
 	}
 

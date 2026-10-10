@@ -157,8 +157,8 @@ can try meth without building it. It runs the real library, `meth_lib` built to 
   example 256 MB for the application arena instead of 16 GB; the total stays under the 4 GB of wasm32). The heap (`core/heap.c`) uses the same memory.
   A computation that needs more than that fails with the normal "too large" error, as on any machine that runs out of memory.
 - Built: the C API of the page (`meth/web/web.h`, `web/js/meth.js`), the notebook page (`web/index.html`) and the tests of both, see DONE.md.
-  Next, in this order: typeset input lines (results are typeset: `meth.typeset`), the tutorial on the page (its checks are about editor keys: it needs checks on the results), user themes and settings in the browser storage,
-  moving cells and selecting several lines, the page on a real phone, and `ml_vm_decommit`.
+  Next, in this order: the tutorial on the page (its checks are about editor keys: it needs checks on the results), user themes and settings in the browser storage,
+  folders for the examples that open as files, undo for file operations (rename, delete), moving cells and selecting several lines, the page on a real phone, and `ml_vm_decommit`.
 - Typeset math: the page draws the math itself from the typeset output of the export module (MathML is built in browsers, or the box layout drawn in
   SVG/canvas), and the plots as SVG from the plot data. Themes come from `data/config` (the same `.theme` files, as CSS variables), light and dark.
 - The look is a design task of its own: the notebook column, cells with the input in a monospace font and the result typeset under it, the domain of

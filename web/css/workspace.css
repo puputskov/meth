@@ -1,0 +1,408 @@
+/* The workspace: the side bar with the files, the tabs, the panes. */
+
+body.app {
+	overflow: hidden;
+}
+
+body.app .bar {
+	/* above the files and the notebooks: its menus open over them (the blur of
+	   the bar makes it a layer of its own, which has to be on top) */
+	position: relative;
+	z-index: 30;
+	height: 2.9rem;
+	padding: 0 0.75rem;
+}
+
+.shell {
+	--sidebar-w: 260px;
+	display: flex;
+	height: calc(100vh - 2.9rem);
+	height: calc(100dvh - 2.9rem);
+}
+
+.shell.no-sidebar .explorer,
+.shell.no-sidebar .splitter {
+	display: none;
+}
+
+/* ---- the explorer ---- */
+
+.explorer {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	width: var(--sidebar-w);
+	min-width: 0;
+	background: var(--panel);
+	border-right: 1px solid var(--line);
+}
+
+.explorer-head {
+	display: flex;
+	align-items: center;
+	gap: 0.15rem;
+	height: 2.2rem;
+	padding: 0 0.4rem 0 0.8rem;
+}
+
+.explorer-title {
+	flex: 1;
+	color: var(--dim);
+	font: 600 0.72rem var(--sans);
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+}
+
+.explorer-head .icon {
+	display: grid;
+	place-items: center;
+	width: 1.7rem;
+	height: 1.7rem;
+	padding: 0;
+	border: 0;
+	border-radius: 5px;
+	background: transparent;
+	color: var(--dim);
+}
+
+.explorer-head .icon:hover {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.tree {
+	flex: 1;
+	overflow: auto;
+	padding: 0.15rem 0 1rem;
+	outline: none;
+	font-size: 0.92rem;
+}
+
+.tree.drop {
+	background: var(--accent-soft);
+}
+
+.node {
+	display: flex;
+	align-items: center;
+	gap: 0.15rem;
+	height: 1.65rem;
+	padding-right: 0.5rem;
+	cursor: pointer;
+	white-space: nowrap;
+	user-select: none;
+	border-top: 1px solid transparent;
+	border-bottom: 1px solid transparent;
+}
+
+.node:hover {
+	background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.node.selected {
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.tree:focus-visible .node.selected {
+	outline: 1px solid var(--accent);
+	outline-offset: -1px;
+}
+
+.node.active .name {
+	color: var(--accent);
+	font-weight: 600;
+}
+
+.node.drop {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+}
+
+.node .twisty {
+	flex: none;
+	width: 1rem;
+	color: var(--dim);
+	font-size: 0.75rem;
+	text-align: center;
+}
+
+.node .name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.node.folder .name {
+	font-weight: 500;
+}
+
+input.rename {
+	flex: 1;
+	min-width: 0;
+	height: 1.4rem;
+	padding: 0 0.3rem;
+	border: 1px solid var(--accent);
+	border-radius: 3px;
+	background: var(--bg);
+	color: var(--fg);
+	font: inherit;
+	outline: none;
+}
+
+.tree .empty {
+	padding: 0.8rem;
+	color: var(--dim);
+	font-size: 0.88rem;
+}
+
+.splitter {
+	flex: none;
+	width: 5px;
+	margin-left: -3px;
+	z-index: 5;
+	cursor: col-resize;
+	background: transparent;
+	transition: background 0.12s;
+}
+
+.splitter:hover,
+.splitter:active {
+	background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* ---- tabs and panes ---- */
+
+.workarea {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.tabs {
+	flex: none;
+	display: flex;
+	align-items: stretch;
+	height: 2.3rem;
+	background: var(--bg);
+	border-bottom: 1px solid var(--line);
+}
+
+.tab-list {
+	display: flex;
+	min-width: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	/* the tabs scroll sideways with the wheel or the keys: a scroll bar
+	   next to them is only noise */
+	scrollbar-width: none;
+}
+
+.tab-list::-webkit-scrollbar {
+	display: none;
+}
+
+.tab {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	max-width: 14rem;
+	padding: 0 0.3rem 0 0.9rem;
+	border-right: 1px solid var(--line);
+	color: var(--dim);
+	font-size: 0.9rem;
+	cursor: pointer;
+	user-select: none;
+	border-top: 2px solid transparent;
+}
+
+.tab:hover {
+	background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.tab.active {
+	background: var(--panel);
+	color: var(--fg);
+	border-top-color: var(--accent);
+	margin-bottom: -1px;
+	padding-bottom: 1px;
+}
+
+.tab.drop {
+	box-shadow: inset 2px 0 var(--accent);
+}
+
+.tab-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tab-close {
+	display: grid;
+	place-items: center;
+	width: 1.35rem;
+	height: 1.35rem;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--dim);
+	font-size: 1.05rem;
+	line-height: 1;
+	opacity: 0;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close,
+.tab-close:focus-visible {
+	opacity: 1;
+}
+
+.tab-close:hover {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.tab-add {
+	flex: none;
+	width: 2.3rem;
+	border: 0;
+	background: transparent;
+	color: var(--dim);
+	font-size: 1.2rem;
+}
+
+.tab-add:hover {
+	color: var(--accent);
+	background: var(--accent-soft);
+}
+
+.tab input.rename {
+	width: 9rem;
+	flex: none;
+}
+
+.panes {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+}
+
+.pane {
+	position: absolute;
+	inset: 0;
+	overflow: auto;
+	background: var(--bg);
+}
+
+.pane[hidden] {
+	display: none;
+}
+
+.empty-state {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.6rem;
+	color: var(--dim);
+}
+
+.empty-state p {
+	margin: 0 0 0.3rem;
+}
+
+.empty-state button {
+	min-width: 10rem;
+	padding: 0.4rem 1rem;
+	border: 1px solid var(--line-strong);
+	border-radius: 6px;
+	background: var(--panel);
+}
+
+.empty-state button:hover {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+/* ---- the menu of the right button ---- */
+
+.context-menu {
+	position: fixed;
+	z-index: 50;
+	min-width: 11rem;
+	padding: 0.3rem;
+	background: var(--panel);
+	border: 1px solid var(--line-strong);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+}
+
+.context-menu[hidden] {
+	display: none;
+}
+
+.context-menu button {
+	display: block;
+	width: 100%;
+	padding: 0.3rem 0.7rem;
+	border: 0;
+	border-radius: 5px;
+	background: transparent;
+	text-align: left;
+}
+
+.context-menu button:hover,
+.context-menu button:focus-visible {
+	background: var(--accent-soft);
+	outline: none;
+}
+
+.context-menu button.danger {
+	color: var(--error);
+}
+
+.context-menu button:disabled {
+	opacity: 0.4;
+}
+
+.context-menu hr {
+	margin: 0.25rem 0;
+	border: 0;
+	border-top: 1px solid var(--line);
+}
+
+/* ---- narrow screens: the files go over the notebook ---- */
+
+@media (max-width: 700px) {
+	.explorer {
+		position: absolute;
+		z-index: 12;
+		top: 2.9rem;
+		bottom: 0;
+		left: 0;
+		width: min(var(--sidebar-w), 85vw);
+		box-shadow: var(--shadow);
+	}
+
+	.splitter {
+		display: none;
+	}
+
+	body.app .bar {
+		flex-wrap: nowrap;
+	}
+
+	body.app .title {
+		display: none;
+	}
+
+	.tools {
+		overflow-x: auto;
+	}
+}

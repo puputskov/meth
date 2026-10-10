@@ -1155,9 +1155,32 @@ with selection, mouse, pages and the settings file for folds (section 3). Highli
   falls back to the text for the rest (complex numbers, lists, quantities); the plain text is the `title` of the value. A cache maps the text to its markup.
 - **Notes edit in place:** every note line is its own row, like a code line: the line with the caret shows its Markdown, the others stay rendered
   (headings, lists, `code`, bold, italic), so the text reads as the page it will be. Enter splits a line, Backspace joins, the arrows move between lines.
+- **Files, tabs and a side bar (built 2026-10-10):** the page keeps a workspace (`web/js/workspace.js`): folders and `.meth` files, the tabs that are open, the
+  folders that are open in the tree, the side bar (shown, width) and, for each file, what the page remembers besides the text (the results shown against the
+  rule, the cells that show all results, the cells that are folded). It is all in `localStorage`: the index in `meth.ws`, the text of a file in `meth.f:<path>`
+  (typing writes that file only); the notebook of the first version (`meth.session`) becomes a file, and a storage that is blocked or full leaves the work in
+  memory with a message. Names: no slash or control character, at most 80 characters, unique in their folder without regard to case (a number is added to
+  a new one); the extension `.meth` is added when it is left out; folders are paths. `explorer.js` is the side bar in the manner of an editor (open and
+  close folders, rename in place with F2 or the menu of the right button, new file or folder, duplicate, download, delete after a question, drag a file onto
+  a folder or the empty space, the arrow keys, Enter, Delete), `tabs.js` the tabs (close with the cross or the middle button, double click to rename,
+  drag to reorder, scroll with the wheel, no scroll bar), `menu.js` the menu of the right button, `app.js` ties them together: one `Notebook` and one
+  library session for each open file (`meth.create ()`; closing the tab gives the session back; up to 64), so files are independent; the text is written back
+  300 ms after a change and when the page is left. Examples open as files in the folder `Examples`; snippets go into the notebook in front; File has new,
+  open (several files), rename, close, delete, download and the exports. The title shows the path (double click to rename). Ctrl+B shows and hides the side
+  bar; on a narrow screen it goes over the notebook. `meth_create`, `meth_destroy` and a handle in every call of the module give the sessions
+  (`source/web/api.c`), `ml_arena_set_default_reserve` keeps a session to 64 MB of address space.
+- **Results by rule:** a cell shows the result of its last expression (definitions like `a = 3` never count, errors and proof verdicts always show); at the
+  right of every line `show result` / `hide result` and `steps`, in the corner of the cell `last result` / `all results` (every line) and a fold handle on
+  the left border of the card (a folded cell shows its first line and the number of lines). An undefined name has the button `use as a symbol`, and the
+  symbols button of the bar says what it did.
+- **Typeset input:** a line that is not being edited shows its formula as MathML (algebra, physics, boolean, lambda; the others keep their source), the line
+  with the caret shows the source with its colours; a text that is no formula keeps its source. Results and input are left aligned with `math-style: normal`.
+- The rule names of the steps are aligned, and the matrices of steps have room (line height 1.7, a font with the bracket pieces).
+- Tests of the page: `web/modeltest.html` (the workspace model, 50 checks, no module), `web/apptest.html` (the explorer, the tabs and the sessions of many files
+  with the real elements and drag and drop, 63 checks), `web/uitest.html` (the notebook, 64 checks) and `web/apitest.html` (50 checks), `tools/test_web.py` runs all.
 - Tests of the page: `web/uitest.html` / `web/js/uitest.js` drive the notebook as a user does (typing, keys, clicks on the buttons, the completion, steps,
   plots, a text cell, the help, an empty notebook), 33 checks, and `tools/test_web.py` also loads `index.html` and checks that the welcome notebook is shown.
 - Not built: the tutorial on the page (the checks of the lessons are about keys of the editor: the page needs its own kind of check from
-  the results); user themes and settings in the browser storage; typeset math for the input lines (the results are typeset); moving cells and selecting several lines; the
+  the results); user themes and settings in the browser storage; moving cells and selecting several lines; the
   ghost preview of a new line (the results are live, so only the completion text is shown); the page on a real phone (the headless browser has a minimum
   width); `:why`; `ml_vm_decommit` (memory is never given back), real checks of the `size_t` narrowing at the C library calls.

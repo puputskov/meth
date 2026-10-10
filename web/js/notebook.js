@@ -60,12 +60,13 @@ function isDefinition(line) {
 }
 
 export class Notebook {
-	constructor(meth, root, { domains, onChange, say }) {
+	constructor(meth, root, { domains, onChange, say, enableSymbols }) {
 		this.meth = meth;
 		this.root = root;
 		this.domains = domains;
 		this.onChange = onChange;
 		this.say = say;
+		this.enableSymbols = enableSymbols; // asked for by an undefined name
 		this.lines = [];
 		this.domain = "algebra"; // for new cells
 		this.signature = "";
@@ -458,20 +459,25 @@ export class Notebook {
 			"data-i": i,
 		});
 		const out = el("div", "out");
+		const typeset = el("div", "tview", { title: "Click to edit" });
 
+		// the line shows its source while it is being edited, and the
+		// typeset formula when it is not
+		row.edit = () => row.classList.add("editing", "focus");
 		area.value = line.text;
+		typeset.addEventListener("click", () => this.focusLine(i, "end"));
 		area.addEventListener("input", () => this.typed(i, area));
 		area.addEventListener("keydown", (event) => this.keydown(event, i, area));
 		area.addEventListener("focus", () => {
-			row.classList.add("focus");
+			row.edit();
 			this.refreshCompletion(i, area);
 		});
 		area.addEventListener("blur", () => {
-			row.classList.remove("focus");
+			row.classList.remove("focus", "editing");
 			setTimeout(() => this.hideCompletionIfIdle(), 120);
 		});
 		area.addEventListener("click", () => this.refreshCompletion(i, area));
-		input.append(shown, area);
+		input.append(shown, area, typeset);
 		row.append(input, out);
 		return row;
 	}
@@ -596,6 +602,17 @@ export class Notebook {
 		}
 
 		shown.append("​");
+
+		const math = this.inputMath(line);
+		const view = row.querySelector(".tview");
+
+		view.replaceChildren();
+
+		if (math) {
+			view.append(math);
+		}
+
+		row.classList.toggle("typeset", math !== null);
 		this.paintResult(row.querySelector(".out"), i);
 	}
 
@@ -609,6 +626,18 @@ export class Notebook {
 		if (result.kind === "error") {
 			out.classList.add("error");
 			out.append(result.text);
+
+			// a name with no value can stand for itself, if the user wants
+			if (result.code === "undefined_name" && this.enableSymbols) {
+				out.append(
+					button(
+						"use as a symbol",
+						() => this.enableSymbols(),
+						"tool-btn symbol-hint",
+						"Let names without a value stay symbols (x + x is 2x)",
+					),
+				);
+			}
 		} else if (result.kind === "value") {
 			const shown = this.visible(i);
 			const math = shown ? this.resultMath(line, result) : null;
@@ -709,49 +738,61 @@ export class Notebook {
 		}
 	}
 
+	// The text of a formula as a <math> element, or null when the library
+	// cannot set it (it is not a formula of that domain).
+	mathElement(domain, text) {
+		const key = `${domain}\n${text}`;
+		let markup = this.mathCache.get(key);
+		let element = null;
+
+		if (markup === undefined) {
+			try {
+				markup = this.meth.typeset(domain, text);
+			} catch {
+				markup = null;
+			}
+
+			if (this.mathCache.size > 2000) {
+				this.mathCache.clear();
+			}
+
+			this.mathCache.set(key, markup);
+		}
+
+		if (markup) {
+			// the markup comes from the library, which escapes the text of the
+			// formula; it is parsed as an HTML document, so scripts would not
+			// run in any case
+			const parsed = new DOMParser().parseFromString(markup, "text/html");
+
+			element = parsed.body.firstElementChild
+				? document.importNode(parsed.body.firstElementChild, true)
+				: null;
+
+		}
+
+		return element;
+	}
+
 	// The value of a result as a <math> element, or null when it has no
 	// typeset form (a list, a text, an error of the typesetting).
 	resultMath(line, result) {
 		const logic = line.domain === "boolean" || line.domain === "lambda";
 		const typeset = logic || ["exact", "approx", "expr", "matrix"].includes(result.type);
-		let element = null;
 
-		if (typeset && line.domain !== "proof") {
-			const text = result.text.replace(/^≈\s*/, "");
-			const domain = logic ? line.domain : "algebra";
-			const key = `${domain}\n${text}`;
-			let markup = this.mathCache.get(key);
+		return typeset && line.domain !== "proof"
+			? this.mathElement(logic ? line.domain : "algebra", result.text.replace(/^≈\s*/, ""))
+			: null;
+	}
 
-			if (markup === undefined) {
-				try {
-					markup = this.meth.typeset(domain, text);
-				} catch {
-					markup = null;
-				}
+	// The input of a line as a <math> element; the domains whose lines are
+	// formulas only (the others keep their source: proofs, geometry).
+	inputMath(line) {
+		const formulas = ["algebra", "physics", "boolean", "lambda"];
 
-				if (this.mathCache.size > 2000) {
-					this.mathCache.clear();
-				}
-
-				this.mathCache.set(key, markup);
-			}
-
-			if (markup) {
-				// the markup comes from the library, which escapes the text
-				// of the formula; it is parsed as an HTML document, so scripts
-				// would not run in any case
-				const parsed = new DOMParser().parseFromString(markup, "text/html");
-
-				element = parsed.body.firstElementChild
-					? document.importNode(parsed.body.firstElementChild, true)
-					: null;
-
-				// full size fractions and matrices (display style)
-				element?.setAttribute("display", "block");
-			}
-		}
-
-		return element;
+		return formulas.includes(line.domain) && line.text.trim() !== ""
+			? this.mathElement(line.domain === "physics" ? "algebra" : line.domain, line.text)
+			: null;
 	}
 
 	proofMark(text) {
@@ -847,7 +888,7 @@ export class Notebook {
 		}
 
 		if (area) {
-			area.closest(".nline")?.edit?.();
+			area.closest(".nline, .line")?.edit?.();
 			area.focus();
 
 			const length = area.value.length;
@@ -863,6 +904,8 @@ export class Notebook {
 		const line = this.lines[i];
 
 		this.typedLine = i;
+
+		area.closest(".line")?.edit?.();
 
 		const from = this.change(EDIT.type, i, line.kind, line.domain ?? "", area.value, { typing: true });
 

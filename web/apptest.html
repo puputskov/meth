@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>meth app test</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/workspace.css">
+<link rel="stylesheet" href="css/notebook.css">
+</head>
+<body class="app">
+<p id="status">running</p>
+<!-- [{ name, ok, detail }] as JSON, read by tools/test_web.py -->
+<pre id="results" hidden></pre>
+<div id="shell" class="shell">
+	<aside id="explorer" class="explorer"></aside>
+	<div id="splitter" class="splitter"></div>
+	<section class="workarea">
+		<div id="tabs" class="tabs"></div>
+		<div id="panes" class="panes"></div>
+	</section>
+</div>
+<div id="toast"></div>
+<script type="module" src="js/apptest.js"></script>
+</body>
+</html>
