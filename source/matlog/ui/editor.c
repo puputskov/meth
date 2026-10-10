@@ -2,6 +2,7 @@
 
 #include <matlog/core/utf8.h>
 #include <matlog/docs/examples.h>
+#include <matlog/docs/snippets.h>
 #include <matlog/export/export.h>
 #include <matlog/platform/config.h>
 #include <matlog/platform/fs.h>
@@ -2241,6 +2242,46 @@ static MlResult config_command (MlEditor *ed, MlSlice arg)
 }
 
 /*
+ * Puts the lines of src into the session after the cursor line, one change
+ * for undo, and the cursor on the first of them.
+ */
+static MlResult put_session_lines (
+	MlEditor        *ed,
+	const MlSession *src,
+	MlSlice         name
+)
+{
+	MlResult r  = ML_OK;
+	uint64_t at = ml_choose (
+		ed->session.lines.len > 0,
+		ed->session.cursor + 1,
+		0
+	);
+
+	for (uint64_t i = 0; i < src->lines.len && r == ML_OK; i++)
+	{
+		MlLineView v = ml_session_get (src, i);
+
+		r = ml_session_insert (&ed->session, at + i, v.kind, v.domain, v.text);
+	}
+
+	if (r == ML_OK)
+	{
+		ml_session_set_cursor (&ed->session, at);
+		ml_str_clear (&ed->message);
+		r = ml_str_appendf (
+			&ed->message,
+			"%u lines of %.*s",
+			(uint32_t)src->lines.len,
+			(int)name.len,
+			name.data
+		);
+	}
+
+	return r;
+}
+
+/*
  * :example NAME puts the lines of an example (see docs/examples.h) into the
  * session after the cursor line, as one change that undo takes back at once;
  * :examples alone opens the table of contents in the help.
@@ -2269,42 +2310,86 @@ static MlResult insert_example (MlEditor *ed, MlSlice name)
 	else
 	{
 		MlSession ex;
-		uint64_t  at = ml_choose (
-			ed->session.lines.len > 0,
-			ed->session.cursor + 1,
-			0
-		);
 
 		ml_session_init (&ex);
 		r = ml_mlog_parse (&ex, ml_example_text (idx));
 
-		for (uint64_t i = 0; i < ex.lines.len && r == ML_OK; i++)
+		if (r == ML_OK)
 		{
-			MlLineView v = ml_session_get (&ex, i);
+			r = put_session_lines (ed, &ex, name);
+		}
 
-			r = ml_session_insert (
-				&ed->session,
-				at + i,
-				v.kind,
-				v.domain,
-				v.text
-			);
+		ml_session_free (&ex);
+	}
+
+	return r;
+}
+
+/*
+ * :snippet NAME puts the lines of a snippet (see docs/snippets.h) into the
+ * session after the cursor line; :snippet alone and :snippets open the page
+ * about them, with the snippets of the user in it.
+ */
+static MlResult insert_snippet (MlEditor *ed, MlSlice name)
+{
+	MlResult r = ML_OK;
+
+	if (name.len == 0)
+	{
+		MlStr page;
+
+		ml_str_init (&page);
+		r = ml_snippets_page (&page);
+
+		if (r == ML_OK)
+		{
+			r = ml_help_set_page (&ed->help, ml_str_view (page));
 		}
 
 		if (r == ML_OK)
 		{
-			ml_session_set_cursor (&ed->session, at);
+			r = open_help (ed, ml_slice_cstr ("snippets"));
+		}
+
+		ml_str_free (&page);
+	}
+
+	else
+	{
+		MlStr          text;
+		MlSnippetFound f;
+
+		ml_str_init (&text);
+		f = ml_snippet_find (&text, name);
+		r = f.result;
+
+		if (r == ML_OK && !f.found)
+		{
 			ml_str_clear (&ed->message);
 			r = ml_str_appendf (
 				&ed->message,
-				"%u lines of %.*s",
-				(uint32_t)ex.lines.len,
+				"no snippet %.*s, see :snippet",
 				(int)name.len,
 				name.data
 			);
 		}
 
-		ml_session_free (&ex);
+		else if (r == ML_OK)
+		{
+			MlSession lines;
+
+			ml_session_init (&lines);
+			r = ml_snippet_lines (&lines, ml_str_view (text));
+
+			if (r == ML_OK)
+			{
+				r = put_session_lines (ed, &lines, name);
+			}
+
+			ml_session_free (&lines);
+		}
+
+		ml_str_free (&text);
 	}
 
 	return r;
@@ -3028,6 +3113,11 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "examples") || is_cmd (cmd, "example"))
 	{
 		r = insert_example (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "snippet") || is_cmd (cmd, "snippets"))
+	{
+		r = insert_snippet (ed, arg);
 	}
 
 	else if (is_cmd (cmd, "set"))

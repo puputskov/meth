@@ -1,0 +1,5 @@
+# Newton's method: x - f(x)/f'(x) for f(x) = x^2 - 2, repeated
+m:algebra step(x) = x - (x^2 - 2)/(2x)
+m:algebra x1 = step(1)
+m:algebra x2 = step(x1)
+m:algebra x2^2 - 2

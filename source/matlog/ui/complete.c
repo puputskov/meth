@@ -1,6 +1,7 @@
 #include <matlog/ui/complete.h>
 
 #include <matlog/docs/examples.h>
+#include <matlog/docs/snippets.h>
 #include <matlog/math/eval.h>
 #include <matlog/math/unit.h>
 #include <matlog/session/session.h>
@@ -17,6 +18,7 @@ typedef enum ArgKind
 	ARG_EXPORT,
 	ARG_HELP,
 	ARG_EXAMPLE,
+	ARG_SNIPPET,
 	ARG_PATH /* files are not completed yet */
 } ArgKind;
 
@@ -56,6 +58,8 @@ static const Command commands [] =
 	{ .name = "colors", .arg = ARG_COLORS, .needs_arg = 0 },
 	{ .name = "example", .arg = ARG_EXAMPLE, .needs_arg = 0 },
 	{ .name = "examples", .arg = ARG_NONE, .needs_arg = 0 },
+	{ .name = "snippet", .arg = ARG_SNIPPET, .needs_arg = 0 },
+	{ .name = "snippets", .arg = ARG_NONE, .needs_arg = 0 },
 	{ .name = "set",   .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "config", .arg = ARG_NONE,   .needs_arg = 0 },
 	{ .name = "keys",  .arg = ARG_NONE,    .needs_arg = 0 },
@@ -269,6 +273,14 @@ MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files)
 			for (uint64_t i = 0; i < ml_example_count (); i++)
 			{
 				add_candidate (&c, typed, ml_example_sources [i].name);
+			}
+		}
+
+		else if (kind == ARG_SNIPPET && !more)
+		{
+			for (uint64_t i = 0; i < ml_snippet_count (); i++)
+			{
+				add_candidate (&c, typed, ml_snippet_sources [i].name);
 			}
 		}
 

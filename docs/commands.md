@@ -37,12 +37,13 @@ current line and `$` for the last (1 based).
 :3,5copy 10    copy them after line 10 (:t)
 ```
 
-# Examples
+# Examples and snippets
 ```command
 :examples          the table of contents of the examples
 :example NAME      put the lines of an example after the cursor line
+:snippet [NAME]    the same for a snippet; alone it lists them
 ```
-See [examples](examples).
+See [examples](examples) and [snippets](snippets).
 
 # Settings
 ```command

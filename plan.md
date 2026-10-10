@@ -468,6 +468,12 @@ generated static website.
   with placeholders; Tab moves to the next one). Built in snippets (a matrix template, a loop style sum, a rotation) plus the user's own in a
   `snippets` file in the settings folder; they appear in autocompletion (section 4.3) and in the help.
 
+**Built so far (2026-10-10):** `examples/*.mlog` (eleven examples, compiled in, one help page each with the live results, the contents page `examples`,
+`:examples`, `:example NAME` which inserts the lines after the cursor, `matlog examples [NAME]`), `snippets/*.mlog` (nine, plus the user's files in the
+`snippets` folder of the settings folder; `:snippet [NAME]`, the page `snippets`). Every example is run by a test and must not have an error. Not built:
+the Tab through placeholders, snippets in the math completion (section 4.3), `matlog snippets`, opening an example as a read only session, and the
+examples that need later features (statistics, images, PGA motors, the full inverse kinematics with approximate matrices: matrices hold exact numbers only).
+
 ### 4.17 More number systems: complex numbers and quaternions
 
 - **Complex numbers** are a value kind with exact rational parts (`3 + 4i`, `i^2 = -1`): arithmetic, `conj`, `re`, `im`, `abs`, `arg`, polar form,

@@ -1,0 +1,7 @@
+# Roots of a x^2 + b x + c with the discriminant
+m:algebra a = 1
+m:algebra b = -5
+m:algebra c = 6
+m:algebra d = b^2 - 4*a*c
+m:algebra (-b + sqrt(d))/(2*a)
+m:algebra (-b - sqrt(d))/(2*a)

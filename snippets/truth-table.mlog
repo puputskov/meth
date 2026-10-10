@@ -1,0 +1,3 @@
+# A boolean expression and its truth table
+m:boolean f = (a & b) | ~c
+m:boolean table (a & b) | ~c

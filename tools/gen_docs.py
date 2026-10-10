@@ -6,7 +6,7 @@ Usage: python tools/gen_docs.py [--check]
 Reads docs/*.md and writes source/matlog/docs/pages_data.c: a table of the
 pages (the file name without .md is the id), each as C string literals, one
 literal per line of the page. The same is done for examples/*.mlog, written to
-source/matlog/docs/examples_data.c. With --check nothing is written; the exit
+source/matlog/docs/examples_data.c, and for snippets/*.mlog (snippets_data.c). With --check nothing is written; the exit
 code is 1 when a file on disk is not what would be written (the tests and the
 build use it to find pages that were changed without running this tool).
 """
@@ -19,6 +19,8 @@ DOCS = os.path.join(ROOT, "docs")
 OUT = os.path.join(ROOT, "source", "matlog", "docs", "pages_data.c")
 EXAMPLES = os.path.join(ROOT, "examples")
 EXAMPLES_OUT = os.path.join(ROOT, "source", "matlog", "docs", "examples_data.c")
+SNIPPETS = os.path.join(ROOT, "snippets")
+SNIPPETS_OUT = os.path.join(ROOT, "source", "matlog", "docs", "snippets_data.c")
 
 # A literal line is a tab, quotes and at most this many escaped characters:
 # four columns for the tab, two quotes and the semicolon of the last line.
@@ -114,6 +116,10 @@ def generate():
     return generate_table("%s" % DOCS, ".md", "docs/*.md", "docs", "doc")
 
 
+def generate_snippets():
+    return generate_table(SNIPPETS, ".mlog", "snippets/*.mlog", "snippets", "snippet")
+
+
 def generate_examples():
     return generate_table(EXAMPLES, ".mlog", "examples/*.mlog", "examples", "example")
 
@@ -128,7 +134,11 @@ def differs(path, text):
 
 
 def main():
-    outputs = [(OUT, generate()), (EXAMPLES_OUT, generate_examples())]
+    outputs = [
+        (OUT, generate()),
+        (EXAMPLES_OUT, generate_examples()),
+        (SNIPPETS_OUT, generate_snippets()),
+    ]
     if "--check" in sys.argv:
         stale = [p for p, text in outputs if differs(p, text)]
         for p in stale:

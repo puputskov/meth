@@ -1,5 +1,6 @@
 #include <matlog/docs/docs.h>
 #include <matlog/docs/examples.h>
+#include <matlog/docs/snippets.h>
 
 #include <matlog/session/results.h>
 #include <matlog/session/session.h>
@@ -49,6 +50,11 @@ MlResult ml_docs_load (MlDocs *d, uint64_t *page, uint64_t *line)
 	if (r == ML_OK)
 	{
 		r = ml_examples_add_pages (d);
+
+		if (r == ML_OK)
+		{
+			r = ml_snippets_add_page (d);
+		}
 
 		if (r != ML_OK)
 		{

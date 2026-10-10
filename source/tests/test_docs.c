@@ -235,7 +235,7 @@ static void test_builtin_pages (void)
 	CHECK (d.pages.len >= 10);
 
 	/* the pages of the files, then the table of contents and the examples */
-	CHECK (d.pages.len == ml_doc_source_count + 1 + ml_example_count ());
+	CHECK (d.pages.len == ml_doc_source_count + 2 + ml_example_count ());
 
 	/* every page is found by its id, which is the name of its file */
 	for (uint64_t i = 0; i < ml_doc_source_count; i++)

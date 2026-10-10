@@ -1,0 +1,5 @@
+# A 2D rotation matrix from a cosine and a sine, applied to a vector
+m:algebra rot(c, s) = [[c, -s], [s, c]]
+m:algebra R = rot(3/5, 4/5)
+m:algebra R*[1, 0]
+m:algebra transpose(R)*R

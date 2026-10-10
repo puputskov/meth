@@ -16,6 +16,7 @@ are the same in the tool (`:help`) and on the command line (`matlog docs`).
 - [Key bindings](keys): the actions of the editor and their keys.
 - [Export](export): a session as LaTeX, MathML or Markdown.
 - [Examples](examples): worked problems, from fractions to a robot arm.
+- [Snippets](snippets): small pieces of a session to put in and change.
 - [The documentation](docs): how this help works, and searching it.
 
 # The math

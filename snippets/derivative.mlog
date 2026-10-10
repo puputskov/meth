@@ -1,0 +1,4 @@
+# A function, its derivative and the value of the slope at a point
+m:algebra f(x) = x^3 - 2x
+m:algebra fp = diff(f(x), x)
+m:algebra subs(fp, x, 1)
