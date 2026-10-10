@@ -29,8 +29,7 @@ void ml_doc_page_free (MlDocPage *p)
 	ml_str_free (&p->id);
 }
 
-static const char *const block_names [ML_DOC_BLOCK_COUNT] =
-{
+static const char *const block_names [ML_DOC_BLOCK_COUNT] = {
 	[ML_DOC_HEADING]   = "heading",
 	[ML_DOC_PARAGRAPH] = "paragraph",
 	[ML_DOC_ITEM]      = "item",
@@ -176,8 +175,7 @@ static MlResult push_block (
 	MlSlice        text
 )
 {
-	MlDocBlock b =
-	{
+	MlDocBlock b = {
 		.kind  = kind,
 		.level = level
 	};
@@ -436,8 +434,7 @@ MlResult ml_doc_plain (MlStr *out, MlDocLinkVec *links, MlSlice text)
 
 		if (is_link)
 		{
-			MlDocLink l =
-			{
+			MlDocLink l = {
 				.start  = out->len,
 				.len    = close - pos - 1,
 				.target = ml_slice_sub (text, close + 2, end - close - 2)
@@ -516,8 +513,7 @@ static MlResult push_line (
 	MlSlice      text
 )
 {
-	MlDocLine l =
-	{
+	MlDocLine l = {
 		.style = style,
 		.block = block
 	};
@@ -566,8 +562,7 @@ static MlResult add_links (
 
 		if (from < to)
 		{
-			MlDocLink l =
-			{
+			MlDocLink l = {
 				.start  = from - a + shift,
 				.len    = to - from,
 				.target = ml_slice ("", 0)

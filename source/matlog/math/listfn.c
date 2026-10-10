@@ -15,8 +15,7 @@ typedef struct Seq
 
 static Seq seq_of (MlArena *arena, MlValue v)
 {
-	Seq s =
-	{
+	Seq s = {
 		.error = ML_EVAL_NONE,
 		.n     = 0,
 		.items = NULL
@@ -69,8 +68,7 @@ typedef struct Whole
 static Whole whole_of (MlValue v)
 {
 	MlI64Result k = ml_value_to_i64 (v);
-	Whole       w =
-	{
+	Whole       w = {
 		.error = ML_EVAL_NONE,
 		.value = k.value
 	};

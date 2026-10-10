@@ -73,8 +73,7 @@ static MlResult snippets_dir (MlStr *out)
 /* Appends the file text of the user's snippet; found is 0 when none. */
 static MlSnippetFound user_snippet (MlStr *out, MlSlice name)
 {
-	MlSnippetFound f =
-	{
+	MlSnippetFound f = {
 		.result = ML_OK,
 		.found  = 0
 	};
@@ -123,8 +122,7 @@ static MlSnippetFound user_snippet (MlStr *out, MlSlice name)
 
 MlSnippetFound ml_snippet_find (MlStr *out, MlSlice name)
 {
-	MlSnippetFound f =
-	{
+	MlSnippetFound f = {
 		.result = ML_OK,
 		.found  = 0
 	};

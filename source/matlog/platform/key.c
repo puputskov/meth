@@ -1,7 +1,6 @@
 #include <matlog/platform/key.h>
 
-static const char *const code_names [ML_KEY_COUNT] =
-{
+static const char *const code_names [ML_KEY_COUNT] = {
 	[ML_KEY_NONE]      = "None",
 	[ML_KEY_CHAR]      = "Char",
 	[ML_KEY_ENTER]     = "Enter",

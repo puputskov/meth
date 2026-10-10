@@ -58,8 +58,7 @@ static const MlSym *int_node (Lim *L, int64_t n)
 
 static Ev ev_fin (const MlSym *value, int32_t side)
 {
-	Ev e =
-	{
+	Ev e = {
 		.kind  = EV_FIN,
 		.value = value,
 		.side  = side
@@ -70,8 +69,7 @@ static Ev ev_fin (const MlSym *value, int32_t side)
 
 static Ev ev_inf (int32_t sign)
 {
-	Ev e =
-	{
+	Ev e = {
 		.kind  = ml_choose (sign > 0, EV_PINF, EV_NINF),
 		.value = NULL,
 		.side  = 0
@@ -82,8 +80,7 @@ static Ev ev_inf (int32_t sign)
 
 static Ev ev_unk (void)
 {
-	Ev e =
-	{
+	Ev e = {
 		.kind  = EV_UNK,
 		.value = NULL,
 		.side  = 0
@@ -843,8 +840,7 @@ static Ev one_sided (Lim *L, const MlSym *f)
 /* The result of a one sided limit as the answer of the module. */
 static MlSymLimit as_limit (Ev e)
 {
-	MlSymLimit r =
-	{
+	MlSymLimit r = {
 		.kind  = ML_LIMIT_NONE,
 		.value = NULL
 	};
@@ -888,8 +884,7 @@ MlSymLimit ml_sym_limit (
 )
 {
 	Lim        L;
-	MlSymLimit r =
-	{
+	MlSymLimit r = {
 		.kind  = ML_LIMIT_NONE,
 		.value = NULL
 	};

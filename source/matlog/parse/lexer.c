@@ -4,8 +4,7 @@
 
 #define CP_SUPERSCRIPT_MINUS 0x207B
 
-static const char *const kind_names [ML_TOK_COUNT] =
-{
+static const char *const kind_names [ML_TOK_COUNT] = {
 	[ML_TOK_END]         = "end",
 	[ML_TOK_NUMBER]      = "number",
 	[ML_TOK_NAME]        = "name",
@@ -60,8 +59,7 @@ typedef struct Symbol
 /*
  * Characters that are a token on their own, in their ASCII and unicode forms.
  */
-static const Symbol symbols [] =
-{
+static const Symbol symbols [] = {
 	{ .cp = '+',    .kind = ML_TOK_PLUS },
 	{ .cp = '-',    .kind = ML_TOK_MINUS },
 	{ .cp = 0x2212, .kind = ML_TOK_MINUS }, /* minus sign */
@@ -206,8 +204,7 @@ static MlTokenKind symbol_kind (uint32_t cp)
 static MlToken next_token (MlSlice source, uint64_t pos)
 {
 	MlDecoded d     = decode_at (source, pos);
-	MlToken   token =
-	{
+	MlToken   token = {
 		.kind  = ML_TOK_ERROR,
 		.start = pos,
 		.len   = d.size
@@ -283,8 +280,7 @@ static MlToken next_token (MlSlice source, uint64_t pos)
 
 MlLexResult ml_lex (MlSlice source)
 {
-	MlLexResult lexed =
-	{
+	MlLexResult lexed = {
 		.result = ML_OK
 	};
 
@@ -312,8 +308,7 @@ MlLexResult ml_lex (MlSlice source)
 
 	if (lexed.result == ML_OK)
 	{
-		MlToken end =
-		{
+		MlToken end = {
 			.kind  = ML_TOK_END,
 			.start = source.len,
 			.len   = 0

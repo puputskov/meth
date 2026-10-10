@@ -1,7 +1,6 @@
 #include <matlog/ui/hint.h>
 
-static const char *const hints [] =
-{
+static const char *const hints [] = {
 	"Just type: a line is a note, {ACTION_BLOCK_NEW} starts a math block",
 	"Try {1/3 + 1/6}: results are exact fractions",
 	"{ACTION_COMMAND} opens the command line, {Tab} completes what you type",

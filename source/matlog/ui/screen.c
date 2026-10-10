@@ -20,8 +20,7 @@
 /*
  * Gutter of a math line in each domain. All gutters are ML_GUTTER_WIDTH wide.
  */
-static const char *const math_gutters [ML_DOMAIN_COUNT] =
-{
+static const char *const math_gutters [ML_DOMAIN_COUNT] = {
 	[ML_DOMAIN_ALGEBRA]   = "alg> ",
 	[ML_DOMAIN_LAMBDA]    = "\xCE\xBB  > ",     /* lambda sign */
 	[ML_DOMAIN_PGA2]      = "pg2> ",
@@ -188,8 +187,7 @@ static MlTextWindow append_themed (
 	uint64_t       avail
 )
 {
-	MlTextWindow w =
-	{
+	MlTextWindow w = {
 		.result    = ML_OK,
 		.first_col = start_col
 	};
@@ -296,8 +294,7 @@ static Head append_head (
 	uint32_t       cols
 )
 {
-	Head head =
-	{
+	Head head = {
 		.result = ML_OK,
 		.used   = 0
 	};
@@ -640,8 +637,7 @@ static MlResult append_line_row (
 			&& line.kind == ML_LINE_MATH
 		)
 		{
-			Themed t =
-			{
+			Themed t = {
 				.text      = line.text,
 				.domain    = line.domain,
 				.snapshot  = result.snapshot,
@@ -878,8 +874,7 @@ static MlTextWindow append_selected (
 	uint64_t hi
 )
 {
-	MlTextWindow w =
-	{
+	MlTextWindow w = {
 		.result    = ML_OK,
 		.first_col = start_col
 	};
@@ -970,8 +965,7 @@ static MlResult append_selected_line (
 		cols
 	);
 	uint64_t avail = ml_choose (cols > head.used, cols - head.used, 0);
-	MlTextWindow w =
-	{
+	MlTextWindow w = {
 		.result    = head.result,
 		.first_col = 0
 	};
@@ -1010,8 +1004,7 @@ static MlTextWindow append_marked (
 	const char *style
 )
 {
-	MlTextWindow w =
-	{
+	MlTextWindow w = {
 		.result    = ML_OK,
 		.first_col = start_col
 	};
@@ -1059,8 +1052,7 @@ static EditRow append_edit_row (
 	MlSlice        gutter
 )
 {
-	EditRow row =
-	{
+	EditRow row = {
 		.result     = ML_OK,
 		.cursor_col = 1,
 		.head_used  = 0,
@@ -1082,8 +1074,7 @@ static EditRow append_edit_row (
 		cols - head.used - 1,
 		1
 	);
-	MlTextWindow w =
-	{
+	MlTextWindow w = {
 		.result    = ML_OK,
 		.first_col = 0
 	};
@@ -1136,8 +1127,7 @@ static EditRow append_edit_row (
 	)
 	{
 		uint64_t end = ed->edit.text.len;
-		Themed   t   =
-		{
+		Themed   t   = {
 			.text      = ml_str_view (ed->edit.text),
 			.domain    = ed->edit_domain,
 			.snapshot  = ml_choose (
@@ -1235,8 +1225,7 @@ static EditRow append_edit_row (
 
 		if (row.result == ML_OK && g.shown && used <= w.first_col + avail)
 		{
-			MlResultView view =
-			{
+			MlResultView view = {
 				.kind = ML_RESULT_VALUE,
 				.text = ml_str_view (value)
 			};
@@ -1375,8 +1364,7 @@ static EditRow append_command_row (
 	uint32_t       cols
 )
 {
-	EditRow row =
-	{
+	EditRow row = {
 		.result     = ML_OK,
 		.cursor_col = 2
 	};
@@ -1386,8 +1374,7 @@ static EditRow append_command_row (
 		cols - 2,
 		1
 	);
-	MlTextWindow w =
-	{
+	MlTextWindow w = {
 		.result    = ML_OK,
 		.first_col = 0
 	};
@@ -1729,8 +1716,7 @@ typedef struct VLine
 ML_VEC_DEFINE (VLineVec, VLine)
 
 /* What a row past the last line is drawn from. */
-static const VLine no_line =
-{
+static const VLine no_line = {
 	.kind   = ML_LINE_NONE,
 	.domain = ML_DOMAIN_ALGEBRA,
 	.src    = 0,
@@ -1761,8 +1747,7 @@ static MlResult vlines_build (
 			v
 		);
 		MlLineView lv    = ml_session_get (&ed->session, src);
-		VLine      l     =
-		{
+		VLine      l     = {
 			.kind   = ml_choose (
 				fresh,
 				ml_choose (
@@ -1957,11 +1942,9 @@ static uint64_t scroll_top (
 
 static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 {
-	MlLayout layout =
-	{
+	MlLayout layout = {
 		.result = ML_OK,
-		.cursor =
-		{
+		.cursor = {
 			.row = 1,
 			.col = 1
 		}
@@ -2001,8 +1984,7 @@ static MlLayout editor_layout (MlScreen *s, const MlEditor *ed)
 	{
 		MlStr row;
 		VLine l = ml_choose (line < total, vl.data [line], no_line);
-		MlRowInfo ri =
-		{
+		MlRowInfo ri = {
 			.kind      = 0,
 			.src       = 0,
 			.text_col  = 0,
@@ -2439,11 +2421,9 @@ static MlResult append_hit_row (
 /* The screen of the help viewer: the page (or the results) and the status. */
 static MlLayout help_layout (const MlScreen *s, const MlEditor *ed)
 {
-	MlLayout     layout =
-	{
+	MlLayout     layout = {
 		.result = ML_OK,
-		.cursor =
-		{
+		.cursor = {
 			.row = 1,
 			.col = 1
 		}
@@ -2464,8 +2444,7 @@ static MlLayout help_layout (const MlScreen *s, const MlEditor *ed)
 	for (uint64_t r = 0; r < s->rows && layout.result == ML_OK; r++)
 	{
 		MlStr     row;
-		MlRowInfo ri =
-		{
+		MlRowInfo ri = {
 			.kind      = 0,
 			.src       = 0,
 			.text_col  = 0,
@@ -2639,8 +2618,7 @@ static MlLayout tutorial_layout (
 
 	for (uint32_t r = 0; r < height && layout.result == ML_OK; r++)
 	{
-		MlRowInfo none =
-		{
+		MlRowInfo none = {
 			.kind     = 0,
 			.src      = 0,
 			.text_col = 0,
@@ -2723,8 +2701,7 @@ MlHit ml_screen_hit (
 	uint32_t       row
 )
 {
-	MlHit    hit    =
-	{
+	MlHit    hit    = {
 		.valid  = 0,
 		.folded = 0,
 		.line   = 0,
@@ -2825,8 +2802,7 @@ static MlResult paint_row (MlStr *row, MlSlice base)
 static MlResult paint_base (MlStr *base, const MlEditor *ed)
 {
 	MlResult r = ML_OK;
-	MlStyle  s =
-	{
+	MlStyle  s = {
 		.fg = ed->theme.styles [ML_CLASS_TEXT].fg,
 		.bg = ed->theme.background
 	};

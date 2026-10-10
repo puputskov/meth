@@ -261,8 +261,7 @@ static void test_divmod (void)
 	MlArena  a;
 	MlBigDiv d;
 	uint64_t seed        = 12345;
-	uint32_t patterns [] =
-	{
+	uint32_t patterns [] = {
 		0, 1, 2, 0x7FFFFFFFu, 0x80000000u, 0x80000001u, 0xFFFFFFFEu,
 		0xFFFFFFFFu
 	};

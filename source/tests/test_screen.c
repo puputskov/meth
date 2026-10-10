@@ -23,8 +23,7 @@ static void type (MlEditor *ed, const char *text)
 {
 	for (uint64_t i = 0; text [i] != '\0'; i++)
 	{
-		MlKey k =
-		{
+		MlKey k = {
 			.code = ML_KEY_CHAR,
 			.cp   = (uint8_t)text [i],
 			.mods = 0
@@ -1248,8 +1247,7 @@ static void test_block_start_gutter (void)
 	MlScreen s;
 	MlLayout l;
 	MlKey    k = { .code = ML_KEY_CHAR, .cp = 'b', .mods = ML_MOD_CTRL };
-	MlKey    ctrl_enter =
-	{
+	MlKey    ctrl_enter = {
 		.code = ML_KEY_ENTER,
 		.cp   = 0,
 		.mods = ML_MOD_CTRL

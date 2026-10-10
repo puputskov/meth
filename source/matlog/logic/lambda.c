@@ -121,8 +121,7 @@ static int32_t is_name_byte (MlSlice s, uint64_t pos)
 
 static Token lex (MlSlice s, uint64_t pos)
 {
-	Token    t  =
-	{
+	Token    t  = {
 		.kind  = TK_END,
 		.start = s.len,
 		.len   = 0
@@ -233,8 +232,7 @@ static MlResult add_node (
 	uint64_t *id
 )
 {
-	LNode  n =
-	{
+	LNode  n = {
 		.kind = kind,
 		.a    = a,
 		.b    = b
@@ -372,8 +370,7 @@ static MlResult parse (Parser *p, MlSlice src, uint64_t from, uint64_t *root)
 	LIdxVec  params;
 	uint64_t pos  = from;
 	int32_t  done = 0;
-	Ctx      top  =
-	{
+	Ctx      top  = {
 		.kind   = CX_TOP,
 		.base   = 0,
 		.params = 0,
@@ -440,8 +437,7 @@ static MlResult parse (Parser *p, MlSlice src, uint64_t from, uint64_t *root)
 
 		else if (t.kind == TK_LPAREN)
 		{
-			Ctx c =
-			{
+			Ctx c = {
 				.kind   = CX_PAREN,
 				.base   = items.len,
 				.params = params.len,
@@ -454,8 +450,7 @@ static MlResult parse (Parser *p, MlSlice src, uint64_t from, uint64_t *root)
 
 		else if (t.kind == TK_LAMBDA)
 		{
-			Ctx      c     =
-			{
+			Ctx      c     = {
 				.kind   = CX_LAMBDA,
 				.base   = items.len,
 				.params = params.len,
@@ -586,8 +581,7 @@ static MlResult push_db (
 	uint64_t *id
 )
 {
-	LNode    n =
-	{
+	LNode    n = {
 		.kind = kind,
 		.a    = a,
 		.b    = b
@@ -627,8 +621,7 @@ static MlResult resolve (
 	FrameVec st;
 	LIdxVec  res;
 	LIdxVec  binders;
-	Frame    start =
-	{
+	Frame    start = {
 		.node  = named_root,
 		.floor = 0,
 		.phase = 0,
@@ -686,8 +679,7 @@ static MlResult resolve (
 					uint64_t sub = 0;
 					Parser   q;
 					uint64_t base = p->nodes.len;
-					Frame    next =
-					{
+					Frame    next = {
 						.node  = 0,
 						.floor = binders.len,
 						.phase = 0,
@@ -729,8 +721,7 @@ static MlResult resolve (
 		else if (n.kind == LK_ABS && f.phase == 0)
 		{
 			Frame again = f;
-			Frame body  =
-			{
+			Frame body  = {
 				.node  = n.a,
 				.floor = f.floor,
 				.phase = 0,
@@ -841,8 +832,7 @@ static MlResult shift_term (
 	MlResult  r = ML_OK;
 	TFrameVec st;
 	LIdxVec   res;
-	TFrame    start =
-	{
+	TFrame    start = {
 		.node  = t,
 		.depth = 0,
 		.phase = 0
@@ -882,8 +872,7 @@ static MlResult shift_term (
 		else if (n.kind == LK_ABS && f.phase == 0)
 		{
 			TFrame again = f;
-			TFrame body  =
-			{
+			TFrame body  = {
 				.node  = n.a,
 				.depth = f.depth + 1,
 				.phase = 0
@@ -975,8 +964,7 @@ static MlResult substitute (
 	MlResult  r = ML_OK;
 	TFrameVec st;
 	LIdxVec   res;
-	TFrame    start =
-	{
+	TFrame    start = {
 		.node  = body,
 		.depth = 0,
 		.phase = 0
@@ -1016,8 +1004,7 @@ static MlResult substitute (
 		else if (n.kind == LK_ABS && f.phase == 0)
 		{
 			TFrame again = f;
-			TFrame inner =
-			{
+			TFrame inner = {
 				.node  = n.a,
 				.depth = f.depth + 1,
 				.phase = 0
@@ -1128,8 +1115,7 @@ static MlResult reduce_once (LNodeVec *db, uint64_t *root, int32_t *reduced)
 
 		else if (n.kind == LK_APP || n.kind == LK_ABS)
 		{
-			Step s =
-			{
+			Step s = {
 				.node  = cur,
 				.which = 0
 			};
@@ -1254,8 +1240,7 @@ static MlResult mentions (
 {
 	MlResult  r = ML_OK;
 	TFrameVec st;
-	TFrame    start =
-	{
+	TFrame    start = {
 		.node  = body,
 		.depth = 0,
 		.phase = 0
@@ -1292,8 +1277,7 @@ static MlResult mentions (
 
 		else if (n.kind == LK_ABS)
 		{
-			TFrame body_f =
-			{
+			TFrame body_f = {
 				.node  = n.a,
 				.depth = f.depth + 1,
 				.phase = 0
@@ -1304,15 +1288,13 @@ static MlResult mentions (
 
 		else if (n.kind == LK_APP)
 		{
-			TFrame a =
-			{
+			TFrame a = {
 				.node  = n.a,
 				.depth = f.depth,
 				.phase = 0
 			};
 
-			TFrame b =
-			{
+			TFrame b = {
 				.node  = n.b,
 				.depth = f.depth,
 				.phase = 0
@@ -1367,8 +1349,7 @@ static MlResult print_term (
 	MlResult r = ML_OK;
 	PTaskVec st;
 	LNameVec scope;
-	PTask    start =
-	{
+	PTask    start = {
 		.kind = PK_NODE,
 		.node = root,
 		.ctx  = 0,

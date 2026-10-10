@@ -289,11 +289,9 @@ static MlResult run (
 
 	while (r == ML_OK && !ed->quit)
 	{
-		MlKeyResult k =
-		{
+		MlKeyResult k = {
 			.result = ML_OK,
-			.key    =
-			{
+			.key    = {
 				.code = ML_KEY_NONE,
 				.cp   = 0,
 				.mods = 0

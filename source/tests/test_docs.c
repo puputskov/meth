@@ -320,8 +320,7 @@ static void test_check_problems (void)
 	MlDocs      d;
 	MlStr       report;
 	uint64_t    problems = 0;
-	const char *texts [] =
-	{
+	const char *texts [] = {
 		"id: index\ntitle: Home\n\nSee [a](a) and [b](missing).\n",
 		"id: a\ntitle: A\nsee: nowhere\n\n```example\n1+1\n=> 3\n```\n",
 		"id: lonely\ntitle: Lonely\n\ntext\n"
@@ -369,8 +368,7 @@ static void test_search (void)
 {
 	MlDocs      d;
 	MlDocHitVec hits;
-	const char *texts [] =
-	{
+	const char *texts [] = {
 		"id: units\ntitle: Units\nsummary: Quantities.\nkeywords: meter, "
 		"conversion\n\nA unit is a number with a name.\n",
 		"id: syntax\ntitle: The syntax\nsummary: About unit names "

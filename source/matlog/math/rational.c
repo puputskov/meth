@@ -4,8 +4,7 @@
 
 MlRat ml_rat_error (MlResult status)
 {
-	MlRat x =
-	{
+	MlRat x = {
 		.num = ml_big_error (status),
 		.den = ml_big_error (status)
 	};
@@ -15,8 +14,7 @@ MlRat ml_rat_error (MlResult status)
 
 MlRat ml_rat_zero (MlArena *arena)
 {
-	MlRat x =
-	{
+	MlRat x = {
 		.num = ml_big_zero (),
 		.den = ml_big_from_u64 (arena, 1)
 	};
@@ -42,8 +40,7 @@ static MlBig big_one (MlArena *arena)
 /* n / d for d > 0 that is already in lowest terms. */
 static MlRat raw (MlBig n, MlBig d)
 {
-	MlRat x =
-	{
+	MlRat x = {
 		.num = n,
 		.den = d
 	};
@@ -323,8 +320,7 @@ MlRat ml_rat_pow (MlArena *arena, MlRat x, int64_t exponent)
 
 MlRatSqrt ml_rat_sqrt_exact (MlArena *arena, MlRat x)
 {
-	MlRatSqrt result =
-	{
+	MlRatSqrt result = {
 		.exact = 0,
 		.value = ml_rat_error (ML_ERR_RANGE)
 	};
@@ -361,8 +357,7 @@ static Scaled scale_down (MlArena *arena, MlBig x)
 {
 	uint64_t bits  = ml_big_bit_length (x);
 	uint64_t shift = ml_choose (bits > 64, bits - 64, 0);
-	Scaled   s     =
-	{
+	Scaled   s     = {
 		.mantissa = ml_big_to_double (ml_big_shr (arena, x, shift)),
 		.exponent = (int64_t)shift
 	};
@@ -411,8 +406,7 @@ MlRatDecimal ml_rat_format_decimal (
 	uint64_t max_digits
 )
 {
-	MlRatDecimal result =
-	{
+	MlRatDecimal result = {
 		.result = ml_rat_status (x),
 		.exact  = 0
 	};
@@ -481,8 +475,7 @@ MlRatDecimal ml_rat_format_decimal (
 
 MlRat ml_rat_copy (MlArena *arena, MlRat x)
 {
-	MlRat out =
-	{
+	MlRat out = {
 		.num = ml_big_copy (arena, x.num),
 		.den = ml_big_copy (arena, x.den)
 	};

@@ -149,8 +149,7 @@ static void test_utf8 (void)
 	);
 	MlDecoded             d;
 	MlEncoded             e;
-	static const uint32_t cps [] =
-	{
+	static const uint32_t cps [] = {
 		0,
 		0x7F,
 		0x80,

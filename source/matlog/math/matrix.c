@@ -4,8 +4,7 @@
 
 MlMat ml_mat_error (MlResult status)
 {
-	MlMat m =
-	{
+	MlMat m = {
 		.status = status,
 		.rows   = 0,
 		.cols   = 0,
@@ -506,8 +505,7 @@ MlMat ml_mat_transpose (MlArena *arena, MlMat a)
 
 static MlRatResult rat_result (MlRat value)
 {
-	MlRatResult r =
-	{
+	MlRatResult r = {
 		.status = ml_rat_status (value),
 		.value  = value
 	};
@@ -855,8 +853,7 @@ static uint64_t reduce (
 
 MlRref ml_mat_rref_steps (MlArena *arena, MlMat a, MlStepLog *log)
 {
-	MlRref out =
-	{
+	MlRref out = {
 		.matrix = ml_mat_error (a.status),
 		.rank   = 0
 	};

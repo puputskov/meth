@@ -212,8 +212,7 @@ uint64_t ml_lineedit_cursor_col (const MlLineEdit *e)
 
 MlEditResult ml_lineedit_handle_key (MlLineEdit *e, MlKey key)
 {
-	MlEditResult res =
-	{
+	MlEditResult res = {
 		.result  = ML_OK,
 		.handled = 1
 	};
@@ -333,8 +332,7 @@ MlTextWindow ml_text_window (
 	uint64_t avail
 )
 {
-	MlTextWindow w =
-	{
+	MlTextWindow w = {
 		.result    = ML_OK,
 		.first_col = start_col
 	};
@@ -400,8 +398,7 @@ MlResult ml_lineedit_render (
 	);
 	uint64_t     cursor_col = ml_lineedit_cursor_col (e);
 	uint64_t     start_col  = ml_lineedit_start_col (e, avail);
-	MlTextWindow win        =
-	{
+	MlTextWindow win        = {
 		.result    = ML_OK,
 		.first_col = 0
 	};

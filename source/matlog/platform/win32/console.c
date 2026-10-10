@@ -98,8 +98,7 @@ void ml_console_close (MlConsole *c)
  */
 static MlKey mouse_key (HANDLE out, MOUSE_EVENT_RECORD m, DWORD *buttons)
 {
-	MlKey key =
-	{
+	MlKey key = {
 		.code = ML_KEY_NONE,
 		.cp   = 0,
 		.mods = 0,
@@ -165,11 +164,9 @@ static MlKey mouse_key (HANDLE out, MOUSE_EVENT_RECORD m, DWORD *buttons)
 
 MlKeyResult ml_console_read_key (MlConsole *c)
 {
-	MlKeyResult res =
-	{
+	MlKeyResult res = {
 		.result = ML_OK,
-		.key =
-		{
+		.key = {
 			.code = ML_KEY_NONE,
 			.cp   = 0,
 			.mods = 0
@@ -208,8 +205,7 @@ MlKeyResult ml_console_read_key (MlConsole *c)
 
 		else if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
 		{
-			MlRawKey raw =
-			{
+			MlRawKey raw = {
 				.vk      = rec.Event.KeyEvent.wVirtualKeyCode,
 				.unicode = rec.Event.KeyEvent.uChar.UnicodeChar,
 				.control = rec.Event.KeyEvent.dwControlKeyState
@@ -282,8 +278,7 @@ int32_t ml_console_wait (MlConsole *c, uint32_t timeout_ms)
 
 MlConsoleSize ml_console_size (const MlConsole *c)
 {
-	MlConsoleSize size =
-	{
+	MlConsoleSize size = {
 		.cols = 0,
 		.rows = 0
 	};

@@ -19,8 +19,7 @@ int32_t ml_vec_is_vector (MlMat v)
 
 static MlRatResult rat_result (MlRat value)
 {
-	MlRatResult r =
-	{
+	MlRatResult r = {
 		.status = ml_rat_status (value),
 		.value  = value
 	};
@@ -120,8 +119,7 @@ MlRatResult ml_vec_norm_squared (MlArena *arena, MlMat v)
 MlVecNorm ml_vec_norm (MlArena *arena, MlMat v)
 {
 	MlRatResult sq   = ml_vec_norm_squared (arena, v);
-	MlVecNorm   norm =
-	{
+	MlVecNorm   norm = {
 		.status = sq.status,
 		.exact  = 0,
 		.value  = sq.value

@@ -170,8 +170,7 @@ typedef struct MlBuiltinInfo
 	MlSpecial  at;
 } MlBuiltinInfo;
 
-static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
-{
+static const MlBuiltinInfo builtins [BUILTIN_COUNT] = {
 	[BUILTIN_SQRT]  = { .name = "sqrt",  .min = 1, .max = 1 },
 	[BUILTIN_ABS]   = { .name = "abs",   .min = 1, .max = 1 },
 	[BUILTIN_SIN]   = { .name = "sin",   .min = 1, .max = 1, .at = F0_IS_0 },
@@ -239,8 +238,7 @@ static MlBuiltin builtin_find (MlSlice name)
 	return found;
 }
 
-static const char *const symbolic_names [] =
-{
+static const char *const symbolic_names [] = {
 	"simplify", "expand", "subs", "diff", "integrate", "limit"
 };
 
@@ -1368,8 +1366,7 @@ typedef struct MlParamHit
 
 static MlParamHit param_find (const MlScope *sc, MlSlice name)
 {
-	MlParamHit hit =
-	{
+	MlParamHit hit = {
 		.found = 0,
 		.index = 0
 	};
@@ -1414,8 +1411,7 @@ static MlLocalHit local_find (
 )
 {
 	uint64_t   scope = (uint64_t)(sc - cx->scopes.data);
-	MlLocalHit hit   =
-	{
+	MlLocalHit hit   = {
 		.found = 0,
 		.value = ml_value_none ()
 	};
@@ -2085,8 +2081,7 @@ static void push_value (MlEvalCtx *cx, MlValue v)
  */
 static void push_frame (MlEvalCtx *cx, uint64_t node, uint64_t scope)
 {
-	MlFrame f =
-	{
+	MlFrame f = {
 		.node  = node,
 		.scope = scope,
 		.step  = 0,
@@ -2803,8 +2798,7 @@ static HofTarget hof_target (
 )
 {
 	MlNode    n = ml_ast_node (&sc->ast, node);
-	HofTarget t =
-	{
+	HofTarget t = {
 		.kind  = HOF_BAD,
 		.error = ML_EVAL_NOT_FUNCTION,
 		.node  = node,
@@ -2885,8 +2879,7 @@ static void hof_apply (
 
 		for (uint64_t i = 0; i < nargs; i++)
 		{
-			MlLocal l =
-			{
+			MlLocal l = {
 				.scope = f.scope,
 				.name  = ml_ast_text (
 					&sc->ast,
@@ -3052,8 +3045,7 @@ static void hof_next (MlEvalCtx *cx, MlFrame f, MlNode node, MlBuiltin id)
 		if (series)
 		{
 			/* the body is the 4th argument and i a local of its own */
-			MlLocal l =
-			{
+			MlLocal l = {
 				.scope = f.scope,
 				.name  = ml_ast_text (&sc->ast, sc->source, fn_node),
 				.value = item
@@ -3411,8 +3403,7 @@ static void step_let (MlEvalCtx *cx, MlFrame f, MlNode node)
 
 	else
 	{
-		MlLocal l =
-		{
+		MlLocal l = {
 			.scope = f.scope,
 			.name  = ml_ast_text (
 				&sc->ast,
@@ -3474,8 +3465,7 @@ static MlValue eval_with (
 	MlStepLog   *log
 )
 {
-	MlEvalCtx cx =
-	{
+	MlEvalCtx cx = {
 		.arena    = arena,
 		.env      = env,
 		.snapshot = snapshot,
@@ -3489,8 +3479,7 @@ static MlValue eval_with (
 
 	if (root.kind != ML_NODE_NIL && root.kind != ML_NODE_FUNC_DEF)
 	{
-		MlScope line =
-		{
+		MlScope line = {
 			.source = source,
 			.ast    = *ast,
 			.args   = NULL

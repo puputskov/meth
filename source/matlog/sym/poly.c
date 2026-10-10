@@ -12,8 +12,7 @@
 
 MlPoly ml_poly_zero (void)
 {
-	MlPoly p =
-	{
+	MlPoly p = {
 		.c   = NULL,
 		.len = 0
 	};

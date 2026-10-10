@@ -56,8 +56,7 @@ typedef enum Tok
 	T_COUNT
 } Tok;
 
-static const char *const latex_tok [T_COUNT] =
-{
+static const char *const latex_tok [T_COUNT] = {
 	[T_GOPEN]      = "{",
 	[T_GCLOSE]     = "}",
 	[T_LP]         = "\\left(",
@@ -103,8 +102,7 @@ static const char *const latex_tok [T_COUNT] =
 	[T_MAPSTO]     = "\\mapsto "
 };
 
-static const char *const mathml_tok [T_COUNT] =
-{
+static const char *const mathml_tok [T_COUNT] = {
 	[T_GOPEN]      = "<mrow>",
 	[T_GCLOSE]     = "</mrow>",
 	[T_LP]         = "<mo>(</mo>",
@@ -233,8 +231,7 @@ typedef struct Greek
 	const char *utf8;
 } Greek;
 
-static const Greek greek [] =
-{
+static const Greek greek [] = {
 	{ .name = "alpha",   .latex = "\\alpha ",   .utf8 = "\xCE\xB1" },
 	{ .name = "beta",    .latex = "\\beta ",    .utf8 = "\xCE\xB2" },
 	{ .name = "gamma",   .latex = "\\gamma ",   .utf8 = "\xCE\xB3" },
@@ -295,8 +292,7 @@ static const Greek *find_greek (MlSlice name)
 }
 
 /* Functions that LaTeX has a command for. */
-static const char *const latex_functions [] =
-{
+static const char *const latex_functions [] = {
 	"sin", "cos", "tan", "ln", "exp"
 };
 
@@ -535,8 +531,7 @@ ML_VEC_DEFINE (OpVec, Op)
 
 static Op op_node (uint64_t node, int32_t parens)
 {
-	Op o =
-	{
+	Op o = {
 		.what   = OP_NODE,
 		.node   = node,
 		.tok    = T_GOPEN,
@@ -548,8 +543,7 @@ static Op op_node (uint64_t node, int32_t parens)
 
 static Op op_tok (Tok t)
 {
-	Op o =
-	{
+	Op o = {
 		.what   = OP_TOK,
 		.node   = 0,
 		.tok    = t,
@@ -890,8 +884,7 @@ static MlResult expand (
 
 	else if (node.kind == ML_NODE_DIV)
 	{
-		Op ops [8] =
-		{
+		Op ops [8] = {
 			op_tok (T_FRAC_OPEN), op_tok (T_GOPEN), op_node (a, 0),
 			op_tok (T_GCLOSE), op_tok (T_GOPEN), op_node (b, 0),
 			op_tok (T_GCLOSE), op_tok (T_FRAC_CLOSE)
@@ -905,8 +898,7 @@ static MlResult expand (
 
 	else if (node.kind == ML_NODE_POW)
 	{
-		Op ops [9] =
-		{
+		Op ops [9] = {
 			op_tok (T_SUP_OPEN), op_tok (T_GOPEN),
 			op_node (a, wants_parens (node.kind, ak, 0)),
 			op_tok (T_GCLOSE), op_tok (T_SUP_MID), op_tok (T_GOPEN),
@@ -983,8 +975,7 @@ static MlResult expand (
 			ml_ast_node (ast, a).next,
 			ml_ast_node (ast, b).first
 		);
-		Op name =
-		{
+		Op name = {
 			.what   = OP_FUNC,
 			.node   = a,
 			.tok    = T_GOPEN,

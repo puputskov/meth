@@ -334,8 +334,7 @@ static MlResult script_keys (MlKeyVec *out, MlSlice s)
 
 	while (pos < s.len && r == ML_OK)
 	{
-		MlKey key =
-		{
+		MlKey key = {
 			.code = ML_KEY_CHAR,
 			.cp   = 0,
 			.mods = 0,

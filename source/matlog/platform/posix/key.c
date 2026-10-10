@@ -14,10 +14,8 @@ static MlVtDecode make (
 	uint64_t  used
 )
 {
-	MlVtDecode d =
-	{
-		.key =
-		{
+	MlVtDecode d = {
+		.key = {
 			.code = code,
 			.cp   = cp,
 			.mods = mods
@@ -150,8 +148,7 @@ static MlKeyCode letter_key (char letter)
 /* The key of ESC [ code ; modifiers u. */
 static MlKey csi_u_key (uint32_t code, uint32_t mods)
 {
-	MlKey key =
-	{
+	MlKey key = {
 		.code = ML_KEY_CHAR,
 		.cp   = ml_choose (code >= 'A' && code <= 'Z', code + 32, code),
 		.mods = mods
@@ -196,8 +193,7 @@ static MlKey mouse_key (
 	int32_t  release
 )
 {
-	MlKey key =
-	{
+	MlKey key = {
 		.code = ML_KEY_NONE,
 		.cp   = 0,
 		.mods = 0,

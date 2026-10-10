@@ -13,8 +13,7 @@ ML_VEC_DEFINE (MlU32Vec, uint32_t)
 
 MlBig ml_big_error (MlResult status)
 {
-	MlBig x =
-	{
+	MlBig x = {
 		.limbs    = NULL,
 		.len      = 0,
 		.negative = 0,
@@ -180,8 +179,7 @@ uint64_t ml_big_bit_length (MlBig x)
 
 MlU64Result ml_big_to_u64 (MlBig x)
 {
-	MlU64Result result =
-	{
+	MlU64Result result = {
 		.ok    = x.status == ML_OK && !x.negative && x.len <= 2,
 		.value = 0
 	};
@@ -427,8 +425,7 @@ static uint32_t shift_right_pair (uint32_t hi, uint32_t lo, uint32_t s)
 /* Magnitudes: x / d for a single limb divisor d != 0. */
 static MlBigDiv divmod_limb (MlArena *arena, MlBig x, uint32_t d)
 {
-	MlBigDiv result =
-	{
+	MlBigDiv result = {
 		.quot = ml_big_error (ML_ERR_NOMEM),
 		.rem  = ml_big_error (ML_ERR_NOMEM)
 	};
@@ -456,8 +453,7 @@ static MlBigDiv divmod_limb (MlArena *arena, MlBig x, uint32_t d)
 /* Magnitudes: Knuth's algorithm D for a divisor of two or more limbs. */
 static MlBigDiv divmod_knuth (MlArena *arena, MlBig x, MlBig y)
 {
-	MlBigDiv result =
-	{
+	MlBigDiv result = {
 		.quot = ml_big_error (ML_ERR_NOMEM),
 		.rem  = ml_big_error (ML_ERR_NOMEM)
 	};
@@ -599,8 +595,7 @@ static MlBigDiv divmod_mag (MlArena *arena, MlBig x, MlBig y)
 
 MlBigDiv ml_big_divmod (MlArena *arena, MlBig x, MlBig y)
 {
-	MlBigDiv result =
-	{
+	MlBigDiv result = {
 		.quot = ml_big_error (status_of (x, y)),
 		.rem  = ml_big_error (status_of (x, y))
 	};

@@ -255,8 +255,7 @@ static void test_ctrl_z (void)
 {
 	MlEditor ed;
 	MlKey    undo = { .code = ML_KEY_CHAR, .cp = 'z', .mods = ML_MOD_CTRL };
-	MlKey    redo =
-	{
+	MlKey    redo = {
 		.code = ML_KEY_CHAR,
 		.cp   = 'z',
 		.mods = ML_MOD_CTRL | ML_MOD_SHIFT
@@ -477,15 +476,13 @@ static void test_esc_leaves_block (void)
 static void test_pick_block (void)
 {
 	MlEditor ed;
-	MlKey    shift_enter =
-	{
+	MlKey    shift_enter = {
 		.code = ML_KEY_ENTER,
 		.cp   = 0,
 		.mods = ML_MOD_SHIFT
 	};
 
-	MlKey    ctrl_b =
-	{
+	MlKey    ctrl_b = {
 		.code = ML_KEY_CHAR,
 		.cp   = 'b',
 		.mods = ML_MOD_CTRL
@@ -703,14 +700,12 @@ static void test_domains (void)
 	uint32_t i;
 
 	/* matrix, vector and equations are the names of older files */
-	static const char *const names []   =
-	{
+	static const char *const names []   = {
 		"algebra", "lambda", "boolean", "pga2", "pga3",
 		"matrix", "vector", "equations"
 	};
 
-	static const MlDomain    domains [] =
-	{
+	static const MlDomain    domains [] = {
 		ML_DOMAIN_ALGEBRA, ML_DOMAIN_LAMBDA, ML_DOMAIN_BOOLEAN,
 		ML_DOMAIN_PGA2, ML_DOMAIN_PGA3,
 		ML_DOMAIN_ALGEBRA, ML_DOMAIN_ALGEBRA, ML_DOMAIN_ALGEBRA
@@ -1742,8 +1737,7 @@ static void test_paging (void)
 
 static MlHit hit_at (uint64_t line, uint64_t byte, int32_t folded)
 {
-	MlHit h =
-	{
+	MlHit h = {
 		.valid  = 1,
 		.folded = folded,
 		.line   = line,
@@ -1755,8 +1749,7 @@ static MlHit hit_at (uint64_t line, uint64_t byte, int32_t folded)
 
 static void mouse (MlEditor *ed, MlMouseAction action, MlHit hit)
 {
-	MlKey k =
-	{
+	MlKey k = {
 		.code = ML_KEY_MOUSE,
 		.cp   = action,
 		.mods = 0,

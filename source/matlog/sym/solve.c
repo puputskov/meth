@@ -442,8 +442,7 @@ static int32_t by_inner_part (
 
 MlSymSolution ml_sym_solve (MlSymCtx *ctx, const MlSym *f, const MlSym *x)
 {
-	MlSymSolution sol =
-	{
+	MlSymSolution sol = {
 		.found = 0,
 		.set   = NULL
 	};

@@ -21,8 +21,7 @@ typedef struct Rule
 } Rule;
 
 /* Rules that fire as soon as the last character of "from" is typed. */
-static const Rule literals [] =
-{
+static const Rule literals [] = {
 	/* left right arrow */
 	{ .from = "<->", .cp = 0x2194, .domains = DOMAINS_ALL },
 	{ .from = "<=",  .cp = 0x2264, .domains = DOMAINS_ALL }, /* less or equal */
@@ -40,8 +39,7 @@ static const Rule literals [] =
 };
 
 /* Whole words, rewritten when a non word character follows. */
-static const Rule words [] =
-{
+static const Rule words [] = {
 	{ .from = "pi",     .cp = 0x03C0, .domains = DOMAINS_ALL },
 	{
 		.from    = "lambda",
@@ -52,8 +50,7 @@ static const Rule words [] =
 };
 
 /* Names after a backslash, rewritten when a non word character follows. */
-static const Rule escapes [] =
-{
+static const Rule escapes [] = {
 	{ .from = "alpha",   .cp = 0x03B1, .domains = DOMAINS_ALL },
 	{ .from = "beta",    .cp = 0x03B2, .domains = DOMAINS_ALL },
 	{ .from = "gamma",   .cp = 0x03B3, .domains = DOMAINS_ALL },
@@ -110,8 +107,7 @@ static const Rule escapes [] =
 };
 
 /* Superscript forms of the digits 0 to 9. */
-static const uint32_t superscript_digits [10] =
-{
+static const uint32_t superscript_digits [10] = {
 	0x2070, 0x00B9, 0x00B2, 0x00B3, 0x2074,
 	0x2075, 0x2076, 0x2077, 0x2078, 0x2079
 };
@@ -132,15 +128,13 @@ typedef struct Match
 
 static Match match_new (void)
 {
-	Match m =
-	{
+	Match m = {
 		.result = ML_OK,
 		.found  = 0,
 		.from   = 0,
 		.to     = 0,
 		.eat    = 0,
-		.text   =
-		{
+		.text   = {
 			.data = NULL,
 			.len  = 0,
 			.cap  = 0

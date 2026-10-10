@@ -283,8 +283,7 @@ static uint64_t show_line (uint64_t top, uint64_t line, uint64_t area)
 
 static MlResult push_mark (MlHelp *h)
 {
-	MlHelpMark m =
-	{
+	MlHelpMark m = {
 		.page     = h->page,
 		.top      = h->top,
 		.link     = ml_choose (h->results, h->hit, h->link),

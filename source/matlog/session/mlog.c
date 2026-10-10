@@ -38,8 +38,7 @@ static uint64_t find_space (MlSlice s)
 /* Decides what a single line (without its line ending) means. */
 static MlLineView classify (MlSlice line)
 {
-	MlLineView view =
-	{
+	MlLineView view = {
 		.kind   = ML_LINE_UNKNOWN,
 		.domain = ML_DOMAIN_ALGEBRA,
 		.text   = line

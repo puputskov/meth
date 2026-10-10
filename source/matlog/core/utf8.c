@@ -211,8 +211,7 @@ typedef struct Range
 } Range;
 
 /* Code points >= U+0300 that are not one column wide. */
-static const Range special_widths [] =
-{
+static const Range special_widths [] = {
 	{ .lo = 0x0300, .hi = 0x036F, .width = 0 },
 	{ .lo = 0x0483, .hi = 0x0489, .width = 0 },
 	{ .lo = 0x0591, .hi = 0x05BD, .width = 0 },

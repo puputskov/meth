@@ -34,8 +34,7 @@ static MlSlice lit (const char *s)
 
 static MlKey decode (uint16_t vk, uint16_t unicode, uint32_t control)
 {
-	MlRawKey raw =
-	{
+	MlRawKey raw = {
 		.vk      = vk,
 		.unicode = unicode,
 		.control = control
@@ -48,15 +47,13 @@ static void test_key_decode (void)
 {
 	MlKey          k;
 	MlDecodeResult d;
-	MlRawKey       hi =
-	{
+	MlRawKey       hi = {
 		.vk      = 0,
 		.unicode = 0xD83D,
 		.control = 0
 	};
 
-	MlRawKey lo =
-	{
+	MlRawKey lo = {
 		.vk      = 0,
 		.unicode = 0xDE00,
 		.control = 0
@@ -124,22 +121,19 @@ static void test_key_decode (void)
 static void test_key_format (void)
 {
 	MlStr s;
-	MlKey esc =
-	{
+	MlKey esc = {
 		.code = ML_KEY_ESCAPE,
 		.cp   = 0,
 		.mods = 0
 	};
 
-	MlKey left =
-	{
+	MlKey left = {
 		.code = ML_KEY_LEFT,
 		.cp   = 0,
 		.mods = ML_MOD_CTRL | ML_MOD_ALT
 	};
 
-	MlKey pi =
-	{
+	MlKey pi = {
 		.code = ML_KEY_CHAR,
 		.cp   = 0x03C0,
 		.mods = 0

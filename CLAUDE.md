@@ -63,11 +63,11 @@ Interactive math shell written in C. See `plan.md` for the design.
   	ML_ERR_UTF8
   );
   ```
-- Struct initializers always use named (designated) entries and are written one entry per line, braces on their own lines (nested
-  initializers too), with the `=` of the entries aligned:
+- Struct initializers always use named (designated) entries and are written one entry per line. The opening brace stays on the line of the
+  `=` (`MlLine line = {`, nested `.block = {` too, the one exception to the Allman rule) and the closing brace is on a line of its own
+  (`};`, `},`), with the `=` of the entries aligned:
   ```c
-  MlLine line =
-  {
+  MlLine line = {
   	.kind   = ML_LINE_NONE,
   	.domain = ML_DOMAIN_ALGEBRA
   };
@@ -94,8 +94,8 @@ Interactive math shell written in C. See `plan.md` for the design.
 `.clang-format` holds the layout rules clang-format can express (tabs, Allman, `foo (`, `e [0]`, 80 columns, one argument per line, leading
 operators, aligned `=` and declarations). Run it on the files you write instead of laying them out by hand:
 `"W:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin/clang-format.exe" -i file.c`.
-It cannot do these, so check them by hand afterwards: the empty line after every `}` (also before `else`), initializer lists with the brace on its
-own line and one entry per line (it writes `= {`, so leave existing tables alone or restore them), vertical boolean blocks in `if (` with the
+It cannot do these, so check them by hand afterwards: the empty line after every `}` (also before `else`), initializer lists with one entry per line (it
+writes `= {` too, which is the rule now), vertical boolean blocks in `if (` with the
 operands aligned after the operator, the star in the name column of aligned declarations, `ml_choose`, single return, no recursion.
 Do not run it over a whole existing file without looking at the diff: about one line in seven of the current code would change.
 

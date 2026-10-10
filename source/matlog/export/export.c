@@ -8,15 +8,13 @@
 
 /* ---- formats and options ------------------------------------------------ */
 
-static const char *const format_names [ML_EXPORT_COUNT] =
-{
+static const char *const format_names [ML_EXPORT_COUNT] = {
 	[ML_EXPORT_LATEX]    = "latex",
 	[ML_EXPORT_MATHML]   = "mathml",
 	[ML_EXPORT_MARKDOWN] = "markdown"
 };
 
-static const char *const extensions [ML_EXPORT_COUNT] =
-{
+static const char *const extensions [ML_EXPORT_COUNT] = {
 	[ML_EXPORT_LATEX]    = "tex",
 	[ML_EXPORT_MATHML]   = "html",
 	[ML_EXPORT_MARKDOWN] = "md"
@@ -61,16 +59,14 @@ const char *ml_export_extension (MlExportFormat format)
 
 MlExportOptions ml_export_options (MlExportFormat format)
 {
-	MlExportOptions o =
-	{
+	MlExportOptions o = {
 		.format = format,
 		.body   = 0,
 		.errors = 0,
 		.ranged = 0,
 		.first  = 0,
 		.last   = 0,
-		.title  =
-		{
+		.title  = {
 			.data = "",
 			.len  = 0
 		}
@@ -242,8 +238,7 @@ static void blocks_free (BlockVec *blocks)
 
 static Block block_new (BlockKind kind)
 {
-	Block b =
-	{
+	Block b = {
 		.kind       = kind,
 		.level      = 0,
 		.has_result = 0,
@@ -577,18 +572,15 @@ static MlResult put (MlStr *out, const char *text)
 }
 
 /* The tags a style mask opens and closes in each format. */
-static const char *const latex_open [] =
-{
+static const char *const latex_open [] = {
 	"\\textbf{", "\\textit{", "\\underline{", "\\sout{", "\\texttt{"
 };
 
-static const char *const html_open [] =
-{
+static const char *const html_open [] = {
 	"<b>", "<i>", "<u>", "<s>", "<code>"
 };
 
-static const char *const html_close [] =
-{
+static const char *const html_close [] = {
 	"</b>", "</i>", "</u>", "</s>", "</code>"
 };
 
@@ -748,8 +740,7 @@ static MlResult put_math_line (MlStr *out, MlMathNotation n, const Block *b)
 
 /* ---- the writers -------------------------------------------------------- */
 
-static const char *const latex_sections [] =
-{
+static const char *const latex_sections [] = {
 	"\\section*{", "\\subsection*{", "\\subsubsection*{",
 	"\\paragraph{", "\\subparagraph{", "\\subparagraph{"
 };

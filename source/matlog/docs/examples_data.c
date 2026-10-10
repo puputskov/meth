@@ -477,8 +477,7 @@ static const char text_units_kinetic_energy [] =
 	"# Time to stop with a deceleration of 8 m/s^2 from this speed:\n"
 	"m:algebra (v to m/s)/(8 m/s^2)\n";
 
-const MlDocSource ml_example_sources [] =
-{
+const MlDocSource ml_example_sources [] = {
 	{ .name = "algebra-lists", .text = text_algebra_lists },
 	{ .name = "algebra-quadratic", .text = text_algebra_quadratic },
 	{

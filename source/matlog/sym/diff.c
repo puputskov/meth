@@ -329,8 +329,7 @@ const MlSym *ml_sym_diff (MlSymCtx *ctx, const MlSym *s, const MlSym *x)
 	SymPtrVec    results;
 	const MlSym  *out = ml_sym_failed ();
 	MlResult     r;
-	DiffFrame    root =
-	{
+	DiffFrame    root = {
 		.node = s,
 		.next = 0,
 		.base = 0
@@ -346,8 +345,7 @@ const MlSym *ml_sym_diff (MlSymCtx *ctx, const MlSym *s, const MlSym *x)
 
 		if (f->next < f->node->count)
 		{
-			DiffFrame child =
-			{
+			DiffFrame child = {
 				.node = f->node->kids [f->next],
 				.next = 0,
 				.base = results.len

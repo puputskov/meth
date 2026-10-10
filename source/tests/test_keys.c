@@ -5,8 +5,7 @@
 
 void test_key (MlEditor *ed, MlKeyCode code, uint32_t cp, uint32_t mods)
 {
-	MlKey k =
-	{
+	MlKey k = {
 		.code = code,
 		.cp   = cp,
 		.mods = mods

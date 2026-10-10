@@ -319,8 +319,7 @@ MlResult ml_docs_search (const MlDocs *d, MlSlice query, MlDocHitVec *hits)
 
 		if (all)
 		{
-			MlDocHit hit =
-			{
+			MlDocHit hit = {
 				.page  = i,
 				.score = total
 			};

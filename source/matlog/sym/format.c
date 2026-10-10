@@ -48,8 +48,7 @@ static MlResult push_task (
 	int32_t     flags
 )
 {
-	Task t =
-	{
+	Task t = {
 		.kind  = kind,
 		.text  = text,
 		.node  = node,
@@ -118,8 +117,7 @@ static uint64_t bar_of (MlSlice v)
 	return i;
 }
 
-static const char *const superscripts [10] =
-{
+static const char *const superscripts [10] = {
 	"\xE2\x81\xB0", "\xC2\xB9", "\xC2\xB2", "\xC2\xB3", "\xE2\x81\xB4",
 	"\xE2\x81\xB5", "\xE2\x81\xB6", "\xE2\x81\xB7", "\xE2\x81\xB8",
 	"\xE2\x81\xB9"

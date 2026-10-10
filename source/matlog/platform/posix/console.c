@@ -178,11 +178,9 @@ static void consume (uint64_t n)
 
 MlKeyResult ml_console_read_key (MlConsole *c)
 {
-	MlKeyResult res =
-	{
+	MlKeyResult res = {
 		.result = ML_OK,
-		.key =
-		{
+		.key = {
 			.code = ML_KEY_NONE,
 			.cp   = 0,
 			.mods = 0
@@ -264,8 +262,7 @@ int32_t ml_console_truecolor (void)
 
 MlConsoleSize ml_console_size (const MlConsole *c)
 {
-	MlConsoleSize  size =
-	{
+	MlConsoleSize  size = {
 		.cols = 0,
 		.rows = 0
 	};

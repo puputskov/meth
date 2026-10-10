@@ -5,8 +5,7 @@
 
 /* ---- stage 1: the tool ------------------------------------------------- */
 
-static const MlStep notes_steps [] =
-{
+static const MlStep notes_steps [] = {
 	{
 		.text   = "Welcome. A new line is a note, free text. Type a sentence "
 		          "and press Enter.",
@@ -33,8 +32,7 @@ static const MlStep notes_steps [] =
 	}
 };
 
-static const MlStep math_steps [] =
-{
+static const MlStep math_steps [] = {
 	{
 		.text   = "Press {ACTION_BLOCK_NEW}. A math line starts, in a block "
 		          "of the domain used last (algebra at first).",
@@ -85,8 +83,7 @@ static const MlStep math_steps [] =
 	}
 };
 
-static const MlStep moving_steps [] =
-{
+static const MlStep moving_steps [] = {
 	{
 		.text   = "{ACTION_GOTO_FIRST} goes to the first line of the session.",
 		.check  = ML_CHECK_ACTION,
@@ -115,8 +112,7 @@ static const MlStep moving_steps [] =
 	}
 };
 
-static const MlStep editing_steps [] =
-{
+static const MlStep editing_steps [] = {
 	{
 		.text   = "Go up one line and press {ACTION_SELECT_LINE} to select "
 		          "the whole line.",
@@ -152,8 +148,7 @@ static const MlStep editing_steps [] =
 	}
 };
 
-static const MlStep domains_steps [] =
-{
+static const MlStep domains_steps [] = {
 	{
 		.text   = "Every math line has a domain: algebra, lambda, pga2, pga3 "
 		          "or boolean. The label at the left shows it. "
@@ -201,8 +196,7 @@ static const MlStep domains_steps [] =
 	}
 };
 
-static const MlStep steps_steps [] =
-{
+static const MlStep steps_steps [] = {
 	{
 		.text   = "Start a block and write det([[1,2],[3,4]]), the "
 		          "determinant of a matrix. Press Enter.",
@@ -226,8 +220,7 @@ static const MlStep steps_steps [] =
 	}
 };
 
-static const MlStep help_steps [] =
-{
+static const MlStep help_steps [] = {
 	{
 		.text   = "{ACTION_HELP} opens the help. Every page of the "
 		          "documentation is there, and it can be searched.",
@@ -258,8 +251,7 @@ static const MlStep help_steps [] =
 
 /* ---- stage 2: the syntax ----------------------------------------------- */
 
-static const MlStep numbers_steps [] =
-{
+static const MlStep numbers_steps [] = {
 	{
 		.text   = "Start a block ({ACTION_BLOCK_NEW}) and write a line whose "
 		          "result is 1/2. Any way will do, 2/4 or 1/3 + 1/6.",
@@ -290,8 +282,7 @@ static const MlStep numbers_steps [] =
 	}
 };
 
-static const MlStep names_steps [] =
-{
+static const MlStep names_steps [] = {
 	{
 		.text   = "Define a function g so that g(2) is 7. A function is "
 		          "written g(x) = ...",
@@ -317,8 +308,7 @@ static const MlStep names_steps [] =
 	}
 };
 
-static const MlStep errors_steps [] =
-{
+static const MlStep errors_steps [] = {
 	{
 		.text   = "Write a line with a mistake, 2 +, and press Enter. The "
 		          "message says what is wrong and the place is marked.",
@@ -334,8 +324,7 @@ static const MlStep errors_steps [] =
 	}
 };
 
-static const MlStep matrices_steps [] =
-{
+static const MlStep matrices_steps [] = {
 	{
 		.text   = "A matrix is a list of rows: [[1,2],[3,4]]. Write a line "
 		          "with its determinant, det([[1,2],[3,4]]), which is -2.",
@@ -352,8 +341,7 @@ static const MlStep matrices_steps [] =
 	}
 };
 
-static const MlStep symbolic_steps [] =
-{
+static const MlStep symbolic_steps [] = {
 	{
 		.text   = "Names that stand for nothing are symbols inside the "
 		          "symbolic functions. Differentiate x^3 with diff(x^3, x).",
@@ -375,8 +363,7 @@ static const MlStep symbolic_steps [] =
 	}
 };
 
-static const MlStep units_steps [] =
-{
+static const MlStep units_steps [] = {
 	{
 		.text   = "Units are part of numbers: write 5 km + 300 m.",
 		.check  = ML_CHECK_RESULT,
@@ -391,8 +378,7 @@ static const MlStep units_steps [] =
 	}
 };
 
-static const MlStep numbersystems_steps [] =
-{
+static const MlStep numbersystems_steps [] = {
 	{
 		.text   = "i is the imaginary unit. Multiply (1+2i)*(3-i).",
 		.check  = ML_CHECK_RESULT,
@@ -419,8 +405,7 @@ static const MlStep numbersystems_steps [] =
 	}
 };
 
-static const MlStep otherdomains_steps [] =
-{
+static const MlStep otherdomains_steps [] = {
 	{
 		.text   = "Other domains have their own syntax. Switch with "
 		          "{ACTION_COMMAND}, mode boolean, then start a block and "
@@ -445,8 +430,7 @@ static const MlStep otherdomains_steps [] =
 
 #define STEPS(a) .step_count = ml_count (a), .steps = a
 
-static const MlLesson lessons [] =
-{
+static const MlLesson lessons [] = {
 	{
 		.id = "notes",
 		.title = "Writing and notes",

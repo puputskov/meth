@@ -1,7 +1,6 @@
 #include <matlog/core/err.h>
 
-static const char *const names [] =
-{
+static const char *const names [] = {
 	[ML_OK]          = "ok",
 	[ML_ERR_NOMEM]   = "out of memory",
 	[ML_ERR_INVALID] = "invalid argument",

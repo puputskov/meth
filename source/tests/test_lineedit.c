@@ -11,8 +11,7 @@ static MlSlice lit (const char *s)
 
 static MlKey key (MlKeyCode code, uint32_t cp, uint32_t mods)
 {
-	MlKey k =
-	{
+	MlKey k = {
 		.code = code,
 		.cp   = cp,
 		.mods = mods

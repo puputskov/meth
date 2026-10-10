@@ -1480,8 +1480,7 @@ static const char text_units [] =
 	"=> 18 C\n"
 	"```\n";
 
-const MlDocSource ml_doc_sources [] =
-{
+const MlDocSource ml_doc_sources [] = {
 	{ .name = "boolean", .text = text_boolean },
 	{ .name = "cli", .text = text_cli },
 	{ .name = "commands", .text = text_commands },

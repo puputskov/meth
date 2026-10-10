@@ -1,7 +1,6 @@
 #include <matlog/session/session.h>
 
-static const char *const domain_names [ML_DOMAIN_COUNT] =
-{
+static const char *const domain_names [ML_DOMAIN_COUNT] = {
 	[ML_DOMAIN_ALGEBRA]   = "algebra",
 	[ML_DOMAIN_LAMBDA]    = "lambda",
 	[ML_DOMAIN_PGA2]      = "pga2",
@@ -22,8 +21,7 @@ const char *ml_domain_name (MlDomain domain)
 
 MlDomainResult ml_domain_from_name (MlSlice name)
 {
-	MlDomainResult res =
-	{
+	MlDomainResult res = {
 		.result = ML_ERR_PARSE,
 		.domain = ML_DOMAIN_ALGEBRA
 	};
@@ -104,12 +102,10 @@ MlResult ml_session_set_path (MlSession *s, MlSlice path)
 
 MlLineView ml_session_get (const MlSession *s, uint64_t idx)
 {
-	MlLineView view =
-	{
+	MlLineView view = {
 		.kind   = ML_LINE_NONE,
 		.domain = ML_DOMAIN_ALGEBRA,
-		.text =
-		{
+		.text = {
 			.data = "",
 			.len  = 0
 		},
@@ -173,18 +169,15 @@ static MlResult line_make (
 
 static MlUndoOp op_make (MlUndoKind kind, uint64_t idx)
 {
-	MlUndoOp op =
-	{
+	MlUndoOp op = {
 		.kind  = kind,
 		.idx   = idx,
 		.last  = idx,
 		.dest  = idx,
-		.line  =
-		{
+		.line  = {
 			.kind   = ML_LINE_NONE,
 			.domain = ML_DOMAIN_ALGEBRA,
-			.text =
-			{
+			.text = {
 				.data = NULL,
 				.len  = 0,
 				.cap  = 0
@@ -483,8 +476,7 @@ MlResult ml_session_move (
 /* Takes back (or redoes) the last group of the stack `from`. */
 static MlUndoResult step_history (MlSession *s, MlUndoVec *from, MlUndoVec *to)
 {
-	MlUndoResult res =
-	{
+	MlUndoResult res = {
 		.result = ML_OK,
 		.did    = 0,
 		.where  = 0
@@ -572,8 +564,7 @@ static MlBlockKind block_kind_of (MlLineKind kind)
 
 MlBlock ml_session_block (const MlSession *s, uint64_t idx)
 {
-	MlBlock b =
-	{
+	MlBlock b = {
 		.kind   = ML_BLOCK_NONE,
 		.domain = ML_DOMAIN_ALGEBRA,
 		.first  = idx,

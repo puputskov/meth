@@ -247,8 +247,7 @@ typedef struct CommandInfo
 	const char *summary;
 } CommandInfo;
 
-static const CommandInfo commands [] =
-{
+static const CommandInfo commands [] = {
 	{ .name = "eval", .summary = "evaluate expressions" },
 	{ .name = "run", .summary = "evaluate a session file" },
 	{ .name = "lex", .summary = "tokens of a text" },
@@ -443,8 +442,7 @@ static MlResult options_read (
 
 		else if (is (a, "--domain"))
 		{
-			MlDomainResult d =
-			{
+			MlDomainResult d = {
 				.result = ML_ERR_PARSE,
 				.domain = ML_DOMAIN_ALGEBRA
 			};
@@ -545,8 +543,7 @@ static int32_t is_blank (MlSlice s)
 
 /* ---- results as text and JSON ---- */
 
-static const char *const kind_names [] =
-{
+static const char *const kind_names [] = {
 	[ML_LINE_NONE]    = "none",
 	[ML_LINE_MATH]    = "math",
 	[ML_LINE_NOTE]    = "note",

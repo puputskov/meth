@@ -274,8 +274,7 @@ MlResult ml_plot_histogram (
 /* One braille dot at (x, y) in dot units, y down; outside is ignored. */
 static void dot_set (PlotCells *cells, const PlotFrame *f, int64_t x, int64_t y)
 {
-	static const uint32_t bits [4] [2] =
-	{
+	static const uint32_t bits [4] [2] = {
 		{ 0x01, 0x08 },
 		{ 0x02, 0x10 },
 		{ 0x04, 0x20 },

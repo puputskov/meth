@@ -50,8 +50,7 @@ static Operand operand (
 )
 {
 	MlValue v   = eval_node (arena, results, snapshot, source, ast, node);
-	Operand out =
-	{
+	Operand out = {
 		.ok     = ml_value_is_matrix (v),
 		.matrix = v.matrix
 	};
@@ -270,8 +269,7 @@ static MlLineSteps logic_steps (
 	uint64_t        idx
 )
 {
-	MlLineSteps st =
-	{
+	MlLineSteps st = {
 		.result = ML_OK,
 		.found  = 0
 	};
@@ -327,8 +325,7 @@ MlLineSteps ml_line_steps (
 	uint64_t        idx
 )
 {
-	MlLineSteps result =
-	{
+	MlLineSteps result = {
 		.result = ML_OK,
 		.found  = 0
 	};

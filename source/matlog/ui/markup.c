@@ -102,8 +102,7 @@ static MlResult add_mark (
 	int32_t  can_close
 )
 {
-	Mark m =
-	{
+	Mark m = {
 		.kind      = kind,
 		.start     = start,
 		.len       = len,

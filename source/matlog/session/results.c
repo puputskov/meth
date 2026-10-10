@@ -53,21 +53,17 @@ void ml_results_free (MlResults *r)
 
 MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 {
-	MlResultView view =
-	{
+	MlResultView view = {
 		.kind      = ML_RESULT_NONE,
-		.text =
-		{
+		.text = {
 			.data = "",
 			.len  = 0
 		},
-		.block =
-		{
+		.block = {
 			.data = "",
 			.len  = 0
 		},
-		.code =
-		{
+		.code = {
 			.data = "",
 			.len  = 0
 		},
@@ -112,17 +108,14 @@ static void frame_free (Frame *f)
 
 static MlLineResult result_make (uint64_t snapshot, uint64_t logic)
 {
-	MlLineResult lr =
-	{
+	MlLineResult lr = {
 		.kind      = ML_RESULT_NONE,
-		.text =
-		{
+		.text = {
 			.data = NULL,
 			.len  = 0,
 			.cap  = 0
 		},
-		.block =
-		{
+		.block = {
 			.data = NULL,
 			.len  = 0,
 			.cap  = 0

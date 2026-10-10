@@ -14,8 +14,7 @@ static MlGhost ghost_logic (
 	MlSlice         text
 )
 {
-	MlGhost g =
-	{
+	MlGhost g = {
 		.result = ML_OK,
 		.shown  = 0
 	};
@@ -52,8 +51,7 @@ static MlGhost ghost_algebra (
 	MlSlice         text
 )
 {
-	MlGhost g =
-	{
+	MlGhost g = {
 		.result = ML_OK,
 		.shown  = 0
 	};
@@ -108,8 +106,7 @@ MlGhost ml_ghost (
 	MlSlice         text
 )
 {
-	MlGhost g =
-	{
+	MlGhost g = {
 		.result = ML_OK,
 		.shown  = 0
 	};

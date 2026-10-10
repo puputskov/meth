@@ -281,8 +281,7 @@ static void test_round_trip (void)
 {
 	MlStr      a;
 	MlStr      b;
-	const char *samples [] =
-	{
+	const char *samples [] = {
 		"# note\nm:pga2 A = [[1,2],[3,4]]\n\ninclude \"x.mlog\"\n"
 		"m:pga2 e12 * e1\n",
 		"garbage line\nm:nonsense x\n# ok\n",

@@ -31,8 +31,7 @@ typedef struct Command
 } Command;
 
 /* The commands of the editor, in the order they are offered. */
-static const Command commands [] =
-{
+static const Command commands [] = {
 	{ .name = "q",     .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "quit",  .arg = ARG_NONE,    .needs_arg = 0 },
 	{ .name = "q!",    .arg = ARG_NONE,    .needs_arg = 0 },
@@ -79,13 +78,11 @@ static const Command commands [] =
 
 static MlCompletion completion_new (uint64_t token_start)
 {
-	MlCompletion c =
-	{
+	MlCompletion c = {
 		.token_start = token_start,
 		.count       = 0,
 		.ghost       = ML_MAX_CANDIDATES,
-		.ghost_text   =
-		{
+		.ghost_text   = {
 			.data = "",
 			.len  = 0
 		},

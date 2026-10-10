@@ -2,8 +2,7 @@
 
 #include <math.h>
 
-static const char *const class_names [ML_CLASS_COUNT] =
-{
+static const char *const class_names [ML_CLASS_COUNT] = {
 	[ML_CLASS_TEXT]         = "text",
 	[ML_CLASS_NUMBER]       = "number",
 	[ML_CLASS_NAME]         = "name",
@@ -31,8 +30,7 @@ static const char *const class_names [ML_CLASS_COUNT] =
 	[ML_CLASS_HELP_CODE]    = "help-code"
 };
 
-static const char *const level_names [ML_COLORS_COUNT] =
-{
+static const char *const level_names [ML_COLORS_COUNT] = {
 	[ML_COLORS_24BIT] = "24bit",
 	[ML_COLORS_256]   = "256",
 	[ML_COLORS_16]    = "16",
@@ -154,8 +152,7 @@ const char *ml_theme_for_background (MlSlice colorfgbg)
 
 static MlColor rgb (uint32_t value)
 {
-	MlColor c =
-	{
+	MlColor c = {
 		.set = 1,
 		.r   = (uint8_t)(value >> 16),
 		.g   = (uint8_t)(value >> 8),
@@ -165,8 +162,7 @@ static MlColor rgb (uint32_t value)
 	return c;
 }
 
-static const MlColor no_color =
-{
+static const MlColor no_color = {
 	.set = 0,
 	.r   = 0,
 	.g   = 0,
@@ -183,8 +179,7 @@ static const MlColor no_color =
 #define COLOR(v) { .fg = RGB (v) }
 #define STRONG(v) { .fg = RGB (v), .bold = 1, .underline = 1 }
 
-static const MlStyle plain_style =
-{
+static const MlStyle plain_style = {
 	.bold = 0
 };
 
@@ -196,13 +191,11 @@ typedef struct Builtin
 	MlStyle    styles [ML_CLASS_COUNT];
 } Builtin;
 
-static const Builtin builtins [] =
-{
+static const Builtin builtins [] = {
 	{
 		.name       = "dark",
 		.background = 0x1E1E1E,
-		.styles     =
-		{
+		.styles     = {
 			[ML_CLASS_NUMBER]       = COLOR (0xB5CEA8),
 			[ML_CLASS_NAME]         = COLOR (0x9CDCFE),
 			[ML_CLASS_FUNCTION]     = COLOR (0xDCDCAA),
@@ -232,8 +225,7 @@ static const Builtin builtins [] =
 		.name       = "light",
 		.background = 0xFFFFFF,
 		.paint      = 1,
-		.styles     =
-		{
+		.styles     = {
 			[ML_CLASS_TEXT]         = COLOR (0x1F1F1F),
 			[ML_CLASS_NUMBER]       = COLOR (0x098658),
 			[ML_CLASS_NAME]         = COLOR (0x001080),
@@ -264,8 +256,7 @@ static const Builtin builtins [] =
 		.name       = "contrast",
 		.background = 0x000000,
 		.paint      = 1,
-		.styles     =
-		{
+		.styles     = {
 			[ML_CLASS_TEXT]         = COLOR (0xFFFFFF),
 			[ML_CLASS_NUMBER]       = COLOR (0x7FFF7F),
 			[ML_CLASS_NAME]         = COLOR (0x7FDFFF),
@@ -296,8 +287,7 @@ static const Builtin builtins [] =
 	{
 		.name       = "mono",
 		.background = 0x000000,
-		.styles     =
-		{
+		.styles     = {
 			[ML_CLASS_FUNCTION]     = { .bold = 1 },
 			[ML_CLASS_CONSTANT]     = { .bold = 1 },
 			[ML_CLASS_UNIT]         = { .underline = 1 },
@@ -435,8 +425,7 @@ static int32_t sq (int32_t v)
 }
 
 /* The 16 ANSI colours as xterm shows them. */
-static const uint32_t ansi16 [16] =
-{
+static const uint32_t ansi16 [16] = {
 	0x000000, 0xCD0000, 0x00CD00, 0xCDCD00,
 	0x0000EE, 0xCD00CD, 0x00CDCD, 0xE5E5E5,
 	0x7F7F7F, 0xFF0000, 0x00FF00, 0xFFFF00,

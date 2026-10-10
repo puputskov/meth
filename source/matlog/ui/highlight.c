@@ -95,8 +95,7 @@ static MlClass name_class (
 }
 
 /* The class of each token kind; names are told apart by name_class. */
-static const MlClass token_classes [ML_TOK_COUNT] =
-{
+static const MlClass token_classes [ML_TOK_COUNT] = {
 	[ML_TOK_NUMBER]      = ML_CLASS_NUMBER,
 	[ML_TOK_PLUS]        = ML_CLASS_OPERATOR,
 	[ML_TOK_MINUS]       = ML_CLASS_OPERATOR,

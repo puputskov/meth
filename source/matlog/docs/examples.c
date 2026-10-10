@@ -10,8 +10,7 @@ typedef struct Area
 	const char *title;
 } Area;
 
-static const Area areas [] =
-{
+static const Area areas [] = {
 	{ .prefix = "basics",   .title = "Basics" },
 	{ .prefix = "algebra",  .title = "Algebra" },
 	{ .prefix = "calculus", .title = "Calculus" },

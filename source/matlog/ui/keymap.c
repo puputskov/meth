@@ -13,8 +13,7 @@ typedef struct ActionInfo
 	const char *summary;
 } ActionInfo;
 
-static const ActionInfo actions [ML_ACT_COUNT] =
-{
+static const ActionInfo actions [ML_ACT_COUNT] = {
 	[ML_ACT_NONE]        = { "none",        "no action" },
 	[ML_ACT_UNDO]        = { "undo",        "undo the last change" },
 	[ML_ACT_REDO]        = { "redo",        "redo what was undone" },
@@ -104,8 +103,7 @@ typedef struct KeyAlias
 	MlKeyCode  code;
 } KeyAlias;
 
-static const KeyAlias aliases [] =
-{
+static const KeyAlias aliases [] = {
 	{ .name = "Escape",    .code = ML_KEY_ESCAPE },
 	{ .name = "Return",    .code = ML_KEY_ENTER },
 	{ .name = "Del",       .code = ML_KEY_DELETE },
@@ -171,11 +169,9 @@ static MlKey normalized (MlKey key)
 /* The key a text spells, whether the key can be bound or not. */
 static MlKeyParse parse_any (MlSlice text)
 {
-	MlKeyParse p =
-	{
+	MlKeyParse p = {
 		.result  = ML_OK,
-		.key     =
-		{
+		.key     = {
 			.code = ML_KEY_NONE,
 			.cp   = 0,
 			.mods = 0,
@@ -314,8 +310,7 @@ typedef struct Default
 	MlAction   action;
 } Default;
 
-static const Default defaults [] =
-{
+static const Default defaults [] = {
 	{ .key = "Ctrl+Z",       .action = ML_ACT_UNDO },
 	{ .key = "Ctrl+Y",       .action = ML_ACT_REDO },
 	{ .key = "Ctrl+Shift+Z", .action = ML_ACT_REDO },
@@ -403,8 +398,7 @@ MlResult ml_keymap_bind (MlKeymap *km, MlKey key, MlAction action)
 	MlResult r = ML_OK;
 	MlKey    k = normalized (key);
 	uint64_t i = find (km, k);
-	MlKeyBinding b =
-	{
+	MlKeyBinding b = {
 		.code   = k.code,
 		.cp     = k.cp,
 		.mods   = k.mods,
@@ -518,8 +512,7 @@ MlResult ml_keymap_keys_of (MlStr *out, const MlKeymap *km, MlAction action)
 	for (uint64_t i = 0; i < km->bindings.len && r == ML_OK; i++)
 	{
 		MlKeyBinding b = km->bindings.data [i];
-		MlKey     k =
-		{
+		MlKey     k = {
 			.code = b.code,
 			.cp   = b.cp,
 			.mods = b.mods,

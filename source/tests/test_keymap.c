@@ -20,8 +20,7 @@ static MlSlice lit (const char *s)
 
 static MlKey ctrl (uint32_t letter, uint32_t extra)
 {
-	MlKey k =
-	{
+	MlKey k = {
 		.code = ML_KEY_CHAR,
 		.cp   = letter,
 		.mods = ML_MOD_CTRL | extra
@@ -32,8 +31,7 @@ static MlKey ctrl (uint32_t letter, uint32_t extra)
 
 static MlKey code (MlKeyCode c, uint32_t mods)
 {
-	MlKey k =
-	{
+	MlKey k = {
 		.code = c,
 		.cp   = 0,
 		.mods = mods
@@ -520,8 +518,7 @@ static int32_t no_keys_written (
 	{
 		MlKeyBinding b = km->bindings.data [i];
 		MlStr        spec;
-		MlKey        k =
-		{
+		MlKey        k = {
 			.code = b.code,
 			.cp   = b.cp,
 			.mods = b.mods,

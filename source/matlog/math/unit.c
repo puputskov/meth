@@ -33,8 +33,7 @@ typedef enum DimKind
 	DK_COUNT
 } DimKind;
 
-static const MlDim k_dims [DK_COUNT] =
-{
+static const MlDim k_dims [DK_COUNT] = {
 	[DK_LENGTH]      = { .e = { 1, 0,  0,  0, 0, 0, 0 } },
 	[DK_MASS]        = { .e = { 0, 1,  0,  0, 0, 0, 0 } },
 	[DK_TIME]        = { .e = { 0, 0,  1,  0, 0, 0, 0 } },
@@ -75,8 +74,7 @@ typedef struct UnitDef
 	int32_t    fixed;
 } UnitDef;
 
-static const UnitDef k_units [] =
-{
+static const UnitDef k_units [] = {
 	{ .sym = "m",   .name = "meter",      .dk = DK_LENGTH },
 	{ .sym = "",    .name = "metre",      .dk = DK_LENGTH },
 	{ .sym = "g",   .name = "gram",       .dk = DK_MASS, .den = 1000 },
@@ -167,8 +165,7 @@ typedef struct Prefix
 	int32_t    e10;
 } Prefix;
 
-static const Prefix k_prefixes [] =
-{
+static const Prefix k_prefixes [] = {
 	{ .sym = "Y",  .name = "yotta", .e10 = 24 },
 	{ .sym = "Z",  .name = "zetta", .e10 = 21 },
 	{ .sym = "E",  .name = "exa",   .e10 = 18 },
@@ -193,8 +190,7 @@ static const Prefix k_prefixes [] =
 	{ .sym = "y",  .name = "yocto", .e10 = -24 }
 };
 
-static const char *const k_base_symbol [ML_DIM_COUNT] =
-{
+static const char *const k_base_symbol [ML_DIM_COUNT] = {
 	[ML_DIM_LENGTH]      = "m",
 	[ML_DIM_MASS]        = "kg",
 	[ML_DIM_TIME]        = "s",
@@ -205,8 +201,7 @@ static const char *const k_base_symbol [ML_DIM_COUNT] =
 };
 
 /* The order the base units are written in: kg·m/s², not m·kg/s². */
-static const MlBaseDim k_order [ML_DIM_COUNT] =
-{
+static const MlBaseDim k_order [ML_DIM_COUNT] = {
 	ML_DIM_MASS,
 	ML_DIM_LENGTH,
 	ML_DIM_TIME,
@@ -216,8 +211,7 @@ static const MlBaseDim k_order [ML_DIM_COUNT] =
 	ML_DIM_LUMINOSITY
 };
 
-static const char *const k_super [10] =
-{
+static const char *const k_super [10] = {
 	"⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"
 };
 
@@ -454,8 +448,7 @@ typedef struct RowHit
 
 static RowHit find_row (MlSlice s)
 {
-	RowHit hit =
-	{
+	RowHit hit = {
 		.row     = -1,
 		.is_name = 0
 	};
@@ -480,8 +473,7 @@ static RowHit find_row (MlSlice s)
 
 static MlUnitMatch no_match (void)
 {
-	MlUnitMatch m =
-	{
+	MlUnitMatch m = {
 		.found = 0,
 		.dim   = { .e = { 0, 0, 0, 0, 0, 0, 0 } },
 		.num   = 1,

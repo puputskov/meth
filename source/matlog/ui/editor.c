@@ -11,8 +11,7 @@
 #include <matlog/session/settings.h>
 #include <matlog/tutorial/lessons.h>
 
-static const char *const state_names [ML_STATE_COUNT] =
-{
+static const char *const state_names [ML_STATE_COUNT] = {
 	[ML_STATE_MATH]    = "MATH",
 	[ML_STATE_NOTE]    = "NOTE",
 	[ML_STATE_COMMAND] = "COMMAND",
@@ -685,8 +684,7 @@ static MlResult page_lines (MlEditor *ed, int32_t dir)
  */
 static MlEditResult line_edge_key (MlEditor *ed, MlKey key)
 {
-	MlEditResult res =
-	{
+	MlEditResult res = {
 		.result  = ML_OK,
 		.handled = 0
 	};
@@ -948,12 +946,10 @@ static MlResult collect_lines (
 	for (uint64_t i = first; i <= last && r == ML_OK; i++)
 	{
 		MlLineView v = ml_session_get (&ed->session, i);
-		MlLine     l =
-		{
+		MlLine     l = {
 			.kind   = v.kind,
 			.domain = v.domain,
-			.text =
-			{
+			.text = {
 				.data = NULL,
 				.len  = 0,
 				.cap  = 0
@@ -2473,8 +2469,7 @@ static MlResult insert_snippet (MlEditor *ed, MlSlice name)
 static MlTutorialView tutorial_view (const MlEditor *ed, MlKey key)
 {
 	int32_t editing = ed->state == ML_STATE_MATH;
-	MlTutorialView v =
-	{
+	MlTutorialView v = {
 		.action       = ml_keymap_lookup (&ed->keymap, key),
 		.key_code     = key.code,
 		.key_mods     = key.mods,
@@ -3023,8 +3018,7 @@ typedef struct Address
 /* An address at the start of s: a number, '.' (cursor) or '$' (the end). */
 static Address parse_address (const MlEditor *ed, MlSlice s)
 {
-	Address a =
-	{
+	Address a = {
 		.valid = 0,
 		.line  = 0,
 		.after = 0,
@@ -3073,8 +3067,7 @@ static Address parse_address (const MlEditor *ed, MlSlice s)
 
 static Range parse_range (const MlEditor *ed, MlSlice s)
 {
-	Range   rg =
-	{
+	Range   rg = {
 		.given = 0,
 		.first = ed->session.cursor,
 		.last  = ed->session.cursor,
@@ -3582,8 +3575,7 @@ MlTextRange ml_editor_selection (const MlEditor *ed)
 		   ed->sel_line < cl
 		|| (ed->sel_line == cl && ed->sel_anchor <= cb)
 	);
-	MlTextRange r =
-	{
+	MlTextRange r = {
 		.first_line = ml_choose (first, ed->sel_line, cl),
 		.first_byte = ml_choose (first, ed->sel_anchor, cb),
 		.last_line  = ml_choose (first, cl, ed->sel_line),
@@ -3755,12 +3747,10 @@ static MlResult copy_selection (MlEditor *ed)
 		MlLineView v  = line_at (ed, l);
 		uint64_t   lo = ml_choose (l == s.first_line, s.first_byte, 0);
 		uint64_t   hi = ml_choose (l == s.last_line, s.last_byte, v.text.len);
-		MlLine     piece =
-		{
+		MlLine     piece = {
 			.kind   = ml_choose (whole, v.kind, ML_LINE_NOTE),
 			.domain = ml_choose (whole, v.domain, ML_DOMAIN_ALGEBRA),
-			.text   =
-			{
+			.text   = {
 				.data = NULL,
 				.len  = 0,
 				.cap  = 0
@@ -4403,8 +4393,7 @@ static MlResult row_steps (MlEditor *ed)
 /* The keys of free form editing that leave the text of the line alone. */
 static MlEditResult row_key (MlEditor *ed, MlKey key)
 {
-	MlEditResult res =
-	{
+	MlEditResult res = {
 		.result  = ML_OK,
 		.handled = 1
 	};
@@ -4559,8 +4548,7 @@ static int32_t is_selection_key (const MlEditor *ed, MlKey key)
  */
 static MlEditResult text_select_key (MlEditor *ed, MlKey key)
 {
-	MlEditResult res =
-	{
+	MlEditResult res = {
 		.result  = ML_OK,
 		.handled = 0
 	};
@@ -4587,8 +4575,7 @@ static MlEditResult text_select_key (MlEditor *ed, MlKey key)
 	)
 	{
 		/* a page is a number of Shift+Up or Shift+Down */
-		MlKey step =
-		{
+		MlKey step = {
 			.code = ml_choose (
 				key.code == ML_KEY_PAGE_UP,
 				ML_KEY_UP,
@@ -4661,8 +4648,7 @@ static MlEditResult text_select_key (MlEditor *ed, MlKey key)
 static MlResult text_edit_key (MlEditor *ed, MlKey key)
 {
 	MlResult     r   = ML_OK;
-	MlEditResult res =
-	{
+	MlEditResult res = {
 		.result  = ML_OK,
 		.handled = 0
 	};
@@ -4715,8 +4701,7 @@ static MlResult text_key (MlEditor *ed, MlKey key)
 {
 	MlResult     r   = ML_OK;
 	MlAction     act = key_action (ed, key);
-	MlEditResult res =
-	{
+	MlEditResult res = {
 		.result  = ML_OK,
 		.handled = 0
 	};
@@ -5162,8 +5147,7 @@ MlResult ml_editor_mouse (MlEditor *ed, MlKey key, MlHit hit)
 	/* in the help viewer the wheel scrolls */
 	if (ed->state == ML_STATE_HELP && key.code == ML_KEY_MOUSE)
 	{
-		MlKey step =
-		{
+		MlKey step = {
 			.code = ml_choose (
 				action == ML_MOUSE_WHEEL_UP,
 				ML_KEY_UP,

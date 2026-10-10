@@ -123,8 +123,7 @@ static void type (MlEditor *ed, const char *text)
 {
 	for (uint64_t i = 0; text [i] != '\0'; i++)
 	{
-		MlKey k =
-		{
+		MlKey k = {
 			.code = ML_KEY_CHAR,
 			.cp   = (uint8_t)text [i],
 			.mods = 0

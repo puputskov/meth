@@ -30,8 +30,7 @@ typedef struct VkEntry
 	MlKeyCode code;
 } VkEntry;
 
-static const VkEntry vk_table [] =
-{
+static const VkEntry vk_table [] = {
 	{ .vk = VK_BACK_,   .code = ML_KEY_BACKSPACE },
 	{ .vk = VK_TAB_,    .code = ML_KEY_TAB },
 	{ .vk = VK_RETURN_, .code = ML_KEY_ENTER },
@@ -93,10 +92,8 @@ static uint32_t mods_from_control (uint32_t control)
 
 MlDecodeResult ml_key_decode_win32 (MlRawKey raw, uint16_t pending_high)
 {
-	MlDecodeResult res =
-	{
-		.key =
-		{
+	MlDecodeResult res = {
+		.key = {
 			.code = ML_KEY_NONE,
 			.cp   = 0,
 			.mods = 0

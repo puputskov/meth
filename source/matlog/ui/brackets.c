@@ -23,8 +23,7 @@ static uint8_t pair_of (uint8_t b, int32_t *opening)
 
 MlBracketMatch ml_bracket_match (MlSlice text, uint64_t cursor)
 {
-	MlBracketMatch m =
-	{
+	MlBracketMatch m = {
 		.found   = 0,
 		.matched = 0,
 		.at      = 0,

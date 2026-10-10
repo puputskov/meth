@@ -1,7 +1,6 @@
 #include <matlog/logic/logic.h>
 
-static const char *const error_codes [ML_LOGIC_COUNT] =
-{
+static const char *const error_codes [ML_LOGIC_COUNT] = {
 	[ML_LOGIC_OK]                            = "",
 	[ML_LOGIC_BOOL_UNEXPECTED_CHARACTER]     = "bool_unexpected_character",
 	[ML_LOGIC_BOOL_EXPECTED_OPERAND]         = "bool_expected_operand",
@@ -20,8 +19,7 @@ static const char *const error_codes [ML_LOGIC_COUNT] =
 	[ML_LOGIC_LAMBDA_BAD_DEFINITION]         = "lambda_bad_definition"
 };
 
-static const char *const error_texts [ML_LOGIC_COUNT] =
-{
+static const char *const error_texts [ML_LOGIC_COUNT] = {
 	[ML_LOGIC_OK]                            = "",
 	[ML_LOGIC_BOOL_UNEXPECTED_CHARACTER]     = "unexpected character",
 	[ML_LOGIC_BOOL_EXPECTED_OPERAND]         = "an operand is missing",
@@ -121,8 +119,7 @@ MlLogicFound ml_logic_find (
 	MlSlice             name
 )
 {
-	MlLogicFound f =
-	{
+	MlLogicFound f = {
 		.found = 0,
 		.text  = { .data = "", .len = 0 }
 	};

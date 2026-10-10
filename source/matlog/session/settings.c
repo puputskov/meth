@@ -68,8 +68,7 @@ typedef struct Parsed
 static Parsed parse_line (MlSlice raw)
 {
 	MlSlice line = trim (raw);
-	Parsed  p    =
-	{
+	Parsed  p    = {
 		.header = 0,
 		.entry  = 0,
 		.name   = ml_slice ("", 0),
@@ -116,8 +115,7 @@ static Parsed parse_line (MlSlice raw)
 
 MlSetting ml_settings_text_get (MlSlice text, MlSlice section, MlSlice key)
 {
-	MlSetting s =
-	{
+	MlSetting s = {
 		.found = 0,
 		.value = ml_slice ("", 0)
 	};
@@ -151,8 +149,7 @@ MlSettingEntry ml_settings_text_entry (
 	uint64_t index
 )
 {
-	MlSettingEntry e =
-	{
+	MlSettingEntry e = {
 		.found = 0,
 		.key   = ml_slice ("", 0),
 		.value = ml_slice ("", 0),

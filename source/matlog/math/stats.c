@@ -54,8 +54,7 @@ typedef struct Data
 /* The numbers of a vector value, as a list. */
 static Data data_of (MlArena *arena, MlValue v)
 {
-	Data d =
-	{
+	Data d = {
 		.error   = ML_EVAL_NONE,
 		.n       = 0,
 		.x       = NULL,

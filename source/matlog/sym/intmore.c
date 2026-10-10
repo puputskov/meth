@@ -326,8 +326,7 @@ static void push_item (
 	const MlSym *term
 )
 {
-	PartsItem item =
-	{
+	PartsItem item = {
 		.coef = coef,
 		.term = term
 	};

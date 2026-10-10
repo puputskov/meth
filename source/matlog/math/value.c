@@ -7,8 +7,7 @@
 /* Approximations are written with this many significant digits. */
 #define APPROX_DIGITS 9
 
-static const char *const error_texts [ML_EVAL_KIND_COUNT] =
-{
+static const char *const error_texts [ML_EVAL_KIND_COUNT] = {
 	[ML_EVAL_NONE]           = "no error",
 	[ML_EVAL_SYNTAX]         = "syntax error",
 	[ML_EVAL_DIV_ZERO]       = "division by zero",
@@ -47,8 +46,7 @@ const char *ml_error_text (MlErrorKind kind)
 	);
 }
 
-static const char *const error_codes [ML_EVAL_KIND_COUNT] =
-{
+static const char *const error_codes [ML_EVAL_KIND_COUNT] = {
 	[ML_EVAL_NONE]                  = "none",
 	[ML_EVAL_SYNTAX]                = "syntax",
 	[ML_EVAL_DIV_ZERO]              = "div_zero",
@@ -116,8 +114,7 @@ MlErrorKind ml_error_from_result (MlResult status)
 
 MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len)
 {
-	MlValue v =
-	{
+	MlValue v = {
 		.kind        = ML_VALUE_ERROR,
 		.exact       = ml_rat_error (ML_OK),
 		.dim         = { .e = { 0, 0, 0, 0, 0, 0, 0 } },
@@ -546,8 +543,7 @@ int32_t ml_value_is_expr (MlValue v)
 
 MlI64Result ml_value_to_i64 (MlValue v)
 {
-	MlI64Result result =
-	{
+	MlI64Result result = {
 		.ok    = 0,
 		.value = 0
 	};

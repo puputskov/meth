@@ -591,8 +591,7 @@ static const MlSym *ml_int_term (
 
 MlSymIntegral ml_sym_integrate (MlSymCtx *ctx, const MlSym *s, const MlSym *x)
 {
-	MlSymIntegral res =
-	{
+	MlSymIntegral res = {
 		.found = 0,
 		.value = ml_sym_failed ()
 	};

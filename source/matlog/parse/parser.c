@@ -62,8 +62,7 @@ typedef struct Parser
 	uint64_t       val;   /* the node that MODE_RETURN hands over */
 } Parser;
 
-static const char *const error_texts [ML_PARSE_CODE_COUNT] =
-{
+static const char *const error_texts [ML_PARSE_CODE_COUNT] = {
 	[ML_PARSE_OK]               = "no error",
 	[ML_PARSE_UNEXPECTED_END]   = "the expression ends too early",
 	[ML_PARSE_UNEXPECTED_TOKEN] = "unexpected symbol",
@@ -85,8 +84,7 @@ const char *ml_parse_error_text (MlParseCode code)
 	);
 }
 
-static const char *const code_names [ML_PARSE_CODE_COUNT] =
-{
+static const char *const code_names [ML_PARSE_CODE_COUNT] = {
 	[ML_PARSE_OK]                = "parse_ok",
 	[ML_PARSE_UNEXPECTED_END]    = "parse_unexpected_end",
 	[ML_PARSE_UNEXPECTED_TOKEN]  = "parse_unexpected_token",
@@ -263,8 +261,7 @@ static uint64_t add_node (
 	uint64_t   end
 )
 {
-	MlNode node =
-	{
+	MlNode node = {
 		.kind   = kind,
 		.parent = NIL,
 		.first  = NIL,
@@ -333,8 +330,7 @@ static void adopt (Parser *p, uint64_t parent, uint64_t child)
 
 		if (height > ML_PARSE_MAX_TREE_DEPTH)
 		{
-			MlToken at =
-			{
+			MlToken at = {
 				.kind  = ML_TOK_NAME,
 				.start = node_at (p, parent).start,
 				.len   = node_at (p, parent).len
@@ -594,8 +590,7 @@ static void push (
 	uint64_t    level
 )
 {
-	ParseFrame f =
-	{
+	ParseFrame f = {
 		.kind  = kind,
 		.node  = node,
 		.start = start,
@@ -1569,8 +1564,7 @@ MlParseResult ml_parse (MlSlice source)
 	MlParseResult result;
 	Parser        p;
 	MlLexResult   lexed = ml_lex (source);
-	MlNode        nil   =
-	{
+	MlNode        nil   = {
 		.kind   = ML_NODE_NIL,
 		.parent = NIL,
 		.first  = NIL,
@@ -1633,8 +1627,7 @@ int32_t ml_parse_complete (MlSlice source)
 }
 
 /* The text in front of the children of a node, e.g. "neg" or "+". */
-static const char *const node_labels [ML_NODE_KIND_COUNT] =
-{
+static const char *const node_labels [ML_NODE_KIND_COUNT] = {
 	[ML_NODE_NEG]      = "neg",
 	[ML_NODE_ADD]      = "+",
 	[ML_NODE_SUB]      = "-",

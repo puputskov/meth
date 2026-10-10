@@ -2,8 +2,7 @@
 
 #include <string.h>
 
-static const MlOption options [] =
-{
+static const MlOption options [] = {
 	{
 		.name    = "theme",
 		.section = "display",

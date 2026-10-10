@@ -38,8 +38,7 @@ typedef struct Symbol
 } Symbol;
 
 /* Longer spellings first, so that `<->` is not `<` and `->`. */
-static const Symbol symbols [] =
-{
+static const Symbol symbols [] = {
 	{ .text = "\xE2\x88\xA7", .kind = TK_AND,    .value = 0 },
 	{ .text = "\xE2\x88\xA8", .kind = TK_OR,     .value = 0 },
 	{ .text = "\xC2\xAC",     .kind = TK_NOT,    .value = 0 },
@@ -106,8 +105,7 @@ static MlBoolSymbolKind symbol_kind (TokKind kind)
 MlBoolSymbol ml_bool_symbol_at (MlSlice text, uint64_t pos)
 {
 	const Symbol *sym = symbol_at (text, pos);
-	MlBoolSymbol  out =
-	{
+	MlBoolSymbol  out = {
 		.kind  = ML_BSYM_NONE,
 		.len   = 0,
 		.value = 0
@@ -152,8 +150,7 @@ static int32_t is_name_byte (uint8_t c, int32_t inner)
 static Token word_token (MlSlice s, uint64_t start, uint64_t len)
 {
 	MlSlice w = ml_slice_sub (s, start, len);
-	Token   t =
-	{
+	Token   t = {
 		.kind  = TK_NAME,
 		.start = start,
 		.len   = len,
@@ -182,8 +179,7 @@ static Token word_token (MlSlice s, uint64_t start, uint64_t len)
 MlBoolSymbol ml_bool_word (MlSlice word)
 {
 	Token        t   = word_token (word, 0, word.len);
-	MlBoolSymbol out =
-	{
+	MlBoolSymbol out = {
 		.kind  = ML_BSYM_NONE,
 		.len   = 0,
 		.value = 0
@@ -201,8 +197,7 @@ MlBoolSymbol ml_bool_word (MlSlice word)
 
 static Token lex (MlSlice s, uint64_t pos)
 {
-	Token         t =
-	{
+	Token         t = {
 		.kind  = TK_END,
 		.start = s.len,
 		.len   = 0,
@@ -370,8 +365,7 @@ static MlResult apply_top (NodeVec *nodes, OpVec *ops, IdxVec *out)
 {
 	MlResult r  = ML_OK;
 	Op       op = ops->data [ops->len - 1];
-	Node     n  =
-	{
+	Node     n  = {
 		.kind  = node_of (op.kind),
 		.a     = 0,
 		.b     = 0,
@@ -431,8 +425,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 
 		else if (operand && (t.kind == TK_NAME || t.kind == TK_CONST))
 		{
-			Node n =
-			{
+			Node n = {
 				.kind  = ml_choose (t.kind == TK_NAME, NK_VAR, NK_CONST),
 				.a     = 0,
 				.b     = 0,
@@ -453,8 +446,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 
 		else if (operand && (t.kind == TK_NOT || t.kind == TK_LPAREN))
 		{
-			Op op =
-			{
+			Op op = {
 				.kind  = t.kind,
 				.start = t.start,
 				.len   = t.len
@@ -471,8 +463,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 		else if (is_binary (t.kind))
 		{
 			int32_t right = t.kind == TK_IMPL;
-			Op      op    =
-			{
+			Op      op    = {
 				.kind  = t.kind,
 				.start = t.start,
 				.len   = t.len
@@ -532,8 +523,7 @@ static MlResult parse (Parsed *p, MlSlice src, uint64_t from)
 			{
 				if (ops.data [ops.len - 1].kind == TK_LPAREN)
 				{
-					Token lp =
-					{
+					Token lp = {
 						.kind  = TK_LPAREN,
 						.start = ops.data [ops.len - 1].start,
 						.len   = 1,
@@ -822,8 +812,7 @@ static MlResult prime_implicants (ImpVec *primes, const ImpVec *minterms)
 
 				if (cur.data [i].mask == cur.data [j].mask && one_bit (diff))
 				{
-					Imp merged =
-					{
+					Imp merged = {
 						.value = cur.data [i].value & ~diff,
 						.mask  = cur.data [i].mask | diff,
 						.used  = 0
@@ -1243,8 +1232,7 @@ static MlResult show (
 
 		for (uint64_t a = 0; a < t.bits && r == ML_OK; a++)
 		{
-			Imp m =
-			{
+			Imp m = {
 				.value = (uint32_t)a,
 				.mask  = 0,
 				.used  = 0

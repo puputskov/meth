@@ -1,7 +1,6 @@
 #include <matlog/sym/expr.h>
 
-static const char *const rule_names [ML_RULE_COUNT] =
-{
+static const char *const rule_names [ML_RULE_COUNT] = {
 	[ML_RULE_NONE]                   = "",
 	[ML_RULE_SIMPLIFY]               = "simplify",
 	[ML_RULE_ADD_NUMBERS]            = "add the numbers",

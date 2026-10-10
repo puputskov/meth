@@ -221,8 +221,7 @@ static void test_typing (void)
 
 	for (uint64_t i = 0; "1+2"[i] != '\0'; i++)
 	{
-		MlKey k =
-		{
+		MlKey k = {
 			.code = ML_KEY_CHAR,
 			.cp   = (uint8_t)"1+2"[i],
 			.mods = 0

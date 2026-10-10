@@ -3,11 +3,9 @@
 #include <string.h>
 
 /* What the operations return after a failure, so they stay safe to chain. */
-static const MlSym failed_node =
-{
+static const MlSym failed_node = {
 	.kind  = ML_SYM_VAR,
-	.name  =
-	{
+	.name  = {
 		.data = "?",
 		.len  = 1
 	},
@@ -331,8 +329,7 @@ int32_t ml_sym_compare (MlSymCtx *ctx, const MlSym *a, const MlSym *b)
 
 			for (uint64_t i = p.a->count; result == 0 && i > 0; i--)
 			{
-				Pair child =
-				{
+				Pair child = {
 					.a = p.a->kids [i - 1],
 					.b = p.b->kids [i - 1]
 				};
@@ -408,8 +405,7 @@ const MlSym *ml_sym_map (MlSymCtx *ctx, const MlSym *s)
 	MapFrameVec_init (&frames);
 	SymPtrVec_init (&results);
 
-	MapFrame root =
-	{
+	MapFrame root = {
 		.node = s,
 		.next = 0,
 		.base = 0
@@ -423,8 +419,7 @@ const MlSym *ml_sym_map (MlSymCtx *ctx, const MlSym *s)
 
 		if (f->next < f->node->count)
 		{
-			MapFrame child =
-			{
+			MapFrame child = {
 				.node = f->node->kids [f->next],
 				.next = 0,
 				.base = results.len
