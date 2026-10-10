@@ -42,6 +42,20 @@ static const char *corpus [] = {
 	"x > 3 and not y"
 };
 
+/* Expressions in x for the symbolic functions. */
+static const char *sym_corpus [] = {
+	"(x + 1)^2 - x^2",
+	"x^2 + 3x + 1",
+	"sin (x)^2 + cos (x)^2",
+	"(x^2 - 1) / (x - 1)",
+	"x * e^x",
+	"2x + 3x - x",
+	"(a + b)^3 - a^3",
+	"1 / x + 1 / (x + 1)",
+	"sqrt (x^2)",
+	"ln (x^2) - 2 ln (x)"
+};
+
 static const char alphabet [] = "0123456789+-*/^()[];, .=xyzabe!<>%_ij";
 
 typedef struct Rng
@@ -68,9 +82,15 @@ static uint64_t rng_below (Rng *r, uint64_t n)
 }
 
 /* Copies a corpus entry and applies one to four random edits. */
-static uint64_t mutate (Rng *r, char *buf, uint64_t cap)
+static uint64_t mutate (
+	Rng         *r,
+	const char **list,
+	uint64_t    count,
+	char        *buf,
+	uint64_t    cap
+)
 {
-	const char *base  = corpus [rng_below (r, ml_count (corpus))];
+	const char *base  = list [rng_below (r, count)];
 	uint64_t    len   = strlen (base);
 	uint64_t    edits = 1 + rng_below (r, 4);
 
@@ -174,6 +194,36 @@ static int32_t run_once (MlSlice source, MlStr *out)
 	return ok;
 }
 
+/* Wraps text in a call of fn: "simplify (" text ")". */
+static void wrap (MlStr *out, const char *fn, MlSlice text)
+{
+	ml_str_clear (out);
+	ml_str_appendf (out, "%s (%.*s)", fn, (int) text.len, text.data);
+}
+
+/*
+ * simplify, print, parse and simplify again. Returns 1 when both ran and the
+ * second text differs from the first.
+ */
+static int32_t unstable (MlSlice expr, MlStr *a, MlStr *b, MlStr *call)
+{
+	int32_t bad = 0;
+
+	wrap (call, "simplify", expr);
+
+	if (run_once (ml_str_view (*call), a) && a->len > 0)
+	{
+		wrap (call, "simplify", ml_str_view (*a));
+
+		if (run_once (ml_str_view (*call), b) && b->len > 0)
+		{
+			bad = !ml_slice_equal (ml_str_view (*a), ml_str_view (*b));
+		}
+	}
+
+	return bad;
+}
+
 void run_fuzz_tests (void)
 {
 	Rng     rng = { .state = 0x9E3779B97F4A7C15ULL };
@@ -188,7 +238,13 @@ void run_fuzz_tests (void)
 
 	for (uint64_t i = 0; i < FUZZ_RUNS; i++)
 	{
-		uint64_t len = mutate (&rng, buf, FUZZ_MAX_LEN);
+		uint64_t len = mutate (
+			&rng,
+			corpus,
+			ml_count (corpus),
+			buf,
+			FUZZ_MAX_LEN
+		);
 		MlSlice  src = ml_slice (buf, len);
 
 		ok   = ok && run_once (src, &first) && run_once (src, &second);
@@ -200,6 +256,36 @@ void run_fuzz_tests (void)
 
 	CHECK (ok);
 	CHECK (same);
+
+	{
+		MlStr    call;
+		uint64_t bad = 0;
+
+		ml_str_init (&call);
+
+		for (uint64_t i = 0; i < FUZZ_RUNS; i++)
+		{
+			uint64_t len = mutate (
+				&rng,
+				sym_corpus,
+				ml_count (sym_corpus),
+				buf,
+				FUZZ_MAX_LEN
+			);
+
+			if (unstable (ml_slice (buf, len), &first, &second, &call))
+			{
+				bad++;
+			}
+		}
+
+		/*
+		 * Known: simplify of a printed result is not always the same text
+		 * (KNOWN_ISSUES.md), so only a rate far above the usual one fails.
+		 */
+		CHECK (bad < FUZZ_RUNS / 100);
+		ml_str_free (&call);
+	}
 
 	ml_str_free (&first);
 	ml_str_free (&second);

@@ -585,7 +585,9 @@ given with units.
 Started (group `fuzz`, `source/tests/test_fuzz.c`): a seeded xorshift generator mutates a corpus of 22 statements (insert, delete, replace, repeat
 a piece) and runs the parser and the evaluator on 3000 inputs in the normal test build. Checks: nothing crashes, the formatted result of a value is
 produced, and the same input gives the same text twice in fresh environments. `-DFUZZ_RUNS=N` raises the count; 100000 runs under address and
-undefined behaviour sanitizers (`-DML_HEAP_SYSTEM`) found nothing. The rest is in `TODO.md`.
+undefined behaviour sanitizers (`-DML_HEAP_SYSTEM`) found nothing. A second target mutates 10 expressions in x and runs `simplify`, print, parse,
+`simplify` again: crashes fail the run, and a different second text is counted and only fails above 1% of the inputs, because the fuzzer found
+that this happens (`KNOWN_ISSUES.md`). The rest is in `TODO.md`.
 
 ### 4.25 One table for the words of the syntax
 

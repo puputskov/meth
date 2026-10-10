@@ -114,7 +114,7 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
 ## 8. Fuzzer (4.23, first target built: parser and evaluator, see DONE.md)
 
 
-- A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples
+- (First two targets built: parser/evaluator and `simplify`, see DONE.md.) A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples
   already found a memory bug (a symbolic value read after the arena of its line was reused), the kind of fault a fuzzer finds without help.
 - Targets, each a function from bytes to a result with nothing else to set up: the lexer and the parser of the algebra domain, the evaluator and the
   symbolic engine (`simplify`, `diff`, `integrate`, `limit`, `solve`), the boolean and lambda engines, the units, the `.mlog` and `.theme` and
