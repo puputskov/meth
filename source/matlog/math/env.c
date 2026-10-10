@@ -110,9 +110,23 @@ static MlValue copy_scalar (MlArena *arena, MlValue v)
 
 	else if (v.kind == ML_VALUE_COMPLEX || v.kind == ML_VALUE_QUAT)
 	{
-		for (uint64_t i = 0; i < 4; i++)
+		MlHyper *h = ML_ARENA_NEW (arena, MlHyper);
+
+		if (h == NULL)
 		{
-			out.hyper.r [i] = ml_rat_copy (arena, v.hyper.r [i]);
+			out = ml_value_error (ML_EVAL_NO_MEMORY, 0, 0);
+		}
+
+		else
+		{
+			*h = *v.hyper;
+
+			for (uint64_t i = 0; i < 4; i++)
+			{
+				h->r [i] = ml_rat_copy (arena, v.hyper->r [i]);
+			}
+
+			out.hyper = h;
 		}
 	}
 
@@ -273,6 +287,7 @@ MlResult ml_env_define_func (MlEnv *env, MlSlice source, const MlAst *ast)
 {
 	MlResult  r = ML_OK;
 	MlBinding b;
+	MlName    *ids = NULL;
 	char      *txt = NULL;
 
 	memset (&b, 0, sizeof b);
@@ -301,11 +316,26 @@ MlResult ml_env_define_func (MlEnv *env, MlSlice source, const MlAst *ast)
 			b.source,
 			ml_ast_child (&b.ast, b.ast.root, 0)
 		);
-		b.id     = ml_name (b.name);
-		b.params = ml_ast_child (&b.ast, b.ast.root, 1);
-		b.body   = ml_ast_child (&b.ast, b.ast.root, 2);
-		r        = ml_choose (
-			b.id != ML_NAME_NONE,
+		b.id      = ml_name (b.name);
+		b.params  = ml_ast_child (&b.ast, b.ast.root, 1);
+		b.body    = ml_ast_child (&b.ast, b.ast.root, 2);
+		b.param_n = ml_ast_child_count (&b.ast, b.params);
+		ids       = ML_ARENA_NEW_ARRAY (&env->arena, MlName, b.param_n + 1);
+
+		for (uint64_t i = 0; i < b.param_n && ids != NULL; i++)
+		{
+			MlSlice nm = ml_ast_text (
+				&b.ast,
+				b.source,
+				ml_ast_child (&b.ast, b.params, i)
+			);
+
+			ids [i] = ml_name (nm);
+		}
+
+		b.param_ids = ids;
+		r           = ml_choose (
+			b.id != ML_NAME_NONE && ids != NULL,
 			MlBindingVec_push (&env->bindings, b),
 			ML_ERR_NOMEM
 		);

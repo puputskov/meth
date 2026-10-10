@@ -617,7 +617,12 @@ no recompile, and the code only holds the stable code name of a text.
 - The words (`parse/words.c`), the built in functions (`eval.c`, `builtin_of_name`) and the bindings of an environment (`MlBinding.id`) are tables indexed by
   name number, made again when `ml_names_generation ()` changed. Their first look up must build the table before it looks the name up. `ml_names_release`,
   `ml_words_release` and `ml_eval_release` free all of it for the end of a test run (tests release names only when no environment is alive).
-- `ml_env_lookup` compares numbers in place and copies only the binding it finds. `len (primes (1000))` went from 0.86 s to 0.50 s.
+- `ml_env_lookup` compares numbers in place and copies only the binding it finds. `len (primes (1000))` went from 0.86 s to 0.50 s. The parameters of a defined
+  function are interned when it is defined (`MlBinding.param_ids`) and the locals of a `let`, a parameter list or a loop carry their number
+  (`MlLocal.id`), so `param_find` and `local_find` compare integers; the `x -> body` of a lambda has no cached names and keeps the slower compare.
+- A value is built for every step of an evaluation: `ml_value_error` clears it in one go (the zero state of a number and a matrix is all zero bytes, checked by
+  `test_value.c`), and the complex and quaternion parts are behind a pointer in the arena (`MlValue.hyper`), which took `MlValue` from 504 to 280 bytes.
+  Together `len (primes (1000))` went from 0.50 s to 0.33 s.
 
 ### Memory (built 2026-10-10)
 

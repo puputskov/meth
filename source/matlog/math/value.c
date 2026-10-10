@@ -3,6 +3,7 @@
 #include <matlog/texts/texts.h>
 
 #include <math.h>
+#include <string.h>
 
 #include <matlog/math/hyper.h>
 
@@ -82,20 +83,20 @@ MlErrorKind ml_error_from_result (MlResult status)
 
 MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len)
 {
-	MlValue v = {
-		.kind        = ML_VALUE_ERROR,
-		.exact       = ml_rat_error (ML_OK),
-		.dim         = { .e = { 0, 0, 0, 0, 0, 0, 0 } },
-		.show        = { .data = NULL, .len = 0 },
-		.scale       = ml_rat_error (ML_OK),
-		.matrix      = ml_mat_error (ML_OK),
-		.sym         = NULL,
-		.approx      = 0.0,
-		.error       = kind,
-		.error_start = start,
-		.error_len   = len
-	};
+	/*
+	 * Every field that is not set below has the "no value" state when all its
+	 * bytes are zero: a number whose status is ML_OK and that has no limbs, a
+	 * matrix with no cells, no pointers (test_value checks this against
+	 * ml_rat_error and ml_mat_error). A value is made for every step of an
+	 * evaluation, so it is cleared in one go instead of through calls.
+	 */
+	MlValue v;
 
+	memset (&v, 0, sizeof v);
+	v.kind        = ML_VALUE_ERROR;
+	v.error       = kind;
+	v.error_start = start;
+	v.error_len   = len;
 	return v;
 }
 
@@ -1283,7 +1284,7 @@ static MlResult format_scalar (MlStr *out, MlArena *arena, MlValue v)
 
 	else if (ml_value_is_hyper (v))
 	{
-		r = ml_hyper_format (out, arena, v.hyper);
+		r = ml_hyper_format (out, arena, *v.hyper);
 	}
 
 	else if (v.kind == ML_VALUE_EXPR)

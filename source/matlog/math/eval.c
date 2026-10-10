@@ -67,6 +67,7 @@ typedef struct MlLocal
 {
 	uint64_t scope;
 	MlSlice  name;
+	MlName   id;
 	MlValue  value;
 } MlLocal;
 
@@ -368,17 +369,17 @@ static MlValue hyper_unit_find (MlArena *arena, MlSlice name)
 
 	if (ml_slice_equal (name, ml_slice_cstr ("i")))
 	{
-		v = ml_hyper_value (ml_hyper_exact (zero, one, zero, zero));
+		v = ml_hyper_value (arena, ml_hyper_exact (zero, one, zero, zero));
 	}
 
 	else if (ml_slice_equal (name, ml_slice_cstr ("j")))
 	{
-		v = ml_hyper_value (ml_hyper_exact (zero, zero, one, zero));
+		v = ml_hyper_value (arena, ml_hyper_exact (zero, zero, one, zero));
 	}
 
 	else if (ml_slice_equal (name, ml_slice_cstr ("k")))
 	{
-		v = ml_hyper_value (ml_hyper_exact (zero, zero, zero, one));
+		v = ml_hyper_value (arena, ml_hyper_exact (zero, zero, zero, one));
 	}
 
 	return v;
@@ -1466,14 +1467,34 @@ static MlParamHit param_find (const MlScope *sc, MlSlice name)
 		.index = 0
 	};
 
-	uint64_t   n   = ml_binding_param_count (sc->func);
+	MlName     id  = ml_name_find (name);
 
-	for (uint64_t i = 0; i < n && !hit.found; i++)
+	if (sc->func.kind == ML_BIND_FUNC && sc->func.param_ids != NULL)
 	{
-		if (ml_slice_equal (ml_binding_param (sc->func, i), name))
+		/* a defined function: its parameters were interned when it was
+		   defined, so a name that is not interned is none of them */
+		for (uint64_t i = 0; i < sc->func.param_n && !hit.found; i++)
 		{
-			hit.found = 1;
-			hit.index = i;
+			if (id != ML_NAME_NONE && sc->func.param_ids [i] == id)
+			{
+				hit.found = 1;
+				hit.index = i;
+			}
+		}
+	}
+
+	else if (sc->func.kind == ML_BIND_FUNC)
+	{
+		/* an x -> body written in a scope has no cached names */
+		uint64_t n = ml_binding_param_count (sc->func);
+
+		for (uint64_t i = 0; i < n && !hit.found; i++)
+		{
+			if (ml_slice_equal (ml_binding_param (sc->func, i), name))
+			{
+				hit.found = 1;
+				hit.index = i;
+			}
 		}
 	}
 
@@ -1506,23 +1527,48 @@ static MlLocalHit local_find (
 )
 {
 	uint64_t   scope = (uint64_t)(sc - cx->scopes.data);
+	MlName     id    = ml_name_find (name);
 	MlLocalHit hit   = {
 		.found = 0,
 		.value = ml_value_none ()
 	};
 
-	for (uint64_t i = cx->locals.len; i > 0 && !hit.found; i--)
+	/* a local is interned when it is made; the scan compares numbers and
+	   copies only the value it finds */
+	for (uint64_t i = cx->locals.len; i > 0 && !hit.found && id != 0; i--)
 	{
-		MlLocal l = cx->locals.data [i - 1];
+		const MlLocal *l = &cx->locals.data [i - 1];
 
-		if (l.scope == scope && ml_slice_equal (l.name, name))
+		if (l->scope == scope && l->id == id)
 		{
 			hit.found = 1;
-			hit.value = l.value;
+			hit.value = l->value;
 		}
 	}
 
 	return hit;
+}
+
+/* Makes a local name of a let, a parameter or a loop variable. */
+static MlResult local_push (
+	MlEvalCtx *cx,
+	uint64_t  scope,
+	MlSlice   name,
+	MlValue   value
+)
+{
+	MlLocal l = {
+		.scope = scope,
+		.name  = name,
+		.id    = ml_name (name),
+		.value = value
+	};
+
+	return ml_choose (
+		l.id != ML_NAME_NONE,
+		MlLocalVec_push (&cx->locals, l),
+		ML_ERR_NOMEM
+	);
 }
 
 /* The value a name stands for: local, parameter, variable or constant. */
@@ -3212,17 +3258,13 @@ static void hof_apply (
 
 		for (uint64_t i = 0; i < nargs; i++)
 		{
-			MlLocal l = {
-				.scope = f.scope,
-				.name  = ml_ast_text (
-					&sc->ast,
-					sc->source,
-					ml_ast_child (&sc->ast, params, i)
-				),
-				.value = args [i]
-			};
+			MlSlice nm = ml_ast_text (
+				&sc->ast,
+				sc->source,
+				ml_ast_child (&sc->ast, params, i)
+			);
 
-			if (MlLocalVec_push (&cx->locals, l) != ML_OK)
+			if (local_push (cx, f.scope, nm, args [i]) != ML_OK)
 			{
 				cx->failed = 1;
 			}
@@ -3378,15 +3420,11 @@ static void hof_next (MlEvalCtx *cx, MlFrame f, MlNode node, MlBuiltin id)
 		if (series)
 		{
 			/* the body is the 4th argument and i a local of its own */
-			MlLocal l = {
-				.scope = f.scope,
-				.name  = ml_ast_text (&sc->ast, sc->source, fn_node),
-				.value = item
-			};
+			MlSlice nm = ml_ast_text (&sc->ast, sc->source, fn_node);
 
 			cx->frames.data [cx->frames.len - 1].mark = cx->locals.len;
 
-			if (MlLocalVec_push (&cx->locals, l) != ML_OK)
+			if (local_push (cx, f.scope, nm, item) != ML_OK)
 			{
 				cx->failed = 1;
 			}
@@ -3748,17 +3786,16 @@ static void step_let (MlEvalCtx *cx, MlFrame f, MlNode node)
 
 	else
 	{
-		MlLocal l = {
-			.scope = f.scope,
-			.name  = ml_ast_text (
-				&sc->ast,
-				sc->source,
-				ml_ast_child (&sc->ast, f.node, 0)
-			),
-			.value = top_value (cx)
-		};
+		MlSlice nm = ml_ast_text (
+			&sc->ast,
+			sc->source,
+			ml_ast_child (&sc->ast, f.node, 0)
+		);
 
-		if (!top_is_error (cx) && MlLocalVec_push (&cx->locals, l) != ML_OK)
+		if (
+			   !top_is_error (cx)
+			&& local_push (cx, f.scope, nm, top_value (cx)) != ML_OK
+		)
 		{
 			cx->failed = 1;
 		}

@@ -63,7 +63,7 @@ int32_t ml_value_is_hyper (MlValue v);
 MlHyper ml_hyper_of (MlArena *arena, MlValue v);
 
 /* The value for parts: a real number when the imaginary parts are zero. */
-MlValue ml_hyper_value (MlHyper h);
+MlValue ml_hyper_value (MlArena *arena, MlHyper h);
 
 /* Exact parts / approximate parts. */
 MlHyper ml_hyper_exact (MlRat a, MlRat b, MlRat c, MlRat d);

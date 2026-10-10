@@ -122,7 +122,7 @@ typedef struct MlValue
 	MlSlice     show;   /* quantity: the unit to show it in (after "to") */
 	MlRat       scale;  /* quantity: SI value of one show, if show is set */
 	MlMat       matrix; /* ML_VALUE_MATRIX */
-	MlHyper     hyper;  /* ML_VALUE_COMPLEX, ML_VALUE_QUAT */
+	const MlHyper *hyper; /* ML_VALUE_COMPLEX, ML_VALUE_QUAT (in an arena) */
 	const MlSym *sym;   /* ML_VALUE_EXPR */
 	const MlPlotData *plot; /* ML_VALUE_PLOT */
 	int32_t     flag;   /* ML_VALUE_BOOL: 1 for true */

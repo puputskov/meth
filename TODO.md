@@ -9,9 +9,9 @@ When a task is finished: delete it here, and write what was built into its secti
 
 1. **Texts in files, the last parts** (4.24): the summaries of the editor commands (`:` commands, `ui/complete.c`), a test that every catalog entry is used by
    some code, the placeholders of the website build.
-2. **Faster evaluation**: after the interned names the profile of `len (primes (1000))` is led by `ml_value_error` and `ml_rat_error` (1.3 and 2.6 million calls: error
-   values are built or tested for every step), `ml_value_locate` and `eval_with`. Name numbers could also be kept in the syntax tree nodes and the symbolic
-   nodes (now `local_find`, `param_find` and the symbolic engine still compare the characters of a name once it is found by number).
+2. **Faster evaluation, more**: `MlValue` is 280 bytes and is copied by value at every step (`push_value`, `ml_value_none`, `eval_with`); a smaller value (the
+   quantity fields `show`, `scale`, `dim` behind a pointer too) or fewer copies would help most. Name numbers are not in the syntax tree nodes yet, so
+   `name_value` still hashes the name once per look up.
 3. **Physics domain** (decided 2026-10-10, section 2 below): units leave the algebra domain.
 4. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 5); **PGA** (section 6).
 

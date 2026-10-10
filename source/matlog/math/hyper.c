@@ -75,7 +75,7 @@ MlHyper ml_hyper_of (MlArena *arena, MlValue v)
 
 	else if (ml_value_is_hyper (v))
 	{
-		h = v.hyper;
+		h = *v.hyper;
 	}
 
 	return h;
@@ -124,7 +124,7 @@ static int32_t is_zero (MlHyper h, uint64_t i)
 	return ml_choose (h.approx, h.d [i] == 0.0, ml_rat_is_zero (h.r [i]));
 }
 
-MlValue ml_hyper_value (MlHyper h)
+MlValue ml_hyper_value (MlArena *arena, MlHyper h)
 {
 	MlValue v = error_of (ML_EVAL_NONE);
 
@@ -149,7 +149,17 @@ MlValue ml_hyper_value (MlHyper h)
 			ML_VALUE_COMPLEX,
 			ML_VALUE_QUAT
 		);
-		v.hyper = h;
+		v.hyper = ML_ARENA_NEW (arena, MlHyper);
+
+		if (v.hyper == NULL)
+		{
+			v = error_of (ML_EVAL_NO_MEMORY);
+		}
+
+		else
+		{
+			*(MlHyper *)v.hyper = h;
+		}
 	}
 
 	return v;
@@ -343,7 +353,7 @@ static MlValue power_whole (MlArena *arena, MlHyper h, int64_t n)
 			);
 		}
 
-		r = ml_hyper_value (acc);
+		r = ml_hyper_value (arena, acc);
 	}
 
 	return r;
@@ -390,7 +400,7 @@ static MlValue complex_pow (MlArena *arena, MlHyper z, MlHyper w)
 		MlHyper ln   = complex_ln (za.d [0], za.d [1]);
 		MlHyper prod = approx_mul (wa, ln);
 
-		r = ml_hyper_value (complex_exp (prod.d [0], prod.d [1]));
+		r = ml_hyper_value (arena, complex_exp (prod.d [0], prod.d [1]));
 	}
 
 	return r;
@@ -453,7 +463,7 @@ MlValue ml_hyper_apply (MlArena *arena, MlHyperOp op, MlValue a, MlValue b)
 
 		if (op == ML_HYPER_ADD)
 		{
-			r = ml_hyper_value (ml_hyper_approx (
+			r = ml_hyper_value (arena, ml_hyper_approx (
 				p.d [0] + q.d [0],
 				p.d [1] + q.d [1],
 				p.d [2] + q.d [2],
@@ -463,7 +473,7 @@ MlValue ml_hyper_apply (MlArena *arena, MlHyperOp op, MlValue a, MlValue b)
 
 		else if (op == ML_HYPER_MUL)
 		{
-			r = ml_hyper_value (approx_mul (p, q));
+			r = ml_hyper_value (arena, approx_mul (p, q));
 		}
 
 		else
@@ -471,19 +481,19 @@ MlValue ml_hyper_apply (MlArena *arena, MlHyperOp op, MlValue a, MlValue b)
 			r = ml_choose (
 				all_zero (q),
 				error_of (ML_EVAL_DIV_ZERO),
-				ml_hyper_value (approx_mul (p, approx_inverse (q)))
+				ml_hyper_value (arena, approx_mul (p, approx_inverse (q)))
 			);
 		}
 	}
 
 	else if (op == ML_HYPER_ADD)
 	{
-		r = ml_hyper_value (exact_add (arena, x, y));
+		r = ml_hyper_value (arena, exact_add (arena, x, y));
 	}
 
 	else if (op == ML_HYPER_MUL)
 	{
-		r = ml_hyper_value (exact_mul (arena, x, y));
+		r = ml_hyper_value (arena, exact_mul (arena, x, y));
 	}
 
 	else
@@ -491,7 +501,10 @@ MlValue ml_hyper_apply (MlArena *arena, MlHyperOp op, MlValue a, MlValue b)
 		r = ml_choose (
 			all_zero (y),
 			error_of (ML_EVAL_DIV_ZERO),
-			ml_hyper_value (exact_mul (arena, x, exact_inverse (arena, y)))
+			ml_hyper_value (
+				arena,
+				exact_mul (arena, x, exact_inverse (arena, y))
+			)
 		);
 	}
 
@@ -502,7 +515,7 @@ MlValue ml_hyper_neg (MlArena *arena, MlValue a)
 {
 	MlHyper h = ml_hyper_of (arena, a);
 
-	return ml_hyper_value (ml_choose (
+	return ml_hyper_value (arena, ml_choose (
 		h.approx,
 		ml_hyper_approx (-h.d [0], -h.d [1], -h.d [2], -h.d [3]),
 		ml_hyper_exact (
@@ -520,7 +533,7 @@ MlValue ml_hyper_sqrt_negative (MlArena *arena, MlRat negative)
 	MlRatSqrt root      = ml_rat_sqrt_exact (arena, magnitude);
 	MlRat     zero      = ml_rat_zero (arena);
 
-	return ml_hyper_value (ml_choose (
+	return ml_hyper_value (arena, ml_choose (
 		root.exact,
 		ml_hyper_exact (zero, root.value, zero, zero),
 		ml_hyper_approx (
@@ -608,7 +621,7 @@ MlValue ml_hyper_function (MlArena *arena, MlHyperFn which, MlValue a)
 
 	else if (which == ML_HFN_RE)
 	{
-		r = ml_hyper_value (ml_choose (
+		r = ml_hyper_value (arena, ml_choose (
 			h.approx,
 			ml_hyper_approx (h.d [0], 0.0, 0.0, 0.0),
 			ml_hyper_exact (h.r [0], zero, zero, zero)
@@ -620,7 +633,7 @@ MlValue ml_hyper_function (MlArena *arena, MlHyperFn which, MlValue a)
 		r = ml_choose (
 			quat,
 			vector_part (arena, h),
-			ml_hyper_value (ml_choose (
+			ml_hyper_value (arena, ml_choose (
 				h.approx,
 				ml_hyper_approx (h.d [1], 0.0, 0.0, 0.0),
 				ml_hyper_exact (h.r [1], zero, zero, zero)
@@ -630,7 +643,7 @@ MlValue ml_hyper_function (MlArena *arena, MlHyperFn which, MlValue a)
 
 	else if (which == ML_HFN_CONJ)
 	{
-		r = ml_hyper_value (ml_choose (
+		r = ml_hyper_value (arena, ml_choose (
 			h.approx,
 			ml_hyper_approx (h.d [0], -h.d [1], -h.d [2], -h.d [3]),
 			exact_conj (arena, h)
@@ -663,7 +676,7 @@ MlValue ml_hyper_function (MlArena *arena, MlHyperFn which, MlValue a)
 
 	else if (which == ML_HFN_EXP)
 	{
-		r = ml_hyper_value (complex_exp (pa.d [0], pa.d [1]));
+		r = ml_hyper_value (arena, complex_exp (pa.d [0], pa.d [1]));
 	}
 
 	else if (which == ML_HFN_LN)
@@ -671,13 +684,13 @@ MlValue ml_hyper_function (MlArena *arena, MlHyperFn which, MlValue a)
 		r = ml_choose (
 			pa.d [0] == 0.0 && pa.d [1] == 0.0,
 			error_of (ML_EVAL_DOMAIN),
-			ml_hyper_value (complex_ln (pa.d [0], pa.d [1]))
+			ml_hyper_value (arena, complex_ln (pa.d [0], pa.d [1]))
 		);
 	}
 
 	else if (which == ML_HFN_SIN)
 	{
-		r = ml_hyper_value (ml_hyper_approx (
+		r = ml_hyper_value (arena, ml_hyper_approx (
 			sin (pa.d [0]) * cosh (pa.d [1]),
 			cos (pa.d [0]) * sinh (pa.d [1]),
 			0.0,
@@ -687,7 +700,7 @@ MlValue ml_hyper_function (MlArena *arena, MlHyperFn which, MlValue a)
 
 	else if (which == ML_HFN_COS)
 	{
-		r = ml_hyper_value (ml_hyper_approx (
+		r = ml_hyper_value (arena, ml_hyper_approx (
 			cos (pa.d [0]) * cosh (pa.d [1]),
 			-sin (pa.d [0]) * sinh (pa.d [1]),
 			0.0,
@@ -701,7 +714,7 @@ MlValue ml_hyper_function (MlArena *arena, MlHyperFn which, MlValue a)
 		double re  = sqrt ((mod + pa.d [0]) / 2.0);
 		double im  = sqrt ((mod - pa.d [0]) / 2.0);
 
-		r = ml_hyper_value (
+		r = ml_hyper_value (arena, 
 			ml_hyper_approx (re, ml_choose (pa.d [1] < 0.0, -im, im), 0.0, 0.0)
 		);
 	}
@@ -730,7 +743,7 @@ MlValue ml_hyper_quat (MlArena *arena, const MlValue *args)
 
 	else if (exact)
 	{
-		r = ml_hyper_value (ml_hyper_exact (
+		r = ml_hyper_value (arena, ml_hyper_exact (
 			args [0].exact,
 			args [1].exact,
 			args [2].exact,
@@ -740,7 +753,7 @@ MlValue ml_hyper_quat (MlArena *arena, const MlValue *args)
 
 	else
 	{
-		r = ml_hyper_value (ml_hyper_approx (
+		r = ml_hyper_value (arena, ml_hyper_approx (
 			ml_value_to_double (arena, args [0]),
 			ml_value_to_double (arena, args [1]),
 			ml_value_to_double (arena, args [2]),
@@ -761,7 +774,7 @@ MlValue ml_hyper_polar (MlArena *arena, MlValue r, MlValue theta)
 		double m = ml_value_to_double (arena, r);
 		double t = ml_value_to_double (arena, theta);
 
-		out = ml_hyper_value (
+		out = ml_hyper_value (arena, 
 			ml_hyper_approx (m * cos (t), m * sin (t), 0.0, 0.0)
 		);
 	}

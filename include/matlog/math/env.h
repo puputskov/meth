@@ -37,6 +37,8 @@ typedef struct MlBinding
 	MlSlice    source;
 	MlAst      ast;
 	uint64_t   params; /* index of the params node */
+	const MlName *param_ids; /* the interned names of the parameters */
+	uint64_t   param_n;
 	uint64_t   body;   /* index of the body expression */
 } MlBinding;
 
