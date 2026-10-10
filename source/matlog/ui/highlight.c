@@ -35,11 +35,13 @@ static MlClass name_class (
 	MlSlice     name,
 	const MlEnv *env,
 	uint64_t    snapshot,
-	int32_t     called
+	int32_t     called,
+	int32_t     units
 )
 {
 	MlBinding b = { .kind = ML_BIND_NONE };
 	MlClass   c = ML_CLASS_NAME;
+	MlWord    w = ml_word_find (name);
 
 	if (env != NULL)
 	{
@@ -57,8 +59,11 @@ static MlClass name_class (
 	}
 
 	else if (
-		   ml_word_find (name).kind == ML_WORD_KEYWORD
-		|| ml_word_find (name).kind == ML_WORD_OPERATOR
+		   w.kind == ML_WORD_KEYWORD
+		|| (
+			   w.kind == ML_WORD_OPERATOR
+			&& (units || w.id != ML_WORD_ID_TO)
+		)
 	)
 	{
 		c = ML_CLASS_KEYWORD;
@@ -74,7 +79,7 @@ static MlClass name_class (
 		c = ML_CLASS_FUNCTION;
 	}
 
-	else if (ml_unit_find (name).found)
+	else if (units && ml_unit_find (name).found)
 	{
 		c = ML_CLASS_UNIT;
 	}
@@ -124,7 +129,8 @@ static MlResult classify_algebra (
 	uint8_t     *cls,
 	MlSlice     text,
 	const MlEnv *env,
-	uint64_t    snapshot
+	uint64_t    snapshot,
+	int32_t     units
 )
 {
 	MlLexResult lex = ml_lex (text);
@@ -140,7 +146,7 @@ static MlResult classify_algebra (
 		);
 		MlClass c      = ml_choose (
 			t.kind == ML_TOK_NAME,
-			name_class (ml_token_text (text, t), env, snapshot, called),
+			name_class (ml_token_text (text, t), env, snapshot, called, units),
 			token_classes [t.kind]
 		);
 
@@ -379,7 +385,13 @@ MlResult ml_highlight (
 
 	else if (r == ML_OK)
 	{
-		r = classify_algebra (cls, text, env, snapshot);
+		r = classify_algebra (
+			cls,
+			text,
+			env,
+			snapshot,
+			domain == ML_DOMAIN_PHYSICS
+		);
 	}
 
 	for (

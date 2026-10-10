@@ -253,11 +253,41 @@ static void test_typing (void)
 	ml_editor_free (&ed);
 }
 
+/* The preview follows the domain: units are names of the physics domain. */
+static void test_physics_preview (void)
+{
+	MlSession s;
+	MlResults r;
+	MlStr     out;
+	MlGhost   g;
+
+	ml_session_init (&s);
+	ml_results_init (&r);
+	add_in (&s, ML_DOMAIN_PHYSICS, "v = 90 km/h");
+	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
+
+	CHECK (previews (&r, ML_DOMAIN_PHYSICS, 1, "3 ft to m", "1143/1250 m"));
+	CHECK (previews (&r, ML_DOMAIN_PHYSICS, 1, "v to m/s", "25 m/s"));
+
+	/* in the algebra domain the same text previews nothing */
+	ml_str_init (&out);
+	g = ml_ghost (&out, &r, ML_DOMAIN_ALGEBRA, 1, lit ("3 ft to m"));
+	CHECK (!g.shown && out.len == 0);
+	ml_str_clear (&out);
+	g = ml_ghost (&out, &r, ML_DOMAIN_ALGEBRA, 1, lit ("5 km"));
+	CHECK (!g.shown && out.len == 0);
+	ml_str_free (&out);
+
+	ml_results_free (&r);
+	ml_session_free (&s);
+}
+
 void run_ghost_tests (void);
 
 void run_ghost_tests (void)
 {
 	test_preview ();
 	test_logic_preview ();
+	test_physics_preview ();
 	test_typing ();
 }

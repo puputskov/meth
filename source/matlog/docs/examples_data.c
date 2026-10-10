@@ -490,23 +490,23 @@ static const char text_units_kinetic_energy [] =
 	"# A car of 1200 kg drives at 90 km/h. How much energy does it have, an"
 	"d how far does it travel in 20 s?\n"
 	"# The mass and the speed, with their units:\n"
-	"m:algebra mass = 1200 kg\n"
-	"m:algebra v = 90 km/h\n"
+	"m:physics mass = 1200 kg\n"
+	"m:physics v = 90 km/h\n"
 	"# Convert the speed to SI units:\n"
-	"m:algebra v to m/s\n"
+	"m:physics v to m/s\n"
 	"# The kinetic energy is mass v^2 / 2. The units multiply out by themse"
 	"lves:\n"
-	"m:algebra mass*(v to m/s)^2/2\n"
+	"m:physics mass*(v to m/s)^2/2\n"
 	"# In kilojoules:\n"
-	"m:algebra mass*(v to m/s)^2/2 to kJ\n"
+	"m:physics mass*(v to m/s)^2/2 to kJ\n"
 	"# The distance in 20 seconds:\n"
-	"m:algebra (v to m/s)*20 s\n"
+	"m:physics (v to m/s)*20 s\n"
 	"# Lengths in different units add up (the sum is in metres), and to con"
 	"verts back:\n"
-	"m:algebra 5 km + 300 m\n"
-	"m:algebra 5300 m to km\n"
+	"m:physics 5 km + 300 m\n"
+	"m:physics 5300 m to km\n"
 	"# Time to stop with a deceleration of 8 m/s^2 from this speed:\n"
-	"m:algebra (v to m/s)/(8 m/s^2)\n";
+	"m:physics (v to m/s)/(8 m/s^2)\n";
 
 const MlDocSource ml_example_sources [] =
 {

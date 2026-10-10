@@ -286,6 +286,7 @@ static void test_check_examples (void)
 	CHECK (
 		ml_docs_check_example (
 			lit ("1/3+1/6\n=> 1/2\na = 2\na^2\n=> 4"),
+			0,
 			&report,
 			&problems
 		)
@@ -295,6 +296,7 @@ static void test_check_examples (void)
 	CHECK (
 		ml_docs_check_example (
 			lit ("1/0\n=> ! division by zero"),
+			0,
 			&report,
 			&problems
 		)
@@ -302,9 +304,36 @@ static void test_check_examples (void)
 	);
 	CHECK (problems == 0);
 
+	/* units are names of the physics domain: the same example is an error in
+	   algebra and fine in physics */
+	ml_str_clear (&report);
+	CHECK (
+		ml_docs_check_example (
+			lit ("3 ft to m\n=> 1143/1250 m"),
+			1,
+			&report,
+			&problems
+		)
+		== ML_OK
+	);
+	CHECK (problems == 0);
+	CHECK (
+		ml_docs_check_example (
+			lit ("5 km\n=> 5000 m"),
+			0,
+			&report,
+			&problems
+		)
+		== ML_OK
+	);
+	CHECK (problems == 1);
+	ml_str_clear (&report);
+	problems = 0;
+
 	/* a result that is not what the evaluator gives is reported */
 	CHECK (
-		ml_docs_check_example (lit ("1+1\n=> 3"), &report, &problems) == ML_OK
+		ml_docs_check_example (lit ("1+1\n=> 3"), 0, &report, &problems)
+		== ML_OK
 	);
 	CHECK (problems == 1);
 	CHECK (

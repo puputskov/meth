@@ -51,13 +51,15 @@ MlCompletion ml_complete_command_with (MlSlice line, MlSlice theme_files);
  * of it). The candidates are the names that start with the word and are longer
  * than it: variables and functions of the environment as of the snapshot
  * (newest first, each name once), then the built in and symbolic functions,
- * the constants pi and e, and the unit names. The ghost text is the rest of the
+ * the constants pi and e, and, when units is 1 (the physics domain), the unit
+ * names. The ghost text is the rest of the
  * first one. Nothing is offered for an empty word.
  */
 MlCompletion ml_complete_math (
 	const MlEnv *env,
 	uint64_t    snapshot,
-	MlSlice     text
+	MlSlice     text,
+	int32_t     units
 );
 
 #endif /* MATLOG_UI_COMPLETE_H */

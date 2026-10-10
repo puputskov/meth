@@ -12,7 +12,8 @@ m:algebra A = [[1,2],[3,4]] a math line in the given domain
 include "constants.mlog"    another session, run in place
 ```
 The domains are `algebra` (numbers, symbols, matrices, vectors, equations),
-`lambda`, `boolean`, `pga2` and `pga3`. Files from before matrices, vectors and
+`physics` (algebra with units, see [units](units)), `lambda`, `boolean`, `pga2`
+and `pga3`. Files from before matrices, vectors and
 equations joined algebra say `m:matrix`, `m:vector` or `m:equations`; they are
 read as algebra and written back as `m:algebra`.
 

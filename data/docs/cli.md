@@ -25,7 +25,7 @@ matlog help [CMD]          the usage
 `--format json` gives machine readable output, `--session FILE` makes the
 definitions of a session visible to `eval`, `--symbols` turns symbols on.
 `--domain NAME` makes `eval` and `steps` read the text in a domain; the
-algebra, `boolean` and `lambda` domains are evaluated. The lines of one
+algebra, `physics` (units), `boolean` and `lambda` domains are evaluated. The lines of one
 call share their definitions, and in JSON the `type` of a result is the
 domain name:
 

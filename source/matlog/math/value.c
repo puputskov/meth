@@ -37,7 +37,8 @@ static const char *const error_codes [ML_EVAL_KIND_COUNT] = {
 	[ML_EVAL_NO_LIMIT]              = "no_limit",
 	[ML_EVAL_CANNOT_SOLVE]          = "cannot_solve",
 	[ML_EVAL_NO_MEMORY]             = "no_memory",
-	[ML_EVAL_TOO_LONG]              = "too_long"
+	[ML_EVAL_TOO_LONG]              = "too_long",
+	[ML_EVAL_UNITS_IN_ALGEBRA]      = "units_in_algebra"
 };
 
 const char *ml_error_code (MlErrorKind kind)

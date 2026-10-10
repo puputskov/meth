@@ -70,6 +70,8 @@ typedef enum MlErrorKind
 	ML_EVAL_CANNOT_SOLVE,   /* the equation cannot be solved in closed form */
 	ML_EVAL_NO_MEMORY,
 	ML_EVAL_TOO_LONG,       /* the computation took more steps than allowed */
+	/* an algebra line that is fine in the physics domain (it has units) */
+	ML_EVAL_UNITS_IN_ALGEBRA,
 	ML_EVAL_KIND_COUNT
 } MlErrorKind;
 

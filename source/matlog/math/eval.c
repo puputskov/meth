@@ -1629,9 +1629,14 @@ static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlRef name)
 				v = hyper_unit_find (cx->arena, name.text);
 			}
 
+			/* unit names are names of the physics domain only */
 			if (v.kind == ML_VALUE_NONE)
 			{
-				v = unit_value (cx->arena, name.text);
+				v = ml_choose (
+					sc->ast.units,
+					unit_value (cx->arena, name.text),
+					error_at (ML_EVAL_UNDEFINED_NAME)
+				);
 			}
 
 			if (
@@ -2112,7 +2117,7 @@ static int32_t is_unbound_symbol (
 			ml_env_find (cx->env, name.id, cx->snapshot)
 		) == ML_BIND_NONE
 		&& constant_of (name.id).kind == ML_VALUE_NONE
-		&& !ml_unit_find (name.text).found
+		&& !(sc->ast.units && ml_unit_find (name.text).found)
 	);
 }
 

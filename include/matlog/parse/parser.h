@@ -140,6 +140,7 @@ typedef struct MlAst
 {
 	MlNodeVec nodes;
 	uint64_t  root; /* the statement: an expression, = or def; 0 if empty */
+	int32_t   units; /* parsed with units: "to" is the conversion operator */
 } MlAst;
 
 typedef enum MlParseCode
@@ -184,6 +185,14 @@ typedef struct MlParseResult
 #define ML_PARSE_MAX_DEPTH      200
 #define ML_PARSE_MAX_TREE_DEPTH 1000
 
+/*
+ * units is 1 for a line of the physics domain: there the word "to" is the
+ * conversion operator (3 ft to m) and the tree is evaluated with unit names.
+ * Anywhere else "to" is a name like any other. ml_parse is ml_parse_units with
+ * 0. The tree remembers it (MlAst.units), so a function defined on a physics
+ * line is evaluated with units wherever it is called from.
+ */
+MlParseResult ml_parse_units (MlSlice source, int32_t units);
 MlParseResult ml_parse (MlSlice source);
 
 void ml_ast_free (MlAst *ast);

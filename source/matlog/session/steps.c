@@ -335,11 +335,17 @@ MlLineSteps ml_line_steps (
 
 	if (
 		   view.kind == ML_LINE_MATH
-		&& view.domain == ML_DOMAIN_ALGEBRA
+		&& (
+			   view.domain == ML_DOMAIN_ALGEBRA
+			|| view.domain == ML_DOMAIN_PHYSICS
+		)
 		&& idx < results->lines.len
 	)
 	{
-		MlParseResult p = ml_parse (view.text);
+		MlParseResult p = ml_parse_units (
+			view.text,
+			view.domain == ML_DOMAIN_PHYSICS
+		);
 
 		if (p.error.code == ML_PARSE_OK && p.ast.root != ML_NODE_NIL_INDEX)
 		{

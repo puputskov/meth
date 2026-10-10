@@ -32,7 +32,7 @@ are the same in the tool (`:help`) and on the command line (`matlog docs`).
 - [Matrices and vectors](matrices): matrices, determinants, inverses.
 - [Symbolic math](symbolic): simplify, expand, differentiate, integrate,
   limits, equations.
-- [Units](units): quantities, conversions, prefixes.
+- [Units and the physics domain](units): quantities, conversions, prefixes.
 - [Boolean algebra](boolean): expressions, truth tables, simplification.
 - [Lambda calculus](lambda): terms, reduction, Church numerals.
 

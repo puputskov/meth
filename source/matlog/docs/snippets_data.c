@@ -58,9 +58,9 @@ static const char text_truth_table [] =
 
 static const char text_unit_conversion [] =
 	"# A quantity with units and the same in other units\n"
-	"m:algebra v = 90 km/h\n"
-	"m:algebra v to m/s\n"
-	"m:algebra 3 ft + 20 cm\n";
+	"m:physics v = 90 km/h\n"
+	"m:physics v to m/s\n"
+	"m:physics 3 ft + 20 cm\n";
 
 const MlDocSource ml_snippet_sources [] =
 {

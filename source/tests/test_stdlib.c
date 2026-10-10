@@ -245,14 +245,14 @@ static void test_hidden_and_shadowed (void)
 	/* the completion offers the library functions, not its helpers */
 	{
 		uint64_t     all = run.r.env.bindings.len;
-		MlCompletion c   = ml_complete_math (&run.r.env, all, lit ("fa"));
+		MlCompletion c   = ml_complete_math (&run.r.env, all, lit ("fa"), 0);
 
 		CHECK (c.count > 0);
 
-		c = ml_complete_math (&run.r.env, all, lit ("_fi"));
+		c = ml_complete_math (&run.r.env, all, lit ("_fi"), 0);
 		CHECK (c.count == 0);
 
-		c = ml_complete_math (&run.r.env, all, lit ("isp"));
+		c = ml_complete_math (&run.r.env, all, lit ("isp"), 0);
 		CHECK (c.count == 1);
 	}
 

@@ -759,7 +759,7 @@ static void test_domain_cycle (void)
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ed.session.domain == ML_DOMAIN_ALGEBRA);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
-	CHECK (ed.session.domain == ML_DOMAIN_BOOLEAN);
+	CHECK (ed.session.domain == ML_DOMAIN_PHYSICS);
 	CHECK (ml_editor_handle_key (&ed, right) == ML_OK);
 	CHECK (ed.session.domain == ML_DOMAIN_ALGEBRA);
 
@@ -785,6 +785,7 @@ static void test_domain_cycle (void)
 	CHECK (ed.edit_domain == ML_DOMAIN_LAMBDA);
 
 	/* the rewrites follow the domain: ^ is an operator in the boolean domain */
+	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ml_editor_handle_key (&ed, left) == ML_OK);
 	CHECK (ed.edit_domain == ML_DOMAIN_BOOLEAN);
@@ -1817,8 +1818,74 @@ static void test_mouse (void)
 	ml_editor_free (&ed);
 }
 
+/* :fix units makes the algebra lines that fail on units physics lines. */
+static void test_fix_units (void)
+{
+	MlEditor ed;
+
+	ml_editor_init (&ed);
+	CHECK (
+		ml_session_append (
+			&ed.session,
+			ML_LINE_MATH,
+			ML_DOMAIN_ALGEBRA,
+			ml_slice_cstr ("5 km + 300 m")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&ed.session,
+			ML_LINE_MATH,
+			ML_DOMAIN_ALGEBRA,
+			ml_slice_cstr ("2 + 3")
+		) == ML_OK
+	);
+	CHECK (
+		ml_session_append (
+			&ed.session,
+			ML_LINE_MATH,
+			ML_DOMAIN_ALGEBRA,
+			ml_slice_cstr ("x + 1")
+		) == ML_OK
+	);
+	CHECK (ml_results_update (&ed.results, &ed.session, 0) == ML_OK);
+
+	/* the error of the first line says what is wrong */
+	CHECK (ml_results_get (&ed.results, 0).kind == ML_RESULT_ERROR);
+	CHECK (
+		ml_slice_equal (
+			ml_results_get (&ed.results, 0).code,
+			ml_slice_cstr ("units_in_algebra")
+		)
+	);
+	CHECK (ml_results_get (&ed.results, 1).kind == ML_RESULT_VALUE);
+	CHECK (
+		!ml_slice_equal (
+			ml_results_get (&ed.results, 2).code,
+			ml_slice_cstr ("units_in_algebra")
+		)
+	);
+
+	test_normal (&ed, ":fix units");
+	press (&ed, ML_KEY_ENTER);
+	CHECK (ml_session_get (&ed.session, 0).domain == ML_DOMAIN_PHYSICS);
+	CHECK (ml_session_get (&ed.session, 1).domain == ML_DOMAIN_ALGEBRA);
+	CHECK (ml_session_get (&ed.session, 2).domain == ML_DOMAIN_ALGEBRA);
+	CHECK (ml_results_get (&ed.results, 0).kind == ML_RESULT_VALUE);
+	CHECK (
+		ml_slice_equal (
+			ml_results_get (&ed.results, 0).text,
+			ml_slice_cstr ("5300 m")
+		)
+	);
+	CHECK (strstr (ml_str_cstr (ed.message), "1 lines") != NULL);
+
+	ml_editor_free (&ed);
+}
+
 void run_editor_tests (void)
 {
+	test_fix_units ();
 	test_insert ();
 	test_note ();
 	test_first_note ();

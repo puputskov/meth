@@ -17,12 +17,14 @@ typedef struct Session
 {
 	MlEnv   env;
 	MlArena arena;
+	int32_t units; /* 1: lines are parsed and evaluated as the physics domain */
 } Session;
 
 static void session_init (Session *s)
 {
 	ml_env_init (&s->env);
 	ml_arena_init (&s->arena, 0);
+	s->units = 0;
 }
 
 static void session_free (Session *s)
@@ -35,7 +37,7 @@ static void session_free (Session *s)
 static MlValue run (Session *s, const char *text)
 {
 	MlSlice       source = lit (text);
-	MlParseResult p      = ml_parse (source);
+	MlParseResult p      = ml_parse_units (source, s->units);
 	MlValue       v      = ml_value_error (ML_EVAL_SYNTAX, 0, 0);
 
 	if (p.error.code == ML_PARSE_OK)
@@ -951,6 +953,7 @@ static void test_units (void)
 	Session s;
 
 	session_init (&s);
+	s.units = 1;
 
 	CHECK (is_qty (&s, "5 km", 5, "km"));
 	CHECK (is_qty (&s, "5 km + 300 m", 5300, "m"));
@@ -1004,6 +1007,18 @@ static void test_units (void)
 	CHECK (shows (&s, "m + 1", "4"));
 	CHECK (fails (&s, "furlongs", ML_EVAL_UNDEFINED_NAME));
 	CHECK (shows (&s, "e", "≈ 2.71828183"));
+
+	/* in the algebra domain a unit name is a name like any other */
+	s.units = 0;
+	CHECK (fails (&s, "5 km", ML_EVAL_UNDEFINED_NAME));
+	CHECK (fails (&s, "3 ft to m", ML_EVAL_SYNTAX));
+	run (&s, "h = 3");
+	run (&s, "m = 2");
+	CHECK (shows (&s, "h * m", "6"));
+	CHECK (fails (&s, "h m", ML_EVAL_SYNTAX));
+	CHECK (shows (&s, "m^2", "4"));
+	s.units = 1;
+	CHECK (shows (&s, "m^2", "4"));
 
 	session_free (&s);
 }
@@ -1087,9 +1102,11 @@ static void test_free_symbols (void)
 	CHECK (shows (&s, "x + 1", "5"));
 	CHECK (shows (&s, "subs(e1, x, 2)", "3"));
 
-	/* constants and units are still what they are */
+	/* constants are still what they are, and units are units in physics */
 	CHECK (shows (&s, "2pi", "\xE2\x89\x88 6.28318531"));
+	s.units = 1;
 	CHECK (shows (&s, "5 km", "5000 m"));
+	s.units = 0;
 
 	session_free (&s);
 }
@@ -1126,10 +1143,12 @@ static void test_comparisons (void)
 	CHECK (shows (&s, "true != false", "true"));
 
 	/* quantities compare in SI units and need the same dimension */
+	s.units = 1;
 	CHECK (shows (&s, "1 km > 999 m", "true"));
 	CHECK (shows (&s, "1 km == 1000 m", "true"));
 	CHECK (fails (&s, "1 km < 2 s", ML_EVAL_DIMENSION_MISMATCH));
 	CHECK (fails (&s, "1 km < 2", ML_EVAL_DIMENSION_MISMATCH));
+	s.units = 0;
 
 	/* matrices and booleans can only be equal */
 	CHECK (shows (&s, "[[1, 2], [3, 4]] == [[1, 2], [3, 4]]", "true"));

@@ -1621,6 +1621,66 @@ static MlResult quit (MlEditor *ed, int32_t force)
  * expression x + y), :symbols off brings back the error for a mistyped name.
  * Without an argument the setting is shown.
  */
+/*
+ * :fix units makes the lines of the algebra domain that fail only because they
+ * use units lines of the physics domain (their error says so).
+ */
+static MlResult fix_units (MlEditor *ed, MlSlice arg)
+{
+	MlResult r = ML_OK;
+	uint64_t n = 0;
+
+	if (!ml_slice_equal (arg, ml_slice_cstr ("units")))
+	{
+		r = set_message (ed, ml_text ("messages.fix_usage"));
+	}
+
+	else
+	{
+		for (uint64_t i = 0; i < ed->session.lines.len && r == ML_OK; i++)
+		{
+			MlLineView   v = ml_session_get (&ed->session, i);
+			MlResultView e = ml_results_get (&ed->results, i);
+
+			if (
+				   v.kind == ML_LINE_MATH
+				&& v.domain == ML_DOMAIN_ALGEBRA
+				&& e.kind == ML_RESULT_ERROR
+				&& ml_slice_equal (e.code, ml_slice_cstr ("units_in_algebra"))
+			)
+			{
+				r = ml_session_replace (
+					&ed->session,
+					i,
+					ML_LINE_MATH,
+					ML_DOMAIN_PHYSICS,
+					v.text
+				);
+				n++;
+			}
+		}
+
+		if (r == ML_OK)
+		{
+			char count [ML_TEXT_NUMBER];
+
+			r = ml_results_update (&ed->results, &ed->session, 0);
+			r = ml_choose (
+				r == ML_OK,
+				say1 (
+					ed,
+					"messages.fix_units_done",
+					"count",
+					ml_text_number (count, n)
+				),
+				r
+			);
+		}
+	}
+
+	return r;
+}
+
 static MlResult set_symbols (MlEditor *ed, MlSlice arg)
 {
 	MlResult r = ML_OK;
@@ -3509,6 +3569,11 @@ static MlResult run_command (MlEditor *ed)
 	else if (is_cmd (cmd, "symbols"))
 	{
 		r = set_symbols (ed, arg);
+	}
+
+	else if (is_cmd (cmd, "fix"))
+	{
+		r = fix_units (ed, arg);
 	}
 
 	else if (is_cmd (cmd, "help") || is_cmd (cmd, "h"))

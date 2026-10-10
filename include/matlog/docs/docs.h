@@ -75,9 +75,13 @@ MlResult ml_docs_search (const MlDocs *d, MlSlice query, MlDocHitVec *hits);
  */
 MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems);
 
-/* Evaluates the lines of an example against the written results. */
+/*
+ * Evaluates the lines of an example against the written results; physics is 1
+ * for an example that is written in the physics domain (units).
+ */
 MlResult ml_docs_check_example (
 	MlSlice  example,
+	int32_t  physics,
 	MlStr    *report,
 	uint64_t *problems
 );

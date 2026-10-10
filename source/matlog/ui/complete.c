@@ -52,6 +52,7 @@ static const Command commands [] = {
 	{ .name = "foldall", .arg = ARG_NONE,  .needs_arg = 0 },
 	{ .name = "unfoldall", .arg = ARG_NONE, .needs_arg = 0 },
 	{ .name = "symbols", .arg = ARG_ON_OFF, .needs_arg = 0 },
+	{ .name = "fix", .arg = ARG_NONE, .needs_arg = 1 },
 	{ .name = "help", .arg = ARG_HELP, .needs_arg = 0 },
 	{ .name = "export", .arg = ARG_EXPORT, .needs_arg = 1 },
 	{ .name = "export!", .arg = ARG_EXPORT, .needs_arg = 1 },
@@ -434,7 +435,8 @@ static uint64_t name_start (MlSlice text)
 MlCompletion ml_complete_math (
 	const MlEnv *env,
 	uint64_t    snapshot,
-	MlSlice     text
+	MlSlice     text,
+	int32_t     units
 )
 {
 	uint64_t     start = name_start (text);
@@ -472,7 +474,7 @@ MlCompletion ml_complete_math (
 			}
 		}
 
-		for (uint64_t i = 0; i < ml_unit_name_count (); i++)
+		for (uint64_t i = 0; i < ml_unit_name_count () && units; i++)
 		{
 			add_item (&c, typed, ml_unit_name_at (i));
 		}

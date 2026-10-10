@@ -1168,7 +1168,8 @@ static MlResult typeset_tree (
 MlResult ml_math_typeset (MlStr *out, MlMathNotation n, MlSlice source)
 {
 	MlResult      r = ML_OK;
-	MlParseResult p = ml_parse (source);
+	/* typesetting does not evaluate, so "to" is the operator it looks like */
+	MlParseResult p = ml_parse_units (source, 1);
 	MlStr         text;
 
 	ml_str_init (&text);

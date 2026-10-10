@@ -482,6 +482,7 @@ static MlResult page_links (
 
 MlResult ml_docs_check_example (
 	MlSlice  example,
+	int32_t  physics,
 	MlStr    *report,
 	uint64_t *problems
 )
@@ -530,7 +531,12 @@ MlResult ml_docs_check_example (
 
 		else if (row.len > 0)
 		{
-			r = ml_session_append (&s, ML_LINE_MATH, ML_DOMAIN_ALGEBRA, row);
+			r = ml_session_append (
+				&s,
+				ML_LINE_MATH,
+				ml_choose (physics, ML_DOMAIN_PHYSICS, ML_DOMAIN_ALGEBRA),
+				row
+			);
 		}
 
 		pos = end + 1;
@@ -639,6 +645,7 @@ MlResult ml_docs_check (const MlDocs *d, MlStr *report, uint64_t *problems)
 				ml_str_init (&bad);
 				r = ml_docs_check_example (
 					ml_str_view (p->blocks.data [b].text),
+					p->blocks.data [b].level == 1,
 					&bad,
 					&n
 				);

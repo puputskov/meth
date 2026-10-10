@@ -33,7 +33,7 @@ Each domain is a mode (see section 3).
 | Lambda calculus | parsing, reduction, step by step beta reduction |
 | Projective geometric algebra (PGA) | multivectors, geometric products, motors; both 2D `R(2,0,1)` and 3D `R(3,0,1)` |
 | Boolean algebra | expressions, truth tables, simplification |
-| Physics | the algebra domain with SI units and conversions, dimensional analysis (decision of 2026-10-10, not built yet: see 2.1) |
+| Physics | the algebra domain with SI units, conversions and dimensional analysis (built 2026-10-10, see 2.1) |
 | Complex numbers and quaternions | arithmetic, polar form, rotations (section 4.17) |
 | Statistics | descriptive statistics, regression, distributions (section 4.22) |
 | Images | load, convolution kernels, pointwise maps (section 4.20) |
@@ -41,7 +41,19 @@ Each domain is a mode (see section 3).
 ### 2.1 Domain details
 - Integration scope, in order: polynomials and the table integrals (powers, `exp`, `ln`, trig), linearity and constant factors,
   then substitution and integration by parts, then rational functions (partial fractions). A general Risch-style algorithm is out of scope.
-- **Physics domain** and **PGA**: not built, the text is in `TODO.md`.
+- **Physics domain** (built 2026-10-10). Units are not part of ordinary algebra: there a name like `h`, `m`, `s`, `g`, `bar` or `min` is a variable and
+  `3 m` is a product, as everyone expects, and the unit names cannot hide a user's name (the examples and the tests of this project found it three times
+  in one day: `h`, `bars`, `dens` were read as hour, bar and the product d e n s). The `physics` domain (`m:physics` in the file, gutter `phy>`, last in the
+  cycle of domains) is the algebra domain with the unit names, `to`, quantities and dimension checks switched on, with the same operators, variables,
+  functions, lists and matrices; variables and functions flow between the two domains as they do between lines of one domain. How it works: the parser
+  takes a flag (`ml_parse_units`), `to` is the conversion operator only with it and the tree remembers it (`MlAst.units`), so a function defined on a physics
+  line is evaluated with units wherever it is called from; the evaluator resolves unit names only for such trees; the highlighter (class `unit`, `to` as
+  keyword), the ghost preview, the steps, the export and the CLI (`--domain physics`) follow the domain of the line; the completion takes a `units` flag.
+  An algebra line that fails only because of a unit name (a parse error or an undefined name that works with units) gets the error `units_in_algebra`
+  ("units belong to the physics domain (:fix units)"), and `:fix units` makes those lines physics lines. The examples of the documentation are
+  `` ```example physics `` blocks, the units example, the snippet and the tutorial lesson on units use the domain. Old files with units in `m:algebra` lines
+  load as before and show the hint.
+- **PGA**: not built, the text is in `TODO.md`.
 
 ## 3. Editing: no modes, and the domain of a block
 

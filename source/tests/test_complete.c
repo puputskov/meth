@@ -38,7 +38,7 @@ static void test_commands (void)
 	MlCompletion c = ml_complete_command (lit (""));
 
 	/* nothing typed: every command is listed, none is suggested */
-	CHECK (c.count == 42 && c.ghost == ML_MAX_CANDIDATES);
+	CHECK (c.count == 43 && c.ghost == ML_MAX_CANDIDATES);
 	CHECK (has_item (&c, "mode") && has_item (&c, "open!"));
 	CHECK (c.ghost_text.len == 0);
 
@@ -83,13 +83,14 @@ static void test_arguments (void)
 	MlCompletion c = ml_complete_command (lit ("mode "));
 
 	/* the values of the argument are listed, and they start after the space */
-	CHECK (c.count == 5 && c.token_start == 5);
+	CHECK (c.count == 6 && c.token_start == 5);
 	CHECK (has_item (&c, "algebra") && has_item (&c, "pga3"));
 	CHECK (has_item (&c, "boolean") && c.ghost == ML_MAX_CANDIDATES);
 
 	/* typing narrows the list down */
 	c = ml_complete_command (lit ("mode p"));
-	CHECK (c.count == 2 && has_item (&c, "pga2") && has_item (&c, "pga3"));
+	CHECK (c.count == 3 && has_item (&c, "pga2") && has_item (&c, "pga3"));
+	CHECK (has_item (&c, "physics"));
 	CHECK (ghost_is (c, "ga2"));
 
 	c = ml_complete_command (lit ("mode pga3"));
@@ -172,7 +173,7 @@ static void test_editor_keys (void)
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
 	CHECK (command_is           (&ed, "mode "));
-	CHECK (ml_editor_completion (&ed).count == 5);
+	CHECK (ml_editor_completion (&ed).count == 6);
 	type (&ed, "l");
 	CHECK (ml_editor_completion (&ed).count == 1);
 	press (&ed, ML_KEY_TAB);
@@ -282,7 +283,7 @@ static void test_screen (void)
 	MlLayout l;
 
 	ml_editor_init (&ed);
-	ml_screen_init (&s, 40, 5);
+	ml_screen_init (&s, 50, 5);
 
 	/*
 	 * the ghost text follows the typed text in a dim style; the cursor stays
@@ -302,7 +303,7 @@ static void test_screen (void)
 	press (&ed, ML_KEY_TAB);
 	l = ml_screen_layout (&s, &ed);
 	CHECK (
-		plain_row_is (&l, 3, "  algebra  lambda  pga2  pga3  boolean")
+		plain_row_is (&l, 3, "  algebra  lambda  pga2  pga3  boolean  physics")
 	);
 	CHECK (plain_row_is (&l, 4, ":mode "));
 	ml_layout_free (&l);
@@ -310,7 +311,7 @@ static void test_screen (void)
 	/* narrowing the list: the first candidate is marked as the suggestion */
 	type (&ed, "p");
 	l = ml_screen_layout (&s, &ed);
-	CHECK (plain_row_is (&l, 3, "  pga2  pga3"));
+	CHECK (plain_row_is (&l, 3, "  pga2  pga3  physics"));
 	CHECK (
 		strstr (ml_str_cstr (l.rows.data [3]), "\x1b[7m  pga2\x1b[0m") != NULL
 	);
@@ -344,7 +345,7 @@ static void test_screen (void)
 
 static MlCompletion math (const MlEnv *env, const char *text)
 {
-	return ml_complete_math (env, ml_env_snapshot (env), lit (text));
+	return ml_complete_math (env, ml_env_snapshot (env), lit (text), 1);
 }
 
 static void test_math (void)
@@ -407,7 +408,7 @@ static void test_math (void)
 	CHECK (c.token_start == 2);
 
 	/* the environment as of the snapshot: later names are not offered */
-	c = ml_complete_math (&env, 0, lit ("sp"));
+	c = ml_complete_math (&env, 0, lit ("sp"), 1);
 	CHECK (c.count == 0);
 
 	/* each name once, the newest binding first */

@@ -1,4 +1,4 @@
 # A quantity with units and the same in other units
-m:algebra v = 90 km/h
-m:algebra v to m/s
-m:algebra 3 ft + 20 cm
+m:physics v = 90 km/h
+m:physics v to m/s
+m:physics 3 ft + 20 cm

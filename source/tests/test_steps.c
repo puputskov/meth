@@ -21,6 +21,18 @@ static void add (MlSession *s, const char *text)
 	);
 }
 
+static void add_physics (MlSession *s, const char *text)
+{
+	CHECK (
+		ml_session_append (
+			s,
+			ML_LINE_MATH,
+			ML_DOMAIN_PHYSICS,
+			lit (text)
+		) == ML_OK
+	);
+}
+
 /* The steps of line idx, "" when there are none. */
 static int32_t steps_contain (
 	const MlResults *r,
@@ -88,7 +100,7 @@ static void test_line_steps (void)
 	add (&s, "A + A");
 	add (&s, "det(1)");
 	add (&s, "2 +");
-	add (&s, "3 ft to m");
+	add_physics (&s, "3 ft to m");
 	CHECK (ml_results_update (&r, &s, 0) == ML_OK);
 
 	CHECK (steps_contain (&r, &s, 1, "R2 \xE2\x86\x90 R2 \xE2\x88\x92 3"));

@@ -934,7 +934,10 @@ static int32_t cmd_parse (
 	else
 	{
 		MlSlice       text = text_argument (o, stdin_text);
-		MlParseResult p    = ml_parse (text);
+		MlParseResult p    = ml_parse_units (
+			text,
+			o->domain == ML_DOMAIN_PHYSICS
+		);
 		MlStr         tree;
 		MlResult      r    = ML_OK;
 

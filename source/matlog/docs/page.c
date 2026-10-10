@@ -138,13 +138,36 @@ static int32_t set_header (
 	return target != NULL;
 }
 
-static MlDocBlockKind fence_kind (MlSlice info, int32_t *ok)
+/*
+ * The kind of a fenced block from its info string. "example physics" is an
+ * example that is evaluated in the physics domain: level gets 1 for it (the
+ * level of a block that is no heading is free).
+ */
+static MlDocBlockKind fence_kind (MlSlice info, int32_t *ok, int32_t *level)
 {
 	MlDocBlockKind kind = ML_DOC_CODE;
+	uint64_t       cut  = 0;
 
-	*ok = 1;
+	while (cut < info.len && info.data [cut] != ' ')
+	{
+		cut++;
+	}
 
-	if (is_word (info, "example"))
+	*ok    = 1;
+	*level = 0;
+
+	if (
+		   cut < info.len
+		&& is_word (ml_slice_sub (info, 0, cut), "example")
+		&& is_word (trim (ml_slice_sub (info, cut, info.len - cut)), "physics")
+	)
+	{
+		kind   = ML_DOC_EXAMPLE;
+		*level = 1;
+		info   = ml_slice ("", 0);
+	}
+
+	else if (is_word (info, "example"))
 	{
 		kind = ML_DOC_EXAMPLE;
 	}
@@ -208,6 +231,7 @@ MlResult ml_doc_parse (MlDocPage *p, MlSlice text, uint64_t *line)
 	int32_t  fenced   = 0;
 	MlDocBlockKind fence = ML_DOC_CODE;
 	uint64_t fence_at = 0;
+	int32_t  fence_level = 0;
 	MlStr    fence_text;
 
 	ml_str_init (&fence_text);
@@ -253,7 +277,12 @@ MlResult ml_doc_parse (MlDocPage *p, MlSlice text, uint64_t *line)
 		{
 			if (is_word (t, "```"))
 			{
-				r      = push_block (p, fence, 0, ml_str_view (fence_text));
+				r      = push_block (
+					p,
+					fence,
+					fence_level,
+					ml_str_view (fence_text)
+				);
 				fenced = 0;
 				ml_str_clear (&fence_text);
 			}
@@ -276,7 +305,11 @@ MlResult ml_doc_parse (MlDocPage *p, MlSlice text, uint64_t *line)
 		{
 			int32_t ok;
 
-			fence    = fence_kind (trim (ml_slice_sub (t, 3, t.len - 3)), &ok);
+			fence    = fence_kind (
+				trim (ml_slice_sub (t, 3, t.len - 3)),
+				&ok,
+				&fence_level
+			);
 			fenced   = 1;
 			fence_at = number;
 			open     = 0;

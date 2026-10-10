@@ -297,8 +297,9 @@ static MlResult copy_ast (MlAst *out, const MlAst *ast)
 	MlResult r;
 
 	MlNodeVec_init (&out->nodes);
-	out->root = ast->root;
-	r         = MlNodeVec_reserve (&out->nodes, ast->nodes.len);
+	out->root  = ast->root;
+	out->units = ast->units;
+	r          = MlNodeVec_reserve (&out->nodes, ast->nodes.len);
 
 	if (r == ML_OK && ast->nodes.len > 0)
 	{

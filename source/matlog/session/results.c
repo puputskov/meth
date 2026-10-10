@@ -222,21 +222,64 @@ static int32_t is_blank (MlSlice text)
  * Runs one math line of the algebra domain: its definitions are kept in the
  * environment, and lr gets the result.
  */
+/*
+ * 1 when the line is fine with units: a line of the algebra domain that fails
+ * only because a unit name is a name there gets the error "units belong to
+ * the physics domain". Nothing is kept.
+ */
+static int32_t units_work (MlResults *res, MlArena *arena, MlSlice source)
+{
+	MlParseResult p  = ml_parse_units (source, 1);
+	int32_t       ok = 0;
+
+	if (p.error.code == ML_PARSE_OK && p.ast.root != ML_NODE_NIL_INDEX)
+	{
+		MlValue v = ml_eval (
+			arena,
+			&res->env,
+			ml_env_snapshot (&res->env),
+			source,
+			&p.ast
+		);
+
+		ok = v.kind != ML_VALUE_ERROR && v.kind != ML_VALUE_NONE;
+	}
+
+	ml_ast_free (&p.ast);
+	return ok;
+}
+
 static MlResult run_math (
 	MlResults    *res,
 	MlArena      *arena,
 	MlLineResult *lr,
-	MlSlice      source
+	MlSlice      source,
+	int32_t      units
 )
 {
 	MlResult      r    = ML_OK;
-	MlParseResult p    = ml_parse (source);
+	MlParseResult p    = ml_parse_units (source, units);
 	MlArenaMark   mark = ml_arena_mark (arena);
 
 	if (is_blank (source))
 	{
 		/* an empty line has no result */
 		ml_ast_free (&p.ast);
+	}
+
+	else if (
+		   p.error.code != ML_PARSE_OK
+		&& !units
+		&& units_work (res, arena, source)
+	)
+	{
+		r = result_error (
+			lr,
+			ml_slice_cstr (ml_error_text (ML_EVAL_UNITS_IN_ALGEBRA)),
+			ml_error_code (ML_EVAL_UNITS_IN_ALGEBRA),
+			0,
+			source.len
+		);
 	}
 
 	else if (p.error.code != ML_PARSE_OK)
@@ -259,6 +302,20 @@ static MlResult run_math (
 			source,
 			&p.ast
 		);
+
+		if (
+			   !units
+			&& v.kind == ML_VALUE_ERROR
+			&& v.error == ML_EVAL_UNDEFINED_NAME
+			&& units_work (res, arena, source)
+		)
+		{
+			v = ml_value_error (
+				ML_EVAL_UNITS_IN_ALGEBRA,
+				v.error_start,
+				v.error_len
+			);
+		}
 
 		r = ml_eval_commit (&res->env, source, &p.ast, v);
 
@@ -423,9 +480,21 @@ static MlResult run_line (
 {
 	MlResult r = ML_OK;
 
-	if (view.kind == ML_LINE_MATH && view.domain == ML_DOMAIN_ALGEBRA)
+	if (
+		   view.kind == ML_LINE_MATH
+		&& (
+			   view.domain == ML_DOMAIN_ALGEBRA
+			|| view.domain == ML_DOMAIN_PHYSICS
+		)
+	)
 	{
-		r = run_math (res, arena, lr, view.text);
+		r = run_math (
+			res,
+			arena,
+			lr,
+			view.text,
+			view.domain == ML_DOMAIN_PHYSICS
+		);
 	}
 
 	else if (

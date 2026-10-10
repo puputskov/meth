@@ -12,24 +12,9 @@ When a task is finished: delete it here, and write what was built into its secti
 2. **Faster evaluation, more**: what is left in the profile is the machine itself: `MlValue` (280 bytes) is passed and returned by value at every step
    (`eval_with`, `push_value`, `ml_value_locate`, `finish`), and `MlBinding` (about 450 bytes) is copied by `call_target` and `MlScope.func`. Writing results in place,
    or passing values by index into the value stack, would remove most of the copies; `scale` of a quantity behind a pointer would save 40 bytes more.
-3. **Physics domain** (decided 2026-10-10, section 2 below): units leave the algebra domain.
-4. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 5); **PGA** (section 6).
+3. **Export, png and pdf** (needs the layout engine), the export panel; **proofs** (section 4); **PGA** (section 5).
 
-## 2. Physics domain (decided 2026-10-10, not built)
-
-- **Physics domain** (decided 2026-10-10, not built yet). Units are not part of ordinary algebra: there a name like `h`, `m`, `s`, `g`, `bar` or
-  `min` is a variable and `3 m` is a product, as everyone expects, and the unit names cannot hide a user's name (the examples and the tests of
-  this project found it three times in one day: `h`, `bars`, `dens` were read as hour, bar and the product d e n s). The `physics` domain is the
-  algebra domain with the unit names, `to`, quantities and dimension checks switched on, the same operators, variables, functions, lists and
-  matrices, and the variables and functions flow between the two domains as they do between lines of one domain. In the algebra domain a unit name
-  is just a name, and `to` is not an operator. Consequences to do together: the domain name `physics` in the `.mlog` file (`m:physics`); files
-  that have units in `m:algebra` lines are read as before, a line that fails to evaluate in algebra because of a unit name is shown with the hint
-  "units belong to the physics domain" and `:fix units` (or the load of an old file, once, with a message) rewrites the block as physics; the
-  completion, highlighting, ghost mode, steps, export, docs page `units` and the tutorial lessons name the domain; the examples and tests with
-  units move to the physics domain (`units-kinetic-energy`, the quantity tests of `test_eval.c`, the unit parts of `syntax` and `functions`).
-  Comparisons and lists work on quantities in physics only. The domain switch keys and `:mode physics` need no new concept.
-
-## 3. Not built, per section of DONE.md
+## 2. Not built, per section of DONE.md
 
 Short list of what each built section says it still lacks. The details are in the section.
 
@@ -37,6 +22,8 @@ Short list of what each built section says it still lacks. The details are in th
 - **4.4 Notes / 4.2 ghost / 4.3 completion**: unit names in the math completion; the highlight classes of the other domains.
 - **4.6 Plots**: `plot (f, a, b)`, the view of a matrix transformation (basis vectors and a shape), a fitted line over a scatter plot, axis titles, theme
   classes for the plot, a panel under the editor for narrow terminals.
+- **Physics domain** (built): load of an old file with units in `m:algebra` lines says nothing once (only the hint on each line); comparisons and lists of quantities
+  are not restricted to physics lines; the units in the completion of the editor (the math completion is not wired into the editor yet).
 - **4.9 Tutorial**: lessons for PGA, stage 2 lessons for export, lessons for files (`:w`, `:open`).
 - **4.10 Themes**: the settings file entry for the theme, the OSC 11 background query, highlight classes of the other domains.
 - **4.11 Export**: png and pdf (layout engine, `export/layout`), the export panel and its preview, options other than `dark steps includes` and page size,
@@ -59,11 +46,11 @@ Short list of what each built section says it still lacks. The details are in th
   trigonometric equations; formulas of the symbolic functions do not see the locals of `let`.
 - **9e Boolean and lambda**: export (done for both), syntax completion of the names defined above, equivalence proofs for the proof checker.
 
-## 4. Open questions
+## 3. Open questions
 
 Defaults chosen in DONE.md section 9.1 (approximate numbers, implicit multiplication, 0^0 as an error) can still be changed.
 
-## 5. Proofs and their validation (4.12, not built)
+## 4. Proofs and their validation (4.12, not built)
 
 A proof is written in a session, line by line, and the tool checks every step. A proof is made of ordinary lines in a new domain, `proof`, plus a few
 statement lines, so it lives in the same `.mlog` file as the calculations, with notes between the steps, and it is exported like everything else.
@@ -92,7 +79,7 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
 - Tests: a corpus of valid and of broken proofs (a wrong step at each position, a missing hypothesis, a circular lemma, a step that uses a theorem
   proved below it); every valid one must be accepted and every broken one rejected at the right line with the right reason.
 
-## 6. PGA (milestone 7, not built)
+## 5. PGA (milestone 7, not built)
 
 - PGA is implemented generically over a signature `(p, q, r)` (basis blades as bitmasks, metric from the signature).
   `R(2,0,1)` and `R(3,0,1)` are presets, selectable in PGA mode (e.g. `:pga 2` / `:pga 3`). Same code serves both.
@@ -100,7 +87,7 @@ statement lines, so it lives in the same `.mlog` file as the calculations, with 
 The domain tags `pga2` and `pga3` exist in sessions and files; their lines are only echoed. Everything else (multivectors, the geometric product,
 motors, highlighting, steps, export, docs page, tutorial lesson, examples) is open.
 
-## 7. Export of functions to C, C++ and Python (4.19, not built)
+## 6. Export of functions to C, C++ and Python (4.19, not built)
 
 
 - A function or a block of definitions can be exported as source code: `:export-code FILE.c|.cpp|.py` or `matlog codegen FILE:LINE --lang c|cpp|python`.
@@ -112,7 +99,7 @@ motors, highlighting, steps, export, docs page, tutorial lesson, examples) is op
   example). A test compiles the output of the examples with the system compiler, or runs it with Python when present, and compares values.
 - Functions that cannot be exported (symbols that stand for nothing, unsupported domains) give a clear error with a byte range.
 
-## 8. Images and kernels (4.20, not built)
+## 7. Images and kernels (4.20, not built)
 
 
 - **Load an image** (`img = load ("photo.png")`; PNG and PPM/PGM to start, read by the program itself without a dependency) as a value kind `image`
@@ -126,7 +113,7 @@ motors, highlighting, steps, export, docs page, tutorial lesson, examples) is op
   only); the CLI gets `matlog eval` with image results written to a file. Needs PNG decoding (inflate) and encoding (the export module needs it for
   section 4.11 anyway, so they are shared).
 
-## 9. Fuzzer (4.23, not built)
+## 8. Fuzzer (4.23, not built)
 
 
 - A fuzzer that feeds the program random and mutated input to find crashes, hangs, memory errors and broken invariants. Writing the first examples

@@ -4,6 +4,7 @@
 
 static const char *const domain_names [ML_DOMAIN_COUNT] = {
 	[ML_DOMAIN_ALGEBRA]   = "algebra",
+	[ML_DOMAIN_PHYSICS]   = "physics",
 	[ML_DOMAIN_LAMBDA]    = "lambda",
 	[ML_DOMAIN_PGA2]      = "pga2",
 	[ML_DOMAIN_PGA3]      = "pga3",

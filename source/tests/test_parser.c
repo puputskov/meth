@@ -66,9 +66,14 @@ static int32_t links_are_consistent (const MlAst *ast)
 }
 
 /* The dump of a statement, or "error" when it does not parse. */
-static int32_t dumps_as (const char *source, const char *expected)
+/* units 1: the physics domain, where "to" is the conversion operator. */
+static int32_t dumps_units (
+	const char *source,
+	const char *expected,
+	int32_t    units
+)
 {
-	MlParseResult parsed = ml_parse (lit (source));
+	MlParseResult parsed = ml_parse_units (lit (source), units);
 	MlStr         s;
 	int32_t       same;
 
@@ -105,6 +110,17 @@ static int32_t dumps_as (const char *source, const char *expected)
 	ml_str_free (&s);
 	ml_ast_free (&parsed.ast);
 	return same;
+}
+
+static int32_t dumps_as (const char *source, const char *expected)
+{
+	return dumps_units (source, expected, 1);
+}
+
+/* The algebra domain: "to" is a name. */
+static int32_t dumps_alg (const char *source, const char *expected)
+{
+	return dumps_units (source, expected, 0);
 }
 
 static int32_t fails_with (
@@ -168,6 +184,13 @@ static void test_conversion (void)
 	CHECK (dumps_as ("3 tom", "(* 3 tom)"));
 
 	CHECK (dumps_as ("3 to", "error"));
+
+	/* in the algebra domain "to" is a name, so none of these is a conversion */
+	CHECK (dumps_alg ("to", "to"));
+	CHECK (dumps_alg ("to + 1", "(+ to 1)"));
+	CHECK (dumps_alg ("3 to", "(* 3 to)"));
+	CHECK (dumps_alg ("3 ft to m", "error"));
+	CHECK (dumps_alg ("a to b", "error"));
 	CHECK (dumps_as ("to m", "error"));
 }
 

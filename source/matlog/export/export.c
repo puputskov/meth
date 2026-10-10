@@ -326,11 +326,12 @@ static MlResult add_math (
 	BlockVec     *blocks,
 	MlSlice      source,
 	MlResultView res,
-	int32_t      errors
+	int32_t      errors,
+	int32_t      units
 )
 {
 	MlResult      r = ML_OK;
-	MlParseResult p = ml_parse (source);
+	MlParseResult p = ml_parse_units (source, units);
 	Block         b = block_new (B_MATH);
 	int32_t       ok = p.error.code == ML_PARSE_OK && p.ast.root != 0;
 	MlNodeKind    root = ml_ast_node (&p.ast, p.ast.root).kind;
@@ -502,13 +503,20 @@ static MlResult build_blocks (
 			can_join = 1;
 		}
 
-		else if (v.kind == ML_LINE_MATH && v.domain == ML_DOMAIN_ALGEBRA)
+		else if (
+			   v.kind == ML_LINE_MATH
+			&& (
+				   v.domain == ML_DOMAIN_ALGEBRA
+				|| v.domain == ML_DOMAIN_PHYSICS
+			)
+		)
 		{
 			r = add_math (
 				blocks,
 				v.text,
 				ml_results_get (results, i),
-				o.errors
+				o.errors,
+				v.domain == ML_DOMAIN_PHYSICS
 			);
 			can_join = 0;
 		}

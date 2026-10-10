@@ -34,6 +34,7 @@ no_limit = no limit found, or the two sides differ
 cannot_solve = the equation cannot be solved in closed form
 no_memory = out of memory
 too_long = the computation took too many steps
+units_in_algebra = units belong to the physics domain (:fix units)
 unknown = unknown error
 parse_unknown = unknown error
 
@@ -144,6 +145,8 @@ example_inserted = {count} lines of {name}
 no_example = no example {name}, see :examples
 no_snippet = no snippet {name}, see :snippet
 exported = exported to {path}
+fix_usage = fix: units
+fix_units_done = {count} lines are physics lines now
 no_help_for = no help for {topic}
 
 # What each action of the editor does, one line (:keys, the page keys).
@@ -362,7 +365,7 @@ error codes: syntax div_zero zero_pow_zero not_real domain not_integer
   undefined_name not_function not_value arity too_large depth no_file
   include_loop size type not_exact cannot_integrate not_symbolic
   singular dimension_mismatch unknown_unit no_limit cannot_solve
-  no_memory too_long, and for text that does
+  no_memory too_long units_in_algebra, and for text that does
   not parse parse_unexpected_end parse_unexpected_token parse_expected_expr
   parse_bad_character parse_bad_superscript parse_assign_target
   parse_duplicate_param parse_too_deep parse_no_memory

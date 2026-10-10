@@ -48,7 +48,8 @@ static MlGhost ghost_algebra (
 	MlStr           *out,
 	const MlResults *results,
 	uint64_t        idx,
-	MlSlice         text
+	MlSlice         text,
+	int32_t         units
 )
 {
 	MlGhost g = {
@@ -56,7 +57,7 @@ static MlGhost ghost_algebra (
 		.shown  = 0
 	};
 
-	MlParseResult p     = ml_parse (text);
+	MlParseResult p     = ml_parse_units (text, units);
 	MlArena       *arena = ml_arena_app ();
 	MlArenaMark   mark  = ml_arena_mark (arena);
 
@@ -117,7 +118,13 @@ MlGhost ml_ghost (
 
 	else
 	{
-		g = ghost_algebra (out, results, idx, text);
+		g = ghost_algebra (
+			out,
+			results,
+			idx,
+			text,
+			domain == ML_DOMAIN_PHYSICS
+		);
 	}
 
 	return g;

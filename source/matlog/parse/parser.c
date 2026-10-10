@@ -63,6 +63,7 @@ typedef struct Parser
 	ParseMode      mode;
 	uint64_t       level; /* argument of MODE_BINARY */
 	uint64_t       val;   /* the node that MODE_RETURN hands over */
+	int32_t        units; /* "to" is an operator */
 } Parser;
 
 static const char *const code_names [ML_PARSE_CODE_COUNT] = {
@@ -645,7 +646,7 @@ static int32_t at_word (const Parser *p, MlWordId id)
  */
 static int32_t at_to (const Parser *p)
 {
-	return at_word (p, ML_WORD_ID_TO);
+	return p->units && at_word (p, ML_WORD_ID_TO);
 }
 
 /*
@@ -1569,6 +1570,11 @@ void ml_ast_free (MlAst *ast)
 
 MlParseResult ml_parse (MlSlice source)
 {
+	return ml_parse_units (source, 0);
+}
+
+MlParseResult ml_parse_units (MlSlice source, int32_t units)
+{
 	MlParseResult result;
 	Parser        p;
 	MlLexResult   lexed = ml_lex (source);
@@ -1584,6 +1590,7 @@ MlParseResult ml_parse (MlSlice source)
 	};
 
 	p.source       = source;
+	p.units        = units;
 	p.tokens       = lexed.tokens;
 	p.pos          = 0;
 	p.failed       = 0;
@@ -1597,6 +1604,7 @@ MlParseResult ml_parse (MlSlice source)
 	p.error.len    = 0;
 	p.error.at_end = 0;
 	p.ast.root     = NIL;
+	p.ast.units    = units;
 	MlNodeVec_init (&p.ast.nodes);
 
 	/* index 0 is the nil node, so the first real node is number 1 */
