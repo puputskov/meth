@@ -427,7 +427,13 @@ static MlKey random_key (Rng *r)
 
 	else
 	{
-		k.cp   = (uint32_t)('a' + rng_below (r, 26));
+		/* not Ctrl+P (the command line), Ctrl+S, Ctrl+O or Ctrl+Q: they
+		 * write or open files, and a name typed after them is a file */
+		do
+		{
+			k.cp = (uint32_t)('a' + rng_below (r, 26));
+		} while (k.cp == 'p' || k.cp == 's' || k.cp == 'o' || k.cp == 'q');
+
 		k.mods = ML_MOD_CTRL;
 	}
 
@@ -448,6 +454,15 @@ static int32_t editor_run (Rng *r, uint64_t keys)
 	for (uint64_t i = 0; i < keys && ok; i++)
 	{
 		MlResult res = ml_editor_handle_key (&ed, random_key (r));
+
+		/* the command line is left at once, whatever opened it */
+		if (ed.state == ML_STATE_COMMAND)
+		{
+			ml_editor_handle_key (
+				&ed,
+				(MlKey){ .code = ML_KEY_ESCAPE, .cp = 0, .mods = 0 }
+			);
+		}
 
 		ok = (
 			   (res == ML_OK || res == ML_ERR_NOMEM || res == ML_ERR_PARSE)
