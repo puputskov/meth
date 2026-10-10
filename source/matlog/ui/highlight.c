@@ -63,6 +63,7 @@ static MlClass name_class (
 		   is_word (name, "include")
 		|| is_word (name, "lambda")
 		|| is_word (name, "and")
+		|| is_word (name, "let")
 		|| is_word (name, "or")
 	)
 	{
@@ -117,6 +118,7 @@ static const MlClass token_classes [ML_TOK_COUNT] =
 	[ML_TOK_LBRACKET]    = ML_CLASS_PAREN,
 	[ML_TOK_RBRACKET]    = ML_CLASS_PAREN,
 	[ML_TOK_COMMA]       = ML_CLASS_PAREN,
+	[ML_TOK_SEMI]        = ML_CLASS_OPERATOR,
 	[ML_TOK_ERROR]       = ML_CLASS_ERROR
 };
 

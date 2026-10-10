@@ -10,6 +10,12 @@
  *	name = expression    a = 3
  *	f(x, y) = expression a definition of a function (zero or more names)
  *
+ * Where an expression is expected at the top of a statement, of the body of a
+ * definition or after '=' there can be several statements separated by ';',
+ * and a statement can be `let name = expression`, a local name:
+ *
+ *	f(n) = let a = n^2; let b = a + 1; b * 2
+ *
  * Precedence, from loose to tight:
  *
  *	or                            the words, left associative; and binds
@@ -60,6 +66,10 @@
  *	neg, !, sqrt                   one child
  *	+ - * / ^ to                   two children, left then right
  *	< > <= >= == != and or         the same
+ *	seq                            the statements of a body, separated by ';'
+ *	                               in the text, the value is the last one
+ *	let                            a local name (a name leaf) and its value;
+ *	                               it is visible in the statements after it
  *	call                           the callee (a name), then the arguments
  *	=                              the target (a name), then the expression
  *	def                            the name, a params node holding the
@@ -97,6 +107,8 @@ typedef enum MlNodeKind
 	ML_NODE_NE,          /* a != b */
 	ML_NODE_AND,         /* a and b */
 	ML_NODE_OR,          /* a or b */
+	ML_NODE_SEQ,         /* statement; statement; ... */
+	ML_NODE_LET,         /* let name = expression */
 	ML_NODE_KIND_COUNT
 } MlNodeKind;
 

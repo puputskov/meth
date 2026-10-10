@@ -526,7 +526,7 @@ mode stays safe. Built in this order, each step with tests, docs and an example 
    conditional `if (cond, a, b)`, which evaluates only the branch it takes (so a recursive definition ends). A new value kind `bool` (`true`,
    `false`) shown as such; numbers are not booleans, so `if (1, ...)` is a type error. Exact numbers compare exactly, an approximation with an
    exact number as approximate; quantities compare when the dimensions agree.
-2. **Local names and several statements.** A body is a list of statements separated by `;`: `f(n) = let a = n^2; let b = a + 1; b * 2`. `let`
+2. **Local names and several statements** (built 2026-10-10: `;` and `let`, the nodes `seq` and `let`, locals per scope in the evaluator, typesetting, the page `syntax`; formulas of the symbolic functions do not see locals yet). A body is a list of statements separated by `;`: `f(n) = let a = n^2; let b = a + 1; b * 2`. `let`
    names are visible in the statements after it and in nothing else, they do not change the environment, and the value of the body is its last
    expression. The parser makes a `seq` node with one child per statement; the evaluator pushes them as frames like any other children, with the
    `let` frames adding to the scope of the running function.

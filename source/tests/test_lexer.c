@@ -320,6 +320,12 @@ static void test_comparisons (void)
 	CHECK (kinds_are ("3! == 3", "number ! == number end"));
 }
 
+static void test_semicolon (void)
+{
+	CHECK (kinds_are ("let a = 1; a", "name name = number ; name end"));
+	CHECK (kinds_are ("a;b", "name ; name end"));
+}
+
 void run_lexer_tests (void)
 {
 	test_basic ();
@@ -331,4 +337,5 @@ void run_lexer_tests (void)
 	test_token_text ();
 	test_brackets ();
 	test_comparisons ();
+	test_semicolon ();
 }

@@ -796,6 +796,41 @@ static void test_logic (void)
 	CHECK (fails_with ("a and", ML_PARSE_UNEXPECTED_END, 5, 0, 1));
 }
 
+static void test_sequences (void)
+{
+	/* one statement is itself, several are a seq */
+	CHECK (dumps_as ("a + 1", "(+ a 1)"));
+	CHECK (dumps_as ("1; 2", "(seq 1 2)"));
+	CHECK (dumps_as ("1; 2; 3", "(seq 1 2 3)"));
+	CHECK (dumps_as ("let a = 2; a * a", "(seq (let a 2) (* a a))"));
+	CHECK (
+		dumps_as (
+			"let a = 1; let b = a + 1; b",
+			"(seq (let a 1) (let b (+ a 1)) b)"
+		)
+	);
+	CHECK (dumps_as ("let a = 2", "(let a 2)"));
+
+	/* in the body of a definition and after = */
+	CHECK (
+		dumps_as (
+			"f(n) = let a = n^2; a + 1",
+			"(def f (n) (seq (let a (^ n 2)) (+ a 1)))"
+		)
+	);
+	CHECK (dumps_as ("x = 1; 2", "(= x (seq 1 2))"));
+
+	/* the ranges: a seq covers its statements, a let its name and value */
+	CHECK (fails_with ("1;", ML_PARSE_UNEXPECTED_END, 2, 0, 1));
+	CHECK (fails_with ("1; ;", ML_PARSE_EXPECTED_EXPR, 3, 1, 0));
+	CHECK (fails_with ("let a = ", ML_PARSE_UNEXPECTED_END, 8, 0, 1));
+	CHECK (fails_with ("(1; 2)", ML_PARSE_UNEXPECTED_TOKEN, 2, 1, 0));
+
+	/* let is a name where it does not start a let */
+	CHECK (dumps_as ("let + 1", "(+ let 1)"));
+	CHECK (dumps_as ("let = 3", "(= let 3)"));
+}
+
 void run_parser_tests (void)
 {
 	test_precedence ();
@@ -810,6 +845,7 @@ void run_parser_tests (void)
 	test_errors ();
 	test_lists ();
 	test_logic ();
+	test_sequences ();
 	run_on_small_stack (test_limits);
 	test_heights ();
 	test_complete ();

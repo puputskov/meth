@@ -39,6 +39,7 @@ typedef enum MlTokenKind
 	ML_TOK_LBRACKET,
 	ML_TOK_RBRACKET,
 	ML_TOK_COMMA,
+	ML_TOK_SEMI,  /* ; between the statements of a body */
 	ML_TOK_EQUALS,
 	ML_TOK_SQRT,
 	ML_TOK_SUPERSCRIPT,

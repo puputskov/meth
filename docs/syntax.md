@@ -1,7 +1,7 @@
 id: syntax
 title: The algebra syntax
 summary: Numbers, operators, names and statements of a math line.
-keywords: precedence, operators, implicit multiplication, fractions, exact, unicode, assignment
+keywords: precedence, operators, implicit multiplication, fractions, exact, unicode, assignment, let, if, comparison, and, or, local
 see: functions, units, symbolic
 
 A math line in the algebra domain is an expression, an assignment
@@ -58,6 +58,23 @@ A computation that takes more than two million steps ends with the error
 `too_long` (try `fib(32)` with the usual double recursion), so a typing
 mistake never keeps the editor busy. `3!=3` is "3 is not equal to 3": write
 `3! == 6` for the factorial.
+
+# Several statements and local names
+A body can have several statements separated by `;`. `let name = expression`
+makes a local name that the statements after it can use; the value of the
+whole is the last statement. Nothing of it stays after the line, and a
+function has its own locals in every call:
+
+```example
+let a = 3; let b = a + 1; a * b
+=> 12
+area(r) = let sq = r^2; 3 * sq
+area(2)
+=> 12
+```
+
+A local name hides a variable of the same name inside its line. Formulas read
+by `diff`, `integrate` and the other symbolic functions do not see locals.
 
 # Names and statements
 Names are letters, digits and `_`, not starting with a digit. A name

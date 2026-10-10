@@ -39,7 +39,14 @@ static const char text_algebra_recursion_and_conditions [] =
 	"m:algebra g(a, b) = if (b == 0, a, g(b, a - b * floor(a / b)))\n"
 	"m:algebra g(1071, 462)\n"
 	"# The same answer from the built in function:\n"
-	"m:algebra gcd(1071, 462)\n";
+	"m:algebra gcd(1071, 462)\n"
+	"# A body of several statements: let names a value for the ones after i"
+	"t. Here the\n"
+	"# distance between two points, with the squares of the differences nam"
+	"ed first:\n"
+	"m:algebra dist(x1, y1, x2, y2) = let dx = x2 - x1; let dy = y2 - y1; s"
+	"qrt(dx^2 + dy^2)\n"
+	"m:algebra dist(0, 0, 3, 4)\n";
 
 static const char text_basics_exact_numbers [] =
 	"# Exact numbers\n"

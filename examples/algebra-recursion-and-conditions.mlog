@@ -12,3 +12,7 @@ m:algebra g(a, b) = if (b == 0, a, g(b, a - b * floor(a / b)))
 m:algebra g(1071, 462)
 # The same answer from the built in function:
 m:algebra gcd(1071, 462)
+# A body of several statements: let names a value for the ones after it. Here the
+# distance between two points, with the squares of the differences named first:
+m:algebra dist(x1, y1, x2, y2) = let dx = x2 - x1; let dy = y2 - y1; sqrt(dx^2 + dy^2)
+m:algebra dist(0, 0, 3, 4)

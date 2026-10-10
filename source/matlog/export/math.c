@@ -50,6 +50,8 @@ typedef enum Tok
 	T_NE,
 	T_AND,
 	T_OR,
+	T_SEMI,       /* ; between statements and the word let */
+	T_LET,
 	T_COUNT
 } Tok;
 
@@ -94,7 +96,9 @@ static const char *const latex_tok [T_COUNT] =
 	[T_EQEQ]       = "=",
 	[T_NE]         = "\\ne ",
 	[T_AND]        = "\\;\\mathrm{and}\\;",
-	[T_OR]         = "\\;\\mathrm{or}\\;"
+	[T_OR]         = "\\;\\mathrm{or}\\;",
+	[T_SEMI]       = ";\\;",
+	[T_LET]        = "\\mathrm{let}\\;"
 };
 
 static const char *const mathml_tok [T_COUNT] =
@@ -141,7 +145,9 @@ static const char *const mathml_tok [T_COUNT] =
 	[T_AND]        = "<mspace width=\"0.5em\"/><mi>and</mi>"
 	                 "<mspace width=\"0.5em\"/>",
 	[T_OR]         = "<mspace width=\"0.5em\"/><mi>or</mi>"
-	                 "<mspace width=\"0.5em\"/>"
+	                 "<mspace width=\"0.5em\"/>",
+	[T_SEMI]       = "<mo>;</mo><mspace width=\"0.5em\"/>",
+	[T_LET]        = "<mi>let</mi><mspace width=\"0.5em\"/>"
 };
 
 static MlResult put_tok (MlStr *out, MlMathNotation n, Tok t)
@@ -743,6 +749,43 @@ static MlResult expand (
 		if (r == ML_OK)
 		{
 			r = OpVec_push (seq, op_node (b, wants_parens (node.kind, bk, 1)));
+		}
+	}
+
+	else if (node.kind == ML_NODE_SEQ)
+	{
+		for (
+			uint64_t c = a;
+			c != 0 && r == ML_OK;
+			c = ml_ast_node (ast, c).next
+		)
+		{
+			r = OpVec_push (seq, op_node (c, 0));
+
+			if (r == ML_OK && ml_ast_node (ast, c).next != 0)
+			{
+				r = OpVec_push (seq, op_tok (T_SEMI));
+			}
+		}
+	}
+
+	else if (node.kind == ML_NODE_LET)
+	{
+		r = OpVec_push (seq, op_tok (T_LET));
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_node (a, 0));
+		}
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_tok (T_EQ));
+		}
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_node (b, 0));
 		}
 	}
 

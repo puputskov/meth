@@ -1191,6 +1191,57 @@ static void test_if_and_recursion (void)
 	session_free (&s);
 }
 
+static void test_locals (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* a let names a value for the statements after it */
+	CHECK (shows (&s, "let a = 3; a * a", "9"));
+	CHECK (shows (&s, "let a = 3; let b = a + 1; a * b", "12"));
+	CHECK (shows (&s, "let a = 3; let a = a * 2; a", "6"));
+	CHECK (shows (&s, "let a = 3", "3"));
+	CHECK (shows (&s, "1; 2; 3", "3"));
+
+	/* nothing stays after the line */
+	CHECK (fails (&s, "a", ML_EVAL_UNDEFINED_NAME));
+
+	/* a local hides a variable, only in its own line */
+	CHECK (shows (&s, "a = 10", "10"));
+	CHECK (shows (&s, "let a = 1; a", "1"));
+	CHECK (shows (&s, "a", "10"));
+
+	/* in the body of a function, with the parameters */
+	run (&s, "f(n) = let sq = n^2; let c = sq + 1; c * 2");
+	CHECK (shows (&s, "f(3)", "20"));
+	CHECK (shows (&s, "f(1) + f(2)", "14"));
+	run (&s, "g(n) = let n2 = n * 2; if (n <= 0, 0, n2 + g(n - 1))");
+	CHECK (shows (&s, "g(4)", "20"));
+
+	/* a local called like a function is a product, as a variable is */
+	CHECK (shows (&s, "let k = 3; k(2)", "6"));
+
+	/* each call has its own locals */
+	run (&s, "h(n) = let t = n; if (n == 0, 0, t + h(n - 1) + t - n)");
+	CHECK (shows (&s, "h(3)", "6"));
+
+	/* an error ends the sequence at once */
+	CHECK (fails (&s, "let a = 1/0; 5", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "1/0; 5", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "let a = 1; ghost; a", ML_EVAL_UNDEFINED_NAME));
+
+	/* the statements after an error did not run, the locals are gone */
+	CHECK (fails (&s, "let q = 1; 1/0", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "q", ML_EVAL_UNDEFINED_NAME));
+
+	/* the value of a seq can be named */
+	CHECK (shows (&s, "m = let a = 2; a + 1", "3"));
+	CHECK (shows (&s, "m", "3"));
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -1214,4 +1265,5 @@ void run_eval_tests (void)
 	test_free_symbols ();
 	test_comparisons ();
 	test_if_and_recursion ();
+	test_locals ();
 }

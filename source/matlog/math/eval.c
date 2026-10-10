@@ -42,6 +42,7 @@ typedef struct MlFrame
 	uint64_t   scope; /* index in scopes */
 	uint64_t   step;  /* children (or for a user call, phases) done */
 	MlCallKind kind;  /* calls only */
+	uint64_t   mark;  /* seq only: how many locals there were at its start */
 } MlFrame;
 
 /* The text a node belongs to: the line, or the body of a running function. */
@@ -53,9 +54,18 @@ typedef struct MlScope
 	const MlValue *args; /* its arguments, one per parameter */
 } MlScope;
 
+/* A local name of a let: visible in the statements after it, in its scope. */
+typedef struct MlLocal
+{
+	uint64_t scope;
+	MlSlice  name;
+	MlValue  value;
+} MlLocal;
+
 ML_VEC_DEFINE (MlFrameVec, MlFrame)
 ML_VEC_DEFINE (MlValueVec, MlValue)
 ML_VEC_DEFINE (MlScopeVec, MlScope)
+ML_VEC_DEFINE (MlLocalVec, MlLocal)
 
 typedef struct MlEvalCtx
 {
@@ -65,6 +75,7 @@ typedef struct MlEvalCtx
 	MlFrameVec  frames;
 	MlValueVec  vals;
 	MlScopeVec  scopes;
+	MlLocalVec  locals;
 	int32_t     failed; /* a stack could not grow: out of memory */
 	uint64_t    steps;  /* nodes evaluated so far, see ML_EVAL_MAX_STEPS */
 	MlStepLog   *log;    /* steps of symbolic calls, NULL: none wanted */
@@ -1256,13 +1267,53 @@ static MlValue unit_value (MlArena *arena, MlSlice name)
 	);
 }
 
-/* The value a name stands for: parameter, variable or constant. */
+typedef struct MlLocalHit
+{
+	int32_t found;
+	MlValue value;
+} MlLocalHit;
+
+/* The newest local of the scope with this name. */
+static MlLocalHit local_find (
+	const MlEvalCtx *cx,
+	const MlScope   *sc,
+	MlSlice         name
+)
+{
+	uint64_t   scope = (uint64_t)(sc - cx->scopes.data);
+	MlLocalHit hit   =
+	{
+		.found = 0,
+		.value = ml_value_none ()
+	};
+
+	for (uint64_t i = cx->locals.len; i > 0 && !hit.found; i--)
+	{
+		MlLocal l = cx->locals.data [i - 1];
+
+		if (l.scope == scope && ml_slice_equal (l.name, name))
+		{
+			hit.found = 1;
+			hit.value = l.value;
+		}
+	}
+
+	return hit;
+}
+
+/* The value a name stands for: local, parameter, variable or constant. */
 static MlValue name_value (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 {
-	MlParamHit hit = param_find (sc, name);
+	MlLocalHit local = local_find (cx, sc, name);
+	MlParamHit hit   = param_find (sc, name);
 	MlValue    v;
 
-	if (hit.found)
+	if (local.found)
+	{
+		v = local.value;
+	}
+
+	else if (hit.found)
 	{
 		v = sc->args [hit.index];
 	}
@@ -1774,6 +1825,7 @@ static int32_t is_unbound_symbol (
 	return (
 		   ml_ast_node (&sc->ast, node).kind == ML_NODE_NAME
 		&& !param_find (sc, name).found
+		&& !local_find (cx, sc, name).found
 		&& ml_env_lookup (cx->env, name, cx->snapshot).kind == ML_BIND_NONE
 		&& constant_find (name).kind == ML_VALUE_NONE
 		&& !ml_unit_find (name).found
@@ -1785,7 +1837,11 @@ static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 	MlCallKind kind = CALL_UNKNOWN;
 	MlBinding  b    = ml_env_lookup (cx->env, name, cx->snapshot);
 
-	if (param_find (sc, name).found || b.kind == ML_BIND_VAR)
+	if (
+		   param_find (sc, name).found
+		|| local_find (cx, sc, name).found
+		|| b.kind == ML_BIND_VAR
+	)
 	{
 		kind = CALL_PRODUCT;
 	}
@@ -1895,7 +1951,8 @@ static void push_frame (MlEvalCtx *cx, uint64_t node, uint64_t scope)
 		.node  = node,
 		.scope = scope,
 		.step  = 0,
-		.kind  = CALL_NEW
+		.kind  = CALL_NEW,
+		.mark  = 0
 	};
 
 	if (cx->frames.len >= ML_EVAL_MAX_DEPTH)
@@ -2601,6 +2658,76 @@ static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
 	}
 }
 
+/* Ends the locals a seq made, and the seq with the value or the error. */
+static void finish_seq (MlEvalCtx *cx, MlFrame f, MlNode node, uint64_t done)
+{
+	cx->locals.len = f.mark;
+	finish (cx, done, top_value (cx), node);
+}
+
+/*
+ * The statements of a body, one after the other. After a statement its value
+ * is dropped, except for the last one, which is the value of the whole; an
+ * error ends the sequence at once.
+ */
+static void step_seq (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc = &cx->scopes.data [f.scope];
+	uint64_t      n   = ml_ast_child_count (&sc->ast, f.node);
+
+	if (f.step == 0)
+	{
+		cx->frames.data [cx->frames.len - 1].mark = cx->locals.len;
+		set_step (cx, 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, 0), f.scope);
+	}
+
+	else if (f.step >= n || top_is_error (cx))
+	{
+		finish_seq (cx, f, node, 1);
+	}
+
+	else
+	{
+		cx->vals.len--;
+		set_step (cx, f.step + 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, f.step), f.scope);
+	}
+}
+
+/* let name = expression: the value is the local name's from here on. */
+static void step_let (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc = &cx->scopes.data [f.scope];
+
+	if (f.step == 0)
+	{
+		set_step (cx, 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, 1), f.scope);
+	}
+
+	else
+	{
+		MlLocal l =
+		{
+			.scope = f.scope,
+			.name  = ml_ast_text (
+				&sc->ast,
+				sc->source,
+				ml_ast_child (&sc->ast, f.node, 0)
+			),
+			.value = top_value (cx)
+		};
+
+		if (!top_is_error (cx) && MlLocalVec_push (&cx->locals, l) != ML_OK)
+		{
+			cx->failed = 1;
+		}
+
+		finish (cx, 1, top_value (cx), node);
+	}
+}
+
 static void eval_step (MlEvalCtx *cx)
 {
 	MlFrame       f    = top_frame (cx);
@@ -2610,6 +2737,16 @@ static void eval_step (MlEvalCtx *cx)
 	if (node.kind == ML_NODE_CALL)
 	{
 		step_call (cx, f, node);
+	}
+
+	else if (node.kind == ML_NODE_SEQ)
+	{
+		step_seq (cx, f, node);
+	}
+
+	else if (node.kind == ML_NODE_LET)
+	{
+		step_let (cx, f, node);
 	}
 
 	else if (is_operator (node.kind))
@@ -2696,6 +2833,7 @@ static MlValue eval_with (
 	MlFrameVec_free (&cx.frames);
 	MlValueVec_free (&cx.vals);
 	MlScopeVec_free (&cx.scopes);
+	MlLocalVec_free (&cx.locals);
 	return r;
 }
 

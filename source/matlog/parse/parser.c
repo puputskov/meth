@@ -1149,6 +1149,89 @@ static uint64_t parse_expr (Parser *p)
 	return ml_choose (p->failed, NIL, p->val);
 }
 
+/* let name = at the cursor? */
+static int32_t at_let (const Parser *p)
+{
+	return (
+		   at_word (p, "let")
+		&& peek_at (p, 1).kind == ML_TOK_NAME
+		&& peek_at (p, 2).kind == ML_TOK_EQUALS
+	);
+}
+
+/* One statement of a sequence: let name = expression, or an expression. */
+static uint64_t parse_item (Parser *p)
+{
+	uint64_t item = NIL;
+
+	if (at_let (p))
+	{
+		MlToken  keyword = advance (p);
+		uint64_t name    = add_leaf (p, ML_NODE_NAME, advance (p));
+		uint64_t value;
+
+		advance (p);
+		value = parse_expr (p);
+
+		if (!p->failed)
+		{
+			item = add_node (
+				p,
+				ML_NODE_LET,
+				keyword.start,
+				node_end (p, value)
+			);
+			adopt (p, item, name);
+			adopt (p, item, value);
+		}
+	}
+
+	else
+	{
+		item = parse_expr (p);
+	}
+
+	return ml_choose (p->failed, NIL, item);
+}
+
+/*
+ * Statements separated by ';'. One statement is itself; several are a seq
+ * node over them.
+ */
+static uint64_t parse_sequence (Parser *p)
+{
+	uint64_t first = parse_item (p);
+	uint64_t seq   = NIL;
+
+	if (!p->failed && peek (p).kind == ML_TOK_SEMI)
+	{
+		seq = add_node (
+			p,
+			ML_NODE_SEQ,
+			node_at (p, first).start,
+			node_end (p, first)
+		);
+		adopt (p, seq, first);
+	}
+
+	while (!p->failed && peek (p).kind == ML_TOK_SEMI)
+	{
+		uint64_t item;
+
+		advance (p);
+		item = parse_item (p);
+
+		if (!p->failed)
+		{
+			adopt (p, seq, item);
+			p->ast.nodes.data [seq].len = node_end (p, item)
+				- node_at (p, seq).start;
+		}
+	}
+
+	return ml_choose (p->failed, NIL, ml_choose (seq != NIL, seq, first));
+}
+
 /* name '(' [name {',' name}] ')' '=' at the current position? */
 static int32_t is_function_definition (const Parser *p)
 {
@@ -1235,7 +1318,7 @@ static uint64_t parse_definition (Parser *p)
 		p->ast.nodes.data [params].len = close.start + close.len - open.start;
 	}
 
-	body = parse_expr (p);
+	body = parse_sequence (p);
 
 	if (!p->failed)
 	{
@@ -1264,7 +1347,7 @@ static uint64_t parse_statement (Parser *p)
 		uint64_t body;
 
 		advance (p);
-		body = parse_expr (p);
+		body = parse_sequence (p);
 		root = binary (p, ML_NODE_ASSIGN, target, body);
 	}
 
@@ -1275,7 +1358,7 @@ static uint64_t parse_statement (Parser *p)
 
 	else
 	{
-		root = parse_expr (p);
+		root = parse_sequence (p);
 	}
 
 	/* nothing may follow the statement */
@@ -1395,7 +1478,9 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_EQ]       = "==",
 	[ML_NODE_NE]       = "!=",
 	[ML_NODE_AND]      = "and",
-	[ML_NODE_OR]       = "or"
+	[ML_NODE_OR]       = "or",
+	[ML_NODE_SEQ]      = "seq",
+	[ML_NODE_LET]      = "let"
 };
 
 static const char *node_label (MlNodeKind kind)
