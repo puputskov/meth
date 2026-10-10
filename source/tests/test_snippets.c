@@ -132,7 +132,14 @@ static void test_find (void)
 	/* the page lists both */
 	ml_str_clear (&text);
 	CHECK (ml_snippets_page (&text) == ML_OK);
-	CHECK (strstr (ml_str_cstr (text), "# Yours\n- `mine`: My own\n") != NULL);
+	CHECK (strstr (ml_str_cstr (text), "# Yours\n") != NULL);
+	CHECK (strstr (ml_str_cstr (text), "- `mine`: My own\n") != NULL);
+	CHECK (
+		strstr (
+			ml_str_cstr (text),
+			"- `algebra-quadratic`: My quadratic\n"
+		) != NULL
+	);
 	CHECK (
 		strstr (
 			ml_str_cstr (text),
