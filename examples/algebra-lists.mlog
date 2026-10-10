@@ -12,3 +12,11 @@ m:algebra take(reverse(append(xs, 11)), 3)
 # The sum of the squares of the first hundred numbers, and the same by a formula:
 m:algebra sum(range(1, 100) * range(1, 100))
 m:algebra 100 * 101 * 201 / 6
+# Loops: a short function x -> expression is run for every item.
+m:algebra map(x -> x^2, range(1, 6))
+m:algebra filter(x -> x - 2 * floor(x / 2) == 0, range(1, 20))
+# fold carries a value through the list; here the sum, then the largest:
+m:algebra fold((a, b) -> a + b, 0, range(1, 10))
+m:algebra fold(max, 0, list(3, 9, 2))
+# sum (i, a, b, e) adds e for i from a to b. The harmonic numbers:
+m:algebra map(n -> sum(i, 1, n, 1/i), range(1, 5))

@@ -17,7 +17,16 @@ static const char text_algebra_lists [] =
 	"# The sum of the squares of the first hundred numbers, and the same by"
 	" a formula:\n"
 	"m:algebra sum(range(1, 100) * range(1, 100))\n"
-	"m:algebra 100 * 101 * 201 / 6\n";
+	"m:algebra 100 * 101 * 201 / 6\n"
+	"# Loops: a short function x -> expression is run for every item.\n"
+	"m:algebra map(x -> x^2, range(1, 6))\n"
+	"m:algebra filter(x -> x - 2 * floor(x / 2) == 0, range(1, 20))\n"
+	"# fold carries a value through the list; here the sum, then the larges"
+	"t:\n"
+	"m:algebra fold((a, b) -> a + b, 0, range(1, 10))\n"
+	"m:algebra fold(max, 0, list(3, 9, 2))\n"
+	"# sum (i, a, b, e) adds e for i from a to b. The harmonic numbers:\n"
+	"m:algebra map(n -> sum(i, 1, n, 1/i), range(1, 5))\n";
 
 static const char text_algebra_quadratic [] =
 	"# A quadratic equation\n"

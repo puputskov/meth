@@ -21,6 +21,7 @@ static const char *const kind_names [ML_TOK_COUNT] =
 	[ML_TOK_RBRACKET]    = "]",
 	[ML_TOK_COMMA]       = ",",
 	[ML_TOK_SEMI]        = ";",
+	[ML_TOK_ARROW]       = "->",
 	[ML_TOK_EQUALS]      = "=",
 	[ML_TOK_SQRT]        = "sqrt",
 	[ML_TOK_SUPERSCRIPT] = "superscript",
@@ -250,8 +251,15 @@ static MlToken next_token (MlSlice source, uint64_t pos)
 	{
 		token.kind = symbol_kind (d.cp);
 
+		/* -> is two characters */
+		if (d.cp == '-' && pos + 1 < source.len && source.data [pos + 1] == '>')
+		{
+			token.kind = ML_TOK_ARROW;
+			token.len  = 2;
+		}
+
 		/* <= >= == != are two characters */
-		if (
+		else if (
 			   pos + 1 < source.len
 			&& source.data [pos + 1] == '='
 			&& (d.cp == '<' || d.cp == '>' || d.cp == '=' || d.cp == '!')

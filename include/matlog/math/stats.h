@@ -24,6 +24,8 @@
  *	histogram (v, k)            how many values are in each of k equal bins
  *	range (a, b [, step])       the list a, a + step, ... up to b
  *	prod (v)                    the product of the items
+ *	sum (i, a, b, e)  prod (i, a, b, e)  e for i = a ... b, added or multiplied
+ *	                            (a loop of the evaluator, see eval.h)
  *	linfit (x, y)               [a, b] so that y is about a + b x
  *	rsq (x, y)                  the coefficient of determination
  *	polyfit (x, y, n)           the coefficients c0 ... cn of the degree n
@@ -46,7 +48,7 @@
 
 /* name, fewest and most arguments */
 #define ML_STAT_LIST(X) \
-	X (SUM,          "sum",          1, 1) \
+	X (SUM,          "sum",          1, 4) \
 	X (LENGTH,       "count",        1, 1) \
 	X (MEAN,         "mean",         1, 1) \
 	X (MEDIAN,       "median",       1, 1) \
@@ -80,7 +82,7 @@
 	X (HIST,         "hist",         2, 2) \
 	X (SCATTER,      "scatter",      2, 2) \
 	X (PLOT,         "plot",         2, 2) \
-	X (PROD,         "prod",         1, 1)
+	X (PROD,         "prod",         1, 4)
 
 typedef enum MlStat
 {

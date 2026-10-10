@@ -32,7 +32,8 @@ typedef enum FrameKind
 	FRAME_PAREN,          /* waiting for the expression inside '(' ')' */
 	FRAME_CALL_ARG,       /* waiting for an argument of a call */
 	FRAME_LIST_ELEM,      /* waiting for an element of a list */
-	FRAME_INDEX           /* waiting for the position inside name[ ] */
+	FRAME_INDEX,          /* waiting for the position inside name[ ] */
+	FRAME_LAMBDA          /* waiting for the body of x -> body */
 } FrameKind;
 
 typedef struct ParseFrame
@@ -700,6 +701,9 @@ static uint64_t operator_level (const Parser *p)
 	);
 }
 
+static int32_t has_param (const Parser *p, uint64_t params, MlSlice text);
+static void call_arg (Parser *p);
+
 /* ---- modes ---- */
 
 static void mode_binary (Parser *p)
@@ -799,7 +803,7 @@ static void start_call (Parser *p, uint64_t name)
 		if (peek (p).kind != ML_TOK_RPAREN)
 		{
 			push (p, FRAME_CALL_ARG, call, 0, ML_TOK_END, 0);
-			call_expr (p);
+			call_arg (p);
 		}
 
 		else
@@ -832,6 +836,111 @@ static void start_list (Parser *p)
 	else
 	{
 		give (p, NIL);
+	}
+}
+
+/* Is a lambda at the cursor: name -> or (name, name) -> ? */
+static int32_t at_lambda (const Parser *p)
+{
+	uint64_t i  = 0;
+	int32_t  ok = 0;
+
+	if (peek_at (p, 0).kind == ML_TOK_NAME)
+	{
+		ok = peek_at (p, 1).kind == ML_TOK_ARROW;
+	}
+
+	else if (peek_at (p, 0).kind == ML_TOK_LPAREN)
+	{
+		int32_t more = 1;
+
+		i = 1;
+
+		while (more)
+		{
+			more = peek_at (p, i).kind == ML_TOK_NAME;
+			i   += ml_choose (more, 1, 0);
+			more = more && peek_at (p, i).kind == ML_TOK_COMMA;
+			i   += ml_choose (more, 1, 0);
+		}
+
+		ok = (
+			   i > 1
+			&& peek_at (p, i).kind == ML_TOK_RPAREN
+			&& peek_at (p, i + 1).kind == ML_TOK_ARROW
+		);
+	}
+
+	return ok;
+}
+
+/* The names before the arrow, the arrow, then the body is read. */
+static void start_lambda (Parser *p)
+{
+	MlToken  first  = peek (p);
+	int32_t  paren  = first.kind == ML_TOK_LPAREN;
+	uint64_t params = add_node (
+		p,
+		ML_NODE_PARAMS,
+		first.start,
+		first.start + 1
+	);
+	MlToken  last   = first;
+
+	if (paren)
+	{
+		advance (p);
+	}
+
+	while (!p->failed && peek (p).kind == ML_TOK_NAME)
+	{
+		MlToken name = advance (p);
+
+		if (has_param (p, params, ml_token_text (p->source, name)))
+		{
+			fail (p, ML_PARSE_DUPLICATE_PARAM, name);
+		}
+
+		adopt (p, params, add_leaf (p, ML_NODE_NAME, name));
+		last = name;
+
+		if (paren && peek (p).kind == ML_TOK_COMMA)
+		{
+			advance (p);
+		}
+	}
+
+	if (paren)
+	{
+		last = advance (p);
+	}
+
+	advance (p);
+
+	if (!p->failed)
+	{
+		p->ast.nodes.data [params].len = last.start + last.len - first.start;
+		push (p, FRAME_LAMBDA, params, first.start, ML_TOK_END, 0);
+		call_expr (p);
+	}
+
+	else
+	{
+		give (p, NIL);
+	}
+}
+
+/* An argument of a call starts: a lambda, or an expression. */
+static void call_arg (Parser *p)
+{
+	if (at_lambda (p))
+	{
+		start_lambda (p);
+	}
+
+	else
+	{
+		call_expr (p);
 	}
 }
 
@@ -1023,7 +1132,7 @@ static void call_arg_continue (Parser *p, uint64_t call, uint64_t arg)
 	{
 		advance (p);
 		push (p, FRAME_CALL_ARG, call, 0, ML_TOK_END, 0);
-		call_expr (p);
+		call_arg (p);
 	}
 
 	else
@@ -1142,6 +1251,20 @@ static void mode_return (Parser *p)
 	else if (f.kind == FRAME_INDEX)
 	{
 		index_continue (p, f.node, val);
+	}
+
+	else if (f.kind == FRAME_LAMBDA)
+	{
+		uint64_t lambda = NIL;
+
+		if (!p->failed && val != NIL)
+		{
+			lambda = add_node (p, ML_NODE_LAMBDA, f.start, node_end (p, val));
+			adopt (p, lambda, f.node);
+			adopt (p, lambda, val);
+		}
+
+		give (p, lambda);
 	}
 
 	else
@@ -1536,7 +1659,8 @@ static const char *const node_labels [ML_NODE_KIND_COUNT] =
 	[ML_NODE_OR]       = "or",
 	[ML_NODE_SEQ]      = "seq",
 	[ML_NODE_LET]      = "let",
-	[ML_NODE_INDEX]    = "index"
+	[ML_NODE_INDEX]    = "index",
+	[ML_NODE_LAMBDA]   = "lambda"
 };
 
 static const char *node_label (MlNodeKind kind)

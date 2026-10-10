@@ -545,7 +545,7 @@ mode stays safe. Built in this order, each step with tests, docs and an example 
    quantities, booleans, and lists. `[1, 2, 3]` stays a column vector when every item is an exact number and the context is a matrix operation; the
    list value is made by `range (a, b)`, `list (...)`, `map`, `filter`, `sort`, and a list converts to a vector on demand (`vec (xs)`), so the 64 item
    limit goes with the matrix limit only when a matrix is wanted. `xs [i]` indexes from 1, `len (xs)`, `xs + ys` and `xs * 2` work item by item.
-4. **Functions as values and the loop-like builtins.** `map (f, xs)`, `filter (f, xs)`, `fold (f, start, xs)`, `sum`, `prod` over a list or over
+4. **Loops: `map`, `filter`, `fold`, `sum (i, a, b, e)`, `prod (i, a, b, e)` and `x -> expr`** (built 2026-10-10: the function is a name or a lambda that is an argument, not a value; a lambda runs in the scope it is written in; the loops are frames of the evaluator, so nothing recurses). The design text below is the first idea: `map (f, xs)`, `filter (f, xs)`, `fold (f, start, xs)`, `sum`, `prod` over a list or over
    `sum (i, 1, n, expr)`, with `f` a function name or a short `x -> expr` form. A function value is a name and the environment snapshot; there are
    no closures over local names (an `x -> ...` form sees the names of the line it is written in).
 5. **The library.** A file of definitions in matlog's own language, included first in every session (read only), written with the steps above:
@@ -626,6 +626,20 @@ given with units.
   recurses, so the C stack must not depend on the input), and every allocation failure path is tried by an allocator that fails on the n-th call.
 - Built with the compilers' sanitizers (address, undefined behaviour) where the platform has them; libFuzzer or AFL entry points are a thin wrapper over
   the same target functions, but the program needs no library: the built in driver is enough.
+
+### 4.25 One table for the words of the syntax
+
+Decided 2026-10-10 (a request, not built yet). The words of the syntax are written once, in a table, and nothing else compares a name with `"pi"`,
+`"and"`, `"to"`, `"let"`, `"true"` ... as a string literal. Today they are spread over the parser (`at_to`, `at_word`, `at_let`), the evaluator
+(`constant_find`, `builtin_find` with its own names), the highlighter (`name_class`), the completion, the symbolic engine (`is_symbolic_name`),
+the export and the docs, so a change of the syntax (a new constant, another spelling of `and`) means finding every place by hand.
+- `parse/words.h`: `ml_word_find (name)` returns the kind of a word (`MlWordKind`: keyword, operator word, constant, function, symbolic function),
+  its id and its spellings in the order they are listed (`pi` and the sign, `and` and its sign). The table is one array with designated entries,
+  a test lists every row, and the other modules ask the table: the parser asks for operator words and `let`, the highlighter for the class, the
+  evaluator for the value of a constant and the id of a function, the completion for the words of a kind.
+- Built in functions keep their implementation tables (`eval.c` builtins, `stats.h`, `listfn.h`) but get their names through the same lookup, so a
+  name is found in one place. A user definition still hides a built in name for variables and functions, as today.
+- Done together with section 4.24, since both move words out of the code; the order does not matter, but the table is small and can go first.
 
 ### 4.24 Texts in files: messages, hints, tutorial, localization
 

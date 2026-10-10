@@ -1336,6 +1336,102 @@ static void test_lists (void)
 	session_free (&s);
 }
 
+static void test_loops (void)
+{
+	Session s;
+
+	session_init (&s);
+
+	/* map with a lambda, a function of the user, a built in function */
+	CHECK (shows (&s, "map(x -> x^2, range(1, 5))", "[1, 4, 9, 16, 25]"));
+	run (&s, "sq(x) = x^2 + 1");
+	CHECK (shows (&s, "map(sq, range(1, 3))", "[2, 5, 10]"));
+	CHECK (shows (&s, "map(sqrt, list(4, 9, 16))", "[2, 3, 4]"));
+	CHECK (shows (&s, "map((a) -> a + 1, [1, 2, 3])", "[2, 3, 4]"));
+	CHECK (shows (&s, "map(x -> x, list())", "[]"));
+	CHECK (shows (&s, "map(x -> x > 1, range(1, 3))", "[false, true, true]"));
+
+	/* a lambda sees the names of its line, and its own names are gone after */
+	run (&s, "k = 10");
+	CHECK (shows (&s, "map(x -> x + k, range(1, 3))", "[11, 12, 13]"));
+	CHECK (
+		shows (
+			&s,
+			"let c = 5; map(x -> x * c, range(1, 3))",
+			"[5, 10, 15]"
+		)
+	);
+	CHECK (fails (&s, "x", ML_EVAL_UNDEFINED_NAME));
+	CHECK (shows (&s, "let x = 7; map(x -> x + 1, list(1, 2)); x", "7"));
+
+	/* filter */
+	CHECK (shows (&s, "filter(x -> x > 2, range(1, 5))", "[3, 4, 5]"));
+	CHECK (shows (&s, "filter(x -> x > 9, range(1, 5))", "[]"));
+	CHECK (fails (&s, "filter(x -> x, range(1, 5))", ML_EVAL_TYPE));
+	CHECK (
+		shows (
+			&s,
+			"len(filter(x -> x - 2 * floor(x / 2) == 0, range(1, 100)))",
+			"50"
+		)
+	);
+
+	/* fold: the accumulator comes first */
+	CHECK (shows (&s, "fold((a, b) -> a + b, 0, range(1, 10))", "55"));
+	CHECK (shows (&s, "fold((a, b) -> a * b, 1, range(1, 6))", "720"));
+	CHECK (shows (&s, "fold((a, b) -> b - a, 0, list(1, 2, 3))", "2"));
+	CHECK (shows (&s, "fold(max, 0, list(3, 9, 2))", "9"));
+	CHECK (shows (&s, "fold((a, b) -> a, 7, list())", "7"));
+	run (&s, "add(a, b) = a + b");
+	CHECK (shows (&s, "fold(add, 100, range(1, 4))", "110"));
+
+	/* sum and prod over a variable */
+	CHECK (shows (&s, "sum(i, 1, 10, i^2)", "385"));
+	CHECK (shows (&s, "prod(i, 1, 5, i)", "120"));
+	CHECK (shows (&s, "sum(i, 1, 0, i)", "0"));
+	CHECK (shows (&s, "prod(i, 1, 0, i)", "1"));
+	CHECK (shows (&s, "sum(i, 1, 3, sum(j, 1, i, j))", "10"));
+	CHECK (shows (&s, "sum(i, 1, 4, 1/i)", "25/12"));
+	run (&s, "tri(n) = sum(i, 1, n, i)");
+	CHECK (shows (&s, "tri(100)", "5050"));
+	CHECK (shows (&s, "tri(tri(3))", "21"));
+	CHECK (shows (&s, "let n = 4; sum(i, 1, n, i * n)", "40"));
+
+	/* loops inside loops, and with functions that recurse */
+	CHECK (
+		shows (
+			&s,
+			"map(n -> sum(i, 1, n, i), range(1, 4))",
+			"[1, 3, 6, 10]"
+		)
+	);
+	run (&s, "fact(n) = if (n <= 1, 1, n * fact(n - 1))");
+	CHECK (shows (&s, "map(fact, range(1, 6))", "[1, 2, 6, 24, 120, 720]"));
+	CHECK (shows (&s, "sum(map(x -> x^2, range(1, 10)))", "385"));
+
+	/* long ones */
+	CHECK (shows (&s, "len(map(x -> x * 2, range(1, 5000)))", "5000"));
+	CHECK (shows (&s, "sum(i, 1, 2000, i)", "2001000"));
+
+	/* errors */
+	CHECK (fails (&s, "map(x -> 1/x, list(1, 0))", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "map(5, range(1, 3))", ML_EVAL_NOT_FUNCTION));
+	CHECK (fails (&s, "map(ghost, range(1, 3))", ML_EVAL_UNDEFINED_NAME));
+	CHECK (fails (&s, "map((a, b) -> a, range(1, 3))", ML_EVAL_ARITY));
+	CHECK (fails (&s, "map(add, range(1, 3))", ML_EVAL_ARITY));
+	CHECK (fails (&s, "map(x -> x)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "map(x -> x, 5)", ML_EVAL_TYPE));
+	CHECK (fails (&s, "fold(add, 0)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "sum(1, 2)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "sum(i, 1, 1/2, i)", ML_EVAL_NOT_INTEGER));
+	CHECK (fails (&s, "sum(i, 1, 3, 1/0)", ML_EVAL_DIV_ZERO));
+	CHECK (fails (&s, "x -> x", ML_EVAL_SYNTAX));
+	CHECK (fails (&s, "sq(x -> x)", ML_EVAL_NOT_VALUE));
+	CHECK (fails (&s, "sum(i, 1, 100000000, i)", ML_EVAL_TOO_LONG));
+
+	session_free (&s);
+}
+
 void run_eval_tests (void)
 {
 	test_arithmetic ();
@@ -1361,4 +1457,5 @@ void run_eval_tests (void)
 	test_if_and_recursion ();
 	test_locals ();
 	test_lists ();
+	test_loops ();
 }

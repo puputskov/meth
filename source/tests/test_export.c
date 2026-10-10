@@ -66,6 +66,14 @@ static void test_latex_math (void)
 
 	CHECK (latex_is ("xs[2] + 1", "\\mathrm{xs}\\left[2\\right]+1"));
 
+	CHECK (latex_is ("f(x -> x + 1, 2)", "f\\left(x\\mapsto x+1,\\,2\\right)"));
+	CHECK (
+		latex_is (
+			"f((a, b) -> a)",
+			"f\\left(\\left(a,\\,b\\right)\\mapsto a\\right)"
+		)
+	);
+
 	/* statements and local names */
 	CHECK (latex_is ("let a = 2; a + 1", "\\mathrm{let}\\;a=2;\\;a+1"));
 	CHECK (latex_is ("1; 2", "1;\\;2"));

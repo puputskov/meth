@@ -849,6 +849,56 @@ static void test_index (void)
 	CHECK (fails_with ("xs[1,2]", ML_PARSE_UNEXPECTED_TOKEN, 4, 1, 0));
 }
 
+static void test_lambdas (void)
+{
+	CHECK (
+		dumps_as (
+			"map(x -> x^2, xs)",
+			"(call map (lambda (x) (^ x 2)) xs)"
+		)
+	);
+	CHECK (
+		dumps_as (
+			"fold((a, b) -> a + b, 0, xs)",
+			"(call fold (lambda (a b) (+ a b)) 0 xs)"
+		)
+	);
+	CHECK (dumps_as ("f(x -> x)", "(call f (lambda (x) x))"));
+	CHECK (
+		dumps_as (
+			"f(1, x -> x + 1, 2)",
+			"(call f 1 (lambda (x) (+ x 1)) 2)"
+		)
+	);
+	CHECK (
+		dumps_as (
+			"f(x -> g(y -> y))",
+			"(call f (lambda (x) (call g (lambda (y) y))))"
+		)
+	);
+	CHECK (
+		dumps_as (
+			"f(x -> x, y -> y)",
+			"(call f (lambda (x) x) (lambda (y) y))"
+		)
+	);
+
+	/* the body is a whole expression up to the comma */
+	CHECK (
+		dumps_as (
+			"f(x -> x < 2 and x > 0, 1)",
+			"(call f (lambda (x) (and (< x 2) (> x 0))) 1)"
+		)
+	);
+
+	/* a lambda is only an argument; a minus and a greater than are not one */
+	CHECK (fails_with ("x -> x", ML_PARSE_UNEXPECTED_TOKEN, 2, 2, 0));
+	CHECK (fails_with ("f(x ->)", ML_PARSE_EXPECTED_EXPR, 6, 1, 0));
+	CHECK (fails_with ("f((a, a) -> a)", ML_PARSE_DUPLICATE_PARAM, 6, 1, 0));
+	CHECK (fails_with ("f(() -> 1)", ML_PARSE_EXPECTED_EXPR, 3, 1, 0));
+	CHECK (dumps_as ("f((x) -> x)", "(call f (lambda (x) x))"));
+}
+
 void run_parser_tests (void)
 {
 	test_precedence ();
@@ -865,6 +915,7 @@ void run_parser_tests (void)
 	test_logic ();
 	test_sequences ();
 	test_index ();
+	test_lambdas ();
 	run_on_small_stack (test_limits);
 	test_heights ();
 	test_complete ();

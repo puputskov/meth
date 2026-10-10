@@ -1,7 +1,7 @@
 id: lists
 title: Lists
-summary: Lists of any length: range, list, item, indexing, item by item arithmetic.
-keywords: list, range, len, item, append, concat, reverse, take, drop, vec, tolist, index, sequence, array
+summary: Lists of any length: range, list, indexing, item by item arithmetic, map, filter, fold.
+keywords: list, map, filter, fold, lambda, loop, sum, prod, range, len, item, append, concat, reverse, take, drop, vec, tolist, index, sequence, array
 see: statistics, matrices, syntax, ex-algebra-lists
 
 A list holds any number of values, up to 100000: numbers, quantities,
@@ -71,6 +71,43 @@ range(1, 3) + range(10, 30, 10)
 sum(range(1, 100)) / len(range(1, 100))
 => 101/2
 ```
+
+# Loops: map, filter, fold
+```code
+map (f, xs)           the list of f (x) for every item x
+filter (f, xs)        the items for which f (x) is true
+fold (f, start, xs)   f (f (f (start, x1), x2), x3) ...: one value
+sum (i, a, b, e)      e for i = a, a + 1, ... b, added up
+prod (i, a, b, e)     the same, multiplied
+```
+
+The function f is the name of a function (yours, or a built in one such as
+`sqrt`) or a short function written on the spot: `x -> x^2` for one name,
+`(a, b) -> a + b` for two. fold gives its function the value so far first and
+the item second. A short function sees the names of its line, `let` names
+included, and its own names exist only while it runs.
+
+```example
+map(x -> x^2, range(1, 5))
+=> [1, 4, 9, 16, 25]
+filter(x -> x > 2, range(1, 5))
+=> [3, 4, 5]
+fold((a, b) -> a + b, 0, range(1, 10))
+=> 55
+sum(i, 1, 10, i^2)
+=> 385
+prod(i, 1, 5, i)
+=> 120
+let k = 10; map(x -> x + k, range(1, 3))
+=> [11, 12, 13]
+```
+
+A loop inside a loop works: `map(n -> sum(i, 1, n, i), range(1, 4))` gives the
+triangular numbers `[1, 3, 6, 10]`. Every line is limited to two million steps
+(error `too_long`), so a loop with a huge range ends with an error instead of
+keeping the editor busy. The errors are `not_function` for something that is
+not a function, `arity` for a function that takes another number of
+arguments, `type` when filter gets something that is not true or false.
 
 A list of exact numbers works with every function of
 [statistics](statistics): `mean`, `median`, `sort`, `hist` and the others.

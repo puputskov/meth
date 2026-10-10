@@ -33,6 +33,8 @@ typedef enum MlCallKind
 	CALL_USER,
 	CALL_BUILTIN,
 	CALL_IF,      /* if (c, a, b): only the branch that is taken runs */
+	/* map filter fold and sum (i, a, b, e): the function is not a value */
+	CALL_HOF,
 	/* simplify expand subs diff integrate: the arguments are formulas */
 	CALL_SYMBOLIC
 } MlCallKind;
@@ -43,7 +45,9 @@ typedef struct MlFrame
 	uint64_t   scope; /* index in scopes */
 	uint64_t   step;  /* children (or for a user call, phases) done */
 	MlCallKind kind;  /* calls only */
-	uint64_t   mark;  /* seq only: how many locals there were at its start */
+	uint64_t   mark;  /* locals there were at the start of a seq or a lambda */
+	uint64_t   index; /* map, filter, fold, sum: the item being done */
+	uint64_t   vstart; /* those: vals when the call began */
 } MlFrame;
 
 /* The text a node belongs to: the line, or the body of a running function. */
@@ -113,6 +117,9 @@ typedef enum MlBuiltin
 	BUILTIN_DIM,
 	BUILTIN_IF,
 	BUILTIN_NOT,
+	BUILTIN_MAP,
+	BUILTIN_FILTER,
+	BUILTIN_FOLD,
 	/* complex numbers and quaternions (math/hyper.h) */
 	BUILTIN_RE,
 	BUILTIN_IM,
@@ -186,6 +193,9 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] =
 	[BUILTIN_DIM]   = { .name = "dim",   .min = 1, .max = 1 },
 	[BUILTIN_IF]    = { .name = "if",    .min = 3, .max = 3 },
 	[BUILTIN_NOT]   = { .name = "not",   .min = 1, .max = 1 },
+	[BUILTIN_MAP]    = { .name = "map",    .min = 2, .max = 2 },
+	[BUILTIN_FILTER] = { .name = "filter", .min = 2, .max = 2 },
+	[BUILTIN_FOLD]   = { .name = "fold",   .min = 3, .max = 3 },
 	[BUILTIN_RE]     = { .name = "re",     .min = 1, .max = 1 },
 	[BUILTIN_IM]     = { .name = "im",     .min = 1, .max = 1 },
 	[BUILTIN_CONJ]   = { .name = "conj",   .min = 1, .max = 1 },
@@ -2040,6 +2050,12 @@ static MlValue leaf_value (
 		v = eval_superscript (cx, text);
 	}
 
+	else if (node.kind == ML_NODE_LAMBDA)
+	{
+		/* x -> body is only an argument of map, filter, fold and the like */
+		v = error_at (ML_EVAL_NOT_VALUE);
+	}
+
 	else if (node.kind == ML_NODE_NAME)
 	{
 		v = name_value (cx, sc, text);
@@ -2075,7 +2091,9 @@ static void push_frame (MlEvalCtx *cx, uint64_t node, uint64_t scope)
 		.scope = scope,
 		.step  = 0,
 		.kind  = CALL_NEW,
-		.mark  = 0
+		.mark  = 0,
+		.index = 0,
+		.vstart = 0
 	};
 
 	if (cx->frames.len >= ML_EVAL_MAX_DEPTH)
@@ -2510,6 +2528,8 @@ static void step_operator (MlEvalCtx *cx, MlFrame f, MlNode node)
 
 /* ---- calls ---- */
 
+static int32_t is_hof (MlBuiltin id, uint64_t argc);
+
 /* Looks at the callee and either ends the call with an error or prepares it. */
 static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
@@ -2540,6 +2560,11 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 		kind = CALL_IF;
 	}
 
+	if (kind == CALL_BUILTIN && is_hof (builtin_find (name), argc))
+	{
+		kind = CALL_HOF;
+	}
+
 	if (kind == CALL_SYMBOLIC)
 	{
 		r = symbolic_call (cx, sc, f.node, name, argc);
@@ -2568,11 +2593,19 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 		}
 	}
 
-	else if (kind == CALL_BUILTIN || kind == CALL_IF)
+	else if (kind == CALL_BUILTIN || kind == CALL_IF || kind == CALL_HOF)
 	{
 		MlBuiltin id = builtin_find (name);
 
-		if (argc < builtins [id].min || argc > builtins [id].max)
+		if (
+			   argc < builtins [id].min
+			|| argc > builtins [id].max
+			|| (
+				   (id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD)
+				&& argc != 1
+				&& argc != 4
+			)
+		)
 		{
 			r = error_at (ML_EVAL_ARITY);
 		}
@@ -2714,6 +2747,536 @@ static void step_if (MlEvalCtx *cx, MlFrame f, MlNode node)
 	}
 }
 
+/* ---- map, filter, fold and sum (i, a, b, e) ------------------------------ */
+
+/*
+ * The loops of the language. The function is not evaluated as an argument: it
+ * is a name (a function of the user, a built in one) or a lambda written right
+ * there, x -> body, and it is run once for every item. A lambda runs in the
+ * scope it is written in with its names as locals, so it sees the names of
+ * its line; nothing else is kept. Items and results wait on vals:
+ *
+ *	map, filter   [list, result, result ...]
+ *	fold          [list, accumulator]
+ *	sum, prod     [a, b, accumulator]
+ *
+ * and the frame's step says where it is: the arguments (0 to 2), then 10 to
+ * start the next item or end, and 11 when the function has given its result.
+ */
+
+#define HOF_ITEM   10
+#define HOF_RESULT 11
+
+static int32_t is_hof (MlBuiltin id, uint64_t argc)
+{
+	return (
+		   id == BUILTIN_MAP
+		|| id == BUILTIN_FILTER
+		|| id == BUILTIN_FOLD
+		|| ((id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD) && argc == 4)
+	);
+}
+
+typedef enum HofKind
+{
+	HOF_BAD = 0,
+	HOF_LAMBDA,
+	HOF_USER,
+	HOF_BUILTIN
+} HofKind;
+
+/* What the function argument of a loop is. */
+typedef struct HofTarget
+{
+	HofKind     kind;
+	MlErrorKind error;
+	uint64_t    node;   /* the lambda or the name */
+	MlBinding   user;
+	MlBuiltin   id;
+} HofTarget;
+
+static HofTarget hof_target (
+	MlEvalCtx     *cx,
+	const MlScope *sc,
+	uint64_t      node,
+	uint64_t      want
+)
+{
+	MlNode    n = ml_ast_node (&sc->ast, node);
+	HofTarget t =
+	{
+		.kind  = HOF_BAD,
+		.error = ML_EVAL_NOT_FUNCTION,
+		.node  = node,
+		.id    = BUILTIN_NONE
+	};
+
+	memset (&t.user, 0, sizeof t.user);
+
+	if (n.kind == ML_NODE_LAMBDA)
+	{
+		uint64_t have = ml_ast_child_count (
+			&sc->ast,
+			ml_ast_child (&sc->ast, node, 0)
+		);
+
+		t.kind  = ml_choose (have == want, HOF_LAMBDA, HOF_BAD);
+		t.error = ml_choose (have == want, ML_EVAL_NONE, ML_EVAL_ARITY);
+	}
+
+	else if (n.kind == ML_NODE_NAME)
+	{
+		MlSlice   name = ml_ast_text (&sc->ast, sc->source, node);
+		MlBinding b    = ml_env_lookup (cx->env, name, cx->snapshot);
+		MlBuiltin id   = builtin_find (name);
+
+		if (b.kind == ML_BIND_FUNC)
+		{
+			int32_t fits = ml_binding_param_count (b) == want;
+
+			t.kind  = ml_choose (fits, HOF_USER, HOF_BAD);
+			t.error = ml_choose (fits, ML_EVAL_NONE, ML_EVAL_ARITY);
+			t.user  = b;
+		}
+
+		else if (
+			   b.kind == ML_BIND_NONE
+			&& id != BUILTIN_NONE
+			&& id != BUILTIN_IF
+			&& !is_hof (id, 4)
+			&& id < BUILTIN_LISTFN_LIST
+		)
+		{
+			int32_t fits = (
+				   want >= builtins [id].min
+				&& want <= builtins [id].max
+			);
+
+			t.kind  = ml_choose (fits, HOF_BUILTIN, HOF_BAD);
+			t.error = ml_choose (fits, ML_EVAL_NONE, ML_EVAL_ARITY);
+			t.id    = id;
+		}
+
+		else if (b.kind == ML_BIND_NONE)
+		{
+			t.error = ML_EVAL_UNDEFINED_NAME;
+		}
+	}
+
+	return t;
+}
+
+/* Starts the function on the arguments; its result will be on top of vals. */
+static void hof_apply (
+	MlEvalCtx     *cx,
+	MlFrame       f,
+	HofTarget     t,
+	const MlValue *args,
+	uint64_t      nargs
+)
+{
+	const MlScope *sc = &cx->scopes.data [f.scope];
+
+	cx->frames.data [cx->frames.len - 1].mark = cx->locals.len;
+
+	if (t.kind == HOF_LAMBDA)
+	{
+		uint64_t params = ml_ast_child (&sc->ast, t.node, 0);
+
+		for (uint64_t i = 0; i < nargs; i++)
+		{
+			MlLocal l =
+			{
+				.scope = f.scope,
+				.name  = ml_ast_text (
+					&sc->ast,
+					sc->source,
+					ml_ast_child (&sc->ast, params, i)
+				),
+				.value = args [i]
+			};
+
+			if (MlLocalVec_push (&cx->locals, l) != ML_OK)
+			{
+				cx->failed = 1;
+			}
+		}
+
+		push_frame (cx, ml_ast_child (&sc->ast, t.node, 1), f.scope);
+	}
+
+	else if (t.kind == HOF_USER)
+	{
+		MlValue *own = ML_ARENA_NEW_ARRAY (cx->arena, MlValue, nargs + 1);
+		MlScope rec;
+
+		if (own == NULL)
+		{
+			push_value (cx, error_at (ML_EVAL_NO_MEMORY));
+		}
+
+		else
+		{
+			for (uint64_t i = 0; i < nargs; i++)
+			{
+				own [i] = args [i];
+			}
+
+			rec.source = t.user.source;
+			rec.ast    = t.user.ast;
+			rec.func   = t.user;
+			rec.args   = own;
+
+			if (MlScopeVec_push (&cx->scopes, rec) != ML_OK)
+			{
+				cx->failed = 1;
+			}
+
+			else
+			{
+				push_frame (cx, t.user.body, cx->scopes.len - 1);
+			}
+		}
+	}
+
+	else
+	{
+		push_value (cx, builtin_apply (cx->arena, t.id, args, nargs));
+	}
+}
+
+/* The value of a loop argument as a list (a vector is read as one). */
+static MlValue hof_list (MlEvalCtx *cx, MlValue v)
+{
+	return ml_choose (
+		v.kind == ML_VALUE_LIST || v.kind == ML_VALUE_ERROR,
+		v,
+		ml_listfn_apply (cx->arena, ML_LISTFN_TOLIST, &v, 1)
+	);
+}
+
+/* Ends the loop with a value or an error: everything it kept is dropped. */
+static void hof_finish (MlEvalCtx *cx, MlFrame f, MlNode node, MlValue v)
+{
+	finish (cx, cx->vals.len - f.vstart, v, node);
+}
+
+/* sum (i, a, b, e): the bounds are whole numbers a and b at vstart. */
+static int32_t series_bounds (MlEvalCtx *cx, MlFrame f, int64_t *a, int64_t *b)
+{
+	MlI64Result x = ml_value_to_i64 (cx->vals.data [f.vstart]);
+	MlI64Result y = ml_value_to_i64 (cx->vals.data [f.vstart + 1]);
+
+	*a = x.value;
+	*b = y.value;
+
+	return x.ok && y.ok;
+}
+
+/* The loop is at an item (or the end): start the function on the next one. */
+static void hof_next (MlEvalCtx *cx, MlFrame f, MlNode node, MlBuiltin id)
+{
+	const MlScope *sc      = &cx->scopes.data [f.scope];
+	int32_t       series   = id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD;
+	int32_t       fold     = id == BUILTIN_FOLD;
+	uint64_t      fn_node  = ml_ast_child (&sc->ast, f.node, 1);
+	uint64_t      count    = 0;
+	int64_t       a        = 0;
+	int64_t       b        = 0;
+	MlValue       args [2];
+	HofTarget     t;
+
+	if (series)
+	{
+		series_bounds (cx, f, &a, &b);
+		count = ml_choose (b >= a, (uint64_t)(b - a) + 1, 0);
+	}
+
+	else
+	{
+		count = cx->vals.data [f.vstart].list->count;
+	}
+
+	t = hof_target (cx, sc, fn_node, ml_choose (fold, 2, 1));
+
+	if (f.index >= count)
+	{
+		MlValue  done;
+		uint64_t first = f.vstart + 1;
+
+		if (series)
+		{
+			done = cx->vals.data [f.vstart + 2];
+		}
+
+		else if (fold)
+		{
+			done = cx->vals.data [f.vstart + 1];
+		}
+
+		else
+		{
+			done = ml_value_list (
+				cx->arena,
+				&cx->vals.data [first],
+				cx->vals.len - first
+			);
+		}
+
+		hof_finish (cx, f, node, done);
+	}
+
+	else if (!series && t.kind == HOF_BAD)
+	{
+		hof_finish (cx, f, node, error_at (t.error));
+	}
+
+	else
+	{
+		MlValue item = ml_choose (
+			series,
+			ml_value_exact (
+				ml_rat_add (
+					cx->arena,
+					cx->vals.data [f.vstart].exact,
+					ml_rat_from_i64 (cx->arena, (int64_t)f.index)
+				)
+			),
+			cx->vals.data [f.vstart].list->items [f.index]
+		);
+
+		args [0] = ml_choose (fold, cx->vals.data [f.vstart + 1], item);
+		args [1] = item;
+		set_step (cx, HOF_RESULT);
+
+		if (series)
+		{
+			/* the body is the 4th argument and i a local of its own */
+			MlLocal l =
+			{
+				.scope = f.scope,
+				.name  = ml_ast_text (&sc->ast, sc->source, fn_node),
+				.value = item
+			};
+
+			cx->frames.data [cx->frames.len - 1].mark = cx->locals.len;
+
+			if (MlLocalVec_push (&cx->locals, l) != ML_OK)
+			{
+				cx->failed = 1;
+			}
+
+			push_frame (cx, ml_ast_child (&sc->ast, f.node, 4), f.scope);
+		}
+
+		else
+		{
+			hof_apply (cx, f, t, args, ml_choose (fold, 2, 1));
+		}
+	}
+}
+
+/* Keeps the result r of the function for the loop; 0 when the loop ended. */
+static int32_t hof_keep (
+	MlEvalCtx *cx,
+	MlFrame   f,
+	MlNode    node,
+	MlBuiltin id,
+	MlValue   r
+)
+{
+	int32_t going = 1;
+
+	if (id == BUILTIN_MAP)
+	{
+		push_value (cx, r);
+	}
+
+	else if (id == BUILTIN_FILTER && r.kind != ML_VALUE_BOOL)
+	{
+		hof_finish (cx, f, node, error_at (ML_EVAL_TYPE));
+		going = 0;
+	}
+
+	else if (id == BUILTIN_FILTER && r.flag)
+	{
+		push_value (cx, cx->vals.data [f.vstart].list->items [f.index]);
+	}
+
+	else if (id == BUILTIN_FOLD)
+	{
+		cx->vals.data [f.vstart + 1] = r;
+	}
+
+	else if (id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD)
+	{
+		MlValue acc = cx->vals.data [f.vstart + 2];
+		MlValue now = ml_choose (
+			id == BUILTIN_STAT_SUM,
+			ml_value_add (cx->arena, acc, r),
+			ml_value_mul (cx->arena, acc, r)
+		);
+
+		cx->vals.data [f.vstart + 2] = now;
+
+		if (now.kind == ML_VALUE_ERROR)
+		{
+			hof_finish (cx, f, node, now);
+			going = 0;
+		}
+	}
+
+	return going;
+}
+
+/* The function has given its result: keep it according to the loop. */
+static void hof_result (MlEvalCtx *cx, MlFrame f, MlNode node, MlBuiltin id)
+{
+	const MlScope *sc      = &cx->scopes.data [f.scope];
+	MlValue       r        = top_value (cx);
+	int32_t       series   = id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD;
+	HofTarget     t        = hof_target (
+		cx,
+		sc,
+		ml_ast_child (&sc->ast, f.node, 1),
+		ml_choose (id == BUILTIN_FOLD, 2, 1)
+	);
+
+	/* what the call kept: locals of a lambda, the scope of a function */
+	cx->locals.len = f.mark;
+
+	if (!series && t.kind == HOF_USER)
+	{
+		cx->scopes.len--;
+		r = ml_choose (
+			r.kind == ML_VALUE_ERROR,
+			ml_value_error (r.error, node.start, node.len),
+			r
+		);
+	}
+
+	cx->vals.len--;
+
+	if (r.kind == ML_VALUE_ERROR)
+	{
+		hof_finish (cx, f, node, r);
+	}
+
+	else if (hof_keep (cx, f, node, id, r))
+	{
+		cx->frames.data [cx->frames.len - 1].index = f.index + 1;
+		set_step (cx, HOF_ITEM);
+	}
+}
+
+/* The values of the arguments are in: ready the list, or the bounds. */
+static void hof_ready (MlEvalCtx *cx, MlFrame f, MlNode node, MlBuiltin id)
+{
+	int32_t series = id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD;
+	int32_t fold   = id == BUILTIN_FOLD;
+	int64_t a      = 0;
+	int64_t b      = 0;
+
+	cx->frames.data [cx->frames.len - 1].index = 0;
+
+	if (series)
+	{
+		int64_t start = ml_choose (id == BUILTIN_STAT_SUM, 0, 1);
+
+		push_value (cx, ml_value_exact (ml_rat_from_i64 (cx->arena, start)));
+
+		if (!series_bounds (cx, f, &a, &b))
+		{
+			hof_finish (cx, f, node, error_at (ML_EVAL_NOT_INTEGER));
+		}
+
+		else
+		{
+			set_step (cx, HOF_ITEM);
+		}
+	}
+
+	else
+	{
+		MlValue lst = hof_list (cx, top_value (cx));
+
+		if (lst.kind == ML_VALUE_ERROR)
+		{
+			hof_finish (cx, f, node, lst);
+		}
+
+		else
+		{
+			/* fold: [init, list] becomes [list, init] */
+			MlValue init = ml_choose (
+				fold,
+				cx->vals.data [cx->vals.len - 2],
+				lst
+			);
+
+			cx->vals.data [cx->vals.len - 1] = init;
+
+			if (fold)
+			{
+				cx->vals.data [cx->vals.len - 2] = lst;
+			}
+
+			set_step (cx, HOF_ITEM);
+		}
+	}
+}
+
+static void step_hof (MlEvalCtx *cx, MlFrame f, MlNode node)
+{
+	const MlScope *sc     = &cx->scopes.data [f.scope];
+	MlSlice       name    = ml_ast_text (
+		&sc->ast,
+		sc->source,
+		ml_ast_child (&sc->ast, f.node, 0)
+	);
+	MlBuiltin     id      = builtin_find (name);
+	int32_t       series  = id == BUILTIN_STAT_SUM || id == BUILTIN_STAT_PROD;
+	uint64_t      args_n  = ml_choose (
+		series,
+		2,
+		ml_choose (id == BUILTIN_FOLD, 2, 1)
+	);
+
+	if (f.step == 0)
+	{
+		cx->frames.data [cx->frames.len - 1].vstart = cx->vals.len;
+		set_step (cx, 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, 2), f.scope);
+	}
+
+	else if (f.step < HOF_ITEM && top_is_error (cx))
+	{
+		hof_finish (cx, f, node, top_value (cx));
+	}
+
+	else if (f.step < HOF_ITEM && f.step < args_n)
+	{
+		/* the next argument that is a value: the init of a fold, the bound b */
+		set_step (cx, f.step + 1);
+		push_frame (cx, ml_ast_child (&sc->ast, f.node, f.step + 2), f.scope);
+	}
+
+	else if (f.step < HOF_ITEM)
+	{
+		hof_ready (cx, f, node, id);
+	}
+
+	else if (f.step == HOF_ITEM)
+	{
+		hof_next (cx, f, node, id);
+	}
+
+	else
+	{
+		hof_result (cx, f, node, id);
+	}
+}
+
 static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
 	const MlScope *sc   = &cx->scopes.data [f.scope];
@@ -2727,6 +3290,11 @@ static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
 	else if (f.kind == CALL_IF)
 	{
 		step_if (cx, f, node);
+	}
+
+	else if (f.kind == CALL_HOF)
+	{
+		step_hof (cx, f, node);
 	}
 
 	else if (f.kind == CALL_USER && f.step == argc + 1)

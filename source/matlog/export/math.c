@@ -52,6 +52,7 @@ typedef enum Tok
 	T_OR,
 	T_SEMI,       /* ; between statements and the word let */
 	T_LET,
+	T_MAPSTO,     /* x -> body */
 	T_COUNT
 } Tok;
 
@@ -98,7 +99,8 @@ static const char *const latex_tok [T_COUNT] =
 	[T_AND]        = "\\;\\mathrm{and}\\;",
 	[T_OR]         = "\\;\\mathrm{or}\\;",
 	[T_SEMI]       = ";\\;",
-	[T_LET]        = "\\mathrm{let}\\;"
+	[T_LET]        = "\\mathrm{let}\\;",
+	[T_MAPSTO]     = "\\mapsto "
 };
 
 static const char *const mathml_tok [T_COUNT] =
@@ -147,7 +149,8 @@ static const char *const mathml_tok [T_COUNT] =
 	[T_OR]         = "<mspace width=\"0.5em\"/><mi>or</mi>"
 	                 "<mspace width=\"0.5em\"/>",
 	[T_SEMI]       = "<mo>;</mo><mspace width=\"0.5em\"/>",
-	[T_LET]        = "<mi>let</mi><mspace width=\"0.5em\"/>"
+	[T_LET]        = "<mi>let</mi><mspace width=\"0.5em\"/>",
+	[T_MAPSTO]     = "<mo>\xE2\x86\xA6</mo>"
 };
 
 static MlResult put_tok (MlStr *out, MlMathNotation n, Tok t)
@@ -769,6 +772,45 @@ static MlResult expand (
 		if (r == ML_OK)
 		{
 			r = OpVec_push (seq, op_tok (T_RB));
+		}
+	}
+
+	else if (node.kind == ML_NODE_LAMBDA)
+	{
+		int32_t several = ml_ast_child_count (ast, a) > 1;
+
+		if (several)
+		{
+			r = OpVec_push (seq, op_tok (T_LP));
+		}
+
+		for (
+			uint64_t c = ml_ast_node (ast, a).first;
+			c != 0 && r == ML_OK;
+			c = ml_ast_node (ast, c).next
+		)
+		{
+			r = OpVec_push (seq, op_node (c, 0));
+
+			if (r == ML_OK && ml_ast_node (ast, c).next != 0)
+			{
+				r = OpVec_push (seq, op_tok (T_COMMA));
+			}
+		}
+
+		if (r == ML_OK && several)
+		{
+			r = OpVec_push (seq, op_tok (T_RP));
+		}
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_tok (T_MAPSTO));
+		}
+
+		if (r == ML_OK)
+		{
+			r = OpVec_push (seq, op_node (b, 0));
 		}
 	}
 

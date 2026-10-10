@@ -326,6 +326,17 @@ static void test_semicolon (void)
 	CHECK (kinds_are ("a;b", "name ; name end"));
 }
 
+static void test_arrow (void)
+{
+	CHECK (kinds_are ("x -> x", "name -> name end"));
+	CHECK (kinds_are ("x->x", "name -> name end"));
+	CHECK (kinds_are ("(a, b) -> a", "( name , name ) -> name end"));
+
+	/* a minus and a greater than apart are two tokens */
+	CHECK (kinds_are ("x - > y", "name - > name end"));
+	CHECK (token_is ("x -> y", 1, 2, 2));
+}
+
 void run_lexer_tests (void)
 {
 	test_basic ();
@@ -338,4 +349,5 @@ void run_lexer_tests (void)
 	test_brackets ();
 	test_comparisons ();
 	test_semicolon ();
+	test_arrow ();
 }

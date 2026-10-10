@@ -70,6 +70,9 @@
  *	                               in the text, the value is the last one
  *	index                          a name, then the position: xs[2]; the
  *	                               bracket must follow the name directly
+ *	lambda                         a params node, then the body: the short
+ *	                               function map (x -> x^2, xs); one name or
+ *	                               (a, b) before the arrow
  *	let                            a local name (a name leaf) and its value;
  *	                               it is visible in the statements after it
  *	call                           the callee (a name), then the arguments
@@ -112,6 +115,8 @@ typedef enum MlNodeKind
 	ML_NODE_SEQ,         /* statement; statement; ... */
 	ML_NODE_LET,         /* let name = expression */
 	ML_NODE_INDEX,       /* name[index] */
+	/* x -> body, (x, y) -> body: only as the argument of a call */
+	ML_NODE_LAMBDA,
 	ML_NODE_KIND_COUNT
 } MlNodeKind;
 

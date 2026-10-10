@@ -17,6 +17,11 @@ The built in functions take their arguments in parentheses:
 - `sin cos tan asin acos atan` the trigonometric functions, in radians.
 - `ln log exp` logarithms and the exponential.
 
+# Lists and loops
+- `range list len item append concat reverse take drop` and `xs[i]`, see [lists](lists).
+- `map filter fold` and `sum (i, a, b, e)`, `prod (i, a, b, e)` run a function over a list or
+  a range, see [lists](lists).
+
 # Conditions
 - `if (c, a, b)` the value `a` when `c` is true, else `b`; only that branch is
   evaluated.

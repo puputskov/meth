@@ -119,6 +119,7 @@ static const MlClass token_classes [ML_TOK_COUNT] =
 	[ML_TOK_RBRACKET]    = ML_CLASS_PAREN,
 	[ML_TOK_COMMA]       = ML_CLASS_PAREN,
 	[ML_TOK_SEMI]        = ML_CLASS_OPERATOR,
+	[ML_TOK_ARROW]       = ML_CLASS_OPERATOR,
 	[ML_TOK_ERROR]       = ML_CLASS_ERROR
 };
 

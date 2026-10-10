@@ -134,7 +134,7 @@ MlResult ml_tutorial_panel (
 	bold.bold = 1;
 
 	/* the keys in the text are the ones of the user's key table */
-	r         = ml_keymap_expand (
+	r = ml_keymap_expand (
 		&body,
 		&ed->keymap,
 		ml_slice_cstr (step.text),
@@ -142,17 +142,20 @@ MlResult ml_tutorial_panel (
 		'}',
 		0
 	);
-	r         = ml_choose (
+
+	r = ml_choose (
 		r == ML_OK,
 		ml_tutorial_title (&title, &ed->tutorial),
 		r
 	);
-	r         = ml_choose (
+
+	r = ml_choose (
 		r == ML_OK,
 		push_row (out, ed, bold, ml_str_view (title), cols),
 		r
 	);
-	r         = ml_choose (
+
+	r = ml_choose (
 		r == ML_OK,
 		push_wrapped (out, ed, text, ml_str_view (body), cols, 3),
 		r
