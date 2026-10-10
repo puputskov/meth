@@ -54,6 +54,37 @@ static MlMat copy_mat (MlArena *arena, MlMat m)
 	return out;
 }
 
+/* A plot built again in the arena, its numbers too. */
+static MlValue copy_plot (MlArena *arena, MlValue v)
+{
+	MlValue    out = v;
+	MlPlotData *p  = ML_ARENA_NEW (arena, MlPlotData);
+	double     *xs = ML_ARENA_NEW_ARRAY (arena, double, v.plot->n + 1);
+	double     *ys = ML_ARENA_NEW_ARRAY (arena, double, v.plot->n + 1);
+
+	if (p == NULL || xs == NULL || ys == NULL)
+	{
+		out = ml_value_error (ML_EVAL_NO_MEMORY, 0, 0);
+	}
+
+	else
+	{
+		*p = *v.plot;
+
+		for (uint64_t i = 0; i < v.plot->n; i++)
+		{
+			ys [i] = v.plot->ys [i];
+			xs [i] = ml_choose (v.plot->xs != NULL, v.plot->xs [i], 0);
+		}
+
+		p->xs    = ml_choose (v.plot->xs != NULL, xs, NULL);
+		p->ys    = ys;
+		out.plot = p;
+	}
+
+	return out;
+}
+
 static MlValue copy_value (MlArena *arena, MlValue v)
 {
 	MlValue out = v;
@@ -81,6 +112,11 @@ static MlValue copy_value (MlArena *arena, MlValue v)
 		{
 			out.hyper.r [i] = ml_rat_copy (arena, v.hyper.r [i]);
 		}
+	}
+
+	else if (v.kind == ML_VALUE_PLOT)
+	{
+		out = copy_plot (arena, v);
 	}
 
 	else if (v.kind == ML_VALUE_EXPR)
@@ -120,6 +156,7 @@ MlResult ml_env_define_var (MlEnv *env, MlSlice name, MlValue value)
 		&& value.kind != ML_VALUE_QUANTITY
 		&& value.kind != ML_VALUE_COMPLEX
 		&& value.kind != ML_VALUE_QUAT
+		&& value.kind != ML_VALUE_PLOT
 	)
 	{
 		r = ML_ERR_INVALID;

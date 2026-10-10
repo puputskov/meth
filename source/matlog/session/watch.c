@@ -59,6 +59,11 @@ static MlResult type_of (MlStr *out, MlValue v)
 		r = ml_str_append (out, ml_slice_cstr ("quaternion"));
 	}
 
+	else if (v.kind == ML_VALUE_PLOT)
+	{
+		r = ml_str_append (out, ml_slice_cstr ("plot"));
+	}
+
 	else
 	{
 		r = ml_str_append (out, ml_slice_cstr ("exact"));

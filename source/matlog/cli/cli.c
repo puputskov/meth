@@ -572,7 +572,15 @@ static const char *type_name (MlValueKind kind)
 					ml_choose (
 						kind == ML_VALUE_QUAT,
 						"quaternion",
-						ml_choose (kind == ML_VALUE_APPROX, "approx", "exact")
+						ml_choose (
+							kind == ML_VALUE_PLOT,
+							"plot",
+							ml_choose (
+								kind == ML_VALUE_APPROX,
+								"approx",
+								"exact"
+							)
+						)
 					)
 				)
 			)

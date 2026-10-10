@@ -210,6 +210,16 @@ MlValue ml_value_matrix (MlMat m)
 	return v;
 }
 
+MlValue ml_value_plot (const MlPlotData *plot)
+{
+	MlValue v = ml_value_none ();
+
+	v.kind = ML_VALUE_PLOT;
+	v.plot = plot;
+
+	return v;
+}
+
 MlValue ml_value_expr (const MlSym *sym, MlResult status)
 {
 	MlValue v = ml_value_error (ML_EVAL_NONE, 0, 0);
@@ -1079,6 +1089,11 @@ MlResult ml_value_format (MlStr *out, MlArena *arena, MlValue v)
 	else if (v.kind == ML_VALUE_EXPR)
 	{
 		r = ml_sym_format (out, v.sym);
+	}
+
+	else if (v.kind == ML_VALUE_PLOT)
+	{
+		r = ml_plot_summary (out, v.plot);
 	}
 
 	return r;

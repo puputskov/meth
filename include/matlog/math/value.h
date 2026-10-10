@@ -2,6 +2,7 @@
 #define MATLOG_MATH_VALUE_H
 
 #include <matlog/math/matrix.h>
+#include <matlog/math/plotdata.h>
 #include <matlog/math/unit.h>
 #include <matlog/sym/expr.h>
 
@@ -32,6 +33,7 @@ typedef enum MlValueKind
 	ML_VALUE_QUANTITY, /* exact value in SI units and a dimension */
 	ML_VALUE_COMPLEX,  /* a + b i, see hyper.h */
 	ML_VALUE_QUAT,     /* a + b i + c j + d k, see hyper.h */
+	ML_VALUE_PLOT,     /* a picture to draw, see plotdata.h */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -89,6 +91,7 @@ typedef struct MlValue
 	MlMat       matrix; /* ML_VALUE_MATRIX */
 	MlHyper     hyper;  /* ML_VALUE_COMPLEX, ML_VALUE_QUAT */
 	const MlSym *sym;   /* ML_VALUE_EXPR */
+	const MlPlotData *plot; /* ML_VALUE_PLOT */
 	double      approx; /* ML_VALUE_APPROX */
 	MlErrorKind error;  /* ML_VALUE_ERROR */
 	/* byte range in the source, error_len 0 if unknown */
@@ -128,6 +131,9 @@ MlValue ml_value_matrix (MlMat m);
 MlValue ml_value_expr (const MlSym *s, MlResult status);
 int32_t ml_value_is_expr (MlValue v);
 MlValue ml_value_from_i64 (MlArena *arena, int64_t n);
+
+/* A plot as a value; it is shown as a one line summary and drawn apart. */
+MlValue ml_value_plot (const MlPlotData *plot);
 MlValue ml_value_error (MlErrorKind kind, uint64_t start, uint64_t len);
 
 /* Gives an error that has no position yet the range [start, start + len). */

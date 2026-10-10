@@ -2,7 +2,7 @@
 #define MATLOG_UI_PLOT_H
 
 #include <matlog/core/str.h>
-#include <matlog/core/vec.h>
+#include <matlog/math/plotdata.h>
 
 /*
  * Plots drawn with characters (plan section 4.6). The functions here know
@@ -21,8 +21,6 @@
  * labels included; it grows to the smallest size that is still readable.
  * Values that are not finite are left out.
  */
-
-ML_VEC_DEFINE (MlDoubleVec, double)
 
 /*
  * Bars for the counts, left to right; lo and hi are the data range written

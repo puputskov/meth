@@ -32,6 +32,9 @@
  *	poisson_pdf (k, l)
  *	normal_pdf normal_cdf normal_inv (x [, mu, sigma])
  *	zscore (x, mu, sigma)
+ *	hist (v, k)                 the histogram of histogram (v, k) as a plot
+ *	scatter (x, y)  plot (x, y)  the points, and the points joined by a line,
+ *	                            as a plot (see plotdata.h and ui/plot.h)
  *
  * A standard deviation is exact when the variance is a perfect square, else
  * approximate. Errors are the ones of the evaluator: ML_EVAL_TYPE for what is
@@ -71,7 +74,10 @@
 	X (NORMAL_PDF,   "normal_pdf",   1, 3) \
 	X (NORMAL_CDF,   "normal_cdf",   1, 3) \
 	X (NORMAL_INV,   "normal_inv",   1, 3) \
-	X (ZSCORE,       "zscore",       3, 3)
+	X (ZSCORE,       "zscore",       3, 3) \
+	X (HIST,         "hist",         2, 2) \
+	X (SCATTER,      "scatter",      2, 2) \
+	X (PLOT,         "plot",         2, 2)
 
 typedef enum MlStat
 {

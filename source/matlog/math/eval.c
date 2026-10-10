@@ -2603,6 +2603,7 @@ MlResult ml_eval_commit (
 			|| ml_value_is_expr (value)
 			|| ml_value_is_quantity (value)
 			|| ml_value_is_hyper (value)
+			|| value.kind == ML_VALUE_PLOT
 		)
 	)
 	{

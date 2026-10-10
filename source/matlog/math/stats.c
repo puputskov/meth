@@ -967,6 +967,105 @@ MlValue ml_stats_extreme (MlArena *arena, MlValue v, int32_t is_max)
 	return r;
 }
 
+/* The numbers of a list as doubles, in the arena. */
+static double *doubles_of (MlArena *arena, const MlRat *x, uint64_t n)
+{
+	double *d = ML_ARENA_NEW_ARRAY (arena, double, ml_choose (n > 0, n, 1));
+
+	for (uint64_t i = 0; i < n && d != NULL; i++)
+	{
+		d [i] = ml_rat_to_double (arena, x [i]);
+	}
+
+	return d;
+}
+
+/* hist (v, k): the counts of histogram (v, k) with the range of v. */
+static MlValue hist_plot (MlArena *arena, MlValue arg, MlValue bins)
+{
+	MlValue    h = histogram_value (arena, arg, bins);
+	MlValue    r = h;
+	Data       d = data_of (arena, arg);
+	MlPlotData *p = ML_ARENA_NEW (arena, MlPlotData);
+
+	if (h.kind == ML_VALUE_MATRIX && p == NULL)
+	{
+		r = error_of (ML_EVAL_NO_MEMORY);
+	}
+
+	else if (h.kind == ML_VALUE_MATRIX)
+	{
+		Data s = sorted_of (arena, d);
+
+		p->kind  = ML_PLOT_HISTOGRAM;
+		p->count = d.n;
+		p->n     = h.matrix.rows;
+		p->ys    = doubles_of (arena, h.matrix.cells, p->n);
+		p->lo    = ml_rat_to_double (arena, s.x [0]);
+		p->hi    = ml_rat_to_double (arena, s.x [s.n - 1]);
+		r        = ml_choose (
+			p->ys != NULL,
+			ml_value_plot (p),
+			error_of (ML_EVAL_NO_MEMORY)
+		);
+	}
+
+	return r;
+}
+
+/* scatter (x, y) and plot (x, y): the points, alone or joined. */
+static MlValue point_plot (
+	MlArena *arena,
+	MlStat   which,
+	MlValue  a,
+	MlValue  b
+)
+{
+	Data       x = data_of (arena, a);
+	Data       y = data_of (arena, b);
+	MlValue    r
+		= error_of (ml_choose (x.error != ML_EVAL_NONE, x.error, y.error));
+	MlPlotData *p = ML_ARENA_NEW (arena, MlPlotData);
+
+	if (x.error == ML_EVAL_NONE && y.error == ML_EVAL_NONE)
+	{
+		if (x.n != y.n)
+		{
+			r = error_of (ML_EVAL_SIZE);
+		}
+
+		else if (x.n < 1)
+		{
+			r = error_of (ML_EVAL_DOMAIN);
+		}
+
+		else if (p == NULL)
+		{
+			r = error_of (ML_EVAL_NO_MEMORY);
+		}
+
+		else
+		{
+			p->kind  = ml_choose (
+				which == ML_STAT_SCATTER,
+				ML_PLOT_SCATTER,
+				ML_PLOT_LINE
+			);
+			p->count = x.n;
+			p->n     = x.n;
+			p->xs    = doubles_of (arena, x.x, x.n);
+			p->ys    = doubles_of (arena, y.x, y.n);
+			r        = ml_choose (
+				p->xs != NULL && p->ys != NULL,
+				ml_value_plot (p),
+				error_of (ML_EVAL_NO_MEMORY)
+			);
+		}
+	}
+
+	return r;
+}
+
 MlValue ml_stats_apply (
 	MlArena       *arena,
 	MlStat         which,
@@ -1006,6 +1105,16 @@ MlValue ml_stats_apply (
 	else if (which == ML_STAT_HISTOGRAM)
 	{
 		r = histogram_value (arena, args [0], args [1]);
+	}
+
+	else if (which == ML_STAT_HIST)
+	{
+		r = hist_plot (arena, args [0], args [1]);
+	}
+
+	else if (which == ML_STAT_SCATTER || which == ML_STAT_PLOT)
+	{
+		r = point_plot (arena, which, args [0], args [1]);
 	}
 
 	else if (which == ML_STAT_BINOMIAL || which == ML_STAT_PERM)

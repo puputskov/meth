@@ -34,6 +34,7 @@ static void drop_from (MlResults *r, uint64_t idx)
 	{
 		ml_str_free (&r->lines.data [i].text);
 		ml_str_free (&r->lines.data [i].block);
+		ml_plot_owned_free (&r->lines.data [i].plot);
 	}
 
 	if (idx < r->lines.len)
@@ -70,6 +71,7 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 			.data = "",
 			.len  = 0
 		},
+		.plot      = NULL,
 		.value     = ML_VALUE_NONE,
 		.err_start = 0,
 		.err_len   = 0,
@@ -83,6 +85,11 @@ MlResultView ml_results_get (const MlResults *r, uint64_t idx)
 		view.kind      = lr.kind;
 		view.text      = ml_str_view (lr.text);
 		view.block     = ml_str_view (lr.block);
+		view.plot      = ml_choose (
+			lr.plot.kind != ML_PLOT_NONE,
+			&r->lines.data [idx].plot,
+			NULL
+		);
 		view.code      = ml_slice_cstr (lr.code);
 		view.value     = lr.value;
 		view.err_start = lr.err_start;
@@ -127,6 +134,8 @@ static MlLineResult result_make (uint64_t snapshot, uint64_t logic)
 		.snapshot  = snapshot,
 		.logic     = logic
 	};
+
+	ml_plot_owned_init (&lr.plot);
 
 	return lr;
 }
@@ -183,6 +192,11 @@ static MlResult result_from_value (
 		if (r == ML_OK && v.kind == ML_VALUE_MATRIX)
 		{
 			r = ml_mat_typeset (&lr->block, v.matrix);
+		}
+
+		if (r == ML_OK && v.kind == ML_VALUE_PLOT)
+		{
+			r = ml_plot_owned_set (&lr->plot, v.plot);
 		}
 
 		if (r == ML_OK)
@@ -533,6 +547,7 @@ static MlResult run_all (MlResults *res, const MlSession *top, uint64_t from)
 			{
 				ml_str_free (&lr.text);
 				ml_str_free (&lr.block);
+				ml_plot_owned_free (&lr.plot);
 			}
 		}
 	}
