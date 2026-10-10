@@ -149,9 +149,13 @@ can try meth without building it. It runs the real library, `meth_lib` built to 
   `build/`). It needs a `platform/wasm/` folder (memory for `core/heap.c` and the arenas from `memory.grow`, no files: the session is kept in the browser
   storage and offered for download as a `.meth` file, `:open` through a file picker), and the few C library functions the code uses (`memcpy`, `strlen`,
   the math functions) written in the project or taken from the compiler's builtins. Nothing in the library should depend on the browser.
-- Open point, wasm32 against the 64 bit rule: `meth/core/types.h` asserts a 64 bit `size_t`. A wasm32 module has a 32 bit one, and the 16 GB arena
-  reservation does not fit either. Options: wasm64 (memory64, not in every browser yet), or wasm32 with the assert and the arena sizes relaxed for that
-  target (`uint64_t` stays the type of sizes and counts in the code, only the C library calls narrow). Decide first.
+- Decided, wasm32 (not wasm64): it runs in every browser, memory64 does not yet. The 64 bit rule is kept for the code and relaxed in two places only.
+  Sizes, counts and indices stay `uint64_t` everywhere; the assert in `meth/core/types.h` accepts a 32 bit `size_t` for the wasm target (a define set
+  by its build) and the three places that pass a size to the C library (`size_t` appears three times in the sources) narrow it with a check. The arenas
+  reserve address space through `platform/vm.h`; the wasm `vm.c` takes the reservation from the linear memory (`memory.grow`, which the browser commits
+  lazily) and `decommit` does nothing, with the reservation sizes of the arenas smaller on that target (a constant per target in `core/mem.h`, for
+  example 256 MB for the application arena instead of 16 GB; the total stays under the 4 GB of wasm32). The heap (`core/heap.c`) uses the same memory.
+  A computation that needs more than that fails with the normal "too large" error, as on any machine that runs out of memory.
 - A small C API for the page (a handle, `eval line`, results, steps, ghost, completion, highlight classes, typeset math, plot data, export, the texts
   catalog) that returns text or JSON in a buffer of the module, so the page never reads structures of the library.
 - Typeset math: the page draws the math itself from the typeset output of the export module (MathML is built in browsers, or the box layout drawn in
