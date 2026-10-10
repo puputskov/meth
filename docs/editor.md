@@ -18,16 +18,18 @@ run of math lines in one domain is a block. Enter on an empty line of a
 block ends it.
 
 ```keys
-Ctrl+Enter     start a block of the domain used last
-Shift+Enter    the same, for terminals that cannot report Ctrl+Enter
-Ctrl+B         choose the domain of the new block first
-Ctrl+N         turn the line into a note, or back
-Alt+Left/Right the previous or next domain of the line
-Esc            write the line into the session
+{ACTION_BLOCK_NEW}      start a block of the domain used last
+{ACTION_BLOCK_PICK}     choose the domain of the new block first
+{ACTION_NOTE_TOGGLE}    turn the line into a note, or back
+{ACTION_DOMAIN_PREV}    the previous domain of the line
+{ACTION_DOMAIN_NEXT}    the next domain of the line
+Esc                     write the line into the session
 ```
+A terminal that cannot report the key of a new block may send another key
+for it; `:keys` lists every key of every action.
 
 # The watch window
-`F4` (or `:watch`) shows a panel at the right of the editor with every name
+`{ACTION_WATCH}` (or `:watch`) shows a panel at the right of the editor with every name
 that is defined at the line of the cursor: variables, functions and the
 definitions of the boolean and lambda domains, each with its type and its
 value. Move the cursor up and the panel shows the names as that line left
@@ -36,34 +38,40 @@ them; a star marks what the line itself defined or changed. A terminal under
 
 # Plots
 A line that gives a plot (`hist`, `scatter`, `plot`, see [plots](plots))
-shows only a one line summary. `F7` (or `:plot`) on that line draws it in the
-panel at the right, and `F7` again hides it. See [plots](plots).
+shows only a one line summary. `{ACTION_PLOT}` (or `:plot`) on that line draws it in the
+panel at the right, and the same key again hides it. See [plots](plots).
 
 # Moving and selecting
 ```keys
 Left Right Up Down Home End   move the cursor, across lines too
 Ctrl+Left/Right               move by words
 Page Up / Page Down           move a page of lines
-Ctrl+Home / Ctrl+End          first and last line
-Ctrl+Up / Ctrl+Down           previous and next block
+{ACTION_GOTO_FIRST}           the first line
+{ACTION_GOTO_LAST}            the last line
+{ACTION_BLOCK_PREV}           the previous block
+{ACTION_BLOCK_NEXT}           the next block
 Shift + a move key            select text, also across lines
-Ctrl+A / Ctrl+L               select everything / the line
+{ACTION_SELECT_ALL}           select everything
+{ACTION_SELECT_LINE}          select the line
 ```
 The mouse puts the cursor where you click, drags select, and the wheel
 moves three lines.
 
 # Editing
 ```keys
-Ctrl+C Ctrl+X Ctrl+V   copy, cut, paste (the line, without a selection)
-Alt+Up / Alt+Down      move the selected lines
-Alt+Enter              fold or unfold the block
-Ctrl+Z                 undo
-Ctrl+Y or Ctrl+Shift+Z redo
-F3                     show or hide the steps of the line
-Ctrl+S                 save
-Ctrl+Q                 quit
-Ctrl+P                 the command line, see commands
+{ACTION_COPY}          copy (the line, without a selection)
+{ACTION_CUT}           cut
+{ACTION_PASTE}         paste
+{ACTION_LINES_UP}      move the selected lines up
+{ACTION_LINES_DOWN}    move the selected lines down
+{ACTION_FOLD}          fold or unfold the block
+{ACTION_UNDO}          undo
+{ACTION_REDO}          redo
+{ACTION_STEPS}         show or hide the steps of the line
+{ACTION_SAVE}          save
+{ACTION_QUIT}          quit
+{ACTION_COMMAND}       the command line, see commands
 ```
 Backspace at the start of a line joins it with the line before; Backspace
 on the first, empty line of a document turns a block into a note. The
-[commands](commands) page lists what Ctrl+P accepts.
+[commands](commands) page lists what {ACTION_COMMAND} accepts.

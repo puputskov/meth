@@ -2,6 +2,7 @@
 #define MATLOG_DOCS_DOCS_H
 
 #include <matlog/docs/page.h>
+#include <matlog/ui/keymap.h>
 
 /*
  * The documentation (plan section 4.14): the pages of docs/ compiled into the
@@ -35,10 +36,18 @@ void ml_docs_init (MlDocs *d);
 void ml_docs_free (MlDocs *d);
 
 /*
- * Parses the built in pages. ML_ERR_PARSE when one is broken: page is its
- * index and line the line of the problem.
+ * Parses the built in pages. The keys in the pages are written as the action
+ * they stand for, {ACTION_WATCH}, and become the first key of the action in
+ * the key table keys (NULL: the default table), so the pages show the keys of
+ * the user. ML_ERR_PARSE when one is broken: page is its index and line the
+ * line of the problem.
  */
-MlResult ml_docs_load (MlDocs *d, uint64_t *page, uint64_t *line);
+MlResult ml_docs_load (
+	MlDocs         *d,
+	const MlKeymap *keys,
+	uint64_t       *page,
+	uint64_t       *line
+);
 
 /* The index of the page with the id; pages.len when there is none. */
 uint64_t ml_docs_find (const MlDocs *d, MlSlice id);

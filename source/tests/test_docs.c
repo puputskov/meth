@@ -231,7 +231,7 @@ static void test_builtin_pages (void)
 	uint64_t line = 0;
 
 	ml_docs_init (&d);
-	CHECK (ml_docs_load (&d, &page, &line) == ML_OK);
+	CHECK (ml_docs_load (&d, NULL, &page, &line) == ML_OK);
 	CHECK (d.pages.len >= 10);
 
 	/* the pages of the files, then the table of contents and the examples */
@@ -262,7 +262,7 @@ static void test_check_builtin (void)
 
 	ml_docs_init (&d);
 	ml_str_init (&report);
-	CHECK (ml_docs_load (&d, &page, &line) == ML_OK);
+	CHECK (ml_docs_load (&d, NULL, &page, &line) == ML_OK);
 	CHECK (ml_docs_check (&d, &report, &problems) == ML_OK);
 
 	if (problems != 0)

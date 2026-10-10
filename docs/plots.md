@@ -1,7 +1,7 @@
 id: plots
 title: Plots
 summary: Histograms, scatter plots and line plots drawn in the side panel.
-keywords: plot, scatter, hist, histogram, chart, graph, braille, visualization, F7
+keywords: plot, scatter, hist, histogram, chart, graph, braille, visualization
 see: statistics, editor, commands, ex-stats-plot-your-data
 
 A plot is a value like a number or a matrix. The line shows only a one line
@@ -26,11 +26,11 @@ plot ([1, 2], [5, 7])
 
 The lists are vectors of the same length, as for the statistics functions
 (see [statistics](statistics)). A plot can be given a name,
-`bars = hist (data, 5)`, and shown again later by writing the name.
+`spread = hist (data, 5)`, and shown again later by writing the name.
 
 # Showing it
-`F7` on the line of a plot draws it in the panel, `F7` again hides it. The
-command is `:plot` (`:plot on`, `:plot off`). Any number of plots can be on;
+`{ACTION_PLOT}` on the line of a plot draws it in the panel, and the same key
+again hides it. The command is `:plot` (`:plot on`, `:plot off`). Any number of plots can be on;
 they are drawn one above the other, with a star on the header of the plot of
 the line of the cursor, and what does not fit ends in "+N more". When the
 watch window is on too, the plots take the upper two thirds of the panel.

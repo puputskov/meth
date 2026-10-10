@@ -18,6 +18,23 @@ void ml_help_init (MlHelp *h)
 	h->hit      = 0;
 	h->cols     = 80;
 	h->rows     = 24;
+	h->keys     = NULL;
+}
+
+void ml_help_reload (MlHelp *h)
+{
+	if (h->loaded)
+	{
+		ml_docs_free (&h->docs);
+		ml_docs_init (&h->docs);
+		h->loaded  = 0;
+		h->page    = 0;
+		h->top     = 0;
+		h->results = 0;
+		MlHelpMarkVec_clear (&h->history);
+		ml_doc_hits_free (&h->hits);
+		MlDocHitVec_init (&h->hits);
+	}
 }
 
 void ml_help_free (MlHelp *h)
@@ -56,7 +73,7 @@ static MlResult ensure_loaded (MlHelp *h)
 		uint64_t page;
 		uint64_t line;
 
-		r = ml_docs_load (&h->docs, &page, &line);
+		r = ml_docs_load (&h->docs, h->keys, &page, &line);
 
 		if (r == ML_OK)
 		{

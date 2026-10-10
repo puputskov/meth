@@ -4,7 +4,7 @@ summary: Expressions with and, or, not, truth tables and simplification.
 keywords: boolean, logic, truth table, and, or, not, xor, implies, simplify, tautology
 see: syntax, lambda
 
-A line in a block of the boolean domain (`Ctrl+Enter`, then choose
+A line in a block of the boolean domain (`{ACTION_BLOCK_NEW}`, then choose
 `boolean`) is a boolean expression. Names are variables, `true` and `false`
 (also `1`, `0`, `⊤` and `⊥`) are the constants.
 
@@ -33,7 +33,7 @@ The first line gives `true`, the second `¬a ∨ b`.
 
 # Truth tables
 `table` before an expression shows its truth table under the line, with
-the names in alphabetical order (at most 6 names). `F3` on a line shows
+the names in alphabetical order (at most 6 names). `{ACTION_STEPS}` on a line shows
 its truth table too, and `matlog steps --domain boolean EXPR` prints it.
 
 # While you type

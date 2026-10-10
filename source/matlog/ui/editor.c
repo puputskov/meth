@@ -83,6 +83,7 @@ void ml_editor_init (MlEditor *ed)
 	ed->theme         = ml_theme_default ();
 	ed->colors        = ML_COLORS_24BIT;
 	ml_keymap_init (&ed->keymap);
+	ed->help.keys = &ed->keymap;
 	ml_tutorial_init (&ed->tutorial);
 	ml_str_init (&ed->last_command);
 	ed->commands_run = 0;
@@ -1882,11 +1883,13 @@ static MlResult map_key (MlEditor *ed, MlSlice arg, int32_t unmap)
 		if (r == ML_OK && a == ML_ACT_NONE)
 		{
 			ml_keymap_unbind (&ed->keymap, p.key);
+			ml_help_reload (&ed->help);
 		}
 
 		else if (r == ML_OK)
 		{
 			r = ml_keymap_bind (&ed->keymap, p.key, a);
+			ml_help_reload (&ed->help);
 		}
 
 		if (r == ML_OK)
@@ -1918,6 +1921,7 @@ MlResult ml_editor_load_keys (MlEditor *ed)
 	ml_str_init (&report);
 	ml_keymap_free (&ed->keymap);
 	r = ml_keymap_init (&ed->keymap);
+	ml_help_reload (&ed->help);
 
 	if (r == ML_OK)
 	{
@@ -1932,6 +1936,7 @@ MlResult ml_editor_load_keys (MlEditor *ed)
 			&report,
 			&bad
 		);
+		ml_help_reload (&ed->help);
 	}
 
 	if (r == ML_OK && bad > 0)

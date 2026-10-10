@@ -11,7 +11,7 @@ are the same in the tool (`:help`) and on the command line (`matlog docs`).
 - [The tutorial](tutorial): learn the tool by doing, in small lessons.
 - [The editor and its keys](editor): typing, moving, selecting, blocks,
   folds, undo.
-- [Commands](commands): everything you can type after Ctrl+P.
+- [Commands](commands): everything you can type after {ACTION_COMMAND}.
 - [Themes](themes): colours and your own theme files.
 - [Settings](settings): the settings file and what you can change.
 - [Key bindings](keys): the actions of the editor and their keys.

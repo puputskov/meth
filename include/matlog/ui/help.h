@@ -50,10 +50,18 @@ typedef struct MlHelp
 	MlHelpMarkVec history;
 	uint32_t      cols;      /* the size of the screen, see ml_help_set_view */
 	uint32_t      rows;
+	/* the keys the pages show, NULL for the default ones (see docs.h) */
+	const MlKeymap *keys;
 } MlHelp;
 
 void ml_help_init (MlHelp *h);
 void ml_help_free (MlHelp *h);
+
+/*
+ * The pages are loaded again at the next use, with the keys now in the key
+ * table; called when a binding changes.
+ */
+void ml_help_reload (MlHelp *h);
 
 /* The size of the screen: the page is laid out for it. */
 void ml_help_set_view (MlHelp *h, uint32_t cols, uint32_t rows);

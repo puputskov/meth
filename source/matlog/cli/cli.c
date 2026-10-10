@@ -1585,7 +1585,7 @@ static int32_t cmd_docs (const Options *o, MlStr *out, MlStr *err)
 		);
 	}
 
-	else if (ml_docs_load (&d, &bad_page, &bad_line) != ML_OK)
+	else if (ml_docs_load (&d, NULL, &bad_page, &bad_line) != ML_OK)
 	{
 		code = ML_EXIT_IO;
 		ml_str_appendf (

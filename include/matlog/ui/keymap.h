@@ -134,6 +134,9 @@ MlResult ml_keymap_keys_of (MlStr *out, const MlKeymap *km, MlAction action);
  * the texts. open and close are the delimiters ({ } in texts, < > in the
  * key scripts of the tutorial); keep says if they stay around the key. Text
  * that is not a placeholder, an unknown action included, is copied as it is.
+ * A placeholder followed by two or more spaces starts a column: key and spaces
+ * take as many columns as the placeholder and its spaces, so the text after
+ * them stays aligned in a table of keys.
  */
 MlResult ml_keymap_expand (
 	MlStr           *out,

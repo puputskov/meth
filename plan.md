@@ -457,7 +457,7 @@ generated static website.
   action` and `:unmap state key` change a binding, `:map` lists them, `:config` shows the path of the file and opens the settings page of the
   documentation, `:config reload` reads the file again. The documentation (section 4.14) and the tutorial show the keys of the user, not the
   defaults, since both read the same table; a generated reference of all actions is a documentation page.
-- **Key names in texts are placeholders** (not built yet): a text that names a key, such as the hints, the status line, the messages, the help
+- **Key names in texts are placeholders** (built, 2026-10-10: `ml_keymap_expand`, the hints, the tutorial texts and answers `<ACTION_UNDO>`, the pages of the documentation, the check in `test_keymap.c`; the key table page `keys` lists the keys themselves; a placeholder followed by two spaces starts a column that keeps its width; not built: the website build expanding the pages with the default table, the status line and message texts when they name a key, `F6` of the tutorial as an action): a text that names a key, such as the hints, the status line, the messages, the help
   and the tutorial prompts (`{Ctrl+Z} undoes, {Ctrl+Y} redoes, {Ctrl+S} saves, {Ctrl+Q} quits`), must not contain the key itself but the action it
   stands for, written `{ACTION_UNDO}`, `{ACTION_REDO}`, `{ACTION_SAVE}`, `{ACTION_QUIT}` (the enum name of the action in `ui/keymap.h`). One
   function expands them from the keymap when the text is shown, so the user's own bindings appear (the first key of the action, or its name

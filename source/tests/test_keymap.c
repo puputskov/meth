@@ -3,6 +3,8 @@
 
 #include <matlog/docs/docs.h>
 #include <matlog/platform/fs.h>
+#include <matlog/tutorial/lessons.h>
+#include <matlog/ui/hint.h>
 #include <matlog/ui/keymap.h>
 
 #include <stdlib.h>
@@ -449,6 +451,202 @@ static void test_expand (void)
 	ml_keymap_free (&km);
 }
 
+/* 1 when the text has the key as a word (Ctrl+L is not in Ctrl+Left). */
+static int32_t mentions (const char *text, const char *spec)
+{
+	int32_t  found = 0;
+	uint64_t n     = strlen (spec);
+	const char *p  = strstr (text, spec);
+
+	while (p != NULL)
+	{
+		char after  = p [n];
+		char before = ml_choose (p > text, p [-1], ' ');
+
+		found = found || (
+			   !(after >= 'a' && after <= 'z')
+			&& !(after >= 'A' && after <= 'Z')
+			&& !(after >= '0' && after <= '9')
+			&& before != '+'
+		);
+		p = strstr (p + 1, spec);
+	}
+
+	return found;
+}
+
+/* 1 when every placeholder between open and close names an action. */
+static int32_t placeholders_ok (
+	const char *where,
+	const char *text,
+	char       open,
+	char       close
+)
+{
+	int32_t    ok = 1;
+	const char *p = strchr (text, open);
+
+	while (p != NULL)
+	{
+		const char *e = strchr (p, close);
+
+		if (e != NULL && strncmp (p + 1, "ACTION_", 7) == 0)
+		{
+			MlSlice name = ml_slice_sub (lit (p), 1, (uint64_t)(e - p) - 1);
+
+			if (ml_action_from_placeholder (name) == ML_ACT_COUNT)
+			{
+				printf ("  %s: unknown action in \"%.20s\"\n", where, p);
+				ok = 0;
+			}
+		}
+
+		p = strchr (p + 1, open);
+	}
+
+	return ok;
+}
+
+/* 1 when no key of the default table is written out in the text. */
+static int32_t no_keys_written (
+	const MlKeymap *km,
+	const char     *where,
+	const char     *text
+)
+{
+	int32_t ok = 1;
+
+	for (uint64_t i = 0; i < km->bindings.len; i++)
+	{
+		MlKeyBinding b = km->bindings.data [i];
+		MlStr        spec;
+		MlKey        k =
+		{
+			.code = b.code,
+			.cp   = b.cp,
+			.mods = b.mods,
+			.col  = 0,
+			.row  = 0
+		};
+
+		ml_str_init (&spec);
+		CHECK (ml_key_spec (&spec, k) == ML_OK);
+
+		if (mentions (text, ml_str_cstr (spec)))
+		{
+			printf (
+				"  %s: the key %s is written out\n",
+				where,
+				ml_str_cstr (spec)
+			);
+			ok = 0;
+		}
+
+		ml_str_free (&spec);
+	}
+
+	return ok;
+}
+
+/* A text names actions, not keys: every placeholder is one, no key stands. */
+static int32_t text_is_clean (
+	const MlKeymap *km,
+	const char     *where,
+	const char     *text,
+	char           open,
+	char           close
+)
+{
+	return (
+		   placeholders_ok (where, text, open, close)
+		&& no_keys_written (km, where, text)
+	);
+}
+
+/* Hints, tutorial texts and documentation pages name actions, not keys. */
+static void test_texts_name_actions (void)
+{
+	MlKeymap km;
+
+	CHECK (ml_keymap_init (&km) == ML_OK);
+
+	for (uint64_t i = 0; i < ml_hint_count (); i++)
+	{
+		CHECK (text_is_clean (&km, "hint", ml_hint_at (i).data, '{', '}'));
+	}
+
+	for (uint64_t l = 0; l < ml_lesson_count (); l++)
+	{
+		MlLesson lesson = ml_lesson_at (l);
+
+		for (uint64_t s = 0; s < lesson.step_count; s++)
+		{
+			MlStep     step   = lesson.steps [s];
+			const char *hint   = ml_choose (step.hint != NULL, step.hint, "");
+			const char *answer = ml_choose (
+				step.answer != NULL,
+				step.answer,
+				""
+			);
+
+			CHECK (text_is_clean (&km, lesson.id, step.text, '{', '}'));
+			CHECK (text_is_clean (&km, lesson.id, hint, '{', '}'));
+			CHECK (text_is_clean (&km, lesson.id, answer, '<', '>'));
+		}
+	}
+
+	/* the page of the keys lists the keys themselves */
+	for (uint64_t i = 0; i < ml_doc_source_count; i++)
+	{
+		MlDocSource page = ml_doc_sources [i];
+
+		if (strcmp (page.name, "keys") != 0)
+		{
+			CHECK (text_is_clean (&km, page.name, page.text, '{', '}'));
+		}
+	}
+
+	ml_keymap_free (&km);
+}
+
+/* The pages of the documentation show the keys of the user. */
+static void test_docs_show_own_keys (void)
+{
+	MlKeymap km;
+	MlDocs   d;
+	uint64_t page;
+	uint64_t line;
+	uint64_t at;
+	int32_t  found = 0;
+	MlKey    old   = ml_key_parse (lit ("Ctrl+Z")).key;
+	MlKey    mine  = ml_key_parse (lit ("Alt+U")).key;
+
+	CHECK (ml_keymap_init (&km) == ML_OK);
+	CHECK (ml_keymap_unbind (&km, old));
+	CHECK (ml_keymap_bind (&km, mine, ML_ACT_UNDO) == ML_OK);
+	ml_docs_init (&d);
+	CHECK (ml_docs_load (&d, &km, &page, &line) == ML_OK);
+	at = ml_docs_find (&d, lit ("editor"));
+	CHECK (at < d.pages.len);
+
+	for (uint64_t i = 0; at < d.pages.len; i++)
+	{
+		MlDocBlock b = d.pages.data [at].blocks.data [i];
+
+		/* the key stands where Ctrl+Z was, the text after it in its column */
+		found = found || strstr (
+			ml_str_cstr (b.text),
+			"Alt+U" "                  " "undo"
+		) != NULL;
+		CHECK (strstr (ml_str_cstr (b.text), "ACTION_") == NULL);
+		at = ml_choose (i + 1 < d.pages.data [at].blocks.len, at, d.pages.len);
+	}
+
+	CHECK (found);
+	ml_docs_free (&d);
+	ml_keymap_free (&km);
+}
+
 void run_keymap_tests (void);
 
 void run_keymap_tests (void)
@@ -459,5 +657,7 @@ void run_keymap_tests (void)
 	test_apply ();
 	test_format ();
 	test_expand ();
+	test_texts_name_actions ();
+	test_docs_show_own_keys ();
 	test_editor ();
 }

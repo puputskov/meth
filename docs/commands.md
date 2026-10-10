@@ -1,10 +1,10 @@
 id: commands
 title: Commands
-summary: The commands typed after Ctrl+P.
+summary: The commands typed after {ACTION_COMMAND}.
 keywords: command line, colon, write, open, quit, mode, steps, symbols, theme, colors, export, delete, yank, move, copy
 see: editor, examples, settings, keys, themes, export
 
-Ctrl+P opens the command line (type the command without the colon). Tab
+{ACTION_COMMAND} opens the command line (type the command without the colon). Tab
 completes what you type: the names of commands and the values of their
 first argument.
 

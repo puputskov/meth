@@ -122,7 +122,7 @@ static void test_pages (void)
 	uint64_t line = 0;
 
 	ml_docs_init (&d);
-	CHECK (ml_docs_load (&d, &page, &line) == ML_OK);
+	CHECK (ml_docs_load (&d, NULL, &page, &line) == ML_OK);
 	ml_str_init (&text);
 
 	/* the contents and every example are pages, searchable */

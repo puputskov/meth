@@ -656,6 +656,9 @@ MlResult ml_keymap_expand (
 
 		if (act != ML_ACT_COUNT)
 		{
+			uint64_t spaces = 0;
+			uint64_t before = out->len;
+
 			r = ml_choose (
 				keep,
 				ml_str_append_cp (out, (uint32_t)open),
@@ -670,6 +673,36 @@ MlResult ml_keymap_expand (
 			if (r == ML_OK && keep)
 			{
 				r = ml_str_append_cp (out, (uint32_t)close);
+			}
+
+			/*
+			 * Two or more spaces after the placeholder are a column: the
+			 * text after them stays where it is with the placeholder
+			 * written out, so a table lines up with every key.
+			 */
+			while (
+				   end + 1 + spaces < text.len
+				&& text.data [end + 1 + spaces] == ' '
+			)
+			{
+				spaces++;
+			}
+
+			if (r == ML_OK && spaces >= 2)
+			{
+				uint64_t column = (end + 1 - pos) + spaces;
+				uint64_t used   = out->len - before;
+
+				for (
+					uint64_t k = 0;
+					k < ml_choose (column > used + 1, column - used, 1);
+					k++
+				)
+				{
+					r = ml_str_append (out, ml_slice_cstr (" "));
+				}
+
+				end += spaces;
 			}
 
 			pos = end + 1;

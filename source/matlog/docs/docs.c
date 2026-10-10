@@ -20,19 +20,46 @@ void ml_docs_free (MlDocs *d)
 	MlDocPageVec_free (&d->pages);
 }
 
-MlResult ml_docs_load (MlDocs *d, uint64_t *page, uint64_t *line)
+MlResult ml_docs_load (
+	MlDocs         *d,
+	const MlKeymap *keys,
+	uint64_t       *page,
+	uint64_t       *line
+)
 {
-	MlResult r = ML_OK;
+	MlResult r    = ML_OK;
+	MlKeymap own;
+	int32_t  made = keys == NULL;
 
 	*page = 0;
 	*line = 0;
 
+	if (made)
+	{
+		r    = ml_keymap_init (&own);
+		keys = &own;
+	}
+
 	for (uint64_t i = 0; i < ml_doc_source_count && r == ML_OK; i++)
 	{
 		MlDocPage p;
+		MlStr     text;
 
 		ml_doc_page_init (&p);
-		r = ml_doc_parse (&p, ml_slice_cstr (ml_doc_sources [i].text), line);
+		ml_str_init (&text);
+		r = ml_keymap_expand (
+			&text,
+			keys,
+			ml_slice_cstr (ml_doc_sources [i].text),
+			'{',
+			'}',
+			0
+		);
+
+		if (r == ML_OK)
+		{
+			r = ml_doc_parse (&p, ml_str_view (text), line);
+		}
 
 		if (r == ML_OK)
 		{
@@ -44,6 +71,13 @@ MlResult ml_docs_load (MlDocs *d, uint64_t *page, uint64_t *line)
 			*page = i;
 			ml_doc_page_free (&p);
 		}
+
+		ml_str_free (&text);
+	}
+
+	if (made)
+	{
+		ml_keymap_free (&own);
 	}
 
 	/* the examples are pages too (made when the pages are loaded) */
