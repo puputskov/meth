@@ -564,23 +564,30 @@ static void test_matrix_value (void)
 	ml_arena_free (&a);
 }
 
-/* ml_value_error clears the whole value to zero bytes; this is only right
-   while the "no value" state of the number and matrix types is all zero. */
+/*
+ * ml_value_error clears the whole value to zero bytes; this is only right
+ * while the "no value" state of the number and matrix types is all zero in
+ * every field. The fields are compared one by one: the padding of a struct
+ * returned by value is not zero on every compiler.
+ */
 static void test_zero_states (void)
 {
 	MlRat   rat = ml_rat_error (ML_OK);
 	MlMat   mat = ml_mat_error (ML_OK);
 	MlBig   big = ml_big_error (ML_OK);
 	MlValue v   = ml_value_error (ML_EVAL_DIV_ZERO, 3, 4);
-	char    zero [sizeof (MlValue)];
 
-	memset (zero, 0, sizeof zero);
-	CHECK (memcmp (&rat, zero, sizeof rat) == 0);
-	CHECK (memcmp (&mat, zero, sizeof mat) == 0);
-	CHECK (memcmp (&big, zero, sizeof big) == 0);
+	CHECK (big.limbs == NULL && big.len == 0 && big.negative == 0);
+	CHECK (big.status == ML_OK);
+	CHECK (rat.num.limbs == NULL && rat.num.len == 0);
+	CHECK (rat.den.limbs == NULL && rat.den.len == 0);
+	CHECK (rat.num.status == ML_OK && rat.den.status == ML_OK);
+	CHECK (mat.status == ML_OK && mat.rows == 0 && mat.cols == 0);
+	CHECK (mat.cells == NULL);
 	CHECK (v.kind == ML_VALUE_ERROR && v.error == ML_EVAL_DIV_ZERO);
 	CHECK (v.error_start == 3 && v.error_len == 4);
 	CHECK (ml_rat_ok (v.exact) && v.matrix.status == ML_OK && v.sym == NULL);
+	CHECK (v.matrix.cells == NULL && v.hyper == NULL && v.list == NULL);
 	CHECK (ml_value_none ().kind == ML_VALUE_NONE);
 }
 
