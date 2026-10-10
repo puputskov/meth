@@ -1426,8 +1426,77 @@ static void test_loops (void)
 	CHECK (fails (&s, "sum(i, 1, 1/2, i)", ML_EVAL_NOT_INTEGER));
 	CHECK (fails (&s, "sum(i, 1, 3, 1/0)", ML_EVAL_DIV_ZERO));
 	CHECK (fails (&s, "x -> x", ML_EVAL_SYNTAX));
-	CHECK (fails (&s, "sq(x -> x)", ML_EVAL_NOT_VALUE));
+	CHECK (fails (&s, "sq(x -> x)", ML_EVAL_TYPE));
 	CHECK (fails (&s, "sum(i, 1, 100000000, i)", ML_EVAL_TOO_LONG));
+
+	session_free (&s);
+}
+
+static void test_function_values (void)
+{
+	Session s;
+
+	session_init (&s);
+	run (&s, "sq(x) = x^2 + 1");
+	run (&s, "apply(f, x) = f(x)");
+
+	/* a function name, a lambda and a built in function as an argument */
+	CHECK (shows (&s, "apply(sq, 3)", "10"));
+	CHECK (shows (&s, "apply(x -> x * 2, 5)", "10"));
+	CHECK (shows (&s, "apply(sqrt, 16)", "4"));
+	CHECK (shows (&s, "apply(abs, -3)", "3"));
+
+	/* a held function can be called twice, passed on, given to map */
+	run (&s, "twice(f, x) = f(f(x))");
+	CHECK (shows (&s, "twice(x -> x + 3, 1)", "7"));
+	CHECK (shows (&s, "twice(sq, 2)", "26"));
+	run (&s, "outer(f, x) = apply(f, x)");
+	CHECK (shows (&s, "outer(x -> x + 1, 1)", "2"));
+	run (&s, "mapall(f, xs) = map(f, xs)");
+	CHECK (shows (&s, "mapall(x -> x^2, range(1, 3))", "[1, 4, 9]"));
+	CHECK (shows (&s, "mapall(sq, range(1, 3))", "[2, 5, 10]"));
+	CHECK (shows (&s, "mapall(sqrt, list(4, 9))", "[2, 3]"));
+	run (&s, "total(f, xs) = fold((a, b) -> a + f(b), 0, xs)");
+	CHECK (shows (&s, "total(x -> x^2, range(1, 4))", "30"));
+	run (&s, "keep(p, xs) = filter(p, xs)");
+	CHECK (shows (&s, "keep(x -> x > 2, range(1, 4))", "[3, 4]"));
+
+	/* a loop that passes the function on */
+	run (&s, "iter(f, x, n) = if (n == 0, x, iter(f, f(x), n - 1))");
+	CHECK (shows (&s, "iter(x -> x * 2, 1, 10)", "1024"));
+	CHECK (shows (&s, "iter(sq, 0, 3)", "5"));
+
+	/* a lambda sees the variables of the session and its own names */
+	run (&s, "k = 10");
+	CHECK (shows (&s, "apply(x -> x + k, 1)", "11"));
+	CHECK (shows (&s, "apply(k, 2)", "20"));
+	run (&s, "mix(c) = apply(x -> x + c, 1)");
+	CHECK (fails (&s, "mix(5)", ML_EVAL_UNDEFINED_NAME));
+
+	/* a name that is not a function is a value as before */
+	run (&s, "pair(f, x) = f(x) + x");
+	CHECK (shows (&s, "pair(3, 4)", "16"));
+	run (&s, "hide(sq, x) = sq(x)");
+	CHECK (shows (&s, "hide(5, 2)", "10"));
+
+	/* errors */
+	CHECK (fails (&s, "apply(sq)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "apply((a, b) -> a, 1)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "apply(gcd, 4)", ML_EVAL_ARITY));
+	CHECK (fails (&s, "sq(sqrt)", ML_EVAL_TYPE));
+	CHECK (fails (&s, "sq(x -> x)", ML_EVAL_TYPE));
+	CHECK (fails (&s, "apply(ghost, 1)", ML_EVAL_UNDEFINED_NAME));
+	CHECK (fails (&s, "apply(if, 1)", ML_EVAL_UNDEFINED_NAME));
+	run (&s, "plus(f) = f + 1");
+	CHECK (fails (&s, "plus(sq)", ML_EVAL_TYPE));
+
+	/* a function is not kept: it is not a result that outlives its line */
+	run (&s, "ident(f) = f");
+	CHECK (fails (&s, "ident(x -> x)", ML_EVAL_NOT_VALUE));
+	CHECK (fails (&s, "ident(sq)", ML_EVAL_NOT_VALUE));
+	run (&s, "make() = ident(x -> x)");
+	CHECK (fails (&s, "make()", ML_EVAL_NOT_VALUE));
+	CHECK (fails (&s, "g = sq", ML_EVAL_NOT_VALUE));
 
 	session_free (&s);
 }
@@ -1458,4 +1527,5 @@ void run_eval_tests (void)
 	test_locals ();
 	test_lists ();
 	test_loops ();
+	test_function_values ();
 }

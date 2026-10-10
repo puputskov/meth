@@ -77,10 +77,61 @@ static const char text_numbers [] =
 	"m:algebra digits(n) = if (n < 10, list(n), append(digits(floor(n / 10)"
 	"), mod(n, 10)))\n";
 
+static const char text_numeric [] =
+	"# The standard library: functions that take a function\n"
+	"# newton (f, df, x0, n): n steps of Newton's method for f (x) = 0 from"
+	" x0, df is the derivative; approximate\n"
+	"m:algebra newton(f, df, x0, n) = _newton(f, df, approx(x0), n)\n"
+	"m:algebra _newton(f, df, x, n) = if (n == 0, x, _newton(f, df, x - f(x"
+	") / df(x), n - 1))\n"
+	"# bisect (f, a, b, n): n halvings of [a, b] where f changes sign; the "
+	"middle of the last one, exact\n"
+	"m:algebra bisect(f, a, b, n) = if (n == 0, (a + b) / 2, _bisect_mid(f,"
+	" a, b, n, (a + b) / 2))\n"
+	"m:algebra _bisect_mid(f, a, b, n, m) = if (f(a) * f(m) <= 0, bisect(f,"
+	" a, m, n - 1), bisect(f, m, b, n - 1))\n"
+	"# deriv (f, x, h): the slope of f at x from the points x - h and x + h\n"
+	"m:algebra deriv(f, x, h) = (f(x + h) - f(x - h)) / (2 * h)\n"
+	"# trapezoid (f, a, b, n): the area under f from a to b by n trapezoids\n"
+	"m:algebra trapezoid(f, a, b, n) = (b - a) / n * (f(a) / 2 + f(b) / 2 +"
+	" sum(i, 1, n - 1, f(a + i * (b - a) / n)))\n"
+	"# simpson (f, a, b, n): the area under f from a to b by Simpson's rule"
+	", n even; exact for cubics\n"
+	"m:algebra simpson(f, a, b, n) = let h = (b - a) / n; h / 3 * (f(a) + f"
+	"(b) + 4 * sum(i, 1, n / 2, f(a + (2 * i - 1) * h)) + 2 * sum(i, 1, n /"
+	" 2 - 1, f(a + 2 * i * h)))\n"
+	"# euler (f, x0, y0, h, n): y after n Euler steps of y' = f (x, y), ste"
+	"p h; approximate\n"
+	"m:algebra euler(f, x0, y0, h, n) = _euler(f, x0, approx(y0), h, n)\n"
+	"m:algebra _euler(f, x, y, h, n) = if (n == 0, y, _euler(f, x + h, y + "
+	"h * f(x, y), h, n - 1))\n"
+	"# rk4 (f, x0, y0, h, n): y after n Runge-Kutta steps of y' = f (x, y),"
+	" step h; approximate\n"
+	"m:algebra rk4(f, x0, y0, h, n) = _rk4(f, x0, approx(y0), h, n)\n"
+	"m:algebra _rk4(f, x, y, h, n) = if (n == 0, y, _rk4(f, x + h, _rk4_ste"
+	"p(f, x, y, h), h, n - 1))\n"
+	"m:algebra _rk4_step(f, x, y, h) = let k1 = f(x, y); let k2 = f(x + h /"
+	" 2, y + h * k1 / 2); let k3 = f(x + h / 2, y + h * k2 / 2); let k4 = f"
+	"(x + h, y + h * k3); y + h * (k1 + 2 * k2 + 2 * k3 + k4) / 6\n"
+	"# rk4path (f, x0, y0, h, n): the list of y after 0, 1 ... n Runge-Kutt"
+	"a steps\n"
+	"m:algebra rk4path(f, x0, y0, h, n) = fold((ys, i) -> append(ys, _rk4_s"
+	"tep(f, x0 + (i - 1) * h, item(ys, -1), h)), list(approx(y0)), range(1,"
+	" n))\n"
+	"# proj (u, v): the projection of the vector v onto the vector u\n"
+	"m:algebra proj(u, v) = dot(u, v) / dot(u, u) * u\n"
+	"# gram_schmidt (vs): orthogonal vectors with the same span, from a lis"
+	"t of vectors\n"
+	"m:algebra gram_schmidt(vs) = fold((us, v) -> append(us, _gs_sub(v, us)"
+	"), list(), vs)\n"
+	"m:algebra _gs_sub(v, us) = if (len(us) == 0, v, _gs_sub(v - proj(item("
+	"us, 1), v), drop(us, 1)))\n";
+
 const MlDocSource ml_stdlib_sources [] =
 {
 	{ .name = "helpers", .text = text_helpers },
-	{ .name = "numbers", .text = text_numbers }
+	{ .name = "numbers", .text = text_numbers },
+	{ .name = "numeric", .text = text_numeric }
 };
 
 const uint64_t ml_stdlib_source_count = ml_count (ml_stdlib_sources);

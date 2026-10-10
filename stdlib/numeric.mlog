@@ -1,0 +1,27 @@
+# The standard library: functions that take a function
+# newton (f, df, x0, n): n steps of Newton's method for f (x) = 0 from x0, df is the derivative; approximate
+m:algebra newton(f, df, x0, n) = _newton(f, df, approx(x0), n)
+m:algebra _newton(f, df, x, n) = if (n == 0, x, _newton(f, df, x - f(x) / df(x), n - 1))
+# bisect (f, a, b, n): n halvings of [a, b] where f changes sign; the middle of the last one, exact
+m:algebra bisect(f, a, b, n) = if (n == 0, (a + b) / 2, _bisect_mid(f, a, b, n, (a + b) / 2))
+m:algebra _bisect_mid(f, a, b, n, m) = if (f(a) * f(m) <= 0, bisect(f, a, m, n - 1), bisect(f, m, b, n - 1))
+# deriv (f, x, h): the slope of f at x from the points x - h and x + h
+m:algebra deriv(f, x, h) = (f(x + h) - f(x - h)) / (2 * h)
+# trapezoid (f, a, b, n): the area under f from a to b by n trapezoids
+m:algebra trapezoid(f, a, b, n) = (b - a) / n * (f(a) / 2 + f(b) / 2 + sum(i, 1, n - 1, f(a + i * (b - a) / n)))
+# simpson (f, a, b, n): the area under f from a to b by Simpson's rule, n even; exact for cubics
+m:algebra simpson(f, a, b, n) = let h = (b - a) / n; h / 3 * (f(a) + f(b) + 4 * sum(i, 1, n / 2, f(a + (2 * i - 1) * h)) + 2 * sum(i, 1, n / 2 - 1, f(a + 2 * i * h)))
+# euler (f, x0, y0, h, n): y after n Euler steps of y' = f (x, y), step h; approximate
+m:algebra euler(f, x0, y0, h, n) = _euler(f, x0, approx(y0), h, n)
+m:algebra _euler(f, x, y, h, n) = if (n == 0, y, _euler(f, x + h, y + h * f(x, y), h, n - 1))
+# rk4 (f, x0, y0, h, n): y after n Runge-Kutta steps of y' = f (x, y), step h; approximate
+m:algebra rk4(f, x0, y0, h, n) = _rk4(f, x0, approx(y0), h, n)
+m:algebra _rk4(f, x, y, h, n) = if (n == 0, y, _rk4(f, x + h, _rk4_step(f, x, y, h), h, n - 1))
+m:algebra _rk4_step(f, x, y, h) = let k1 = f(x, y); let k2 = f(x + h / 2, y + h * k1 / 2); let k3 = f(x + h / 2, y + h * k2 / 2); let k4 = f(x + h, y + h * k3); y + h * (k1 + 2 * k2 + 2 * k3 + k4) / 6
+# rk4path (f, x0, y0, h, n): the list of y after 0, 1 ... n Runge-Kutta steps
+m:algebra rk4path(f, x0, y0, h, n) = fold((ys, i) -> append(ys, _rk4_step(f, x0 + (i - 1) * h, item(ys, -1), h)), list(approx(y0)), range(1, n))
+# proj (u, v): the projection of the vector v onto the vector u
+m:algebra proj(u, v) = dot(u, v) / dot(u, u) * u
+# gram_schmidt (vs): orthogonal vectors with the same span, from a list of vectors
+m:algebra gram_schmidt(vs) = fold((us, v) -> append(us, _gs_sub(v, us)), list(), vs)
+m:algebra _gs_sub(v, us) = if (len(us) == 0, v, _gs_sub(v - proj(item(us, 1), v), drop(us, 1)))

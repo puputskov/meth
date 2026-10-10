@@ -22,7 +22,16 @@ static const char text_algebra_library [] =
 	"m:algebra mod(-7, 3)\n"
 	"m:algebra map(collatz, range(1, 10))\n"
 	"# Numbers between two values:\n"
-	"m:algebra linspace(0, 10, 5)\n";
+	"m:algebra linspace(0, 10, 5)\n"
+	"# Functions that take a function. Newton's method finds sqrt (2) as th"
+	"e root of x^2 - 2:\n"
+	"m:algebra newton(x -> x^2 - 2, x -> 2x, 1, 6)\n"
+	"# The area under x^2 from 0 to 3, by Simpson's rule (exact for this cu"
+	"rve):\n"
+	"m:algebra simpson(x -> x^2, 0, 3, 2)\n"
+	"# The differential equation y' = y with y (0) = 1 has the solution e^x"
+	"; Runge-Kutta in ten steps:\n"
+	"m:algebra rk4((x, y) -> y, 0, 1, 1/10, 10)\n";
 
 static const char text_algebra_lists [] =
 	"# Lists\n"

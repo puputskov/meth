@@ -1333,6 +1333,16 @@ static MlResult format_scalar (MlStr *out, MlArena *arena, MlValue v)
 		);
 	}
 
+	else if (v.kind == ML_VALUE_FUNC)
+	{
+		r = ml_str_append (out, ml_slice_cstr ("function"));
+
+		if (r == ML_OK && v.fn_kind != ML_FN_LAMBDA)
+		{
+			r = ml_str_appendf (out, " %.*s", (int32_t)v.show.len, v.show.data);
+		}
+	}
+
 	return r;
 }
 

@@ -166,6 +166,59 @@ static void test_numbers (void)
 	run_end (&run);
 }
 
+/* The functions that take a function. */
+static void test_numeric (void)
+{
+	const char *lines [] = {
+		"newton(x -> x^2 - 2, x -> 2x, 1, 6)",
+		"abs(newton(cos, x -> -sin(x), 1, 8) - pi / 2) < 1/1000000",
+		"bisect(x -> x^2 - 2, 1, 2, 20)",
+		"abs(bisect(x -> x^2 - 2, 1, 2, 30)^2 - 2) < 1/100000000",
+		"deriv(x -> x^2, 3, 1/1000)",
+		"deriv(x -> x^3, 2, 1/10)",
+		"trapezoid(x -> x^2, 0, 1, 100)",
+		"simpson(x -> x^3, 0, 2, 4)",
+		"simpson(x -> x^2, 0, 3, 2)",
+		"abs(simpson(sin, 0, pi, 20) - 2) < 1/10000",
+		"abs(euler((x, y) -> y, 0, 1, 1/100, 100) - e) < 1/50",
+		"abs(rk4((x, y) -> y, 0, 1, 1/10, 10) - e) < 1/100000",
+		"len(rk4path((x, y) -> y, 0, 1, 1/10, 10))",
+		"abs(item(rk4path((x, y) -> 2x, 0, 0, 1/10, 10), 11) - 1) < 1/1000000",
+		"proj([1, 0], [3, 4])",
+		"gram_schmidt(list([1, 1, 0], [1, 0, 1]))",
+		"dot(item(gram_schmidt(list([1, 1, 0], [1, 0, 1], [0, 1, 1])), 3), "
+		"[1, 1, 0])",
+		"len(gram_schmidt(list([1, 1, 0], [1, 0, 1])))",
+		"approx(1/3)",
+		"approx(sqrt(2))"
+	};
+
+	Run run;
+
+	run_start (&run, lines, ml_count (lines));
+	CHECK (gives (&run, 0, "\xE2\x89\x88 1.41421356"));
+	CHECK (gives (&run, 1, "true"));
+	CHECK (gives (&run, 2, "2965821/2097152"));
+	CHECK (gives (&run, 3, "true"));
+	CHECK (gives (&run, 4, "6"));
+	CHECK (gives (&run, 5, "1201/100"));
+	CHECK (gives (&run, 6, "6667/20000"));
+	CHECK (gives (&run, 7, "4"));
+	CHECK (gives (&run, 8, "9"));
+	CHECK (gives (&run, 9, "true"));
+	CHECK (gives (&run, 10, "true"));
+	CHECK (gives (&run, 11, "true"));
+	CHECK (gives (&run, 12, "11"));
+	CHECK (gives (&run, 13, "true"));
+	CHECK (gives (&run, 14, "[[3], [0]]"));
+	CHECK (gives (&run, 15, "[[[1], [1], [0]], [[1/2], [-1/2], [1]]]"));
+	CHECK (gives (&run, 16, "0"));
+	CHECK (gives (&run, 17, "2"));
+	CHECK (gives (&run, 18, "\xE2\x89\x88 0.333333333"));
+	CHECK (gives (&run, 19, "\xE2\x89\x88 1.41421356"));
+	run_end (&run);
+}
+
 /* The library is the library's: hidden, and the user's names win. */
 static void test_hidden_and_shadowed (void)
 {
@@ -276,6 +329,7 @@ void run_stdlib_tests (void)
 {
 	test_loads ();
 	test_numbers ();
+	test_numeric ();
 	test_hidden_and_shadowed ();
 	test_documented ();
 }

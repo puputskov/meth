@@ -22,6 +22,13 @@ The built in functions take their arguments in parentheses:
 - `map filter fold` and `sum (i, a, b, e)`, `prod (i, a, b, e)` run a function over a list or
   a range, see [lists](lists).
 
+# Functions as arguments
+A function you define can take a function: `apply(f, x) = f(x)` and then `apply(sqrt, 16)` or
+`apply(x -> x * 2, 5)`. The argument is the name of a function or a short function
+`x -> expression`; inside, the parameter is called like any function. It is not a value: it cannot
+be added, named or returned. `approx (x)` makes an exact number an approximation. See the
+[library](library) for `newton`, `simpson`, `rk4` and the others.
+
 # Conditions
 - `if (c, a, b)` the value `a` when `c` is true, else `b`; only that branch is
   evaluated.

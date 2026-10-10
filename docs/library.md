@@ -1,7 +1,7 @@
 id: library
 title: The standard library
-summary: Functions written in matlog itself: number theory, helpers, lists of numbers.
-keywords: library, stdlib, fib, isprime, primes, factor, divisors, totient, sigma, collatz, digits, isqrt, mod, sign, lerp, clamp, hypot, deg, rad, linspace
+summary: Functions written in matlog itself: number theory, helpers, root finding, integration, differential equations.
+keywords: library, stdlib, newton, bisect, simpson, trapezoid, euler, rk4, deriv, proj, gram_schmidt, approx, fib, isprime, primes, factor, divisors, totient, sigma, collatz, digits, isqrt, mod, sign, lerp, clamp, hypot, deg, rad, linspace
 see: functions, lists, syntax, ex-algebra-library
 
 The library is a set of functions written in the language of the tool and
@@ -83,6 +83,46 @@ cumprod(range(1, 5))
 dotl(range(1, 3), range(4, 6))
 => 32
 ```
+
+# Functions that take a function
+These take a function as an argument: the name of a function (yours, or a
+built in one such as `sin`) or a short function `x -> expression` written in
+place. The function `f` is called as `f(x)` inside them.
+
+```code
+newton (f, df, x0, n)        n steps of Newton's method for f (x) = 0; approximate
+bisect (f, a, b, n)          n halvings of [a, b] where f changes sign; exact
+deriv (f, x, h)              the slope at x from x - h and x + h
+trapezoid (f, a, b, n)       the area under f from a to b, n trapezoids
+simpson (f, a, b, n)         the same by Simpson's rule, n even
+euler (f, x0, y0, h, n)      y after n Euler steps of y' = f (x, y); approximate
+rk4 (f, x0, y0, h, n)        the same by Runge-Kutta; approximate
+rk4path (f, x0, y0, h, n)    the list of all the y from step 0 to n
+proj (u, v)                  the projection of the vector v onto u
+gram_schmidt (vs)            orthogonal vectors from a list of vectors
+```
+
+```example
+newton(x -> x^2 - 2, x -> 2x, 1, 6)
+=> ≈ 1.41421356
+bisect(x -> x^2 - 2, 1, 2, 20)
+=> 2965821/2097152
+simpson(x -> x^3, 0, 2, 4)
+=> 4
+trapezoid(x -> x^2, 0, 1, 100)
+=> 6667/20000
+rk4((x, y) -> y, 0, 1, 1/10, 10)
+=> ≈ 2.71827974
+proj([1, 0], [3, 4])
+=> [[3], [0]]
+```
+
+A function that is given to another one sees the variables of the session and
+its own names, not the names of the line it was written in: in
+`mix(c) = apply(x -> x + c, 1)` the `c` is not known inside the `x -> ...`.
+Write the value into the call instead, or use a variable. `approx (x)` turns an
+exact number into an approximation, which is how `newton` and `rk4` keep their
+numbers short.
 
 The statistics functions and the loops (`map`, `filter`, `fold`, `sum`) are
 built in, see [statistics](statistics) and [lists](lists). Every line has a

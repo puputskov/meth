@@ -36,6 +36,7 @@ typedef enum MlValueKind
 	ML_VALUE_PLOT,     /* a picture to draw, see plotdata.h */
 	ML_VALUE_BOOL,     /* true or false: the result of a comparison */
 	ML_VALUE_LIST,     /* a sequence of values of any length, see below */
+	ML_VALUE_FUNC,     /* a function passed as an argument, see below */
 	ML_VALUE_ERROR
 } MlValueKind;
 
@@ -100,6 +101,19 @@ typedef struct MlListData
 	const struct MlValue *items;
 } MlListData;
 
+/*
+ * A function as a value (plan section 4.18): only the argument of a call of a
+ * function of the user, and what a parameter of such a function holds. It is
+ * not a number: it is called (f (x)) or given to map, filter and fold, and it
+ * cannot be named, kept or returned past the function that holds it.
+ */
+/* a function of the user or the library: show is its name */
+#define ML_FN_USER    1
+/* a built in function: fn_node is its id, show its name */
+#define ML_FN_BUILTIN 2
+/* x -> body: the node fn_node in the scope fn_scope of the evaluator */
+#define ML_FN_LAMBDA  3
+
 typedef struct MlValue
 {
 	MlValueKind kind;
@@ -113,6 +127,9 @@ typedef struct MlValue
 	const MlPlotData *plot; /* ML_VALUE_PLOT */
 	int32_t     flag;   /* ML_VALUE_BOOL: 1 for true */
 	const MlListData *list; /* ML_VALUE_LIST */
+	int32_t     fn_kind;  /* ML_VALUE_FUNC: ML_FN_USER, _BUILTIN or _LAMBDA */
+	uint64_t    fn_node;
+	uint64_t    fn_scope;
 	double      approx; /* ML_VALUE_APPROX */
 	MlErrorKind error;  /* ML_VALUE_ERROR */
 	/* byte range in the source, error_len 0 if unknown */

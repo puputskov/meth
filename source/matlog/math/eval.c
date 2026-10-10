@@ -117,6 +117,7 @@ typedef enum MlBuiltin
 	BUILTIN_DIM,
 	BUILTIN_IF,
 	BUILTIN_NOT,
+	BUILTIN_APPROX,
 	BUILTIN_MAP,
 	BUILTIN_FILTER,
 	BUILTIN_FOLD,
@@ -192,6 +193,7 @@ static const MlBuiltinInfo builtins [BUILTIN_COUNT] = {
 	[BUILTIN_DIM]   = { .name = "dim",   .min = 1, .max = 1 },
 	[BUILTIN_IF]    = { .name = "if",    .min = 3, .max = 3 },
 	[BUILTIN_NOT]   = { .name = "not",   .min = 1, .max = 1 },
+	[BUILTIN_APPROX] = { .name = "approx", .min = 1, .max = 1 },
 	[BUILTIN_MAP]    = { .name = "map",    .min = 2, .max = 2 },
 	[BUILTIN_FILTER] = { .name = "filter", .min = 2, .max = 2 },
 	[BUILTIN_FOLD]   = { .name = "fold",   .min = 3, .max = 3 },
@@ -1098,6 +1100,16 @@ static MlValue builtin_apply (
 		);
 	}
 
+	else if (id == BUILTIN_APPROX)
+	{
+		/* an exact number as the nearest double; what follows is approximate */
+		r = ml_choose (
+			ml_value_is_number (args [0]),
+			ml_value_approx (ml_value_to_double (arena, args [0])),
+			error_at (ML_EVAL_TYPE)
+		);
+	}
+
 	else if (id >= BUILTIN_LISTFN_LIST)
 	{
 		r = ml_listfn_apply (
@@ -1961,12 +1973,196 @@ static int32_t is_unbound_symbol (
 	);
 }
 
+/* ---- functions as values ------------------------------------------------ */
+
+/* The value a parameter or a local of the scope holds, none if no name. */
+static MlValue held_value (const MlEvalCtx *cx, const MlScope *sc, MlSlice name)
+{
+	MlLocalHit local = local_find (cx, sc, name);
+	MlParamHit hit   = param_find (sc, name);
+	MlValue    v     = ml_value_none ();
+
+	if (local.found)
+	{
+		v = local.value;
+	}
+
+	else if (hit.found)
+	{
+		v = sc->args [hit.index];
+	}
+
+	return v;
+}
+
+/* Can the builtin be called with values (not if, map, sum (i, ...))? */
+static int32_t plain_builtin (MlBuiltin id)
+{
+	return (
+		   id != BUILTIN_NONE
+		&& id != BUILTIN_IF
+		&& id != BUILTIN_MAP
+		&& id != BUILTIN_FILTER
+		&& id != BUILTIN_FOLD
+		&& id != BUILTIN_STAT_SUM
+		&& id != BUILTIN_STAT_PROD
+	);
+}
+
+/* What a call of a name runs: a defined function, a lambda or a built in. */
+typedef struct MlTarget
+{
+	int32_t   found;
+	int32_t   builtin;
+	MlBuiltin id;
+	MlBinding b;
+} MlTarget;
+
+static MlTarget target_of_value (const MlEvalCtx *cx, MlValue v)
+{
+	MlTarget t =
+	{
+		.found   = 0,
+		.builtin = 0,
+		.id      = BUILTIN_NONE
+	};
+
+	memset (&t.b, 0, sizeof t.b);
+
+	if (v.kind == ML_VALUE_FUNC && v.fn_kind == ML_FN_USER)
+	{
+		t.b     = ml_env_lookup (cx->env, v.show, cx->snapshot);
+		t.found = t.b.kind == ML_BIND_FUNC;
+	}
+
+	else if (v.kind == ML_VALUE_FUNC && v.fn_kind == ML_FN_BUILTIN)
+	{
+		t.found   = 1;
+		t.builtin = 1;
+		t.id      = (MlBuiltin)v.fn_node;
+	}
+
+	else if (v.kind == ML_VALUE_FUNC && v.fn_scope < cx->scopes.len)
+	{
+		/* x -> body written in an enclosing scope: a function of its own */
+		const MlScope *home   = &cx->scopes.data [v.fn_scope];
+		uint64_t      params = ml_ast_child (&home->ast, v.fn_node, 0);
+
+		t.b.kind   = ML_BIND_FUNC;
+		t.b.source = home->source;
+		t.b.ast    = home->ast;
+		t.b.params = params;
+		t.b.body   = ml_ast_child (&home->ast, v.fn_node, 1);
+		t.found    = 1;
+	}
+
+	return t;
+}
+
+/* The function a name stands for: one a parameter or a local holds, else a
+   defined one. */
+static MlTarget call_target (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
+{
+	MlValue held = held_value (cx, sc, name);
+	MlTarget t   = target_of_value (cx, held);
+
+	if (!t.found && held.kind == ML_VALUE_NONE)
+	{
+		t.b     = ml_env_lookup (cx->env, name, cx->snapshot);
+		t.found = t.b.kind == ML_BIND_FUNC;
+	}
+
+	return t;
+}
+
+/* How many arguments the target takes at least and at most. */
+static uint64_t target_min (MlTarget t)
+{
+	return ml_choose (
+		t.builtin,
+		builtins [t.id].min,
+		ml_binding_param_count (t.b)
+	);
+}
+
+static uint64_t target_max (MlTarget t)
+{
+	return ml_choose (
+		t.builtin,
+		builtins [t.id].max,
+		ml_binding_param_count (t.b)
+	);
+}
+
+/*
+ * An argument of a call of a function of the user that is a function: a
+ * lambda, or the name of a function (that is not hidden by a variable).
+ */
+static int32_t func_argument (
+	MlEvalCtx     *cx,
+	const MlScope *sc,
+	uint64_t      node,
+	uint64_t      scope,
+	MlValue       *out
+)
+{
+	MlNode  n     = ml_ast_node (&sc->ast, node);
+	int32_t found = 0;
+
+	*out = ml_value_none ();
+
+	if (n.kind == ML_NODE_LAMBDA)
+	{
+		out->kind     = ML_VALUE_FUNC;
+		out->fn_kind  = ML_FN_LAMBDA;
+		out->fn_node  = node;
+		out->fn_scope = scope;
+		found         = 1;
+	}
+
+	else if (n.kind == ML_NODE_NAME)
+	{
+		MlSlice   name  = ml_ast_text (&sc->ast, sc->source, node);
+		MlBinding b     = ml_env_lookup (cx->env, name, cx->snapshot);
+		MlBuiltin id    = builtin_find (name);
+		int32_t   taken = (
+			   local_find (cx, sc, name).found
+			|| param_find (sc, name).found
+			|| b.kind == ML_BIND_VAR
+		);
+
+		if (!taken && b.kind == ML_BIND_FUNC)
+		{
+			out->kind    = ML_VALUE_FUNC;
+			out->fn_kind = ML_FN_USER;
+			out->show    = name;
+			found        = 1;
+		}
+
+		else if (!taken && b.kind == ML_BIND_NONE && plain_builtin (id))
+		{
+			out->kind    = ML_VALUE_FUNC;
+			out->fn_kind = ML_FN_BUILTIN;
+			out->fn_node = (uint64_t)id;
+			out->show    = name;
+			found        = 1;
+		}
+	}
+
+	return found;
+}
+
 static MlCallKind call_kind (MlEvalCtx *cx, const MlScope *sc, MlSlice name)
 {
 	MlCallKind kind = CALL_UNKNOWN;
 	MlBinding  b    = ml_env_lookup (cx->env, name, cx->snapshot);
 
-	if (
+	if (held_value (cx, sc, name).kind == ML_VALUE_FUNC)
+	{
+		kind = CALL_USER;
+	}
+
+	else if (
 		   param_find (sc, name).found
 		|| local_find (cx, sc, name).found
 		|| b.kind == ML_BIND_VAR
@@ -2210,10 +2406,24 @@ static MlValue list_value (MlArena *arena, const MlValue *items, uint64_t n)
 /* The result of an operator whose n operands are on top of vals. */
 static MlValue operator_apply (MlEvalCtx *cx, MlNodeKind kind, uint64_t n)
 {
-	MlValue a = MlValueVec_get (&cx->vals, cx->vals.len - n);
+	MlValue a    = MlValueVec_get (&cx->vals, cx->vals.len - n);
 	MlValue r;
+	int32_t func = 0;
 
-	if (kind == ML_NODE_LIST)
+	for (uint64_t i = 0; i < n; i++)
+	{
+		func = func || (
+			cx->vals.data [cx->vals.len - n + i].kind == ML_VALUE_FUNC
+		);
+	}
+
+	if (func)
+	{
+		/* a function is called or given to map, it is not part of a sum */
+		r = error_at (ML_EVAL_TYPE);
+	}
+
+	else if (kind == ML_NODE_LIST)
 	{
 		r = list_value (cx->arena, &cx->vals.data [cx->vals.len - n], n);
 	}
@@ -2580,9 +2790,9 @@ static void call_begin (MlEvalCtx *cx, MlFrame f, MlNode node)
 
 	else if (kind == CALL_USER)
 	{
-		MlBinding b = ml_env_lookup (cx->env, name, cx->snapshot);
+		MlTarget t = call_target (cx, sc, name);
 
-		if (argc != ml_binding_param_count (b))
+		if (!t.found || argc < target_min (t) || argc > target_max (t))
 		{
 			r = error_at (ML_EVAL_ARITY);
 		}
@@ -2643,11 +2853,12 @@ static void call_invoke (MlEvalCtx *cx, MlFrame f, MlNode node)
 {
 	const MlScope *sc    = &cx->scopes.data [f.scope];
 	uint64_t      argc  = ml_ast_child_count (&sc->ast, f.node) - 1;
-	MlBinding     b     = ml_env_lookup (
-		cx->env,
-		ml_ast_text (&sc->ast, sc->source, ml_ast_child (&sc->ast, f.node, 0)),
-		cx->snapshot
+	MlTarget      t     = call_target (
+		cx,
+		sc,
+		ml_ast_text (&sc->ast, sc->source, ml_ast_child (&sc->ast, f.node, 0))
 	);
+	MlBinding     b     = t.b;
 	MlValue       *args = NULL;
 	MlScope       rec;
 
@@ -2659,6 +2870,22 @@ static void call_invoke (MlEvalCtx *cx, MlFrame f, MlNode node)
 	if (argc > 0 && args == NULL)
 	{
 		finish (cx, argc, error_at (ML_EVAL_NO_MEMORY), node);
+	}
+
+	else if (t.builtin)
+	{
+		/* a built in function held by a parameter: no scope of its own */
+		finish (
+			cx,
+			argc,
+			builtin_apply (
+				cx->arena,
+				t.id,
+				&cx->vals.data [cx->vals.len - argc],
+				argc
+			),
+			node
+		);
 	}
 
 	else
@@ -2699,6 +2926,16 @@ static void call_return (MlEvalCtx *cx, MlNode node)
 	if (r.kind == ML_VALUE_ERROR)
 	{
 		r = ml_value_error (r.error, node.start, node.len);
+	}
+
+	/* a lambda that was written in the scope that has just ended is gone */
+	else if (
+		   r.kind == ML_VALUE_FUNC
+		&& r.fn_kind == ML_FN_LAMBDA
+		&& r.fn_scope >= cx->scopes.len
+	)
+	{
+		r = ml_value_error (ML_EVAL_NOT_VALUE, node.start, node.len);
 	}
 
 	finish (cx, 0, r, node);
@@ -2821,10 +3058,23 @@ static HofTarget hof_target (
 	else if (n.kind == ML_NODE_NAME)
 	{
 		MlSlice   name = ml_ast_text (&sc->ast, sc->source, node);
-		MlBinding b    = ml_env_lookup (cx->env, name, cx->snapshot);
+		MlTarget  held = call_target (cx, sc, name);
+		MlBinding b    = held.b;
 		MlBuiltin id   = builtin_find (name);
 
-		if (b.kind == ML_BIND_FUNC)
+		if (held.found && held.builtin)
+		{
+			int32_t fits = (
+				   want >= builtins [held.id].min
+				&& want <= builtins [held.id].max
+			);
+
+			t.kind  = ml_choose (fits, HOF_BUILTIN, HOF_BAD);
+			t.error = ml_choose (fits, ML_EVAL_NONE, ML_EVAL_ARITY);
+			t.id    = held.id;
+		}
+
+		else if (held.found)
 		{
 			int32_t fits = ml_binding_param_count (b) == want;
 
@@ -3348,8 +3598,20 @@ static void step_call (MlEvalCtx *cx, MlFrame f, MlNode node)
 			f.step + 1
 		);
 
+		uint64_t arg = ml_ast_child (&sc->ast, f.node, child);
+		MlValue  fn;
+
 		set_step (cx, f.step + 1);
-		push_frame (cx, ml_ast_child (&sc->ast, f.node, child), f.scope);
+
+		if (f.kind == CALL_USER && func_argument (cx, sc, arg, f.scope, &fn))
+		{
+			push_value (cx, fn);
+		}
+
+		else
+		{
+			push_frame (cx, arg, f.scope);
+		}
 	}
 }
 
@@ -3520,6 +3782,12 @@ static MlValue eval_with (
 				MlValueVec_get (&cx.vals, 0)
 			)
 		);
+
+		/* a function is not a result: it points into the line, which ends */
+		if (r.kind == ML_VALUE_FUNC)
+		{
+			r = error_at (ML_EVAL_NOT_VALUE);
+		}
 	}
 
 	MlFrameVec_free (&cx.frames);
