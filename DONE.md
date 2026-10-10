@@ -365,7 +365,18 @@ lines of the PGA domains and the includes are written as code until their domain
 
 ### 4.12 Proofs and their validation
 
-Not built. The full text is in `TODO.md`.
+Built so far (2026-10-10): the checker core, `proof/proof.h` (`ml_proof_check`), and `matlog proof FILE`. A proof is text: `theorem NAME: LEFT = RIGHT` (with
+`given A, B` on the line or on its own line), steps `CLAIM  by REASON`, `qed`. A line that starts with `=` or `...` continues the right hand side of the step above.
+Reasons it decides: `simplify` and `expand` (both sides have the same simplified or expanded form), `hypothesis` (a `given` equation, either way round), `step N` (a valid
+step above), `lemma NAME` (a theorem proved above, without hypotheses), `sorry`. A line has a mark: valid, invalid (the engine found values that refute the step, shown
+as `x = 3: 9 ≠ 6`, or a reference to a step or lemma that does not exist), unchecked (everything it cannot decide: no reason, a reason that does not say it, `rule`),
+sorry, syntax error. `qed` is valid when no step has an error, a sorry or is unchecked, and the valid steps lead from the left side of the claim to its right side
+(compared by expanded form); a closed theorem is a lemma below. The checker says valid only when the simplifier's forms are equal, and invalid only with values that
+differ or a missing reference. The notes are texts (`[proof]`, `[proof_marks]`). `matlog proof` prints `LINE: note` for each line with a mark and exits 1 when a line is
+not valid or a theorem is not closed. Tests: `test_proof.c` (valid and broken proofs, a wrong step at each position) and `test_cli.c`.
+Not built: the `proof` domain in the editor (marks at the end of the row, recomputed on edit, ghost), `:why`, `:hint`, `:test`, induction, cases, contradiction,
+named rewrite rules (`by rule NAME`), inequalities, lemmas with hypotheses, matrix and boolean identities, the tutorial lesson, the export of proofs, a docs page.
+The full text of the plan is in `TODO.md`.
 
 ### 4.13 Command line interface for scripts and AI agents
 The tool must be usable without the interactive screen, by scripts and by AI agents, through command line parameters. The interactive shell is one
