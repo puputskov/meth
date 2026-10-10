@@ -18,6 +18,7 @@ ML_VEC_DEFINE (EntryVec, Entry)
 static EntryVec entries;
 static int32_t  started = 0;
 static char     current [32] = "en";
+static uint64_t generation = 1;
 
 static void free_entries (void)
 {
@@ -32,6 +33,7 @@ static void free_entries (void)
 
 void ml_texts_clear (void)
 {
+	generation++;
 	free_entries ();
 	EntryVec_init (&entries);
 	started = 1;
@@ -57,6 +59,8 @@ static MlResult put (MlSlice key, MlSlice text)
 {
 	MlResult r  = ML_OK;
 	uint64_t at = find (key);
+
+	generation++;
 
 	if (at < entries.len)
 	{
@@ -387,6 +391,27 @@ const char *ml_text (const char *code)
 		ml_str_cstr (entries.data [at].text),
 		code
 	);
+}
+
+const char *ml_text_find (const char *code)
+{
+	uint64_t at;
+
+	ensure_started ();
+	at = find (ml_slice_cstr (code));
+
+	return ml_choose (
+		at < entries.len,
+		ml_str_cstr (entries.data [at].text),
+		NULL
+	);
+}
+
+uint64_t ml_texts_generation (void)
+{
+	ensure_started ();
+
+	return generation;
 }
 
 const char *ml_text_in (const char *section, const char *name)

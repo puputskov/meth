@@ -1,534 +1,405 @@
 #include <matlog/tutorial/lessons.h>
 
+#include <matlog/core/vec.h>
 #include <matlog/platform/key.h>
+#include <matlog/session/session.h>
+#include <matlog/texts/texts.h>
 #include <matlog/ui/keymap.h>
 
-/* ---- stage 1: the tool ------------------------------------------------- */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-static const MlStep notes_steps [] = {
-	{
-		.text   = "Welcome. A new line is a note, free text. Type a sentence "
-		          "and press Enter.",
-		.check  = ML_CHECK_NOTES,
-		.arg    = 1,
-		.hint   = "Type some letters, then press the Enter key.",
-		.answer = "My first note<Enter>"
-	},
-	{
-		.text   = "Press Up to go back to your note. The cursor moves across "
-		          "lines like in any text editor.",
-		.check  = ML_CHECK_KEY,
-		.arg    = ML_KEY_UP,
-		.hint   = "The key with the arrow pointing up.",
-		.answer = "<Up>"
-	},
-	{
-		.text   = "Press End to jump to the end of the line, then Enter: a "
-		          "new line starts below it.",
-		.check  = ML_CHECK_KEY,
-		.arg    = ML_KEY_ENTER,
-		.hint   = "End is next to Home. Then the Enter key.",
-		.answer = "<End><Enter>"
-	}
+/*
+ * The lessons are the section [lessons] of the texts catalog (texts/
+ * en.mltext), built into lists of steps whenever the texts are new:
+ *
+ *	notes.title = Writing and notes
+ *	notes.stage = 1
+ *	notes.2.check = key
+ *	notes.2.arg   = Up
+ *	notes.2.text  = Press Up to go back to your note.
+ *	notes.2.hint  = The key with the arrow pointing up.
+ *	notes.2.answer = <Up>
+ *
+ * A lesson is an id with a title and a stage; its steps are numbered from 1
+ * and a step needs `check` (the kind of check, see lessons.h) and `text`,
+ * and has `arg` for the kinds that take one, `param` and `param2` where the
+ * check takes text, the `answer` and an optional `hint`. The lessons come in
+ * the order of the file, those of stage 1 first. A step the program cannot
+ * make sense of (a check or an argument it does not know) is left out.
+ */
+
+ML_VEC_DEFINE (StepVec, MlStep)
+ML_VEC_DEFINE (LessonVec, MlLesson)
+ML_VEC_DEFINE (IdVec, MlStr)
+
+/* A lesson found in the catalog: where its steps are in the list. */
+typedef struct Span
+{
+	uint64_t first;
+	uint64_t count;
+	int32_t  stage;
+	uint64_t id; /* index in ids */
+} Span;
+
+ML_VEC_DEFINE (SpanVec, Span)
+
+static StepVec   steps;
+static LessonVec lessons;
+static IdVec     ids;
+static uint64_t  built = 0; /* the generation of the texts they come from */
+
+static const char *const check_names [] = {
+	[ML_CHECK_ACTION]    = "action",
+	[ML_CHECK_KEY]       = "key",
+	[ML_CHECK_NOTES]     = "notes",
+	[ML_CHECK_RESULT]    = "result",
+	[ML_CHECK_ERROR]     = "error",
+	[ML_CHECK_VALUE]     = "value",
+	[ML_CHECK_DOMAIN]    = "domain",
+	[ML_CHECK_STATE]     = "state",
+	[ML_CHECK_STATE_NOT] = "state_not",
+	[ML_CHECK_COMMAND]   = "command",
+	[ML_CHECK_STEPS]     = "steps",
+	[ML_CHECK_WATCH]     = "watch"
 };
 
-static const MlStep math_steps [] = {
-	{
-		.text   = "Press {ACTION_BLOCK_NEW}. A math line starts, in a block "
-		          "of the domain used last (algebra at first).",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_BLOCK_NEW,
-		.hint   = "Hold Ctrl and press Enter. Some terminals send Shift and "
-		          "Enter together for it.",
-		.answer = "<ACTION_BLOCK_NEW>"
-	},
-	{
-		.text   = "Type 1/3 + 1/6. The dim text after it is a preview of the "
-		          "result. Press Enter to keep the line.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "1/2",
-		.hint   = "Type the characters 1/3 + 1/6 exactly, then Enter.",
-		.answer = "1/3 + 1/6<Enter>"
-	},
-	{
-		.text   = "Lines work in order: a name you define is known below it. "
-		          "Type a = 12 and press Enter.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "12",
-		.hint   = "Type a = 12 and press Enter.",
-		.answer = "a = 12<Enter>"
-	},
-	{
-		.text   = "Use it: type a/8 + 1 and press Enter.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "5/2",
-		.hint   = "a/8 + 1 with a being 12 gives 5/2.",
-		.answer = "a/8 + 1<Enter>"
-	},
-	{
-		.text   = "A line that cannot be computed shows a message in red. "
-		          "Type 1/0 and press Enter.",
-		.check  = ML_CHECK_ERROR,
-		.param  = "div_zero",
-		.hint   = "One divided by zero.",
-		.answer = "1/0<Enter>"
-	},
-	{
-		.text   = "Enter on an empty line of a block ends the block, and a "
-		          "note starts below it. Press Enter.",
-		.check  = ML_CHECK_STATE,
-		.arg    = ML_TUT_NOTE,
-		.hint   = "The line you are on is empty. Press Enter on it.",
-		.answer = "<Enter>"
-	}
+static const char *const state_names [] = {
+	[ML_TUT_MATH]    = "math",
+	[ML_TUT_NOTE]    = "note",
+	[ML_TUT_COMMAND] = "command",
+	[ML_TUT_SELECT]  = "select",
+	[ML_TUT_HELP]    = "help"
 };
 
-static const MlStep moving_steps [] = {
+/* The text of the entry lessons.<id>[.<step>].<name>, NULL if none. */
+static const char *entry (const char *id, uint64_t step, const char *name)
+{
+	char code [160];
+
+	if (step > 0)
 	{
-		.text   = "{ACTION_GOTO_FIRST} goes to the first line of the session.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_GOTO_FIRST,
-		.answer = "<ACTION_GOTO_FIRST>"
-	},
-	{
-		.text   = "{ACTION_GOTO_LAST} goes to the last line.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_GOTO_LAST,
-		.answer = "<ACTION_GOTO_LAST>"
-	},
-	{
-		.text   = "{ACTION_BLOCK_PREV} jumps to the block before, "
-		          "{ACTION_BLOCK_NEXT} to the next one. Press "
-		          "{ACTION_BLOCK_PREV}.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_BLOCK_PREV,
-		.answer = "<ACTION_BLOCK_PREV>"
-	},
-	{
-		.text   = "{ACTION_BLOCK_NEXT} jumps to the next block.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_BLOCK_NEXT,
-		.answer = "<ACTION_BLOCK_NEXT>"
+		snprintf (
+			code,
+			sizeof code,
+			"lessons.%s.%u.%s",
+			id,
+			(uint32_t)step,
+			name
+		);
 	}
-};
 
-static const MlStep editing_steps [] = {
+	else
 	{
-		.text   = "Go up one line and press {ACTION_SELECT_LINE} to select "
-		          "the whole line.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_SELECT_LINE,
-		.hint   = "Press Up, then hold Ctrl and press L.",
-		.answer = "<Up><ACTION_SELECT_LINE>"
-	},
-	{
-		.text   = "{ACTION_COPY} copies the selected lines.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_COPY,
-		.answer = "<ACTION_COPY>"
-	},
-	{
-		.text   = "Press Down to leave the selection, then {ACTION_PASTE} to "
-		          "paste the copy below.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_PASTE,
-		.answer = "<Down><ACTION_PASTE>"
-	},
-	{
-		.text   = "{ACTION_UNDO} undoes the last change. Try it.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_UNDO,
-		.answer = "<ACTION_UNDO>"
-	},
-	{
-		.text   = "{ACTION_REDO} redoes what was undone.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_REDO,
-		.answer = "<ACTION_REDO>"
+		snprintf (code, sizeof code, "lessons.%s.%s", id, name);
 	}
-};
 
-static const MlStep domains_steps [] = {
+	return ml_text_find (code);
+}
+
+static int32_t index_in (const char *const *names, uint64_t count, MlSlice word)
+{
+	int32_t found = -1;
+
+	for (uint64_t i = 0; i < count && found < 0; i++)
 	{
-		.text   = "Every math line has a domain: algebra, lambda, pga2, pga3 "
-		          "or boolean. The label at the left shows it. "
-		          "{ACTION_DOMAIN_NEXT} goes to the next domain.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_DOMAIN_NEXT,
-		.hint   = "Hold Alt and press the right arrow.",
-		.answer = "<ACTION_DOMAIN_NEXT>"
-	},
-	{
-		.text   = "{ACTION_BLOCK_PICK} chooses the domain of a new block "
-		          "first. Press it.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_BLOCK_PICK,
-		.answer = "<ACTION_BLOCK_PICK>"
-	},
-	{
-		.text   = "Press Esc to cancel the choice.",
-		.check  = ML_CHECK_KEY,
-		.arg    = ML_KEY_ESCAPE,
-		.answer = "<Esc>"
-	},
-	{
-		.text   = "{ACTION_COMMAND} opens the command line. Type mode boolean "
-		          "and press Enter: new blocks are boolean from now on.",
-		.check  = ML_CHECK_COMMAND,
-		.param  = "mode boolean",
-		.hint   = "{ACTION_COMMAND}, then the words mode boolean, then Enter.",
-		.answer = "<ACTION_COMMAND>mode boolean<Enter>"
-	},
-	{
-		.text   = "Start a block with {ACTION_BLOCK_NEW}, type a & ~a and "
-		          "press Enter. In the boolean domain & is and, ~ is not.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "false",
-		.hint   = "a and not a is never true.",
-		.answer = "<ACTION_BLOCK_NEW>a & ~a<Enter>"
-	},
-	{
-		.text   = "Back to algebra: {ACTION_COMMAND}, then mode algebra and "
-		          "Enter.",
-		.check  = ML_CHECK_COMMAND,
-		.param  = "mode algebra",
-		.answer = "<ACTION_COMMAND>mode algebra<Enter>"
+		if (
+			   names [i] != NULL
+			&& ml_slice_equal (word, ml_slice_cstr (names [i]))
+		)
+		{
+			found = (int32_t)i;
+		}
 	}
-};
 
-static const MlStep steps_steps [] = {
+	return found;
+}
+
+/* The number the argument of a step stands for; ok is cleared if none. */
+static int32_t step_arg (MlCheck check, const char *word, int32_t *ok)
+{
+	MlSlice w   = ml_slice_cstr (ml_choose (word != NULL, word, ""));
+	int32_t arg = 0;
+
+	*ok = 1;
+
+	if (check == ML_CHECK_ACTION)
 	{
-		.text   = "Start a block and write det([[1,2],[3,4]]), the "
-		          "determinant of a matrix. Press Enter.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "-2",
-		.hint   = "{ACTION_BLOCK_NEW}, then the text, then Enter.",
-		.answer = "<ACTION_BLOCK_NEW>det([[1,2],[3,4]])<Enter>"
-	},
-	{
-		.text   = "Go up to that line and press {ACTION_STEPS}: the steps of "
-		          "the calculation are shown under it.",
-		.check  = ML_CHECK_STEPS,
-		.hint   = "Press Up once, then {ACTION_STEPS}.",
-		.answer = "<Up><ACTION_STEPS>"
-	},
-	{
-		.text   = "{ACTION_STEPS} again hides the steps.",
-		.check  = ML_CHECK_ACTION,
-		.arg    = ML_ACT_STEPS,
-		.answer = "<ACTION_STEPS>"
+		MlAction a = ml_action_from_name (w);
+
+		arg = (int32_t)a;
+		*ok = a != ML_ACT_COUNT;
 	}
-};
 
-static const MlStep help_steps [] = {
+	else if (check == ML_CHECK_KEY)
 	{
-		.text   = "{ACTION_HELP} opens the help. Every page of the "
-		          "documentation is there, and it can be searched.",
-		.check  = ML_CHECK_STATE,
-		.arg    = ML_TUT_HELP,
-		.answer = "<ACTION_HELP>"
-	},
-	{
-		.text   = "Press q to close the help.",
-		.check  = ML_CHECK_STATE_NOT,
-		.arg    = ML_TUT_HELP,
-		.answer = "q"
-	},
-	{
-		.text   = "{ACTION_WATCH} shows the watch window: every name defined "
-		          "at the line of the cursor, with its type and value.",
-		.check  = ML_CHECK_WATCH,
-		.arg    = 1,
-		.answer = "<ACTION_WATCH>"
-	},
-	{
-		.text   = "{ACTION_WATCH} hides it again.",
-		.check  = ML_CHECK_WATCH,
-		.arg    = 0,
-		.answer = "<ACTION_WATCH>"
+		MlKeyParse p = ml_key_parse_any (w);
+
+		arg = (int32_t)p.key.code;
+		*ok = p.result == ML_OK;
 	}
-};
 
-/* ---- stage 2: the syntax ----------------------------------------------- */
+	else if (check == ML_CHECK_DOMAIN)
+	{
+		arg = -1;
 
-static const MlStep numbers_steps [] = {
-	{
-		.text   = "Start a block ({ACTION_BLOCK_NEW}) and write a line whose "
-		          "result is 1/2. Any way will do, 2/4 or 1/3 + 1/6.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "1/2",
-		.hint   = "Fractions are exact: 2/4 is 1/2.",
-		.answer = "<ACTION_BLOCK_NEW>2/4<Enter>"
-	},
-	{
-		.text   = "^ is the power and -2^2 is -4, not 4. Write a line whose "
-		          "result is -4.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "-4",
-		.answer = "-2^2<Enter>"
-	},
-	{
-		.text   = "Write a line whose result is 120 with a factorial: 5!",
-		.check  = ML_CHECK_RESULT,
-		.param  = "120",
-		.answer = "5!<Enter>"
-	},
-	{
-		.text   = "A root that is not a fraction is an approximation, marked "
-		          "with \xE2\x89\x88. Write sqrt(2).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "\xE2\x89\x88 1.41421356",
-		.answer = "sqrt(2)<Enter>"
+		for (uint32_t d = 0; d < ML_DOMAIN_COUNT && arg < 0; d++)
+		{
+			const char *name = ml_domain_name ((MlDomain)d);
+
+			if (ml_slice_equal (w, ml_slice_cstr (name)))
+			{
+				arg = (int32_t)d;
+			}
+		}
+
+		*ok = arg >= 0;
 	}
-};
 
-static const MlStep names_steps [] = {
+	else if (check == ML_CHECK_STATE || check == ML_CHECK_STATE_NOT)
 	{
-		.text   = "Define a function g so that g(2) is 7. A function is "
-		          "written g(x) = ...",
-		.check  = ML_CHECK_VALUE,
-		.param  = "g(2)",
-		.param2 = "7",
-		.hint   = "For example g(x) = 3x + 1.",
-		.answer = "g(x) = 3x + 1<Enter>"
-	},
-	{
-		.text   = "A name is a whole word: 2x is 2 times x, but xy is one "
-		          "name. Define x = 4, then write 3x on the next line.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "12",
-		.answer = "x = 4<Enter>3x<Enter>"
-	},
-	{
-		.text   = "pi and e are constants. Write a line whose result is the "
-		          "approximation of pi.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "\xE2\x89\x88 3.14159265",
-		.answer = "pi<Enter>"
+		arg = index_in (state_names, ml_count (state_names), w);
+		*ok = arg >= 0;
 	}
-};
 
-static const MlStep errors_steps [] = {
+	else if (check == ML_CHECK_WATCH)
 	{
-		.text   = "Write a line with a mistake, 2 +, and press Enter. The "
-		          "message says what is wrong and the place is marked.",
-		.check  = ML_CHECK_ERROR,
-		.param  = "",
-		.answer = "2 +<Enter>"
-	},
-	{
-		.text   = "Write the line right: a line whose result is 4.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "4",
-		.answer = "2 + 2<Enter>"
+		arg = ml_slice_equal (w, ml_slice_cstr ("on"));
+		*ok = arg || ml_slice_equal (w, ml_slice_cstr ("off"));
 	}
-};
 
-static const MlStep matrices_steps [] = {
+	else if (check == ML_CHECK_NOTES)
 	{
-		.text   = "A matrix is a list of rows: [[1,2],[3,4]]. Write a line "
-		          "with its determinant, det([[1,2],[3,4]]), which is -2.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "-2",
-		.answer = "det([[1,2],[3,4]])<Enter>"
-	},
-	{
-		.text   = "Solve the system 2x + y = 3 and x + 3y = 5 with "
-		          "solve([[2,1],[1,3]], [3,5]).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "[[4/5], [7/5]]",
-		.answer = "solve([[2,1],[1,3]], [3,5])<Enter>"
+		arg = atoi (ml_choose (word != NULL, word, "0"));
 	}
-};
 
-static const MlStep symbolic_steps [] = {
+	return arg;
+}
+
+/* Step n of the lesson from the catalog; ok is 0 when it cannot be used. */
+static MlStep step_of (const char *id, uint64_t n, int32_t *ok)
+{
+	const char *kind  = entry (id, n, "check");
+	const char *text  = entry (id, n, "text");
+	int32_t    check  = -1;
+	int32_t    good   = kind != NULL && text != NULL;
+	MlStep     st;
+
+	memset (&st, 0, sizeof st);
+
+	if (good)
 	{
-		.text   = "Names that stand for nothing are symbols inside the "
-		          "symbolic functions. Differentiate x^3 with diff(x^3, x).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "3x\xC2\xB2",
-		.answer = "diff(x^3, x)<Enter>"
-	},
-	{
-		.text   = "Integrate x^2 from 0 to 3: integrate(x^2, x, 0, 3).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "9",
-		.answer = "integrate(x^2, x, 0, 3)<Enter>"
-	},
-	{
-		.text   = "A limit: limit(sin(x)/x, x, 0).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "1",
-		.answer = "limit(sin(x)/x, x, 0)<Enter>"
+		check = index_in (
+			check_names,
+			ml_count (check_names),
+			ml_slice_cstr (kind)
+		);
+		good  = check >= 0;
 	}
-};
 
-static const MlStep units_steps [] = {
+	if (good)
 	{
-		.text   = "Units are part of numbers: write 5 km + 300 m.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "5300 m",
-		.answer = "5 km + 300 m<Enter>"
-	},
-	{
-		.text   = "to converts: write 3 ft to m.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "1143/1250 m",
-		.answer = "3 ft to m<Enter>"
+		st.check  = (MlCheck)check;
+		st.arg    = step_arg (st.check, entry (id, n, "arg"), &good);
+		st.text   = text;
+		st.param  = entry (id, n, "param");
+		st.param2 = entry (id, n, "param2");
+		st.hint   = entry (id, n, "hint");
+		st.answer = entry (id, n, "answer");
 	}
-};
 
-static const MlStep numbersystems_steps [] = {
+	*ok = good;
+
+	return st;
+}
+
+/* 1 when no entry before number upto has the same lesson id (len bytes). */
+static int32_t is_new_id (const char *name, uint64_t len, uint64_t upto)
+{
+	int32_t fresh = 1;
+
+	for (uint64_t i = 0; i < upto && fresh; i++)
 	{
-		.text   = "i is the imaginary unit. Multiply (1+2i)*(3-i).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "5 + 5i",
-		.answer = "(1+2i)*(3-i)<Enter>"
-	},
-	{
-		.text   = "The square root of a negative number is complex: sqrt(-4).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "2i",
-		.answer = "sqrt(-4)<Enter>"
-	},
-	{
-		.text   = "Quaternions use i, j and k: write i*j.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "k",
-		.answer = "i*j<Enter>"
-	},
-	{
-		.text   = "Statistics: the mean of a list, mean([1,2,3,4]).",
-		.check  = ML_CHECK_RESULT,
-		.param  = "5/2",
-		.answer = "mean([1,2,3,4])<Enter>"
+		const char *other = ml_text_nth_name ("lessons", i);
+
+		fresh = !(strncmp (other, name, len) == 0 && other [len] == '.');
 	}
-};
 
-static const MlStep otherdomains_steps [] = {
+	return fresh;
+}
+
+/* The steps of the lesson with this id, pushed to steps. */
+static MlResult collect_steps (const char *id, Span *span)
+{
+	MlResult r = ML_OK;
+
+	span->first = steps.len;
+	span->count = 0;
+
+	for (uint64_t n = 1; r == ML_OK && entry (id, n, "check") != NULL; n++)
 	{
-		.text   = "Other domains have their own syntax. Switch with "
-		          "{ACTION_COMMAND}, mode boolean, then start a block and "
-		          "write a | ~a.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "true",
-		.answer = "<ACTION_COMMAND>mode boolean<Enter><ACTION_BLOCK_NEW>a | "
-		          "~a<Enter>"
-	},
-	{
-		.text   = "The lambda calculus: switch with mode lambda, start a "
-		          "block and write (\xCE\xBBx. x) y. The result is the "
-		          "reduced term.",
-		.check  = ML_CHECK_RESULT,
-		.param  = "y",
-		.answer = "<ACTION_COMMAND>mode "
-		          "lambda<Enter><ACTION_BLOCK_NEW>(\xCE\xBBx. x) y<Enter>"
+		int32_t ok = 0;
+		MlStep  st = step_of (id, n, &ok);
+
+		if (ok)
+		{
+			r = StepVec_push (&steps, st);
+			span->count++;
+		}
 	}
-};
 
-/* ---- the table --------------------------------------------------------- */
+	return r;
+}
 
-#define STEPS(a) .step_count = ml_count (a), .steps = a
+/* The lessons of the catalog, in the order of the file. */
+static MlResult collect (SpanVec *spans)
+{
+	MlResult r       = ML_OK;
+	uint64_t entries = ml_text_count ("lessons");
 
-static const MlLesson lessons [] = {
+	for (uint64_t i = 0; i < entries && r == ML_OK; i++)
 	{
-		.id = "notes",
-		.title = "Writing and notes",
-		.stage = 1, STEPS (notes_steps)
-	},
-	{
-		.id = "math",
-		.title = "Math lines",
-		.stage = 1, STEPS (math_steps)
-	},
-	{
-		.id = "moving",
-		.title = "Moving around",
-		.stage = 1, STEPS (moving_steps)
-	},
-	{
-		.id = "editing",
-		.title = "Selecting, copying, undo",
-		.stage = 1, STEPS (editing_steps)
-	},
-	{
-		.id = "domains",
-		.title = "Domains and commands",
-		.stage = 1, STEPS (domains_steps)
-	},
-	{
-		.id = "steps",
-		.title = "Results and steps",
-		.stage = 1, STEPS (steps_steps)
-	},
-	{
-		.id = "help",
-		.title = "Help and the watch window",
-		.stage = 1, STEPS (help_steps)
-	},
-	{
-		.id = "numbers",
-		.title = "Numbers and operators",
-		.stage = 2, STEPS (numbers_steps)
-	},
-	{
-		.id = "names",
-		.title = "Names and functions",
-		.stage = 2, STEPS (names_steps)
-	},
-	{
-		.id = "errors",
-		.title = "Reading errors",
-		.stage = 2, STEPS (errors_steps)
-	},
-	{
-		.id = "matrices",
-		.title = "Matrices",
-		.stage = 2, STEPS (matrices_steps)
-	},
-	{
-		.id = "symbolic",
-		.title = "Derivatives, integrals, limits",
-		.stage = 2, STEPS (symbolic_steps)
-	},
-	{
-		.id = "units",
-		.title = "Units",
-		.stage = 2, STEPS (units_steps)
-	},
-	{
-		.id = "numsys",
-		.title = "Complex numbers, quaternions, statistics",
-		.stage = 2, STEPS (numbersystems_steps)
-	},
-	{
-		.id = "domains2",
-		.title = "Boolean algebra and lambda calculus",
-		.stage = 2, STEPS (otherdomains_steps)
+		const char *name = ml_text_nth_name ("lessons", i);
+		const char *dot  = strchr (name, '.');
+		uint64_t    len  = ml_choose (dot != NULL, (uint64_t)(dot - name), 0);
+
+		if (dot != NULL && is_new_id (name, len, i))
+		{
+			MlStr       id;
+			Span        span;
+			const char *stage;
+
+			memset (&span, 0, sizeof span);
+			ml_str_init (&id);
+			r = ml_str_append (&id, ml_slice (name, len));
+
+			if (r == ML_OK)
+			{
+				r = collect_steps (ml_str_cstr (id), &span);
+			}
+
+			if (r == ML_OK)
+			{
+				stage      = entry (ml_str_cstr (id), 0, "stage");
+				span.stage = atoi (ml_choose (stage != NULL, stage, "1"));
+				span.id    = ids.len;
+				r          = IdVec_push (&ids, id);
+			}
+
+			if (r == ML_OK && span.count > 0)
+			{
+				r = SpanVec_push (spans, span);
+			}
+
+			else if (r != ML_OK)
+			{
+				ml_str_free (&id);
+			}
+		}
 	}
-};
+
+	return r;
+}
+
+static void free_all (void)
+{
+	for (uint64_t i = 0; i < ids.len; i++)
+	{
+		ml_str_free (&ids.data [i]);
+	}
+
+	IdVec_free (&ids);
+	StepVec_free (&steps);
+	LessonVec_free (&lessons);
+}
+
+/* The lessons of one stage after another, each in the order of the file. */
+static MlResult make_lessons (const SpanVec *spans)
+{
+	MlResult r = ML_OK;
+
+	for (int32_t stage = 0; stage < 10 && r == ML_OK; stage++)
+	{
+		for (uint64_t i = 0; i < spans->len && r == ML_OK; i++)
+		{
+			Span        sp = spans->data [i];
+			const char *id = ml_str_cstr (ids.data [sp.id]);
+			const char *title = entry (id, 0, "title");
+			MlLesson    l = {
+				.id         = id,
+				.title      = ml_choose (title != NULL, title, id),
+				.stage      = sp.stage,
+				.step_count = sp.count,
+				.steps      = steps.data + sp.first
+			};
+
+			if (ml_choose (sp.stage > 9, 9, sp.stage) == stage)
+			{
+				r = LessonVec_push (&lessons, l);
+			}
+		}
+	}
+
+	return r;
+}
+
+/* Builds the lessons from the catalog again when the texts have changed. */
+static void ensure_built (void)
+{
+	if (built != ml_texts_generation ())
+	{
+		SpanVec  spans;
+		MlResult r;
+
+		SpanVec_init (&spans);
+		free_all ();
+		r = collect (&spans);
+
+		if (r == ML_OK)
+		{
+			r = make_lessons (&spans);
+		}
+
+		if (r != ML_OK)
+		{
+			free_all ();
+		}
+
+		SpanVec_free (&spans);
+		built = ml_texts_generation ();
+	}
+}
 
 uint64_t ml_lesson_count (void)
 {
-	return ml_count (lessons);
+	ensure_built ();
+
+	return lessons.len;
 }
 
 MlLesson ml_lesson_at (uint64_t index)
 {
-	return lessons [ml_choose (index < ml_count (lessons), index, 0)];
+	MlLesson none = {
+		.id         = "",
+		.title      = "",
+		.stage      = 0,
+		.step_count = 0,
+		.steps      = NULL
+	};
+
+	ensure_built ();
+
+	return ml_choose (index < lessons.len, lessons.data [index], none);
 }
 
 uint64_t ml_lesson_find (MlSlice id)
 {
-	uint64_t found = ml_count (lessons);
+	uint64_t found = ml_lesson_count ();
 
-	for (
-		uint64_t i = 0;
-		i < ml_count (lessons) && found == ml_count (lessons);
-		i++
-	)
+	for (uint64_t i = 0; i < lessons.len && found == lessons.len; i++)
 	{
-		if (ml_slice_equal (id, ml_slice_cstr (lessons [i].id)))
+		if (ml_slice_equal (id, ml_slice_cstr (lessons.data [i].id)))
 		{
 			found = i;
 		}
@@ -539,15 +410,11 @@ uint64_t ml_lesson_find (MlSlice id)
 
 uint64_t ml_lesson_first (int32_t stage)
 {
-	uint64_t found = ml_count (lessons);
+	uint64_t found = ml_lesson_count ();
 
-	for (
-		uint64_t i = 0;
-		i < ml_count (lessons) && found == ml_count (lessons);
-		i++
-	)
+	for (uint64_t i = 0; i < lessons.len && found == lessons.len; i++)
 	{
-		if (lessons [i].stage == stage)
+		if (lessons.data [i].stage == stage)
 		{
 			found = i;
 		}

@@ -6,6 +6,8 @@
 #include <matlog/platform/fs.h>
 #include <matlog/session/settings.h>
 #include <matlog/texts/texts.h>
+#include <matlog/tutorial/lessons.h>
+#include <matlog/ui/keymap.h>
 #include <matlog/ui/hint.h>
 
 #include <string.h>
@@ -283,6 +285,75 @@ static void test_hints (void)
 	ml_texts_reload ("en", NULL);
 }
 
+/* The lessons of the tutorial are entries of the catalog. */
+static void test_lessons (void)
+{
+	uint64_t count;
+	MlLesson lesson;
+
+	ml_texts_reload ("en", NULL);
+	count = ml_lesson_count ();
+	CHECK (count == 15);
+	CHECK (is (ml_lesson_at (0).id, "notes"));
+	CHECK (is (ml_lesson_at (0).title, "Writing and notes"));
+	CHECK (ml_lesson_first (1) == 0);
+	CHECK (ml_lesson_first (2) == 7);
+	CHECK (ml_lesson_find (lit ("math")) == 1);
+	CHECK (ml_lesson_at (1).steps [0].check == ML_CHECK_ACTION);
+	CHECK (ml_lesson_at (1).steps [0].arg == (int32_t)ML_ACT_BLOCK_NEW);
+	CHECK (ml_lesson_at (0).steps [1].arg == (int32_t)ML_KEY_UP);
+
+	/* a word mended in a file shows in the step */
+	CHECK (
+		ml_texts_add (lit ("[lessons]\nnotes.1.text = Hello. Type.\n"), NULL)
+		== ML_OK
+	);
+	CHECK (is (ml_lesson_at (0).steps [0].text, "Hello. Type."));
+
+	/* a new lesson is new entries; one of stage 2 goes after the others */
+	CHECK (
+		ml_texts_add (
+			lit (
+				"[lessons]\n"
+				"own.title = My lesson\n"
+				"own.stage = 2\n"
+				"own.1.check = notes\n"
+				"own.1.arg = 2\n"
+				"own.1.text = Write two notes.\n"
+				"own.1.answer = a<Enter>b<Enter>\n"
+				"own.2.check = state\n"
+				"own.2.arg = help\n"
+				"own.2.text = Open the help.\n"
+				"own.2.answer = <F1>\n"
+				"own.3.check = nonsense\n"
+				"own.3.text = A check that does not exist is left out.\n"
+				"own.4.check = key\n"
+				"own.4.arg = NoSuchKey\n"
+				"own.4.text = A key that does not exist is left out.\n"
+			),
+			NULL
+		) == ML_OK
+	);
+	CHECK (ml_lesson_count () == count + 1);
+	lesson = ml_lesson_at (ml_lesson_find (lit ("own")));
+	CHECK (lesson.stage == 2);
+	CHECK (lesson.step_count == 2);
+	CHECK (lesson.steps [0].check == ML_CHECK_NOTES);
+	CHECK (lesson.steps [0].arg == 2);
+	CHECK (lesson.steps [1].check == ML_CHECK_STATE);
+	CHECK (lesson.steps [1].arg == ML_TUT_HELP);
+	CHECK (ml_lesson_find (lit ("own")) == count);
+
+	ml_texts_reload ("en", NULL);
+	CHECK (ml_lesson_count () == count);
+	CHECK (
+		is (
+			ml_lesson_at (0).steps [0].text,
+			ml_text ("lessons.notes.1.text")
+		)
+	);
+}
+
 void run_texts_tests (void);
 
 void run_texts_tests (void)
@@ -293,4 +364,5 @@ void run_texts_tests (void)
 	test_language_file ();
 	test_complete ();
 	test_hints ();
+	test_lessons ();
 }

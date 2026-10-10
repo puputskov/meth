@@ -4,7 +4,9 @@
 #include <matlog/core/slice.h>
 
 /*
- * The lessons of the tutorial (plan section 4.9), as data. A lesson is a
+ * The lessons of the tutorial (plan section 4.9), as data: the section
+ * [lessons] of the texts catalog (texts/en.mltext, see lessons.c), so a lesson
+ * is added or a word mended in a file without a rebuild. A lesson is a
  * list of steps; a step says what to do and how to tell that it was done by
  * watching the real editor: the key that was pressed, the lines of the
  * session and their results, the state of the editor. Nothing here knows how

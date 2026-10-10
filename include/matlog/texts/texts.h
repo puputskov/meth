@@ -49,6 +49,16 @@ extern const uint64_t        ml_catalog_source_count;
  */
 const char *ml_text (const char *code);
 
+/* The text of a code, NULL when there is none. */
+const char *ml_text_find (const char *code);
+
+/*
+ * A number that changes whenever the texts change (a reload, or entries
+ * added): whoever builds something from the texts rebuilds when it is not
+ * the one it saw.
+ */
+uint64_t ml_texts_generation (void);
+
 /* The same for the code section.name. */
 const char *ml_text_in (const char *section, const char *name);
 
